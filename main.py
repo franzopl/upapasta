@@ -400,7 +400,9 @@ class UpaPastaOrchestrator:
         try:
             parser = UploadProgressParser()
             
-            # Inicializar barra de progresso com tqdm
+            print("📤 Iniciando upload... Aguarde o progresso aparecer.")
+            
+            # Inicializar barra de progresso com tqdm (mas não mostrar ainda)
             progress_bar = tqdm(
                 total=100,
                 desc="📤 Upload",
@@ -408,7 +410,11 @@ class UpaPastaOrchestrator:
                 bar_format="{desc}: {percentage:3.1f}%|{bar}| {n:.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
                 colour="green",
                 ncols=100,
+                initial=0,  # Começar em 0%
             )
+            
+            # Forçar exibição inicial da barra
+            progress_bar.refresh()
             
             # Executar upfolder em modo real-time para capturar output
             proc = subprocess.Popen(
@@ -420,6 +426,7 @@ class UpaPastaOrchestrator:
             )
 
             last_progress = 0.0
+            progress_started = False
 
             if proc.stdout:
                 for line in proc.stdout:
@@ -446,16 +453,26 @@ class UpaPastaOrchestrator:
                     if parsed["progress"] is not None:
                         progress = parsed["progress"] * 100  # converter para porcentagem
                         
-                        # Atualizar sempre que houver progresso, não apenas mudanças significativas
+                        # Mostrar barra na primeira vez que detectamos progresso
+                        if not progress_started:
+                            progress_started = True
+                            print("📊 Barra de progresso ativada!")
+                        
+                        # Atualizar sempre que houver progresso
                         if progress != last_progress:
                             progress_bar.n = progress
                             progress_bar.refresh()
                             last_progress = progress
                             
                             # Debug: mostrar progresso detalhado
-                            if self.debug and parsed["speed"] and parsed["eta"]:
-                                eta_str = parser.format_time(parsed["eta"])
-                                print(f"[DEBUG] Progress: {progress:.1f}%, Speed: {parsed['speed']:.2f} art/s, ETA: {eta_str}")
+                            if self.debug:
+                                debug_info = f"[DEBUG] Progress: {progress:.1f}%"
+                                if parsed["speed"]:
+                                    debug_info += f", Speed: {parsed['speed']:.2f} art/s"
+                                if parsed["eta"]:
+                                    eta_str = parser.format_time(parsed["eta"])
+                                    debug_info += f", ETA: {eta_str}"
+                                print(debug_info)
 
             # Finalizar barra de progresso
             progress_bar.n = 100
