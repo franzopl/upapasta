@@ -89,7 +89,12 @@ class UploadProgressParser:
             "eta": None,
         }
 
-        # Padrão: [INFO] Uploading X article(s) from Y file(s) totalling Z MiB
+        # Debug: mostrar linhas que podem conter progresso
+        if any(keyword in line.lower() for keyword in ["upload", "article", "file", "progress", "sent", "transfer"]):
+            # print(f"[DEBUG] Line: {line}")  # Descomente para debug
+            pass
+
+        # Padrão 1: [INFO] Uploading X article(s) from Y file(s) totalling Z MiB
         match = re.search(
             r"Uploading (\d+) article\(s\).*?(\d+(?:\.\d+)?) MiB",
             line,
@@ -100,12 +105,12 @@ class UploadProgressParser:
             self.start_time = time.time()
             result["info"] = f"Total: {self.total_articles} artigos ({self.total_size:.2f} MiB)"
 
-        # Padrão: Uploaded X/Y articles, Z/W files
+        # Padrão 2: Uploaded X/Y articles, Z/W files
         match = re.search(r"Uploaded (\d+)/(\d+) articles", line)
         if match:
             self.uploaded_articles = int(match.group(1))
             total = int(match.group(2))
-            if self.start_time:
+            if total > 0 and self.start_time:
                 elapsed = time.time() - self.start_time
                 if elapsed > 0:
                     speed_articles_per_sec = self.uploaded_articles / elapsed
@@ -115,12 +120,63 @@ class UploadProgressParser:
                     result["speed"] = float(speed_articles_per_sec)
                     result["eta"] = int(eta_seconds)
 
-        # Padrão: Finished uploading X MiB in YY:MM:SS.ZZZ (AA MiB/s)
+        # Padrão 3: Progress indicators like "X/Y" or "X of Y"
+        match = re.search(r"(\d+)\s*(?:/|of)\s*(\d+).*?articles?", line, re.IGNORECASE)
+        if match and not result["progress"]:
+            current = int(match.group(1))
+            total = int(match.group(2))
+            if total > 0:
+                self.uploaded_articles = current
+                self.total_articles = total
+                if self.start_time:
+                    elapsed = time.time() - self.start_time
+                    if elapsed > 0:
+                        speed_articles_per_sec = current / elapsed
+                        remaining = total - current
+                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
+                        result["progress"] = float(current / total)
+                        result["speed"] = float(speed_articles_per_sec)
+                        result["eta"] = int(eta_seconds)
+
+        # Padrão 4: Percentage indicators
+        match = re.search(r"(\d+(?:\.\d+)?)%", line)
+        if match and not result["progress"]:
+            percent = float(match.group(1)) / 100.0
+            if 0 <= percent <= 1:
+                result["progress"] = percent
+                # Estimate speed and ETA if we have timing
+                if self.start_time:
+                    elapsed = time.time() - self.start_time
+                    if elapsed > 0 and percent > 0:
+                        speed_percent_per_sec = percent / elapsed
+                        remaining_percent = 1.0 - percent
+                        eta_seconds = remaining_percent / speed_percent_per_sec if speed_percent_per_sec > 0 else 0
+                        result["speed"] = speed_percent_per_sec * 100  # convert to %/s
+                        result["eta"] = int(eta_seconds)
+
+        # Padrão 5: "X articles sent" or similar
+        match = re.search(r"(\d+)\s+articles?\s+sent", line, re.IGNORECASE)
+        if match and self.total_articles:
+            sent = int(match.group(1))
+            if sent > self.uploaded_articles:  # Only update if it's new info
+                self.uploaded_articles = sent
+                if self.start_time:
+                    elapsed = time.time() - self.start_time
+                    if elapsed > 0:
+                        speed_articles_per_sec = sent / elapsed
+                        remaining = self.total_articles - sent
+                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
+                        result["progress"] = float(sent / self.total_articles)
+                        result["speed"] = float(speed_articles_per_sec)
+                        result["eta"] = int(eta_seconds)
+
+        # Padrão 6: Finished uploading X MiB in YY:MM:SS.ZZZ (AA MiB/s)
         match = re.search(r"Finished uploading ([\d.]+) MiB.*?\(([\d.]+) MiB/s\)", line)
         if match:
             self.uploaded_size = float(match.group(1))
             speed = float(match.group(2))
             result["info"] = f"Concluído: {self.uploaded_size:.2f} MiB ({speed:.2f} MiB/s)"
+            result["progress"] = 1.0  # 100% when finished
 
         self.lines_processed += 1
         return result
@@ -153,6 +209,7 @@ class UpaPastaOrchestrator:
         env_file: str = ".env",
         keep_files: bool = False,
         backend: str = "parpar",
+        debug: bool = False,
     ):
         self.folder_path = Path(folder_path).absolute()
         self.dry_run = dry_run
@@ -167,6 +224,7 @@ class UpaPastaOrchestrator:
         self.env_file = env_file
         self.keep_files = keep_files
         self.backend = backend
+        self.debug = debug
         self.rar_file: str | None = None
         self.par_file: str | None = None
 
@@ -369,6 +427,10 @@ class UpaPastaOrchestrator:
                     if not line:
                         continue
 
+                    # Debug: mostrar todas as linhas se --debug estiver ativado
+                    if self.debug:
+                        print(f"[DEBUG] {line}")
+
                     parsed = parser.parse_line(line)
                     
                     # Mostrar informações importantes
@@ -384,11 +446,16 @@ class UpaPastaOrchestrator:
                     if parsed["progress"] is not None:
                         progress = parsed["progress"] * 100  # converter para porcentagem
                         
-                        # Só atualizar se houve mudança significativa
-                        if abs(progress - last_progress) >= 0.1:  # mínimo 0.1% de mudança
+                        # Atualizar sempre que houver progresso, não apenas mudanças significativas
+                        if progress != last_progress:
                             progress_bar.n = progress
                             progress_bar.refresh()
                             last_progress = progress
+                            
+                            # Debug: mostrar progresso detalhado
+                            if self.debug and parsed["speed"] and parsed["eta"]:
+                                eta_str = parser.format_time(parsed["eta"])
+                                print(f"[DEBUG] Progress: {progress:.1f}%, Speed: {parsed['speed']:.2f} art/s, ETA: {eta_str}")
 
             # Finalizar barra de progresso
             progress_bar.n = 100
@@ -570,6 +637,11 @@ def parse_args():
         action="store_true",
         help="Mantém arquivos RAR e PAR2 após upload",
     )
+    p.add_argument(
+        "--debug",
+        action="store_true",
+        help="Mostra output detalhado do nyuu para debug",
+    )
     return p.parse_args()
 
 
@@ -590,6 +662,7 @@ def main():
         force=args.force,
         env_file=args.env_file,
         keep_files=args.keep_files,
+        debug=args.debug,
     )
 
     rc = orchestrator.run()
