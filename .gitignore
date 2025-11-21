@@ -57,6 +57,7 @@ logs/
 *.nzb
 checkpoint.json
 upapasta.db
+nzb
 
 # Temporários
 tmp_test_folder/

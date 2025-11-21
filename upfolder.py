@@ -30,6 +30,8 @@ import os
 import shutil
 import subprocess
 import sys
+import random
+import string
 
 
 def load_env_file(env_path: str = ".env") -> dict:
@@ -82,6 +84,27 @@ def parse_args():
         help="Caminho para arquivo .env (padrão: .env)",
     )
     return p.parse_args()
+
+
+def generate_anonymous_uploader() -> str:
+    """Gera um nome de uploader aleatório e anônimo para proteger privacidade."""
+    # Lista de nomes comuns para anonimato
+    first_names = [
+        "Anonymous", "User", "Poster", "Uploader", "Contributor", "Member",
+        "Guest", "Visitor", "Participant", "Sender", "Provider", "Supplier"
+    ]
+    
+    # Adiciona um sufixo aleatório de 4 dígitos
+    suffix = ''.join(random.choices(string.digits, k=4))
+    
+    # Escolhe um nome aleatório
+    name = random.choice(first_names)
+    
+    # Gera um domínio aleatório
+    domains = ["anonymous.net", "upload.net", "poster.com", "user.org", "generic.mail"]
+    domain = random.choice(domains)
+    
+    return f"{name}{suffix} <{name}{suffix}@{domain}>"
 
 
 def upload_to_usenet(
@@ -192,6 +215,8 @@ def upload_to_usenet(
         "-n", str(nntp_connections),
         "-g", usenet_group,
         "-a", article_size,
+        "-f", generate_anonymous_uploader(),  # Nome anônimo para proteger privacidade
+        "--date", "now",  # Fixar timestamp para proteger privacidade
         "-s", subject,
     ])
     
@@ -223,26 +248,13 @@ def upload_to_usenet(
     print()
 
     try:
-        proc = subprocess.Popen(
-            cmd,  # type: ignore
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
-
-        if proc.stdout is not None:
-            for line in proc.stdout:
-                sys.stdout.write(line)
-                sys.stdout.flush()
-
-        rc = proc.wait()
-        if rc == 0:
-            print("\nUpload concluído com sucesso.")
-            return 0
-        else:
-            print(f"\nErro: nyuu retornou código {rc}.")
-            return 5
+        # Executar nyuu e deixar que ele controle o output diretamente
+        # Isso permite que a barra de progresso nativa do nyuu funcione
+        subprocess.run(cmd, check=True)
+        return 0
+    except subprocess.CalledProcessError as e:
+        print(f"\nErro: nyuu retornou código {e.returncode}.")
+        return 5
     except Exception as e:
         print(f"Erro ao executar nyuu: {e}")
         return 5

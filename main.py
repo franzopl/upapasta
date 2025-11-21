@@ -42,226 +42,56 @@ import re
 import subprocess
 import sys
 import time
+import pty
 from pathlib import Path
 
-try:
-    from tqdm import tqdm  # type: ignore
-except ImportError:
-    # Fallback se tqdm não estiver instalado
-    class tqdm:  # type: ignore
-        def __init__(self, iterable=None, desc="", total=None, **kwargs):
-            self.iterable = iterable
-            self.desc = desc
-            self.total = total or (len(iterable) if iterable else 0)
-            self.current = 0
 
-        def __iter__(self):
-            for item in self.iterable or []:
-                self.current += 1
-                if self.desc:
-                    print(f"{self.desc} [{self.current}/{self.total}]")
-                yield item
+def run_command_with_pty(cmd: list[str]) -> None:
+    """Executa um comando em um pseudo-terminal para preservar o output formatado."""
+    master, slave = pty.openpty()
+    
+    # Inicia o processo
+    process = subprocess.Popen(cmd, stdout=slave, stderr=slave, close_fds=True)
+    
+    # Fecha o descritor do slave no processo pai
+    os.close(slave)
+    
+    # Lê o output do master
+    try:
+        while True:
+            try:
+                # Lê até 1024 bytes do processo filho
+                data = os.read(master, 1024)
+            except OSError:
+                # OSError (por ex, EIO) significa que o processo filho terminou
+                break
+            
+            if not data:
+                break
+                
+            # Escreve o output para o stdout do terminal atual
+            sys.stdout.buffer.write(data)
+            sys.stdout.buffer.flush()
+            
+    finally:
+        # Fecha o master
+        os.close(master)
+        
+        # Espera o processo terminar e verifica o código de retorno
+        ret_code = process.wait()
+        if ret_code != 0:
+            # Levanta um erro se o comando falhou
+            raise subprocess.CalledProcessError(ret_code, cmd)
 
-        def update(self, n=1):
-            self.current += n
-            if self.desc:
-                print(f"{self.desc} [{self.current}/{self.total}]")
 
-
-class UploadProgressParser:
-    """Parser para extrair progresso do output nyuu."""
-
-    def __init__(self, debug: bool = False):
-        self.total_articles: int | None = None
-        self.uploaded_articles = 0
-        self.total_size: float | None = None
-        self.uploaded_size = 0.0
-        self.start_time: float | None = None
-        self.lines_processed = 0
-        self.debug = debug
-
-    def parse_line(self, line: str) -> dict:
-        """Parse uma linha de output nyuu e extrai informações de progresso."""
-        result: dict = {
-            "raw": line,
-            "info": None,
-            "progress": None,
-            "speed": None,
-            "eta": None,
-        }
-
-        # Debug: mostrar linhas que podem conter progresso
-        if any(keyword in line.lower() for keyword in ["upload", "article", "file", "progress", "sent", "transfer", "sending"]):
-            if self.debug:
-                print(f"[DEBUG] Potential progress line: {line}")
-
-        # Padrão 1: [INFO] Uploading X article(s) from Y file(s) totalling Z MiB
-        match = re.search(
-            r"Uploading (\d+) article\(s\).*?(\d+(?:\.\d+)?) MiB",
-            line,
-        )
-        if match:
-            self.total_articles = int(match.group(1))
-            self.total_size = float(match.group(2))
-            self.start_time = time.time()
-            result["info"] = f"Total: {self.total_articles} artigos ({self.total_size:.2f} MiB)"
-            if self.debug:
-                print(f"[DEBUG] Pattern 1 matched: {self.total_articles} articles, {self.total_size} MiB")
-
-        # Padrão 2: Uploaded X/Y articles, Z/W files
-        match = re.search(r"Uploaded (\d+)/(\d+) articles", line)
-        if match:
-            self.uploaded_articles = int(match.group(1))
-            total = int(match.group(2))
-            if total > 0 and self.start_time:
-                elapsed = time.time() - self.start_time
-                if elapsed > 0:
-                    speed_articles_per_sec = self.uploaded_articles / elapsed
-                    remaining = total - self.uploaded_articles
-                    eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
-                    result["progress"] = float(self.uploaded_articles / total)
-                    result["speed"] = float(speed_articles_per_sec)
-                    result["eta"] = int(eta_seconds)
-                    if self.debug:
-                        print(f"[DEBUG] Pattern 2 matched: {self.uploaded_articles}/{total} articles, progress: {result['progress']:.3f}")
-
-        # Padrão 3: Progress indicators like "X/Y" or "X of Y" (articles)
-        match = re.search(r"(\d+)\s*(?:/|of)\s*(\d+).*?articles?", line, re.IGNORECASE)
-        if match and not result["progress"]:
-            current = int(match.group(1))
-            total = int(match.group(2))
-            if total > 0:
-                self.uploaded_articles = current
-                self.total_articles = total
-                if self.start_time:
-                    elapsed = time.time() - self.start_time
-                    if elapsed > 0:
-                        speed_articles_per_sec = current / elapsed
-                        remaining = total - current
-                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
-                        result["progress"] = float(current / total)
-                        result["speed"] = float(speed_articles_per_sec)
-                        result["eta"] = int(eta_seconds)
-                        if self.debug:
-                            print(f"[DEBUG] Pattern 3 matched: {current}/{total} articles, progress: {result['progress']:.3f}")
-
-        # Padrão 4: "sending article X of Y" or "article X of Y"
-        match = re.search(r"(?:sending\s+)?article\s+(\d+)\s+of\s+(\d+)", line, re.IGNORECASE)
-        if match and not result["progress"]:
-            current = int(match.group(1))
-            total = int(match.group(2))
-            if total > 0:
-                self.uploaded_articles = current
-                self.total_articles = total
-                if self.start_time:
-                    elapsed = time.time() - self.start_time
-                    if elapsed > 0:
-                        speed_articles_per_sec = current / elapsed
-                        remaining = total - current
-                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
-                        result["progress"] = float(current / total)
-                        result["speed"] = float(speed_articles_per_sec)
-                        result["eta"] = int(eta_seconds)
-                        if self.debug:
-                            print(f"[DEBUG] Pattern 4 matched: article {current} of {total}, progress: {result['progress']:.3f}")
-
-        # Padrão 5: "X/Y" sem contexto específico (mas com números próximos)
-        match = re.search(r"(\d+)\s*/\s*(\d+)", line)
-        if match and not result["progress"] and not any(word in line.lower() for word in ["file", "files", "mb", "mib", "kb", "kib"]):
-            current = int(match.group(1))
-            total = int(match.group(2))
-            if total > 0 and total < 10000:  # Reasonable limit for articles
-                self.uploaded_articles = current
-                self.total_articles = total
-                if self.start_time:
-                    elapsed = time.time() - self.start_time
-                    if elapsed > 0:
-                        speed_articles_per_sec = current / elapsed
-                        remaining = total - current
-                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
-                        result["progress"] = float(current / total)
-                        result["speed"] = float(speed_articles_per_sec)
-                        result["eta"] = int(eta_seconds)
-                        if self.debug:
-                            print(f"[DEBUG] Pattern 5 matched: {current}/{total}, progress: {result['progress']:.3f}")
-
-        # Padrão 6: Percentage indicators
-        match = re.search(r"(\d+(?:\.\d+)?)%", line)
-        if match and not result["progress"]:
-            percent = float(match.group(1)) / 100.0
-            if 0 <= percent <= 1:
-                result["progress"] = percent
-                # Estimate speed and ETA if we have timing
-                if self.start_time:
-                    elapsed = time.time() - self.start_time
-                    if elapsed > 0 and percent > 0:
-                        speed_percent_per_sec = percent / elapsed
-                        remaining_percent = 1.0 - percent
-                        eta_seconds = remaining_percent / speed_percent_per_sec if speed_percent_per_sec > 0 else 0
-                        result["speed"] = speed_percent_per_sec * 100  # convert to %/s
-                        result["eta"] = int(eta_seconds)
-                        if self.debug:
-                            print(f"[DEBUG] Pattern 6 matched: {percent:.1%}, progress: {result['progress']:.3f}")
-
-        # Padrão 7: "X articles sent" or similar
-        match = re.search(r"(\d+)\s+articles?\s+sent", line, re.IGNORECASE)
-        if match and self.total_articles:
-            sent = int(match.group(1))
-            if sent > self.uploaded_articles:  # Only update if it's new info
-                self.uploaded_articles = sent
-                if self.start_time:
-                    elapsed = time.time() - self.start_time
-                    if elapsed > 0:
-                        speed_articles_per_sec = sent / elapsed
-                        remaining = self.total_articles - sent
-                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
-                        result["progress"] = float(sent / self.total_articles)
-                        result["speed"] = float(speed_articles_per_sec)
-                        result["eta"] = int(eta_seconds)
-                        if self.debug:
-                            print(f"[DEBUG] Pattern 7 matched: {sent} articles sent, progress: {result['progress']:.3f}")
-
-        # Padrão 8: "sending X/Y" or "transfer X/Y"
-        match = re.search(r"(?:sending|transfer)\s+(\d+)\s*/\s*(\d+)", line, re.IGNORECASE)
-        if match and not result["progress"]:
-            current = int(match.group(1))
-            total = int(match.group(2))
-            if total > 0:
-                self.uploaded_articles = current
-                self.total_articles = total
-                if self.start_time:
-                    elapsed = time.time() - self.start_time
-                    if elapsed > 0:
-                        speed_articles_per_sec = current / elapsed
-                        remaining = total - current
-                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
-                        result["progress"] = float(current / total)
-                        result["speed"] = float(speed_articles_per_sec)
-                        result["eta"] = int(eta_seconds)
-                        if self.debug:
-                            print(f"[DEBUG] Pattern 8 matched: sending {current}/{total}, progress: {result['progress']:.3f}")
-
-        # Padrão 9: Finished uploading X MiB in YY:MM:SS.ZZZ (AA MiB/s)
-        match = re.search(r"Finished uploading ([\d.]+) MiB.*?\(([\d.]+) MiB/s\)", line)
-        if match:
-            self.uploaded_size = float(match.group(1))
-            speed = float(match.group(2))
-            result["info"] = f"Concluído: {self.uploaded_size:.2f} MiB ({speed:.2f} MiB/s)"
-            result["progress"] = 1.0  # 100% when finished
-            if self.debug:
-                print("[DEBUG] Pattern 9 matched: finished, progress: 1.0")
-
-        self.lines_processed += 1
-        return result
-
-    def format_time(self, seconds: int) -> str:
-        """Formata segundos como HH:MM:SS."""
-        if seconds < 0:
-            return "00:00:00"
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        secs = seconds % 60
-        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+def format_time(seconds: int) -> str:
+    """Formata segundos como HH:MM:SS."""
+    if seconds < 0:
+        return "00:00:00"
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    secs = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
 class UpaPastaOrchestrator:
@@ -282,7 +112,6 @@ class UpaPastaOrchestrator:
         env_file: str = ".env",
         keep_files: bool = False,
         backend: str = "parpar",
-        debug: bool = False,
     ):
         self.folder_path = Path(folder_path).absolute()
         self.dry_run = dry_run
@@ -297,7 +126,6 @@ class UpaPastaOrchestrator:
         self.env_file = env_file
         self.keep_files = keep_files
         self.backend = backend
-        self.debug = debug
         self.rar_file: str | None = None
         self.par_file: str | None = None
 
@@ -351,25 +179,23 @@ class UpaPastaOrchestrator:
             return True
 
         print(f"📥 Compactando {self.folder_path.name}...")
+        print("-" * 60)
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
-            if result.returncode == 0:
-                self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
-                if os.path.exists(self.rar_file):
-                    size_mb = os.path.getsize(self.rar_file) / (1024 * 1024)
-                    print(f"✅ RAR criado com sucesso: {size_mb:.2f} MB")
-                    return True
-                else:
-                    print("❌ Erro: RAR não foi criado.")
-                    return False
+            run_command_with_pty(cmd)
+            print("-" * 60)
+            self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
+            if os.path.exists(self.rar_file):
+                return True
             else:
-                print("❌ Erro ao criar RAR:")
-                print(result.stdout)
-                print(result.stderr)
+                print("❌ Erro: Arquivo RAR não foi encontrado após a execução bem-sucedida.")
                 return False
+        except subprocess.CalledProcessError:
+            print("-" * 60)
+            print("\n❌ Erro ao criar RAR. Veja o output acima para detalhes.")
+            return False
         except Exception as e:
-            print(f"❌ Erro ao executar makerar.py: {e}")
+            print(f"❌ Erro inesperado ao executar makerar.py: {e}")
             return False
 
     def run_makepar(self) -> bool:
@@ -413,39 +239,37 @@ class UpaPastaOrchestrator:
             return True
 
         print(f"🔐 Gerando paridade com {self.redundancy}% de redundância...")
+        print("-" * 60)
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
-            if result.returncode == 0:
-                self.par_file = os.path.splitext(self.rar_file)[0] + ".par2"
-                if os.path.exists(self.par_file):
-                    size_mb = os.path.getsize(self.par_file) / (1024 * 1024)
-                    print(f"✅ Paridade criada com sucesso: {size_mb:.2f} MB")
-                    return True
-                else:
-                    print("❌ Erro: paridade não foi criada.")
-                    return False
+            run_command_with_pty(cmd)
+            print("-" * 60)
+            self.par_file = os.path.splitext(self.rar_file)[0] + ".par2"
+            if os.path.exists(self.par_file):
+                return True
             else:
-                print("❌ Erro ao gerar paridade:")
-                print(result.stdout)
-                print(result.stderr)
+                print("❌ Erro: Arquivo de paridade não foi encontrado após a execução bem-sucedida.")
                 return False
+        except subprocess.CalledProcessError:
+            print("-" * 60)
+            print("\n❌ Erro ao gerar paridade. Veja o output acima para detalhes.")
+            return False
         except Exception as e:
-            print(f"❌ Erro ao executar makepar.py: {e}")
+            print(f"❌ Erro inesperado ao executar makepar.py: {e}")
             return False
 
     def run_upload(self) -> bool:
-        """Executa upfolder.py com visualização de progresso melhorada."""
+        """Executa upfolder.py, permitindo que a barra de progresso nativa apareça."""
         if not self.rar_file:
             print("Erro: arquivo RAR não definido.")
             return False
-
-        if not self.par_file:
-            print("Erro: arquivo PAR2 não definido.")
-            return False
+        
+        if self.dry_run:
+            print("DRY-RUN: Pularia o upload.")
+            return True
 
         print("\n" + "=" * 60)
-        print("ETAPA 3: Upload para Usenet")
+        print("📤 ETAPA 3: Upload para Usenet")
         print("=" * 60)
 
         cmd = [
@@ -457,169 +281,21 @@ class UpaPastaOrchestrator:
         ]
         if self.group:
             cmd.extend(["--group", self.group])
-
+        
         if self.dry_run:
             cmd.append("--dry-run")
             print(f"[DRY-RUN] Comando: {' '.join(cmd)}")
-            print(f"[DRY-RUN] Upload será feito com subject: {self.subject}")
             return True
 
-        print("\n📤 Iniciando upload para Usenet...")
-        print(f"   Subject: {self.subject}")
-        if self.group:
-            print(f"   Grupo:   {self.group}")
-        print()
-
         try:
-            parser = UploadProgressParser(debug=self.debug)
-            
-            print("📤 Iniciando upload... Aguarde o progresso aparecer.")
-            
-            # Inicializar barra de progresso com tqdm
-            progress_bar = tqdm(
-                total=100,
-                desc="📤 Upload",
-                unit="%",
-                bar_format="{desc}: {percentage:3.1f}%|{bar}| {n:.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
-                colour="green",
-                ncols=100,
-                initial=0,  # Começar em 0%
-            )
-            
-            # Forçar exibição inicial da barra
-            progress_bar.refresh()
-            
-            # Executar upfolder em modo real-time para capturar output
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-
-            last_progress = 0.0
-            progress_started = False
-            estimated_progress = 0.0
-            upload_start_time = None
-            nzb_file_path = None
-            nzb_initial_size = 0
-
-            if proc.stdout:
-                for line in proc.stdout:
-                    line = line.strip()
-                    if not line:
-                        continue
-
-                    # Debug: mostrar todas as linhas se --debug estiver ativado
-                    if self.debug:
-                        print(f"[DEBUG] {line}")
-
-                    parsed = parser.parse_line(line)
-                    
-                    # Capturar caminho do arquivo NZB
-                    if "NZB será salvo em:" in line:
-                        nzb_file_path = line.split("NZB será salvo em:")[-1].strip()
-                        if self.debug:
-                            print(f"[DEBUG] NZB file path detected: {nzb_file_path}")
-                    
-                    # Mostrar informações importantes
-                    if "INFO" in line or "Uploading" in line or "Finished" in line:
-                        if parsed["info"]:
-                            print(f"ℹ️  {parsed['info']}")
-                        elif "Reading file" in line:
-                            print(f"📖 {line.split('] ')[-1] if '] ' in line else line}")
-                        elif "All file" in line:
-                            print(f"✓  {line.split('] ')[-1] if '] ' in line else line}")
-                    
-                    # Detectar início do upload real
-                    if "Uploading" in line and "article(s)" in line and not progress_started:
-                        progress_started = True
-                        upload_start_time = time.time()
-                        print("📊 Barra de progresso ativada!")
-                        
-                        # Inicializar monitoramento do NZB se o arquivo foi detectado
-                        if nzb_file_path and os.path.exists(nzb_file_path):
-                            nzb_initial_size = os.path.getsize(nzb_file_path)
-                    
-                    # Atualizar barra de progresso quando disponível
-                    if parsed["progress"] is not None:
-                        progress = parsed["progress"] * 100  # converter para porcentagem
-                        
-                        # Atualizar sempre que houver progresso
-                        if progress != last_progress:
-                            progress_bar.n = progress
-                            progress_bar.refresh()
-                            last_progress = progress
-                            
-                            # Debug: mostrar progresso detalhado
-                            if self.debug:
-                                debug_info = f"[DEBUG] Progress: {progress:.1f}%"
-                                if parsed["speed"]:
-                                    debug_info += f", Speed: {parsed['speed']:.2f} art/s"
-                                if parsed["eta"]:
-                                    eta_str = parser.format_time(parsed["eta"])
-                                    debug_info += f", ETA: {eta_str}"
-                                print(debug_info)
-                    
-                    # Monitoramento do arquivo NZB (mais preciso que estimativa)
-                    elif progress_started and nzb_file_path and os.path.exists(nzb_file_path):
-                        current_nzb_size = os.path.getsize(nzb_file_path)
-                        if current_nzb_size > nzb_initial_size and parser.total_articles:
-                            # Estimativa baseada no crescimento do NZB
-                            # Assumir que o NZB cresce proporcionalmente aos artigos enviados
-                            # Um NZB típico tem ~100-200 bytes por artigo
-                            estimated_bytes_per_article = 150
-                            expected_nzb_growth = parser.total_articles * estimated_bytes_per_article
-                            
-                            if expected_nzb_growth > 0:
-                                actual_growth = current_nzb_size - nzb_initial_size
-                                nzb_progress = min(90, (actual_growth / expected_nzb_growth) * 100)  # Máximo 90%
-                                
-                                if abs(nzb_progress - last_progress) >= 5.0:  # Atualizar a cada 5%
-                                    progress_bar.n = nzb_progress
-                                    progress_bar.refresh()
-                                    last_progress = nzb_progress
-                                    
-                                    if self.debug:
-                                        print(f"[DEBUG] NZB-based progress: {nzb_progress:.1f}% (NZB size: {current_nzb_size} bytes)")
-                    
-                    # Fallback: Estimativa baseada em tempo
-                    elif progress_started and upload_start_time and parser.total_articles and parser.total_size and last_progress < 10:
-                        elapsed = time.time() - upload_start_time
-                        
-                        # Estimativa baseada no tamanho: assumir ~25 KB/s de upload (conservador)
-                        estimated_upload_rate = 25 * 1024  # 25 KB/s (bytes por segundo)
-                        estimated_total_bytes = parser.total_size * 1024  # converter KiB para bytes
-                        estimated_total_time = estimated_total_bytes / estimated_upload_rate
-                        
-                        if estimated_total_time > 0:
-                            estimated_progress = min(85, (elapsed / estimated_total_time) * 100)  # Máximo 85% até confirmação
-                            
-                            # Só mostrar estimativa se não temos progresso do NZB
-                            if abs(estimated_progress - last_progress) >= 5.0:  # Mínimo 5% de mudança
-                                progress_bar.n = estimated_progress
-                                progress_bar.refresh()
-                                last_progress = estimated_progress
-                                
-                                if self.debug:
-                                    estimated_mb = estimated_total_bytes / (1024 * 1024)
-                                    print(f"[DEBUG] Time-based estimated progress: {estimated_progress:.1f}% ({elapsed:.1f}s elapsed, {estimated_mb:.1f} MB total)")
-
-            # Finalizar barra de progresso
-            progress_bar.n = 100
-            progress_bar.close()
-            print()
-
-            rc = proc.wait()
-            if rc == 0:
-                print("✅ Upload concluído com sucesso!")
-                return True
-            else:
-                print(f"❌ Erro: upfolder.py retornou código {rc}.")
-                return False
+            # Executar upfolder.py e deixar que ele mostre o output do nyuu
+            run_command_with_pty(cmd)
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"\n❌ Erro: upfolder.py retornou código {e.returncode}.")
+            return False
         except Exception as e:
-            print(f"❌ Erro ao executar upfolder.py: {e}")
+            print(f"\n❌ Erro ao executar upfolder.py: {e}")
             return False
 
     def cleanup(self) -> None:
@@ -665,6 +341,23 @@ class UpaPastaOrchestrator:
 
     def run(self) -> int:
         """Executa o workflow completo."""
+        
+        # --- Timers e stats ---
+        timings = {
+            "total": 0.0, "rar": 0.0, "par": 0.0, "upload": 0.0
+        }
+        stats = {
+            "rar_size_mb": 0.0, "par2_size_mb": 0.0, "par2_file_count": 0
+        }
+        total_start_time = time.time()
+        
+        # Tenta carregar o grupo do .env para mostrar no sumário
+        try:
+            env_vars = load_env_file(self.env_file)
+            group_from_env = env_vars.get("USENET_GROUP")
+        except Exception:
+            group_from_env = None
+
         print("\n" + "=" * 60)
         print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
         print("=" * 60)
@@ -682,39 +375,85 @@ class UpaPastaOrchestrator:
 
         # Etapa 1: Criar RAR
         if not self.skip_rar:
+            step_start_time = time.time()
             if not self.run_makerar():
                 return 1
+            timings["rar"] = time.time() - step_start_time
         else:
             if not self.run_makerar():  # tenta pular, mas valida existência
                 return 1
 
         # Etapa 2: Gerar paridade
         if not self.skip_par:
+            step_start_time = time.time()
             if not self.run_makepar():
                 return 2
+            timings["par"] = time.time() - step_start_time
         else:
             if not self.run_makepar():  # tenta pular, mas valida existência
                 return 2
 
+        # Coletar informações dos arquivos ANTES do upload/cleanup
+        if self.rar_file and os.path.exists(self.rar_file):
+            stats["rar_size_mb"] = os.path.getsize(self.rar_file) / (1024 * 1024)
+            
+            base_name = os.path.splitext(self.rar_file)[0]
+            import glob
+            par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
+            stats["par2_file_count"] = len(par_volumes)
+            total_par_size_bytes = sum(os.path.getsize(f) for f in par_volumes)
+            stats["par2_size_mb"] = total_par_size_bytes / (1024 * 1024)
+
         # Etapa 3: Upload
         if not self.skip_upload:
+            step_start_time = time.time()
             if not self.run_upload():
                 return 3
+            timings["upload"] = time.time() - step_start_time
             # Limpar arquivos após upload bem-sucedido
             self.cleanup()
         else:
             print("\n⏭️  [--skip-upload] Upload foi pulado.")
 
-        # Sucesso
-        print("\n" + "=" * 60)
-        print("✅ Workflow concluído com sucesso!")
+        timings["total"] = time.time() - total_start_time
+        
+        # --- SUMÁRIO FINAL ---
+        print("\n\n" + "=" * 60)
+        print("🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉")
         print("=" * 60)
-        print("\nArquivos gerados:")
-        print(f"  📦 RAR:  {self.rar_file}")
-        print(f"  🛡️  PAR2: {self.par_file}")
+        
+        print("\n📊 RESUMO DA OPERAÇÃO:")
+        print("-" * 25)
+        print(f"  » Pasta de Origem: {self.folder_path.name}")
         if not self.skip_upload:
-            print(f"\n✉️  Upload concluído para: {self.subject}")
-        print()
+            # Mostra o grupo do argumento, ou do .env, ou um fallback
+            display_group = self.group or group_from_env or "(Não especificado)"
+            print(f"  » Subject da Postagem: {self.subject}")
+            print(f"  » Grupo Usenet: {display_group}")
+
+        print("\n⏱️ ESTATÍSTICAS DE TEMPO:")
+        print("-" * 25)
+        print(f"  » Tempo para criar RAR:    {format_time(int(timings['rar']))}")
+        print(f"  » Tempo para gerar PAR2:   {format_time(int(timings['par']))}")
+        if not self.skip_upload:
+            print(f"  » Tempo de Upload:         {format_time(int(timings['upload']))}")
+        print("-" * 25)
+        print(f"  » Tempo Total:             {format_time(int(timings['total']))}")
+
+        print("\n📦 ARQUIVOS GERADOS:")
+        print("-" * 25)
+        if stats["rar_size_mb"] > 0:
+            print(f"  » Arquivo RAR: {os.path.basename(self.rar_file)} ({stats['rar_size_mb']:.2f} MB)")
+        
+        if stats["par2_file_count"] > 0:
+            print(f"  » Arquivos PAR2: {stats['par2_file_count']} arquivos ({stats['par2_size_mb']:.2f} MB)")
+
+        print("-" * 25)
+        total_size = stats['rar_size_mb'] + stats['par2_size_mb']
+        print(f"  » Tamanho Total: {total_size:.2f} MB")
+
+        print("\n" + "=" * 60 + "\n")
+
         return 0
 
 
@@ -786,11 +525,6 @@ def parse_args():
         action="store_true",
         help="Mantém arquivos RAR e PAR2 após upload",
     )
-    p.add_argument(
-        "--debug",
-        action="store_true",
-        help="Mostra output detalhado do nyuu para debug",
-    )
     return p.parse_args()
 
 
@@ -811,7 +545,6 @@ def main():
         force=args.force,
         env_file=args.env_file,
         keep_files=args.keep_files,
-        debug=args.debug,
     )
 
     rc = orchestrator.run()
