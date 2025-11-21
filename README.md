@@ -23,7 +23,7 @@ python3 main.py /caminho/para/pasta
 ## 📋 O que faz
 
 1. ✅ Cria arquivo RAR (sem compressão, apenas store)
-2. ✅ Gera paridade PAR2 (15% redundância padrão)
+2. ✅ Gera paridade PAR2 com **parpar** (15% redundância padrão)
 3. ✅ Faz upload para Usenet via nyuu
 4. ✅ Mostra progresso em tempo real
 5. ✅ Limpa arquivos temporários automaticamente
@@ -36,16 +36,26 @@ python3 main.py /caminho/para/pasta
 
 ### Ferramentas Externas
 ```bash
-# Ubuntu/Debian
-sudo apt-get install rar par2 nyuu
+# Ubuntu/Debian (RECOMENDADO)
+sudo apt-get install rar nyuu
+npm install -g parpar  # parpar é o backend padrão (mais rápido)
 
-# macOS
-brew install rar par2
-npm install -g nyuu
+# Alternativa: par2 (mais lento, mas compatível)
+sudo apt-get install par2
 
-# Fedora
-sudo dnf install rar par2cmdline-mt
-sudo npm install -g nyuu
+# macOS (RECOMENDADO)
+brew install rar
+npm install -g nyuu parpar  # parpar é o backend padrão (mais rápido)
+
+# Alternativa: par2 (mais lento, mas compatível)
+brew install par2
+
+# Fedora (RECOMENDADO)
+sudo dnf install rar
+sudo npm install -g nyuu parpar  # parpar é o backend padrão (mais rápido)
+
+# Alternativa: par2 (mais lento, mas compatível)
+sudo dnf install par2cmdline-mt
 ```
 
 ## 🔧 Instalação
@@ -78,6 +88,7 @@ python3 main.py /sua/pasta --dry-run
 ```
 --dry-run                    Mostra o que seria feito
 -r, --redundancy PCT         Redundância PAR2 (padrão: 15)
+--backend BACKEND            Backend PAR2: parpar (padrão) ou par2
 --post-size SIZE             Tamanho alvo (padrão: 20M)
 -s, --subject SUBJECT        Subject da postagem
 -g, --group GROUP            Newsgroup
@@ -104,6 +115,21 @@ USENET_GROUP=alt.binaries.test
 ARTICLE_SIZE=700K
 NZB_OUT={filename}.nzb
 ```
+
+## 🔧 Backends PAR2
+
+### parpar (Padrão - Recomendado)
+- **Mais rápido** e moderno
+- Melhor otimização para Usenet
+- Suporte a slice-size automático
+- Instalação: `npm install -g parpar`
+
+### par2 (Alternativa)
+- Mais lento, mas tradicional
+- Compatível com ferramentas antigas
+- Instalação: `sudo apt-get install par2` (Ubuntu/Debian)
+
+**Por que parpar é padrão?** Ele é significativamente mais rápido e otimizado para uploads Usenet modernos.
 
 ## 📚 Scripts
 
@@ -167,6 +193,9 @@ python3 main.py /pasta --dry-run
 
 # Upload com subject customizado
 python3 main.py /pasta -s "Meu Upload [2025]"
+
+# Usar backend par2 (alternativo ao padrão parpar)
+python3 main.py /pasta --backend par2
 
 # Maior redundância
 python3 main.py /pasta -r 20

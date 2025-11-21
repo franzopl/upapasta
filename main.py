@@ -18,6 +18,7 @@ Uso:
 Opções:
   --dry-run                  Mostra o que seria feito sem executar
   --redundancy PERCENT       Redundância PAR2 (padrão: 15)
+  --backend BACKEND          Backend para geração PAR2 (padrão: parpar)
   --post-size SIZE           Tamanho alvo de post (padrão: 20M)
   --subject SUBJECT          Subject da postagem (padrão: nome da pasta)
   --group GROUP              Newsgroup (padrão: do .env)
@@ -151,6 +152,7 @@ class UpaPastaOrchestrator:
         force: bool = False,
         env_file: str = ".env",
         keep_files: bool = False,
+        backend: str = "parpar",
     ):
         self.folder_path = Path(folder_path).absolute()
         self.dry_run = dry_run
@@ -164,6 +166,7 @@ class UpaPastaOrchestrator:
         self.force = force
         self.env_file = env_file
         self.keep_files = keep_files
+        self.backend = backend
         self.rar_file: str | None = None
         self.par_file: str | None = None
 
@@ -266,6 +269,7 @@ class UpaPastaOrchestrator:
             "-r", str(self.redundancy),
             "--usenet",
             "--post-size", self.post_size,
+            "--backend", self.backend,
             str(self.rar_file),
         ]
         if self.force:
@@ -521,6 +525,12 @@ def parse_args():
         help="Redundância PAR2 em porcentagem (padrão: 15)",
     )
     p.add_argument(
+        "--backend",
+        choices=("parpar", "par2"),
+        default="parpar",
+        help="Backend para geração PAR2 (padrão: parpar)",
+    )
+    p.add_argument(
         "--post-size",
         default="20M",
         help="Tamanho alvo de post Usenet (padrão: 20M)",
@@ -575,6 +585,7 @@ def main():
         folder_path=args.folder,
         dry_run=args.dry_run,
         redundancy=args.redundancy,
+        backend=args.backend,
         post_size=args.post_size,
         subject=args.subject,
         group=args.group,
