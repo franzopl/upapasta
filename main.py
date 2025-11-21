@@ -342,6 +342,16 @@ class UpaPastaOrchestrator:
         try:
             parser = UploadProgressParser()
             
+            # Inicializar barra de progresso com tqdm
+            progress_bar = tqdm(
+                total=100,
+                desc="📤 Upload",
+                unit="%",
+                bar_format="{desc}: {percentage:3.1f}%|{bar}| {n:.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
+                colour="green",
+                ncols=100,
+            )
+            
             # Executar upfolder em modo real-time para capturar output
             proc = subprocess.Popen(
                 cmd,
@@ -351,8 +361,7 @@ class UpaPastaOrchestrator:
                 bufsize=1,
             )
 
-            last_progress_display = 0.0
-            display_interval = 0.5  # segundos
+            last_progress = 0.0
 
             if proc.stdout:
                 for line in proc.stdout:
@@ -371,41 +380,27 @@ class UpaPastaOrchestrator:
                         elif "All file" in line:
                             print(f"✓  {line.split('] ')[-1] if '] ' in line else line}")
                     
-                    # Mostrar barra de progresso quando disponível
+                    # Atualizar barra de progresso quando disponível
                     if parsed["progress"] is not None:
-                        current_time = time.time()
-                        if current_time - last_progress_display >= display_interval:
-                            progress = parsed["progress"]
-                            speed = parsed["speed"]
-                            eta = parsed["eta"]
-                            
-                            # Barra de progresso visual
-                            bar_length = 40
-                            filled = int(bar_length * progress)
-                            bar = "█" * filled + "░" * (bar_length - filled)
-                            
-                            # Formatação melhorada
-                            eta_str = parser.format_time(eta) if eta is not None else "--:--:--"
-                            percent = progress * 100
-                            
-                            print(
-                                f"\r📊 [{bar}] {percent:6.1f}% | "
-                                f"{speed:6.1f} art/s | ETA: {eta_str}",
-                                end="",
-                                flush=True,
-                            )
-                            last_progress_display = current_time
+                        progress = parsed["progress"] * 100  # converter para porcentagem
+                        
+                        # Só atualizar se houve mudança significativa
+                        if abs(progress - last_progress) >= 0.1:  # mínimo 0.1% de mudança
+                            progress_bar.n = progress
+                            progress_bar.refresh()
+                            last_progress = progress
 
-            # Linha em branco após progress bar
-            if last_progress_display > 0:
-                print()
+            # Finalizar barra de progresso
+            progress_bar.n = 100
+            progress_bar.close()
+            print()
 
             rc = proc.wait()
             if rc == 0:
-                print("\n✅ Upload concluído com sucesso!")
+                print("✅ Upload concluído com sucesso!")
                 return True
             else:
-                print(f"\n❌ Erro: upfolder.py retornou código {rc}.")
+                print(f"❌ Erro: upfolder.py retornou código {rc}.")
                 return False
         except Exception as e:
             print(f"❌ Erro ao executar upfolder.py: {e}")
