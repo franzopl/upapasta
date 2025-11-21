@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""
+makepar.py
+
+Cria arquivos de paridade (.par2) para um arquivo .rar fornecido.
+
+Uso:
+  python3 makepar.py arquivo.rar
+
+Opções:
+  -r, --redundancy PERCENT   Percentual de redundância (ex: 10 para 10%). Default: 10
+  -f, --force                Sobrescrever arquivos .par2 existentes
+
+Retornos:
+  0: sucesso
+  2: arquivo de entrada inválido
+  3: arquivo .par2 já existe (use --force)
+  4: utilitário 'par2' não encontrado
+  5: erro ao executar 'par2'
+"""
+
+import argparse
+import glob
+import os
+import shutil
+import subprocess
+import sys
+
+
+def find_par2():
+    for cmd in ("par2", "par2create"):
+        path = shutil.which(cmd)
+        if path:
+            return ("par2", path)
+    return None
+
+
+def find_parpar():
+    for cmd in ("parpar", "parpar.exe"):
+        path = shutil.which(cmd)
+        if path:
+            return ("parpar", path)
+    return None
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Cria arquivos de paridade para um arquivo .rar (par2/parpar)")
+    p.add_argument("rarfile", help="Caminho para o arquivo .rar")
+    p.add_argument("-r", "--redundancy", type=int, default=10, help="Redundância em porcentagem (ex: 10)")
+    p.add_argument("-f", "--force", action="store_true", help="Sobrescrever .par2 existente")
+    p.add_argument(
+        "--backend",
+        choices=("auto", "par2", "parpar"),
+        default="auto",
+        help="Escolher backend: par2, parpar ou auto (detecta automaticamente)",
+    )
+    p.add_argument(
+        "--cmd-template",
+        default=None,
+        help=(
+            "Template do comando a executar. Use placeholders: {exe} {out} {rar} {redundancy}. "
+            "Se não informado, será usado um template padrão para o backend detectado."
+        ),
+    )
+    p.add_argument(
+        "--slice-size",
+        default=None,
+        help=(
+            "Tamanho de slice para ferramentas que suportam (ex: 1M, 512K, 2000). "
+            "Se omitido, o template padrão será usado (parpar: 1M)."
+        ),
+    )
+    p.add_argument(
+        "--usenet",
+        action="store_true",
+        help=(
+            "Ativa otimização para upload em Usenet: escolhe um slice-size adequado (padrão 1M). "
+            "Você pode sobrescrever com --slice-size."
+        ),
+    )
+    p.add_argument(
+        "--auto-slice-size",
+        action="store_true",
+        help=(
+            "Quando usado com --backend parpar, ativa o parâmetro -S (auto-slice-size) do parpar "
+            "em vez de usar um slice fixo. Se --slice-size for fornecido, este último tem prioridade."
+        ),
+    )
+    p.add_argument(
+        "--post-size",
+        default="10M",
+        help=(
+            "Tamanho alvo de post para Usenet (ex: 20M). Usado para calcular um slice-size otimizado. "
+            "Padrão: 10M (assumido como padrão do nyuu)."
+        ),
+    )
+    return p.parse_args()
+
+
+def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None) -> int:
+    rar_path = os.path.abspath(rar_path)
+    if not os.path.exists(rar_path) or not os.path.isfile(rar_path):
+        print(f"Erro: '{rar_path}' não existe ou não é um arquivo.")
+        return 2
+
+    if not rar_path.lower().endswith('.rar'):
+        print("Erro: o arquivo de entrada não parece ser um .rar")
+        return 2
+
+    parent = os.path.dirname(rar_path)
+    base = os.path.basename(rar_path)
+    name_no_ext = os.path.splitext(base)[0]
+    out_par2 = os.path.join(parent, name_no_ext + ".par2")
+
+    if os.path.exists(out_par2) and not force:
+        print(f"Erro: '{out_par2}' já existe. Use --force para sobrescrever.")
+        return 3
+
+    # Detect backends
+    parpar_found = find_parpar()
+    par2_found = find_par2()
+
+    chosen = None
+    exe_path = None
+
+    if backend == 'parpar':
+        if not parpar_found:
+            print("Erro: 'parpar' não encontrado no PATH.")
+            return 4
+        chosen, exe_path = parpar_found
+    elif backend == 'par2':
+        if not par2_found:
+            print("Erro: 'par2' não encontrado no PATH.")
+            return 4
+        chosen, exe_path = par2_found
+    else:  # auto
+        if parpar_found:
+            chosen, exe_path = parpar_found
+        elif par2_found:
+            chosen, exe_path = par2_found
+        else:
+            print("Erro: nenhum utilitário de paridade ('parpar' ou 'par2') encontrado. Instale um deles.")
+            return 4
+
+    # Decide slice size: explicit --slice-size > --usenet -> default '1M' > template default
+    def parse_size(s: str) -> int:
+        """Parse human size like 512K, 1M into bytes (int)."""
+        s = str(s).strip()
+        if not s:
+            raise ValueError("empty size")
+        unit = s[-1].upper()
+        if unit in ('K', 'M', 'G'):
+            try:
+                val = float(s[:-1])
+            except Exception:
+                val = float(s)
+            if unit == 'K':
+                return int(val * 1024)
+            if unit == 'M':
+                return int(val * 1024 * 1024)
+            if unit == 'G':
+                return int(val * 1024 * 1024 * 1024)
+        else:
+            try:
+                return int(s)
+            except Exception:
+                return int(float(s))
+        # fallback
+        return int(float(s))
+
+    def fmt_size(b: int) -> str:
+        # prefer MiB if divisible, else KiB
+        if b % (1024 * 1024) == 0:
+            return f"{b // (1024 * 1024)}M"
+        if b % 1024 == 0:
+            return f"{b // 1024}K"
+        return str(b)
+
+    if slice_size:
+        used_slice = slice_size
+    else:
+        # if user provided a post_size or usenet flag, compute slice from post_size
+        used_slice = None
+        # read post_size from env or default param via parse_args in caller
+        # We will attempt to read a global variable POST_SIZE_STR if present, else default '10M'
+        post_size_str = post_size or os.environ.get('MAKEPAR_POST_SIZE')
+        if not post_size_str:
+            post_size_str = '10M'
+        try:
+            post_size_bytes = parse_size(post_size_str)
+        except Exception:
+            post_size_bytes = parse_size('10M')
+
+        if usenet or post_size_bytes:
+            # heuristic: aim for ~4 slices per post
+            target_slices = 4
+            calc = max(64 * 1024, post_size_bytes // target_slices)
+            # clamp reasonable bounds
+            calc = min(calc, 4 * 1024 * 1024)
+            used_slice = fmt_size(calc)
+
+    # If user supplied a custom cmd_template, use it. Otherwise pick template based on chosen backend
+    cmd_t = cmd_template
+    if cmd_t is None:
+        if chosen == 'parpar':
+            if auto_slice_size:
+                # If user provided an explicit slice_size, include it and -S to allow autoscaling.
+                if used_slice:
+                    cmd_t = '{exe} -s{slice_size} -S -r{redundancy}% -o {out} {rar}'
+                else:
+                    # parpar requires -s; use a reasonable default slice size (1M) together with -S
+                    cmd_t = '{exe} -s1M -S -r{redundancy}% -o {out} {rar}'
+            else:
+                # will build command list directly below
+                pass
+        else:
+            # will build command list directly below
+            pass
+
+    # Build command list directly (safer with spaces in paths)
+    if chosen == 'parpar':
+        cmd = [exe_path]
+        if used_slice:
+            cmd.extend([f'-s{used_slice}'])
+        else:
+            cmd.append('-s1M')
+        if auto_slice_size:
+            cmd.append('-S')
+        cmd.extend([f'-r{redundancy}%', '-o', out_par2, rar_path])
+    else:  # par2
+        cmd = [exe_path, 'create', f'-r{redundancy}', out_par2, rar_path]
+
+    # If force requested, remove existing .par2 files matching the base name to allow overwrite
+    if force:
+        pattern = os.path.join(parent, name_no_ext + '*.par2')
+        for f in glob.glob(pattern):
+            try:
+                os.remove(f)
+            except Exception:
+                pass
+
+    print(f"Criando paridade para '{rar_path}' -> '{out_par2}' (redundância {redundancy}%) usando {chosen}...")
+
+    try:
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+        )
+
+        if proc.stdout is not None:
+            for line in proc.stdout:
+                # Apenas repassa linhas para saída; o usuário verá progresso se o par2 imprimir
+                sys.stdout.write(line)
+                sys.stdout.flush()
+
+        rc = proc.wait()
+        if rc == 0:
+            print("Arquivos de paridade criados com sucesso.")
+            return 0
+        else:
+            print(f"Erro: '{chosen}' retornou código {rc}.")
+            return 5
+    except Exception as e:
+        print("Erro ao executar 'par2':", e)
+        return 5
+
+
+def main():
+    args = parse_args()
+    rc = make_parity(
+        args.rarfile,
+        redundancy=args.redundancy,
+        force=args.force,
+        backend=args.backend,
+        cmd_template=args.cmd_template,
+        slice_size=args.slice_size,
+        usenet=args.usenet,
+        auto_slice_size=args.auto_slice_size,
+        post_size=args.post_size,
+    )
+    sys.exit(rc)
+
+
+if __name__ == '__main__':
+    main()
