@@ -19,8 +19,26 @@
 
 ### Ferramentas Externas
 - **RAR** — Compactador
-- **PAR2 ou parpar** — Gerador de paridade
+- **parpar** — Gerador de paridade (recomendado - mais rápido)
+- **par2** — Gerador de paridade alternativo (mais lento, mas compatível)
 - **Nyuu** — Cliente upload Usenet
+
+---
+
+## 🔧 Backends PAR2
+
+### parpar (Recomendado - Padrão)
+- **Mais rápido** e moderno
+- Melhor otimização para Usenet
+- Suporte a slice-size automático
+- Instalação: `npm install -g parpar`
+
+### par2 (Alternativa)
+- Mais lento, mas tradicional
+- Compatível com ferramentas antigas
+- Instalação: `sudo apt-get install par2` (Ubuntu/Debian)
+
+**Por que parpar é recomendado?** Ele é significativamente mais rápido e otimizado para uploads Usenet modernos.
 
 ---
 
@@ -68,11 +86,14 @@ sudo apt-get install -y python3 python3-pip git
 # RAR
 sudo apt-get install -y rar
 
-# PAR2
-sudo apt-get install -y par2
+# PAR2 (RECOMENDADO - mais rápido)
+sudo apt-get install -y npm
+sudo npm install -g parpar
+
+# Alternativa: par2 (mais lento, mas compatível)
+# sudo apt-get install -y par2
 
 # Nyuu (via npm)
-sudo apt-get install -y npm
 sudo npm install -g nyuu
 ```
 
@@ -93,7 +114,8 @@ nano .env
 #### Passo 4: Verificar instalação
 ```bash
 python3 main.py --help
-which rar par2 nyuu
+which rar parpar nyuu
+# ou se usar par2: which rar par2 nyuu
 ```
 
 ---
@@ -113,11 +135,14 @@ which rar par2 nyuu
 # RAR (versão trial gratuita)
 brew install rar
 
-# PAR2
-brew install par2
+# PAR2 (RECOMENDADO - mais rápido)
+brew install npm
+npm install -g parpar
+
+# Alternativa: par2 (mais lento, mas compatível)
+# brew install par2
 
 # Nyuu (via npm)
-brew install npm
 npm install -g nyuu
 ```
 
@@ -145,11 +170,15 @@ sudo dnf update
 # RAR
 sudo dnf install -y rar
 
-# PAR2 (versão MT otimizada)
-sudo dnf install -y par2cmdline-mt
+# PAR2 (RECOMENDADO - mais rápido)
+sudo dnf install -y npm
+sudo npm install -g parpar
+
+# Alternativa: par2 (mais lento, mas compatível)
+# sudo dnf install -y par2cmdline-mt
 
 # Python + Nyuu
-sudo dnf install -y python3 python3-pip npm
+sudo dnf install -y python3 python3-pip
 sudo npm install -g nyuu
 ```
 
@@ -275,7 +304,7 @@ python3 --version
 
 # 2. Verificar ferramentas externas
 which rar
-which par2
+which parpar  # ou which par2 se usar par2
 which nyuu
 # Todos devem mostrar um path
 
@@ -309,10 +338,13 @@ python3 makerar.py /tmp/teste_upapasta
 ls -lh /tmp/teste_upapasta.rar
 # Deve criar arquivo .rar
 
-# Teste 2: Gerar PAR2
+# Teste 2: Gerar PAR2 (usa parpar por padrão)
 python3 makepar.py /tmp/teste_upapasta.rar -r 10
 ls -lh /tmp/teste_upapasta.par2
 # Deve criar arquivo .par2
+
+# Teste alternativo: Usar par2
+# python3 makepar.py /tmp/teste_upapasta.rar -r 10 --backend par2
 
 # Teste 3: Dry-run completo
 python3 main.py /tmp/teste_upapasta --dry-run
@@ -362,11 +394,29 @@ rar --version
 
 ---
 
-### Erro: "par2: command not found"
+### Erro: "parpar: command not found" ou "par2: command not found"
 
-**Causa:** PAR2 não está instalado
+**Causa:** Backend PAR2 não está instalado
 
-**Solução:**
+**Solução (Recomendada - parpar):**
+```bash
+# Ubuntu/Debian
+sudo apt-get install npm
+sudo npm install -g parpar
+
+# macOS
+brew install npm
+npm install -g parpar
+
+# Fedora
+sudo dnf install npm
+sudo npm install -g parpar
+
+# Verificar
+parpar --version
+```
+
+**Alternativa (par2):**
 ```bash
 # Ubuntu/Debian
 sudo apt-get install par2
