@@ -502,6 +502,8 @@ class UpaPastaOrchestrator:
             progress_started = False
             estimated_progress = 0.0
             upload_start_time = None
+            nzb_file_path = None
+            nzb_initial_size = 0
 
             if proc.stdout:
                 for line in proc.stdout:
@@ -514,6 +516,12 @@ class UpaPastaOrchestrator:
                         print(f"[DEBUG] {line}")
 
                     parsed = parser.parse_line(line)
+                    
+                    # Capturar caminho do arquivo NZB
+                    if "NZB será salvo em:" in line:
+                        nzb_file_path = line.split("NZB será salvo em:")[-1].strip()
+                        if self.debug:
+                            print(f"[DEBUG] NZB file path detected: {nzb_file_path}")
                     
                     # Mostrar informações importantes
                     if "INFO" in line or "Uploading" in line or "Finished" in line:
@@ -529,6 +537,10 @@ class UpaPastaOrchestrator:
                         progress_started = True
                         upload_start_time = time.time()
                         print("📊 Barra de progresso ativada!")
+                        
+                        # Inicializar monitoramento do NZB se o arquivo foi detectado
+                        if nzb_file_path and os.path.exists(nzb_file_path):
+                            nzb_initial_size = os.path.getsize(nzb_file_path)
                     
                     # Atualizar barra de progresso quando disponível
                     if parsed["progress"] is not None:
@@ -550,24 +562,49 @@ class UpaPastaOrchestrator:
                                     debug_info += f", ETA: {eta_str}"
                                 print(debug_info)
                     
-                    # Estimativa de progresso baseada em tempo (fallback quando nyuu não dá feedback)
-                    elif progress_started and upload_start_time and parser.total_articles:
+                    # Monitoramento do arquivo NZB (mais preciso que estimativa)
+                    elif progress_started and nzb_file_path and os.path.exists(nzb_file_path):
+                        current_nzb_size = os.path.getsize(nzb_file_path)
+                        if current_nzb_size > nzb_initial_size and parser.total_articles:
+                            # Estimativa baseada no crescimento do NZB
+                            # Assumir que o NZB cresce proporcionalmente aos artigos enviados
+                            # Um NZB típico tem ~100-200 bytes por artigo
+                            estimated_bytes_per_article = 150
+                            expected_nzb_growth = parser.total_articles * estimated_bytes_per_article
+                            
+                            if expected_nzb_growth > 0:
+                                actual_growth = current_nzb_size - nzb_initial_size
+                                nzb_progress = min(90, (actual_growth / expected_nzb_growth) * 100)  # Máximo 90%
+                                
+                                if abs(nzb_progress - last_progress) >= 5.0:  # Atualizar a cada 5%
+                                    progress_bar.n = nzb_progress
+                                    progress_bar.refresh()
+                                    last_progress = nzb_progress
+                                    
+                                    if self.debug:
+                                        print(f"[DEBUG] NZB-based progress: {nzb_progress:.1f}% (NZB size: {current_nzb_size} bytes)")
+                    
+                    # Fallback: Estimativa baseada em tempo
+                    elif progress_started and upload_start_time and parser.total_articles and parser.total_size and last_progress < 10:
                         elapsed = time.time() - upload_start_time
-                        # Estimativa conservadora: assumir ~2-3 segundos por artigo em média
-                        estimated_time_per_article = 3.0  # segundos (aumentado para teste)
-                        estimated_total_time = parser.total_articles * estimated_time_per_article
+                        
+                        # Estimativa baseada no tamanho: assumir ~25 KB/s de upload (conservador)
+                        estimated_upload_rate = 25 * 1024  # 25 KB/s (bytes por segundo)
+                        estimated_total_bytes = parser.total_size * 1024  # converter KiB para bytes
+                        estimated_total_time = estimated_total_bytes / estimated_upload_rate
                         
                         if estimated_total_time > 0:
-                            estimated_progress = min(95, (elapsed / estimated_total_time) * 100)  # Máximo 95% até confirmação
+                            estimated_progress = min(85, (elapsed / estimated_total_time) * 100)  # Máximo 85% até confirmação
                             
-                            # Atualizar barra de estimativa a cada 0.5 segundos
-                            if abs(estimated_progress - last_progress) >= 1.0:  # Mínimo 1% de mudança
+                            # Só mostrar estimativa se não temos progresso do NZB
+                            if abs(estimated_progress - last_progress) >= 5.0:  # Mínimo 5% de mudança
                                 progress_bar.n = estimated_progress
                                 progress_bar.refresh()
                                 last_progress = estimated_progress
                                 
                                 if self.debug:
-                                    print(f"[DEBUG] Estimated progress: {estimated_progress:.1f}% ({elapsed:.1f}s elapsed)")
+                                    estimated_mb = estimated_total_bytes / (1024 * 1024)
+                                    print(f"[DEBUG] Time-based estimated progress: {estimated_progress:.1f}% ({elapsed:.1f}s elapsed, {estimated_mb:.1f} MB total)")
 
             # Finalizar barra de progresso
             progress_bar.n = 100
