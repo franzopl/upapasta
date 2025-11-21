@@ -1,0 +1,78 @@
+# Segurança: Credenciais
+.env
+.env.local
+.env.*.local
+.env.*.backup
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.vs/
+
+# Testing
+.pytest_cache/
+.coverage
+.mypy_cache/
+htmlcov/
+
+# UpaPasta específico
+# (Gerados durante execução)
+logs/
+*.rar
+*.par2
+*.vol*.par2
+*.nzb
+checkpoint.json
+upapasta.db
+
+# Temporários
+tmp_test_folder/
+test_upload.log
+upload.log
+SUMMARY.txt
+PROJECT_STRUCTURE.txt
+*.log
+
+# Documentação de desenvolvimento (remover do repo final)
+# Manter apenas: README.md, INSTALL.md, CONTRIBUTING.md, CHANGELOG.md
+FEATURE_SUGGESTIONS.md
+IMPLEMENTATION_READY.md
+ROADMAP.md
+VISUAL_PROGRESS.md
+CLEANUP.md
+BUG_FIX_CLEANUP.md
+DOCUMENTATION.md
+INDEX.md
