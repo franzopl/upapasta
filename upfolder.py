@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""
+upfolder.py
+
+Upload de arquivo .rar e arquivos de paridade (.par2) para Usenet usando nyuu.
+
+Lê credenciais do arquivo .env na raiz do workspace ou via variáveis de ambiente.
+
+Uso:
+  python3 upfolder.py /caminho/para/arquivo.rar
+
+Opções:
+  --dry-run              Mostra comando nyuu sem executar
+  --nyuu-path PATH       Caminho para executável nyuu (padrão: detecta em PATH)
+  --subject SUBJECT      Subject da postagem (padrão: nome do arquivo .rar)
+  --group GROUP          Newsgroup para upload (pode sobrescrever .env)
+
+Retornos:
+  0: sucesso
+  1: arquivo .rar não encontrado
+  2: credenciais faltando/inválidas
+  3: arquivo .par2 não encontrado
+  4: nyuu não encontrado
+  5: erro ao executar nyuu
+"""
+
+import argparse
+import glob
+import os
+import shutil
+import subprocess
+import sys
+
+
+def load_env_file(env_path: str = ".env") -> dict:
+    """Carrega variáveis de ambiente de um arquivo .env simples."""
+    env_vars = {}
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    if "=" in line:
+                        key, val = line.split("=", 1)
+                        env_vars[key.strip()] = val.strip()
+    return env_vars
+
+
+def find_nyuu() -> str | None:
+    """Procura executável 'nyuu' no PATH."""
+    return shutil.which("nyuu")
+
+
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="Upload de .rar + .par2 para Usenet com nyuu"
+    )
+    p.add_argument("rarfile", help="Caminho para o arquivo .rar a fazer upload")
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Mostra comando nyuu sem executar",
+    )
+    p.add_argument(
+        "--nyuu-path",
+        default=None,
+        help="Caminho para executável nyuu (padrão: detecta em PATH)",
+    )
+    p.add_argument(
+        "--subject",
+        default=None,
+        help="Subject da postagem (padrão: nome do arquivo .rar)",
+    )
+    p.add_argument(
+        "--group",
+        default=None,
+        help="Newsgroup (pode sobrescrever variável USENET_GROUP do .env)",
+    )
+    p.add_argument(
+        "--env-file",
+        default=".env",
+        help="Caminho para arquivo .env (padrão: .env)",
+    )
+    return p.parse_args()
+
+
+def upload_to_usenet(
+    rar_path: str,
+    dry_run: bool = False,
+    nyuu_path: str | None = None,
+    subject: str | None = None,
+    group: str | None = None,
+    env_file: str = ".env",
+) -> int:
+    """Upload de .rar e .par2 para Usenet usando nyuu."""
+
+    rar_path = os.path.abspath(rar_path)
+
+    # Validar arquivo .rar
+    if not os.path.exists(rar_path) or not os.path.isfile(rar_path):
+        print(f"Erro: '{rar_path}' não existe ou não é um arquivo.")
+        return 1
+
+    if not rar_path.lower().endswith(".rar"):
+        print("Erro: o arquivo de entrada não parece ser um .rar")
+        return 1
+
+    # Procurar todos os arquivos .par2 correspondentes
+    base_name = os.path.splitext(rar_path)[0]
+    # Usar glob.escape para lidar com caracteres especiais no path (como [, ])
+    # Padrão: base_name + qualquer coisa + "par2" + qualquer coisa
+    par2_pattern = glob.escape(base_name) + "*par2*"
+    par2_files = sorted(glob.glob(par2_pattern))
+
+    if not par2_files:
+        print(f"Erro: nenhum arquivo de paridade encontrado para '{rar_path}'.")
+        print("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2")
+        return 3
+
+    # Carrega credenciais do .env
+    env_vars = load_env_file(env_file)
+
+    nntp_host = env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST")
+    nntp_port = env_vars.get("NNTP_PORT") or os.environ.get("NNTP_PORT", "119")
+    nntp_ssl = env_vars.get("NNTP_SSL", "false").lower() in ("true", "1", "yes")
+    nntp_ignore_cert = env_vars.get("NNTP_IGNORE_CERT", "false").lower() in ("true", "1", "yes")
+    nntp_user = env_vars.get("NNTP_USER") or os.environ.get("NNTP_USER")
+    nntp_pass = env_vars.get("NNTP_PASS") or os.environ.get("NNTP_PASS")
+    nntp_connections = env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "50")
+    usenet_group = group or env_vars.get("USENET_GROUP") or os.environ.get("USENET_GROUP")
+    article_size = env_vars.get("ARTICLE_SIZE") or os.environ.get("ARTICLE_SIZE", "700K")
+    check_connections = env_vars.get("CHECK_CONNECTIONS") or os.environ.get("CHECK_CONNECTIONS", "5")
+    check_tries = env_vars.get("CHECK_TRIES") or os.environ.get("CHECK_TRIES", "2")
+    check_delay = env_vars.get("CHECK_DELAY") or os.environ.get("CHECK_DELAY", "5s")
+    check_retry_delay = env_vars.get("CHECK_RETRY_DELAY") or os.environ.get("CHECK_RETRY_DELAY", "30s")
+    check_post_tries = env_vars.get("CHECK_POST_TRIES") or os.environ.get("CHECK_POST_TRIES", "2")
+    nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
+    nzb_overwrite = env_vars.get("NZB_OVERWRITE", "true").lower() in ("true", "1", "yes")
+    skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
+    dump_failed_posts = env_vars.get("DUMP_FAILED_POSTS") or os.environ.get("DUMP_FAILED_POSTS")
+    quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
+    log_time = env_vars.get("LOG_TIME", "true").lower() in ("true", "1", "yes")
+    
+    # Processar template NZB_OUT: substitui {filename} pelo nome da pasta
+    nzb_out = None
+    if nzb_out_template:
+        # {filename} é substituído pelo nome do arquivo RAR sem extensão
+        rar_basename = os.path.splitext(os.path.basename(rar_path))[0]
+        nzb_out = nzb_out_template.replace("{filename}", rar_basename)
+
+    if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
+        print("Erro: credenciais incompletas. Configure .env com:")
+        print("  NNTP_HOST=<seu_servidor>")
+        print("  NNTP_PORT=119")
+        print("  NNTP_USER=<seu_usuario>")
+        print("  NNTP_PASS=<sua_senha>")
+        print("  USENET_GROUP=<seu_grupo>")
+        return 2
+
+    # Encontra nyuu
+    if nyuu_path:
+        if not os.path.exists(nyuu_path):
+            print(f"Erro: nyuu não encontrado em '{nyuu_path}'")
+            return 4
+    else:
+        nyuu_path = find_nyuu()
+        if not nyuu_path:
+            print("Erro: nyuu não encontrado. Instale-o (https://github.com/Piorosen/nyuu)")
+            return 4
+
+    # Define subject
+    if not subject:
+        subject = os.path.basename(os.path.splitext(rar_path)[0])
+
+    # Constrói comando nyuu com todas as opções
+    # nyuu -h <host> [-P <port>] [-S] [-i] -u <user> -p <pass> -c <connections> -g <group> -a <article-size> -s <subject> <files>
+    cmd = [
+        nyuu_path,
+        "-h", nntp_host,
+        "-P", str(nntp_port),
+    ]
+
+    if nntp_ssl:
+        cmd.append("-S")
+
+    if nntp_ignore_cert:
+        cmd.append("-i")
+
+    cmd.extend([
+        "-u", nntp_user,
+        "-p", nntp_pass,
+        "-n", str(nntp_connections),
+        "-g", usenet_group,
+        "-a", article_size,
+        "-s", subject,
+    ])
+    
+    # Adicionar opção -o para arquivo NZB se configurado
+    if nzb_out:
+        cmd.extend(["-o", nzb_out])
+    
+    # Adicionar opção -O para sobrescrever NZB se configurado
+    if nzb_overwrite:
+        cmd.append("-O")
+    
+    # Adicionar arquivos a fazer upload
+    cmd.append(rar_path)
+    # Adicionar todos os arquivos .par2
+    cmd.extend(par2_files)
+
+    if dry_run:
+        print("Comando nyuu (dry-run):")
+        print(" ".join(str(x) for x in cmd))
+        return 0
+
+    print("Iniciando upload para Usenet...")
+    print(f"  Host: {nntp_host}:{nntp_port}")
+    print(f"  Grupo: {usenet_group}")
+    print(f"  Subject: {subject}")
+    print(f"  Arquivos: {rar_path}, {', '.join(par2_files)}")
+    if nzb_out:
+        print(f"  NZB será salvo em: {nzb_out}")
+    print()
+
+    try:
+        proc = subprocess.Popen(
+            cmd,  # type: ignore
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1
+        )
+
+        if proc.stdout is not None:
+            for line in proc.stdout:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+
+        rc = proc.wait()
+        if rc == 0:
+            print("\nUpload concluído com sucesso.")
+            return 0
+        else:
+            print(f"\nErro: nyuu retornou código {rc}.")
+            return 5
+    except Exception as e:
+        print(f"Erro ao executar nyuu: {e}")
+        return 5
+
+
+def main():
+    args = parse_args()
+    rc = upload_to_usenet(
+        args.rarfile,
+        dry_run=args.dry_run,
+        nyuu_path=args.nyuu_path,
+        subject=args.subject,
+        group=args.group,
+        env_file=args.env_file,
+    )
+    sys.exit(rc)
+
+
+if __name__ == "__main__":
+    main()
