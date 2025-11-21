@@ -71,13 +71,14 @@ except ImportError:
 class UploadProgressParser:
     """Parser para extrair progresso do output nyuu."""
 
-    def __init__(self):
-        self.total_articles = None
+    def __init__(self, debug: bool = False):
+        self.total_articles: int | None = None
         self.uploaded_articles = 0
-        self.total_size = None
-        self.uploaded_size = 0
-        self.start_time = None
+        self.total_size: float | None = None
+        self.uploaded_size = 0.0
+        self.start_time: float | None = None
         self.lines_processed = 0
+        self.debug = debug
 
     def parse_line(self, line: str) -> dict:
         """Parse uma linha de output nyuu e extrai informações de progresso."""
@@ -90,9 +91,9 @@ class UploadProgressParser:
         }
 
         # Debug: mostrar linhas que podem conter progresso
-        if any(keyword in line.lower() for keyword in ["upload", "article", "file", "progress", "sent", "transfer"]):
-            # print(f"[DEBUG] Line: {line}")  # Descomente para debug
-            pass
+        if any(keyword in line.lower() for keyword in ["upload", "article", "file", "progress", "sent", "transfer", "sending"]):
+            if self.debug:
+                print(f"[DEBUG] Potential progress line: {line}")
 
         # Padrão 1: [INFO] Uploading X article(s) from Y file(s) totalling Z MiB
         match = re.search(
@@ -104,6 +105,8 @@ class UploadProgressParser:
             self.total_size = float(match.group(2))
             self.start_time = time.time()
             result["info"] = f"Total: {self.total_articles} artigos ({self.total_size:.2f} MiB)"
+            if self.debug:
+                print(f"[DEBUG] Pattern 1 matched: {self.total_articles} articles, {self.total_size} MiB")
 
         # Padrão 2: Uploaded X/Y articles, Z/W files
         match = re.search(r"Uploaded (\d+)/(\d+) articles", line)
@@ -119,8 +122,10 @@ class UploadProgressParser:
                     result["progress"] = float(self.uploaded_articles / total)
                     result["speed"] = float(speed_articles_per_sec)
                     result["eta"] = int(eta_seconds)
+                    if self.debug:
+                        print(f"[DEBUG] Pattern 2 matched: {self.uploaded_articles}/{total} articles, progress: {result['progress']:.3f}")
 
-        # Padrão 3: Progress indicators like "X/Y" or "X of Y"
+        # Padrão 3: Progress indicators like "X/Y" or "X of Y" (articles)
         match = re.search(r"(\d+)\s*(?:/|of)\s*(\d+).*?articles?", line, re.IGNORECASE)
         if match and not result["progress"]:
             current = int(match.group(1))
@@ -137,8 +142,50 @@ class UploadProgressParser:
                         result["progress"] = float(current / total)
                         result["speed"] = float(speed_articles_per_sec)
                         result["eta"] = int(eta_seconds)
+                        if self.debug:
+                            print(f"[DEBUG] Pattern 3 matched: {current}/{total} articles, progress: {result['progress']:.3f}")
 
-        # Padrão 4: Percentage indicators
+        # Padrão 4: "sending article X of Y" or "article X of Y"
+        match = re.search(r"(?:sending\s+)?article\s+(\d+)\s+of\s+(\d+)", line, re.IGNORECASE)
+        if match and not result["progress"]:
+            current = int(match.group(1))
+            total = int(match.group(2))
+            if total > 0:
+                self.uploaded_articles = current
+                self.total_articles = total
+                if self.start_time:
+                    elapsed = time.time() - self.start_time
+                    if elapsed > 0:
+                        speed_articles_per_sec = current / elapsed
+                        remaining = total - current
+                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
+                        result["progress"] = float(current / total)
+                        result["speed"] = float(speed_articles_per_sec)
+                        result["eta"] = int(eta_seconds)
+                        if self.debug:
+                            print(f"[DEBUG] Pattern 4 matched: article {current} of {total}, progress: {result['progress']:.3f}")
+
+        # Padrão 5: "X/Y" sem contexto específico (mas com números próximos)
+        match = re.search(r"(\d+)\s*/\s*(\d+)", line)
+        if match and not result["progress"] and not any(word in line.lower() for word in ["file", "files", "mb", "mib", "kb", "kib"]):
+            current = int(match.group(1))
+            total = int(match.group(2))
+            if total > 0 and total < 10000:  # Reasonable limit for articles
+                self.uploaded_articles = current
+                self.total_articles = total
+                if self.start_time:
+                    elapsed = time.time() - self.start_time
+                    if elapsed > 0:
+                        speed_articles_per_sec = current / elapsed
+                        remaining = total - current
+                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
+                        result["progress"] = float(current / total)
+                        result["speed"] = float(speed_articles_per_sec)
+                        result["eta"] = int(eta_seconds)
+                        if self.debug:
+                            print(f"[DEBUG] Pattern 5 matched: {current}/{total}, progress: {result['progress']:.3f}")
+
+        # Padrão 6: Percentage indicators
         match = re.search(r"(\d+(?:\.\d+)?)%", line)
         if match and not result["progress"]:
             percent = float(match.group(1)) / 100.0
@@ -153,8 +200,10 @@ class UploadProgressParser:
                         eta_seconds = remaining_percent / speed_percent_per_sec if speed_percent_per_sec > 0 else 0
                         result["speed"] = speed_percent_per_sec * 100  # convert to %/s
                         result["eta"] = int(eta_seconds)
+                        if self.debug:
+                            print(f"[DEBUG] Pattern 6 matched: {percent:.1%}, progress: {result['progress']:.3f}")
 
-        # Padrão 5: "X articles sent" or similar
+        # Padrão 7: "X articles sent" or similar
         match = re.search(r"(\d+)\s+articles?\s+sent", line, re.IGNORECASE)
         if match and self.total_articles:
             sent = int(match.group(1))
@@ -169,14 +218,38 @@ class UploadProgressParser:
                         result["progress"] = float(sent / self.total_articles)
                         result["speed"] = float(speed_articles_per_sec)
                         result["eta"] = int(eta_seconds)
+                        if self.debug:
+                            print(f"[DEBUG] Pattern 7 matched: {sent} articles sent, progress: {result['progress']:.3f}")
 
-        # Padrão 6: Finished uploading X MiB in YY:MM:SS.ZZZ (AA MiB/s)
+        # Padrão 8: "sending X/Y" or "transfer X/Y"
+        match = re.search(r"(?:sending|transfer)\s+(\d+)\s*/\s*(\d+)", line, re.IGNORECASE)
+        if match and not result["progress"]:
+            current = int(match.group(1))
+            total = int(match.group(2))
+            if total > 0:
+                self.uploaded_articles = current
+                self.total_articles = total
+                if self.start_time:
+                    elapsed = time.time() - self.start_time
+                    if elapsed > 0:
+                        speed_articles_per_sec = current / elapsed
+                        remaining = total - current
+                        eta_seconds = remaining / speed_articles_per_sec if speed_articles_per_sec > 0 else 0
+                        result["progress"] = float(current / total)
+                        result["speed"] = float(speed_articles_per_sec)
+                        result["eta"] = int(eta_seconds)
+                        if self.debug:
+                            print(f"[DEBUG] Pattern 8 matched: sending {current}/{total}, progress: {result['progress']:.3f}")
+
+        # Padrão 9: Finished uploading X MiB in YY:MM:SS.ZZZ (AA MiB/s)
         match = re.search(r"Finished uploading ([\d.]+) MiB.*?\(([\d.]+) MiB/s\)", line)
         if match:
             self.uploaded_size = float(match.group(1))
             speed = float(match.group(2))
             result["info"] = f"Concluído: {self.uploaded_size:.2f} MiB ({speed:.2f} MiB/s)"
             result["progress"] = 1.0  # 100% when finished
+            if self.debug:
+                print("[DEBUG] Pattern 9 matched: finished, progress: 1.0")
 
         self.lines_processed += 1
         return result
@@ -398,11 +471,11 @@ class UpaPastaOrchestrator:
         print()
 
         try:
-            parser = UploadProgressParser()
+            parser = UploadProgressParser(debug=self.debug)
             
             print("📤 Iniciando upload... Aguarde o progresso aparecer.")
             
-            # Inicializar barra de progresso com tqdm (mas não mostrar ainda)
+            # Inicializar barra de progresso com tqdm
             progress_bar = tqdm(
                 total=100,
                 desc="📤 Upload",
@@ -427,6 +500,8 @@ class UpaPastaOrchestrator:
 
             last_progress = 0.0
             progress_started = False
+            estimated_progress = 0.0
+            upload_start_time = None
 
             if proc.stdout:
                 for line in proc.stdout:
@@ -449,14 +524,15 @@ class UpaPastaOrchestrator:
                         elif "All file" in line:
                             print(f"✓  {line.split('] ')[-1] if '] ' in line else line}")
                     
+                    # Detectar início do upload real
+                    if "Uploading" in line and "article(s)" in line and not progress_started:
+                        progress_started = True
+                        upload_start_time = time.time()
+                        print("📊 Barra de progresso ativada!")
+                    
                     # Atualizar barra de progresso quando disponível
                     if parsed["progress"] is not None:
                         progress = parsed["progress"] * 100  # converter para porcentagem
-                        
-                        # Mostrar barra na primeira vez que detectamos progresso
-                        if not progress_started:
-                            progress_started = True
-                            print("📊 Barra de progresso ativada!")
                         
                         # Atualizar sempre que houver progresso
                         if progress != last_progress:
@@ -473,6 +549,25 @@ class UpaPastaOrchestrator:
                                     eta_str = parser.format_time(parsed["eta"])
                                     debug_info += f", ETA: {eta_str}"
                                 print(debug_info)
+                    
+                    # Estimativa de progresso baseada em tempo (fallback quando nyuu não dá feedback)
+                    elif progress_started and upload_start_time and parser.total_articles:
+                        elapsed = time.time() - upload_start_time
+                        # Estimativa conservadora: assumir ~2-3 segundos por artigo em média
+                        estimated_time_per_article = 3.0  # segundos (aumentado para teste)
+                        estimated_total_time = parser.total_articles * estimated_time_per_article
+                        
+                        if estimated_total_time > 0:
+                            estimated_progress = min(95, (elapsed / estimated_total_time) * 100)  # Máximo 95% até confirmação
+                            
+                            # Atualizar barra de estimativa a cada 0.5 segundos
+                            if abs(estimated_progress - last_progress) >= 1.0:  # Mínimo 1% de mudança
+                                progress_bar.n = estimated_progress
+                                progress_bar.refresh()
+                                last_progress = estimated_progress
+                                
+                                if self.debug:
+                                    print(f"[DEBUG] Estimated progress: {estimated_progress:.1f}% ({elapsed:.1f}s elapsed)")
 
             # Finalizar barra de progresso
             progress_bar.n = 100
