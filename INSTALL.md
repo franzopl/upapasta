@@ -60,7 +60,7 @@ cp .env.example .env
 nano .env  # Editar credenciais
 
 # 3. Testar
-python3 main.py --help
+python3 -m upapasta.main --help
 ```
 
 ### Para Desenvolvedores
@@ -113,7 +113,7 @@ nano .env
 
 #### Passo 4: Verificar instalação
 ```bash
-python3 main.py --help
+python3 -m upapasta.main --help
 which rar parpar nyuu
 # ou se usar par2: which rar par2 nyuu
 ```
@@ -251,10 +251,11 @@ pre-commit install
 pytest -v
 pytest --cov
 
-# 6. Rodar linter
+# 5. Rodar linter
 black .
 flake8 .
-mypy main.py
+mypy .
+
 
 # 7. Criar branch para sua feature
 git checkout -b feature/minha-feature
@@ -264,18 +265,19 @@ git checkout -b feature/minha-feature
 
 ```
 upapasta/
+├── __init__.py
 ├── main.py              ← Script orquestrador
 ├── makerar.py
 ├── makepar.py
 ├── upfolder.py
-├── tests/               ← Testes unitários
+tests/               ← Testes unitários
 │   ├── test_main.py
 │   ├── test_makerar.py
 │   ├── test_makepar.py
 │   └── test_upfolder.py
-├── requirements.txt
-├── setup.py
-└── README.md
+requirements.txt
+setup.py
+README.md
 ```
 
 ### Rodando Testes
@@ -317,14 +319,14 @@ git status
 pip list | grep -E "tqdm|pytest|black"
 
 # 5. Rodar help
-python3 main.py --help
+python3 -m upapasta.main --help
 # Deve mostrar menu de ajuda
 
 # 6. Testar imports
 python3 -c "import sys, os, subprocess, pathlib, glob, argparse, re, time, json, logging; print('✅ Imports OK')"
 
 # 7. Fazer teste de dry-run
-python3 main.py /tmp --dry-run
+python3 -m upapasta.main /tmp --dry-run
 # Deve mostrar processo sem executar
 ```
 
@@ -334,20 +336,20 @@ python3 main.py /tmp --dry-run
 # Teste 1: Criar RAR (em arquivo de teste)
 mkdir -p /tmp/teste_upapasta
 echo "teste" > /tmp/teste_upapasta/arquivo.txt
-python3 makerar.py /tmp/teste_upapasta
+python3 -m upapasta.makerar /tmp/teste_upapasta
 ls -lh /tmp/teste_upapasta.rar
 # Deve criar arquivo .rar
 
 # Teste 2: Gerar PAR2 (usa parpar por padrão)
-python3 makepar.py /tmp/teste_upapasta.rar -r 10
+python3 -m upapasta.makepar /tmp/teste_upapasta.rar -r 10
 ls -lh /tmp/teste_upapasta.par2
 # Deve criar arquivo .par2
 
 # Teste alternativo: Usar par2
-# python3 makepar.py /tmp/teste_upapasta.rar -r 10 --backend par2
+# python3 -m upapasta.makepar /tmp/teste_upapasta.rar -r 10 --backend par2
 
 # Teste 3: Dry-run completo
-python3 main.py /tmp/teste_upapasta --dry-run
+python3 -m upapasta.main /tmp/teste_upapasta --dry-run
 # Deve mostrar workflow sem executar
 ```
 
@@ -510,11 +512,11 @@ Após instalar com sucesso:
 1. **Editar `.env`** com suas credenciais Usenet
 2. **Testar com `--dry-run`:**
    ```bash
-   python3 main.py /sua/pasta --dry-run
+   python3 -m upapasta.main /sua/pasta --dry-run
    ```
 3. **Se OK, fazer upload real:**
    ```bash
-   python3 main.py /sua/pasta
+   python3 -m upapasta.main /sua/pasta
    ```
 
 ---

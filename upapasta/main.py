@@ -42,46 +42,11 @@ import re
 import subprocess
 import sys
 import time
-import pty
 from pathlib import Path
 
-
-def run_command_with_pty(cmd: list[str]) -> None:
-    """Executa um comando em um pseudo-terminal para preservar o output formatado."""
-    master, slave = pty.openpty()
-    
-    # Inicia o processo
-    process = subprocess.Popen(cmd, stdout=slave, stderr=slave, close_fds=True)
-    
-    # Fecha o descritor do slave no processo pai
-    os.close(slave)
-    
-    # Lê o output do master
-    try:
-        while True:
-            try:
-                # Lê até 1024 bytes do processo filho
-                data = os.read(master, 1024)
-            except OSError:
-                # OSError (por ex, EIO) significa que o processo filho terminou
-                break
-            
-            if not data:
-                break
-                
-            # Escreve o output para o stdout do terminal atual
-            sys.stdout.buffer.write(data)
-            sys.stdout.buffer.flush()
-            
-    finally:
-        # Fecha o master
-        os.close(master)
-        
-        # Espera o processo terminar e verifica o código de retorno
-        ret_code = process.wait()
-        if ret_code != 0:
-            # Levanta um erro se o comando falhou
-            raise subprocess.CalledProcessError(ret_code, cmd)
+from .makerar import make_rar
+from .makepar import make_parity
+from .upfolder import upload_to_usenet, load_env_file
 
 
 def format_time(seconds: int) -> str:
@@ -164,38 +129,31 @@ class UpaPastaOrchestrator:
         print("📦 ETAPA 1: Criar arquivo RAR")
         print("=" * 60)
 
-        cmd = [
-            "python3",
-            "makerar.py",
-            str(self.folder_path),
-        ]
-        if self.force:
-            cmd.append("-f")
-
         if self.dry_run:
-            print(f"[DRY-RUN] Comando: {' '.join(cmd)}")
+            print(f"[DRY-RUN] pularia a criação do RAR.")
             self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
-            print(f"[DRY-RUN] RAR será criado em: {self.rar_file}")
+            print(f"[DRY-RUN] RAR seria criado em: {self.rar_file}")
             return True
 
         print(f"📥 Compactando {self.folder_path.name}...")
         print("-" * 60)
 
         try:
-            run_command_with_pty(cmd)
-            print("-" * 60)
-            self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
-            if os.path.exists(self.rar_file):
-                return True
+            rc = make_rar(str(self.folder_path), self.force)
+            if rc == 0:
+                print("-" * 60)
+                self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
+                if os.path.exists(self.rar_file):
+                    return True
+                else:
+                    print("❌ Erro: Arquivo RAR não foi encontrado após a execução bem-sucedida.")
+                    return False
             else:
-                print("❌ Erro: Arquivo RAR não foi encontrado após a execução bem-sucedida.")
+                print("-" * 60)
+                print(f"\n❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})")
                 return False
-        except subprocess.CalledProcessError:
-            print("-" * 60)
-            print("\n❌ Erro ao criar RAR. Veja o output acima para detalhes.")
-            return False
         except Exception as e:
-            print(f"❌ Erro inesperado ao executar makerar.py: {e}")
+            print(f"❌ Erro inesperado ao executar make_rar: {e}")
             return False
 
     def run_makepar(self) -> bool:
@@ -220,20 +178,8 @@ class UpaPastaOrchestrator:
         print("🛡️  ETAPA 2: Gerar arquivo de paridade PAR2")
         print("=" * 60)
 
-        cmd = [
-            "python3",
-            "makepar.py",
-            "-r", str(self.redundancy),
-            "--usenet",
-            "--post-size", self.post_size,
-            "--backend", self.backend,
-            str(self.rar_file),
-        ]
-        if self.force:
-            cmd.append("--force")
-
         if self.dry_run:
-            print(f"[DRY-RUN] Comando: {' '.join(cmd)}")
+            print(f"[DRY-RUN] pularia a criação do PAR2.")
             self.par_file = os.path.splitext(self.rar_file)[0] + ".par2"
             print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
             return True
@@ -242,20 +188,28 @@ class UpaPastaOrchestrator:
         print("-" * 60)
 
         try:
-            run_command_with_pty(cmd)
-            print("-" * 60)
-            self.par_file = os.path.splitext(self.rar_file)[0] + ".par2"
-            if os.path.exists(self.par_file):
-                return True
+            rc = make_parity(
+                self.rar_file,
+                redundancy=self.redundancy,
+                force=self.force,
+                backend=self.backend,
+                usenet=True,
+                post_size=self.post_size,
+            )
+            if rc == 0:
+                print("-" * 60)
+                self.par_file = os.path.splitext(self.rar_file)[0] + ".par2"
+                if os.path.exists(self.par_file):
+                    return True
+                else:
+                    print("❌ Erro: Arquivo de paridade não foi encontrado após a execução bem-sucedida.")
+                    return False
             else:
-                print("❌ Erro: Arquivo de paridade não foi encontrado após a execução bem-sucedida.")
+                print("-" * 60)
+                print(f"\n❌ Erro ao gerar paridade. Veja o output acima para detalhes. (rc={rc})")
                 return False
-        except subprocess.CalledProcessError:
-            print("-" * 60)
-            print("\n❌ Erro ao gerar paridade. Veja o output acima para detalhes.")
-            return False
         except Exception as e:
-            print(f"❌ Erro inesperado ao executar makepar.py: {e}")
+            print(f"❌ Erro inesperado ao executar make_parity: {e}")
             return False
 
     def run_upload(self) -> bool:
@@ -272,30 +226,21 @@ class UpaPastaOrchestrator:
         print("📤 ETAPA 3: Upload para Usenet")
         print("=" * 60)
 
-        cmd = [
-            "python3",
-            "upfolder.py",
-            str(self.rar_file),
-            "--subject", self.subject,
-            "--env-file", self.env_file,
-        ]
-        if self.group:
-            cmd.extend(["--group", self.group])
-        
         if self.dry_run:
-            cmd.append("--dry-run")
-            print(f"[DRY-RUN] Comando: {' '.join(cmd)}")
+            print(f"[DRY-RUN] pularia o upload.")
             return True
 
         try:
-            # Executar upfolder.py e deixar que ele mostre o output do nyuu
-            run_command_with_pty(cmd)
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"\n❌ Erro: upfolder.py retornou código {e.returncode}.")
-            return False
+            rc = upload_to_usenet(
+                self.rar_file,
+                dry_run=self.dry_run,
+                subject=self.subject,
+                group=self.group,
+                env_file=self.env_file,
+            )
+            return rc == 0
         except Exception as e:
-            print(f"\n❌ Erro ao executar upfolder.py: {e}")
+            print(f"\n❌ Erro ao executar upload_to_usenet: {e}")
             return False
 
     def cleanup(self) -> None:
@@ -540,7 +485,7 @@ def main():
         subject=args.subject,
         group=args.group,
         skip_rar=args.skip_rar,
-        skip_par=args.skip_par,
+        skip_par=args.skip_.par,
         skip_upload=args.skip_upload,
         force=args.force,
         env_file=args.env_file,

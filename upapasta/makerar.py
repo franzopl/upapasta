@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 makerar.py
@@ -79,7 +78,7 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 		)
 
 		last_percent = -1
-		spinner = "|/-\\"
+		spinner = "|/-\"
 		spin_idx = 0
 		bar_width = 40
 
@@ -93,7 +92,7 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 					try:
 						pct = int(m.group(1))
 					except ValueError:
-						pct = None
+					ct = None
 					if pct is not None:
 						last_percent = pct
 						filled = int((pct / 100.0) * bar_width)
@@ -105,7 +104,7 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 				# Se não houver porcentagem, mostra linha compacta com spinner
 				sys.stdout.write(f"\r{spinner[spin_idx % len(spinner)]} {line[:70]}")
 				sys.stdout.flush()
-				spin_idx += 1
+				sin_idx += 1
 				# pequena pausa para evitar uso excessivo de CPU quando output é frequente
 				time.sleep(0.01)
 
@@ -132,13 +131,4 @@ def parse_args():
 	p.add_argument("-f", "--force", action="store_true", help="Sobrescrever .rar existente")
 	return p.parse_args()
 
-
-def main():
-	args = parse_args()
-	rc = make_rar(args.folder, force=args.force)
-	sys.exit(rc)
-
-
-if __name__ == "__main__":
-	main()
 

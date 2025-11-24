@@ -26,23 +26,16 @@
 # DEPENDÊNCIAS PYTHON OPCIONAIS:
 # ==================================================
 
-# Para barras de progresso mais bonitas (opcional):
-tqdm>=4.62.0
+# Core
+tqdm
 
-# Para type hints avançados (Python 3.10+, opcional):
-typing-extensions>=4.0.0
+# Development
+pytest
+pytest-cov
+black
+flake8
+mypy
 
-# Para validação robusta (opcional, futuro):
-# pydantic>=1.9.0
-
-# Para testes (desenvolvimento):
-pytest>=7.0.0
-pytest-cov>=3.0.0
-
-# Para linting e formatação (desenvolvimento):
-black>=22.0.0
-flake8>=4.0.0
-mypy>=0.950
 
 # Para desenvolvimento web API (futuro):
 # fastapi>=0.85.0

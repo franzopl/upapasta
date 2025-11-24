@@ -264,21 +264,4 @@ def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backen
         return 5
 
 
-def main():
-    args = parse_args()
-    rc = make_parity(
-        args.rarfile,
-        redundancy=args.redundancy,
-        force=args.force,
-        backend=args.backend,
-        cmd_template=args.cmd_template,
-        slice_size=args.slice_size,
-        usenet=args.usenet,
-        auto_slice_size=args.auto_slice_size,
-        post_size=args.post_size,
-    )
-    sys.exit(rc)
 
-
-if __name__ == '__main__':
-    main()

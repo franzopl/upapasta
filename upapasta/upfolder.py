@@ -108,7 +108,7 @@ def generate_anonymous_uploader() -> str:
 
 
 def upload_to_usenet(
-    rar_path: str,
+    rar_path: str, 
     dry_run: bool = False,
     nyuu_path: str | None = None,
     subject: str | None = None,
@@ -260,18 +260,4 @@ def upload_to_usenet(
         return 5
 
 
-def main():
-    args = parse_args()
-    rc = upload_to_usenet(
-        args.rarfile,
-        dry_run=args.dry_run,
-        nyuu_path=args.nyuu_path,
-        subject=args.subject,
-        group=args.group,
-        env_file=args.env_file,
-    )
-    sys.exit(rc)
 
-
-if __name__ == "__main__":
-    main()
