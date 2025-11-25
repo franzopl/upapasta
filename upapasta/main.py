@@ -571,7 +571,7 @@ def main():
         subject=args.subject,
         group=args.group,
         skip_rar=args.skip_rar,
-        skip_par=args.skip_.par,
+        skip_par=args.skip_par,
         skip_upload=args.skip_upload,
         force=args.force,
         env_file=args.env_file,
