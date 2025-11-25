@@ -78,7 +78,7 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 		)
 
 		last_percent = -1
-		spinner = "|/-\"
+		spinner = "|/-\\"
 		spin_idx = 0
 		bar_width = 40
 
@@ -89,10 +89,11 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 				# Tenta encontrar porcentagem no formato 'xx%'
 				m = re.search(r"(\d{1,3})%", line)
 				if m:
+					pct = None
 					try:
 						pct = int(m.group(1))
 					except ValueError:
-					ct = None
+						pass
 					if pct is not None:
 						last_percent = pct
 						filled = int((pct / 100.0) * bar_width)
@@ -104,7 +105,7 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 				# Se não houver porcentagem, mostra linha compacta com spinner
 				sys.stdout.write(f"\r{spinner[spin_idx % len(spinner)]} {line[:70]}")
 				sys.stdout.flush()
-				sin_idx += 1
+				spin_idx += 1
 				# pequena pausa para evitar uso excessivo de CPU quando output é frequente
 				time.sleep(0.01)
 
