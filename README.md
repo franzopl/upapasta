@@ -1,232 +1,100 @@
-# 🚀 UpaPasta — Upload para Usenet com RAR + PAR2
+# UpaPasta
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green.svg)]()
+**UpaPasta** é uma ferramenta de linha de comando (CLI) em Python para automatizar o processo de upload de pastas para a Usenet. O script orquestra um fluxo de trabalho completo, que inclui:
 
-Upload automático de pastas para Usenet com compressão RAR e paridade PAR2. **100% funcional, testado com 1.6GB+**.
+1.  **Compactação**: Cria um arquivo `.rar` a partir da pasta de origem.
+2.  **Geração de Paridade**: Gera arquivos de paridade `.par2` para garantir a integridade dos dados.
+3.  **Upload**: Faz o upload dos arquivos `.rar` e `.par2` para o grupo de notícias Usenet especificado.
 
-## ⚡ Quick Start
+A ferramenta foi projetada para ser simples, eficiente e exibir barras de progresso em cada etapa do processo.
 
+## Funcionalidades
+
+-   **Workflow Automatizado**: Orquestra a compactação, geração de paridade e upload com um único comando.
+-   **Flexibilidade**: Permite pular etapas individuais (`--skip-rar`, `--skip-par`, `--skip-upload`).
+-   **Customização**: Opções para configurar a redundância dos arquivos PAR2, o tamanho dos posts e o assunto da postagem.
+-   **Segurança**: Carrega as credenciais da Usenet a partir de um arquivo `.env` para não expor informações sensíveis.
+-   **Limpeza Automática**: Remove os arquivos `.rar` e `.par2` gerados após o upload (pode ser desativado com `--keep-files`).
+-   **Dry Run**: Permite simular a execução sem criar ou enviar arquivos (`--dry-run`).
+
+## Instalação
+
+1.  **Clone o repositório:**
+    ```bash
+    git clone https://github.com/franzopl/upapasta.git
+    cd upapasta
+    ```
+
+2.  **Instale as dependências:**
+    Recomenda-se o uso de um ambiente virtual (`venv`).
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    ```
+    Além das dependências do Python, certifique-se de ter o `rar` e o `parpar` (ou `par2`) instalados e disponíveis no seu `PATH`.
+
+3.  **Configure as credenciais:**
+    Copie o arquivo de exemplo `.env.example` para `.env` e preencha com suas credenciais da Usenet.
+    ```bash
+    cp .env.example .env
+    ```
+    Edite o arquivo `.env`:
+    ```ini
+    USENET_HOST=news.your-provider.com
+    USENET_PORT=563
+    USENET_USER=your-username
+    USENET_PASS=your-password
+    USENET_GROUP=alt.binaries.test
+    USENET_SSL=true
+    ```
+
+## Como Usar
+
+O uso básico do `upapasta` envolve a execução do script `main.py`, passando o caminho da pasta que você deseja enviar.
+
+**Sintaxe:**
 ```bash
-# 1. Instalar dependências
-bash install.sh
-
-# 2. Configurar credenciais
-cp .env.example .env
-nano .env  # Editar com suas credenciais Usenet
-
-# 3. Fazer upload
-python3 main.py /caminho/para/pasta
+python3 -m upapasta.main /caminho/para/sua/pasta [OPÇÕES]
 ```
 
-## 📋 O que faz
-
-1. ✅ Cria arquivo RAR (sem compressão, apenas store)
-2. ✅ Gera paridade PAR2 com **parpar** (15% redundância padrão)
-3. ✅ Faz upload para Usenet via nyuu
-4. ✅ Mostra progresso em tempo real
-5. ✅ Limpa arquivos temporários automaticamente
-
-## 📦 Requisitos
-
-### Sistema
-- Linux, macOS ou Windows (WSL2)
-- Python 3.10+
-
-### Ferramentas Externas
+**Exemplo básico:**
 ```bash
-# Ubuntu/Debian (RECOMENDADO)
-sudo apt-get install rar nyuu
-npm install -g parpar  # parpar é o backend padrão (mais rápido)
-
-# Alternativa: par2 (mais lento, mas compatível)
-sudo apt-get install par2
-
-# macOS (RECOMENDADO)
-brew install rar
-npm install -g nyuu parpar  # parpar é o backend padrão (mais rápido)
-
-# Alternativa: par2 (mais lento, mas compatível)
-brew install par2
-
-# Fedora (RECOMENDADO)
-sudo dnf install rar
-sudo npm install -g nyuu parpar  # parpar é o backend padrão (mais rápido)
-
-# Alternativa: par2 (mais lento, mas compatível)
-sudo dnf install par2cmdline-mt
+python3 -m upapasta.main /home/user/documentos/meu-arquivo-importante
 ```
 
-## 🔧 Instalação
+### Opções de Linha de Comando
 
-### Automática (Recomendado)
-```bash
-bash install.sh
+| Opção              | Descrição                                                                      | Padrão                                  |
+| ------------------ | ------------------------------------------------------------------------------ | --------------------------------------- |
+| `folder`           | **(Obrigatório)** A pasta que será enviada.                                    | N/A                                     |
+| `--dry-run`        | Simula a execução sem criar ou enviar arquivos.                                | Desativado                              |
+| `-r`, `--redundancy` | Define a porcentagem de redundância para os arquivos PAR2.                       | `15`                                    |
+| `--backend`        | Escolhe o backend para a geração de paridade (`parpar` ou `par2`).               | `parpar`                                |
+| `--post-size`      | Define o tamanho alvo para cada post na Usenet (ex: `20M`, `700k`).               | `20M`                                   |
+| `-s`, `--subject`    | Define o assunto da postagem na Usenet.                                        | Nome da pasta                           |
+| `-g`, `--group`      | Define o grupo de notícias (newsgroup) para o upload.                          | Valor definido no arquivo `.env`        |
+| `--skip-rar`       | Pula a etapa de criação do arquivo `.rar`.                                     | Desativado                              |
+| `--skip-par`       | Pula a etapa de geração dos arquivos de paridade `.par2`.                        | Desativado                              |
+| `--skip-upload`    | Pula a etapa de upload para a Usenet.                                          | Desativado                              |
+| `-f`, `--force`      | Força a sobrescrita de arquivos `.rar` ou `.par2` que já existam.              | Desativado                              |
+| `--env-file`       | Especifica um caminho alternativo para o arquivo `.env`.                         | `.env`                                  |
+| `--keep-files`     | Mantém os arquivos `.rar` e `.par2` no disco após o upload.                    | Desativado                              |
+
+## Estrutura do Projeto
+
+```
+upapasta/
+├── upapasta/
+│   ├── main.py        # Orquestrador principal
+│   ├── makerar.py     # Lógica para criar arquivos .rar
+│   ├── makepar.py     # Lógica para gerar arquivos .par2
+│   └── upfolder.py    # Lógica para fazer o upload
+├── .env.example       # Exemplo de arquivo de configuração
+├── requirements.txt   # Dependências do Python
+└── README.md          # Este arquivo
 ```
 
-### Manual
-```bash
-pip install -r requirements.txt
-cp .env.example .env
-nano .env
-```
+## Contribuição
 
-## 🚀 Uso Básico
-
-### Upload Simples
-```bash
-python3 main.py /sua/pasta
-```
-
-### Modo Teste (Dry-run)
-```bash
-python3 main.py /sua/pasta --dry-run
-```
-
-### Opções Principais
-```
---dry-run                    Mostra o que seria feito
--r, --redundancy PCT         Redundância PAR2 (padrão: 15)
---backend BACKEND            Backend PAR2: parpar (padrão) ou par2
---post-size SIZE             Tamanho alvo (padrão: 20M)
--s, --subject SUBJECT        Subject da postagem
--g, --group GROUP            Newsgroup
---skip-rar                   Pula criação RAR
---skip-par                   Pula geração PAR2
---skip-upload                Pula upload Usenet
--f, --force                  Sobrescreve arquivos
---env-file FILE              Arquivo .env customizado
---keep-files                 Não deleta RAR/PAR2 após upload
-```
-
-## ⚙️ Configuração
-
-Editar `.env` com suas credenciais Usenet:
-
-```properties
-NNTP_HOST=seu.servidor.net
-NNTP_PORT=443
-NNTP_SSL=true
-NNTP_USER=seu_usuario
-NNTP_PASS=sua_senha
-NNTP_CONNECTIONS=50
-USENET_GROUP=alt.binaries.test
-ARTICLE_SIZE=700K
-NZB_OUT={filename}.nzb
-```
-
-## 🔧 Backends PAR2
-
-### parpar (Padrão - Recomendado)
-- **Mais rápido** e moderno
-- Melhor otimização para Usenet
-- Suporte a slice-size automático
-- Instalação: `npm install -g parpar`
-
-### par2 (Alternativa)
-- Mais lento, mas tradicional
-- Compatível com ferramentas antigas
-- Instalação: `sudo apt-get install par2` (Ubuntu/Debian)
-
-**Por que parpar é padrão?** Ele é significativamente mais rápido e otimizado para uploads Usenet modernos.
-
-## 📚 Scripts
-
-### main.py (RECOMENDADO)
-Orquestra tudo: RAR → PAR2 → Upload
-
-```bash
-python3 main.py /pasta [opções]
-```
-
-### makerar.py
-Cria apenas o arquivo RAR
-
-```bash
-python3 makerar.py /pasta [-f]
-```
-
-### makepar.py
-Gera apenas paridade PAR2
-
-```bash
-python3 makepar.py arquivo.rar [-r 15] [--force]
-```
-
-### upfolder.py
-Faz apenas upload para Usenet
-
-```bash
-python3 upfolder.py arquivo.rar [--dry-run]
-```
-
-## 🐛 Troubleshooting
-
-### "RAR/PAR2/Nyuu não encontrado"
-Instale a ferramenta externa para seu SO (ver requisitos)
-
-### "Espaço em disco insuficiente"
-Remova arquivos antigos ou use `--keep-files` para liberar espaço
-
-### "Upload lento"
-Aumente `NNTP_CONNECTIONS` em `.env` (até 100-200)
-
-### "Arquivo .nzb não foi criado"
-Certifique que `NZB_OUT={filename}.nzb` está em `.env`
-
-## 📊 Performance Típica
-
-Arquivo testado:
-- **Tamanho:** 1,401 MB
-- **Arquivos:** 8 (1 RAR + 7 PAR2)
-- **Artigos:** 2,363
-- **Velocidade:** 34.8 MiB/s (média)
-- **Tempo:** 2m 34s
-- **Resultado:** ✅ Sucesso
-
-## 📝 Exemplos
-
-```bash
-# Verificar antes de fazer upload
-python3 main.py /pasta --dry-run
-
-# Upload com subject customizado
-python3 main.py /pasta -s "Meu Upload [2025]"
-
-# Usar backend par2 (alternativo ao padrão parpar)
-python3 main.py /pasta --backend par2
-
-# Maior redundância
-python3 main.py /pasta -r 20
-
-# Manter arquivos RAR/PAR2
-python3 main.py /pasta --keep-files
-
-# Múltiplas contas
-python3 main.py /pasta --env-file .env.server2
-```
-
-## 📖 Mais Informações
-
-- **INSTALL.md** — Guia de instalação detalhado por SO
-- **requirements.txt** — Dependências Python
-
-## 📞 Suporte
-
-- **Issues:** GitHub Issues
-- **Discussions:** GitHub Discussions
-
-## 📄 Licença
-
-MIT License
-
-## 🎉 Status
-
-✅ **Pronto para Produção** — Testado e funcional
-
----
-
-**Versão:** 1.1  
-**Última atualização:** 20 de novembro de 2025  
-**Happy uploading! 🚀**
+Contribuições são bem-vindas! Se você encontrar um bug ou tiver uma sugestão de melhoria, sinta-se à vontade para abrir uma *issue* ou enviar um *pull request*.
