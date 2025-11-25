@@ -1,0 +1,4 @@
+include .env.example
+include INSTALL.md
+include README.md
+include LICENSE

@@ -19,35 +19,47 @@ A ferramenta foi projetada para ser simples, eficiente e exibir barras de progre
 
 ## Instalação
 
+### Via PyPI (Recomendado)
+```bash
+pip install upapasta
+```
+
+### Para Desenvolvimento
 1.  **Clone o repositório:**
     ```bash
     git clone https://github.com/franzopl/upapasta.git
     cd upapasta
     ```
 
-2.  **Instale as dependências:**
+2.  **Instale em modo editável:**
     Recomenda-se o uso de um ambiente virtual (`venv`).
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate
-    pip install -r requirements.txt
+    pip install -e .
     ```
-    Além das dependências do Python, certifique-se de ter o `rar` e o `parpar` (ou `par2`) instalados e disponíveis no seu `PATH`.
 
-3.  **Configure as credenciais:**
-    Copie o arquivo de exemplo `.env.example` para `.env` e preencha com suas credenciais da Usenet.
-    ```bash
-    cp .env.example .env
-    ```
-    Edite o arquivo `.env`:
-    ```ini
-    USENET_HOST=news.your-provider.com
-    USENET_PORT=563
-    USENET_USER=your-username
-    USENET_PASS=your-password
-    USENET_GROUP=alt.binaries.test
-    USENET_SSL=true
-    ```
+3.  **Dependências Externas:**
+    Além das dependências do Python (nenhuma adicional), certifique-se de ter o `rar`, `parpar` (ou `par2`) e `nyuu` instalados e disponíveis no seu `PATH`.
+
+### Configuração de Credenciais
+O script usa um arquivo de configuração global em `~/.config/upapasta/.env` por padrão. Na primeira execução, será solicitado que você forneça as credenciais, que serão salvas automaticamente.
+
+Para configurar manualmente:
+- Copie o arquivo de exemplo `.env.example` para `~/.config/upapasta/.env` e edite:
+  ```bash
+  mkdir -p ~/.config/upapasta
+  cp .env.example ~/.config/upapasta/.env
+  ```
+- Edite o arquivo `~/.config/upapasta/.env`:
+  ```ini
+  NNTP_HOST=news.your-provider.com
+  NNTP_PORT=563
+  NNTP_USER=your-username
+  NNTP_PASS=your-password
+  USENET_GROUP=alt.binaries.test
+  NNTP_SSL=true
+  ```
 
 ## Como Usar
 

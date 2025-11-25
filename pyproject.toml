@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "upapasta"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
-  { name="Franzopl", email="author@example.com" },
+  { name="Franzopl", email="franzopl@example.com" },
 ]
 description = "A script to upload folders to Usenet with RAR, PAR2, and nyuu."
 readme = "README.md"
@@ -15,7 +15,15 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Topic :: Communications :: File Sharing",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
 ]
+
+[project.urls]
+Homepage = "https://github.com/franzopl/upapasta"
+Repository = "https://github.com/franzopl/upapasta.git"
+Issues = "https://github.com/franzopl/upapasta/issues"
 
 [project.scripts]
 upapasta = "upapasta.main:main"
