@@ -34,20 +34,6 @@ import random
 import string
 
 
-def load_env_file(env_path: str = ".env") -> dict:
-    """Carrega variáveis de ambiente de um arquivo .env simples."""
-    env_vars = {}
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    if "=" in line:
-                        key, val = line.split("=", 1)
-                        env_vars[key.strip()] = val.strip()
-    return env_vars
-
-
 def find_nyuu() -> str | None:
     """Procura executável 'nyuu' no PATH."""
     return shutil.which("nyuu")
@@ -108,12 +94,12 @@ def generate_anonymous_uploader() -> str:
 
 
 def upload_to_usenet(
-    rar_path: str, 
+    rar_path: str,
+    env_vars: dict,
     dry_run: bool = False,
     nyuu_path: str | None = None,
     subject: str | None = None,
     group: str | None = None,
-    env_file: str = ".env",
 ) -> int:
     """Upload de .rar e .par2 para Usenet usando nyuu."""
 
@@ -141,7 +127,7 @@ def upload_to_usenet(
         return 3
 
     # Carrega credenciais do .env
-    env_vars = load_env_file(env_file)
+    # env_vars = load_env_file(env_file)
 
     nntp_host = env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST")
     nntp_port = env_vars.get("NNTP_PORT") or os.environ.get("NNTP_PORT", "119")

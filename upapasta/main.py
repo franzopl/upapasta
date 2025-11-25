@@ -37,8 +37,10 @@ Retornos:
 """
 
 import argparse
+import getpass
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -46,7 +48,69 @@ from pathlib import Path
 
 from .makerar import make_rar
 from .makepar import make_parity
-from .upfolder import upload_to_usenet, load_env_file
+from .upfolder import upload_to_usenet
+
+
+def load_env_file(env_path: str = ".env") -> dict:
+    """Carrega variáveis de ambiente de um arquivo .env simples."""
+    env_vars = {}
+    if os.path.exists(env_path):
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    if "=" in line:
+                        key, val = line.split("=", 1)
+                        env_vars[key.strip()] = val.strip()
+    return env_vars
+
+
+def prompt_for_credentials(env_file: str) -> dict:
+    """Solicita credenciais ao usuário e salva no arquivo .env."""
+    print("🔑 Credenciais de Usenet não encontradas ou incompletas.")
+    print("Por favor, forneça as seguintes informações:")
+    
+    creds = {
+        "NNTP_HOST": input("   - Servidor NNTP (ex: news.example.com): "),
+        "NNTP_PORT": input("   - Porta NNTP (ex: 563): "),
+        "NNTP_USER": input("   - Usuário NNTP: "),
+        "NNTP_PASS": getpass.getpass("   - Senha NNTP: "),
+        "USENET_GROUP": input("   - Grupo Usenet (ex: alt.binaries.test): "),
+    }
+    
+    # Adiciona valores padrão para outros campos importantes
+    creds["NNTP_SSL"] = "true"
+    creds["NNTP_CONNECTIONS"] = "50"
+    creds["ARTICLE_SIZE"] = "700K"
+
+    with open(env_file, "w") as f:
+        f.write("# Configuração de credenciais para upload em Usenet com nyuu\n")
+        for key, value in creds.items():
+            f.write(f"{key}={value}\n")
+    
+    print(f"\n✅ Credenciais salvas em '{env_file}'.")
+    return creds
+
+
+def check_or_prompt_credentials(env_file: str) -> dict:
+    """Verifica se as credenciais existem e estão preenchidas, senão, solicita."""
+    required_keys = ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS", "USENET_GROUP"]
+    env_vars = load_env_file(env_file)
+    
+    # Verifica se todas as chaves obrigatórias existem e não estão vazias
+    missing_or_empty_keys = [
+        key for key in required_keys if not env_vars.get(key)
+    ]
+    
+    # Verifica se os valores padrão do .env.example não foram alterados
+    is_default_host = env_vars.get("NNTP_HOST") == "news.example.com"
+    is_default_user = env_vars.get("NNTP_USER") == "seu_usuario"
+
+    if missing_or_empty_keys or is_default_host or is_default_user:
+        return prompt_for_credentials(env_file)
+    
+    print("✅ Credenciais de Usenet carregadas.")
+    return env_vars
 
 
 def format_time(seconds: int) -> str:
@@ -93,6 +157,7 @@ class UpaPastaOrchestrator:
         self.backend = backend
         self.rar_file: str | None = None
         self.par_file: str | None = None
+        self.env_vars: dict = {}
 
     def validate(self) -> bool:
         """Valida entrada e ambiente."""
@@ -102,10 +167,6 @@ class UpaPastaOrchestrator:
 
         if not self.folder_path.is_dir():
             print(f"Erro: '{self.folder_path}' não é um diretório.")
-            return False
-
-        if not self.skip_upload and not os.path.exists(self.env_file):
-            print("Erro: arquivo .env não encontrado. Copie .env.example para .env e configure.")
             return False
 
         return True
@@ -233,10 +294,10 @@ class UpaPastaOrchestrator:
         try:
             rc = upload_to_usenet(
                 self.rar_file,
+                env_vars=self.env_vars,
                 dry_run=self.dry_run,
                 subject=self.subject,
                 group=self.group,
-                env_file=self.env_file,
             )
             return rc == 0
         except Exception as e:
@@ -296,12 +357,11 @@ class UpaPastaOrchestrator:
         }
         total_start_time = time.time()
         
-        # Tenta carregar o grupo do .env para mostrar no sumário
-        try:
-            env_vars = load_env_file(self.env_file)
-            group_from_env = env_vars.get("USENET_GROUP")
-        except Exception:
-            group_from_env = None
+        # Carrega e valida as credenciais se o upload não for pulado
+        if not self.skip_upload:
+            self.env_vars = check_or_prompt_credentials(self.env_file)
+            if not self.env_vars:
+                return 3  # Erro na obtenção de credenciais
 
         print("\n" + "=" * 60)
         print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
@@ -372,6 +432,7 @@ class UpaPastaOrchestrator:
         print(f"  » Pasta de Origem: {self.folder_path.name}")
         if not self.skip_upload:
             # Mostra o grupo do argumento, ou do .env, ou um fallback
+            group_from_env = self.env_vars.get("USENET_GROUP")
             display_group = self.group or group_from_env or "(Não especificado)"
             print(f"  » Subject da Postagem: {self.subject}")
             print(f"  » Grupo Usenet: {display_group}")
@@ -473,7 +534,32 @@ def parse_args():
     return p.parse_args()
 
 
+def check_dependencies():
+    """Verifica se as dependências de linha de comando (rar, nyuu, parpar) estão instaladas."""
+    print("🔍 Verificando dependências...")
+    required_commands = ["rar", "nyuu", "parpar"]
+    missing_commands = []
+
+    for cmd in required_commands:
+        if not shutil.which(cmd):
+            missing_commands.append(cmd)
+
+    if missing_commands:
+        print("❌ Dependências não encontradas:")
+        for cmd in missing_commands:
+            print(f"  - '{cmd}' não está instalado ou não está no PATH.")
+        print("\n   Por favor, instale as dependências e tente novamente.")
+        print("   Você pode encontrar instruções de instalação em INSTALL.md")
+        return False
+
+    print("✅ Todas as dependências foram encontradas.")
+    return True
+
+
 def main():
+    if not check_dependencies():
+        sys.exit(1)
+
     args = parse_args()
 
     orchestrator = UpaPastaOrchestrator(
