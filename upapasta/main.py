@@ -26,7 +26,7 @@ Opções:
   --skip-par                 Pula geração de paridade
   --skip-upload              Pula upload para Usenet
   --force                    Força sobrescrita de arquivos existentes
-  --env-file FILE            Arquivo .env para credenciais
+  --env-file FILE            Arquivo .env para credenciais (padrão: ~/.config/upapasta/.env)
   --keep-files               Mantém arquivos RAR e PAR2 após upload
 
 Retornos:
@@ -82,6 +82,9 @@ def prompt_for_credentials(env_file: str) -> dict:
     creds["NNTP_SSL"] = "true"
     creds["NNTP_CONNECTIONS"] = "50"
     creds["ARTICLE_SIZE"] = "700K"
+
+    # Cria o diretório se não existir
+    os.makedirs(os.path.dirname(env_file), exist_ok=True)
 
     with open(env_file, "w") as f:
         f.write("# Configuração de credenciais para upload em Usenet com nyuu\n")
@@ -523,8 +526,8 @@ def parse_args():
     )
     p.add_argument(
         "--env-file",
-        default=".env",
-        help="Arquivo .env para credenciais (padrão: .env)",
+        default=os.path.expanduser("~/.config/upapasta/.env"),
+        help="Arquivo .env para credenciais (padrão: ~/.config/upapasta/.env)",
     )
     p.add_argument(
         "--keep-files",

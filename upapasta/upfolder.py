@@ -4,7 +4,7 @@ upfolder.py
 
 Upload de arquivo .rar e arquivos de paridade (.par2) para Usenet usando nyuu.
 
-Lê credenciais do arquivo .env na raiz do workspace ou via variáveis de ambiente.
+Lê credenciais do arquivo .env global (~/.config/upapasta/.env) ou via variáveis de ambiente.
 
 Uso:
   python3 upfolder.py /caminho/para/arquivo.rar
@@ -66,8 +66,8 @@ def parse_args():
     )
     p.add_argument(
         "--env-file",
-        default=".env",
-        help="Caminho para arquivo .env (padrão: .env)",
+        default=os.path.expanduser("~/.config/upapasta/.env"),
+        help="Caminho para arquivo .env (padrão: ~/.config/upapasta/.env)",
     )
     return p.parse_args()
 
