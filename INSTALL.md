@@ -1,541 +1,121 @@
-# 📦 Guia Completo de Instalação — UpaPasta
+# Guia de Instalação — UpaPasta
 
-## 📋 Índice
+Este guia irá ajudá-lo a instalar o **UpaPasta** e suas dependências para que você possa começar a usá-lo o mais rápido possível.
 
-1. [Pré-requisitos](#pré-requisitos)
-2. [Instalação Rápida](#instalação-rápida)
-3. [Instalação Detalhada por SO](#instalação-detalhada-por-so)
-4. [Instalação para Desenvolvimento](#instalação-para-desenvolvimento)
-5. [Verificação de Instalação](#verificação-de-instalação)
-6. [Troubleshooting](#troubleshooting)
+## 1. Pré-requisitos
 
----
+Antes de começar, você precisará ter os seguintes softwares instalados em seu sistema:
 
-## 🔧 Pré-requisitos
+-   **Python 3.10+**: A linguagem de programação na qual o UpaPasta é construído.
+-   **Git**: O sistema de controle de versão usado para baixar o código-fonte do UpaPasta.
+-   **RAR**: O utilitário de compressão usado para criar os arquivos `.rar`.
+-   **par2** ou **parpar**: As ferramentas de linha de comando usadas para gerar os arquivos de paridade. O `parpar` é recomendado por ser mais rápido.
 
-### Python
-- **Python 3.10+** (obrigatório)
-- Verificar: `python3 --version`
+## 2. Instalação
 
-### Ferramentas Externas
-- **RAR** — Compactador
-- **parpar** — Gerador de paridade (recomendado - mais rápido)
-- **par2** — Gerador de paridade alternativo (mais lento, mas compatível)
-- **Nyuu** — Cliente upload Usenet
+Siga os passos abaixo para instalar o UpaPasta e suas dependências.
 
----
+### Passo 1: Clone o Repositório
 
-## 🔧 Backends PAR2
-
-### parpar (Recomendado - Padrão)
-- **Mais rápido** e moderno
-- Melhor otimização para Usenet
-- Suporte a slice-size automático
-- Instalação: `npm install -g parpar`
-
-### par2 (Alternativa)
-- Mais lento, mas tradicional
-- Compatível com ferramentas antigas
-- Instalação: `sudo apt-get install par2` (Ubuntu/Debian)
-
-**Por que parpar é recomendado?** Ele é significativamente mais rápido e otimizado para uploads Usenet modernos.
-
----
-
-## ⚡ Instalação Rápida
-
-### Para Usuários Finais (Tudo Automático)
+Primeiro, clone o repositório do UpaPasta para a sua máquina local usando o Git:
 
 ```bash
-# 1. Clonar repositório
-git clone https://github.com/seu-usuario/upapasta.git
+git clone https://github.com/franzopl/upapasta.git
 cd upapasta
+```
 
-# 2. Executar script de instalação (Linux/macOS)
-bash install.sh
+### Passo 2: Instale as Dependências do Python
 
-# OU instalar manualmente:
+Em seguida, instale as dependências do Python listadas no arquivo `requirements.txt`. É altamente recomendável que você faça isso em um ambiente virtual para evitar conflitos com outros pacotes Python em seu sistema.
+
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Em sistemas baseados em Unix (Linux, macOS)
+# ou
+venv\Scripts\activate  # Em Windows
+
 pip install -r requirements.txt
-cp .env.example .env
-nano .env  # Editar credenciais
-
-# 3. Testar
-python3 -m upapasta.main --help
 ```
 
-### Para Desenvolvedores
+### Passo 3: Instale as Dependências Externas
 
-```bash
-# Clonar + instalar em modo desenvolvimento
-git clone https://github.com/seu-usuario/upapasta.git
-cd upapasta
-pip install -e ".[dev]"  # Instala com dependências dev
-```
+Agora, você precisará instalar as dependências externas. As instruções abaixo cobrem os sistemas operacionais mais comuns.
 
----
+#### Em Debian/Ubuntu:
 
-## 🖥️ Instalação Detalhada por SO
-
-### Ubuntu / Debian / Linux Mint
-
-#### Passo 1: Instalar ferramentas externas
 ```bash
 sudo apt-get update
-sudo apt-get install -y python3 python3-pip git
+sudo apt-get install -y rar par2
+```
 
-# RAR
-sudo apt-get install -y rar
+Se você preferir usar o `parpar`, pode instalá-lo via `npm`:
 
-# PAR2 (RECOMENDADO - mais rápido)
+```bash
 sudo apt-get install -y npm
 sudo npm install -g parpar
-
-# Alternativa: par2 (mais lento, mas compatível)
-# sudo apt-get install -y par2
-
-# Nyuu (via npm)
-sudo npm install -g nyuu
 ```
 
-#### Passo 2: Clonar e configurar
+#### Em macOS (usando [Homebrew](https://brew.sh/)):
+
 ```bash
-git clone https://github.com/seu-usuario/upapasta.git
-cd upapasta
-pip3 install -r requirements.txt
+brew install rar par2
 ```
 
-#### Passo 3: Configurar credenciais
+Para instalar o `parpar`, você pode usar o `npm`:
+
 ```bash
-cp .env.example .env
-nano .env
-# Editar com suas credenciais Usenet
-```
-
-#### Passo 4: Verificar instalação
-```bash
-python3 -m upapasta.main --help
-which rar parpar nyuu
-# ou se usar par2: which rar par2 nyuu
-```
-
----
-
-### macOS
-
-#### Passo 1: Instalar Homebrew (se não tiver)
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-#### Passo 2: Instalar ferramentas
-```bash
-# Python (já deve vir com macOS 10.14+)
-# Verificar: python3 --version
-
-# RAR (versão trial gratuita)
-brew install rar
-
-# PAR2 (RECOMENDADO - mais rápido)
 brew install npm
 npm install -g parpar
-
-# Alternativa: par2 (mais lento, mas compatível)
-# brew install par2
-
-# Nyuu (via npm)
-npm install -g nyuu
 ```
 
-#### Passo 3: Clonar e configurar
-```bash
-git clone https://github.com/seu-usuario/upapasta.git
-cd upapasta
-pip3 install -r requirements.txt
-```
+#### Em Windows:
 
-#### Passo 4: Configurar credenciais
-```bash
-cp .env.example .env
-nano .env
-```
-
----
-
-### Fedora / RHEL / CentOS
-
-#### Passo 1: Instalar ferramentas
-```bash
-sudo dnf update
-
-# RAR
-sudo dnf install -y rar
-
-# PAR2 (RECOMENDADO - mais rápido)
-sudo dnf install -y npm
-sudo npm install -g parpar
-
-# Alternativa: par2 (mais lento, mas compatível)
-# sudo dnf install -y par2cmdline-mt
-
-# Python + Nyuu
-sudo dnf install -y python3 python3-pip
-sudo npm install -g nyuu
-```
-
-#### Passo 2: Clonar e configurar
-```bash
-git clone https://github.com/seu-usuario/upapasta.git
-cd upapasta
-pip3 install -r requirements.txt
-```
-
-#### Passo 3: Configurar credenciais
-```bash
-cp .env.example .env
-nano .env
-```
-
----
-
-### Windows (WSL2 Recomendado)
-
-#### Opção 1: WSL2 (Recomendado)
-
-1. **Instalar WSL2:**
-   ```powershell
-   # No PowerShell como administrador
-   wsl --install
-   # Reiniciar computador
-   ```
-
-2. **Dentro do WSL2 (Ubuntu):**
-   ```bash
-   # Seguir instruções da seção Ubuntu/Debian
-   ```
-
-#### Opção 2: Windows Nativo (Mais Complexo)
-
-1. **Instalar Python:** https://www.python.org/downloads/
-2. **Instalar RAR:** https://www.win-rar.com/
-3. **Instalar PAR2:** Compilar do source ou buscar builds
-4. **Instalar Nyuu:** Via npm (instalar Node.js primeiro)
-5. **Ajustar PATHs** em variáveis de ambiente do Windows
-
-**Não recomendado.** Use WSL2 para melhor compatibilidade.
-
----
-
-## 👨‍💻 Instalação para Desenvolvimento
-
-### Setup Completo para Contribuidores
+A maneira mais fácil de instalar as dependências externas no Windows é usando o [Chocolatey](https://chocolatey.org/).
 
 ```bash
-# 1. Clonar repositório
-git clone https://github.com/seu-usuario/upapasta.git
-cd upapasta
-
-# 2. Criar virtual environment (RECOMENDADO)
-python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
-# ou
-venv\Scripts\activate  # Windows
-
-# 3. Instalar em modo desenvolvimento
-pip install -e ".[dev]"
-
-# 4. Instalar pré-commit hooks (opcional)
-pip install pre-commit
-pre-commit install
-
-# 5. Rodar testes
-pytest -v
-pytest --cov
-
-# 5. Rodar linter
-black .
-flake8 .
-mypy .
-
-
-# 7. Criar branch para sua feature
-git checkout -b feature/minha-feature
+choco install winrar par2
 ```
 
-### Estrutura de Desenvolvimento
-
-```
-upapasta/
-├── __init__.py
-├── main.py              ← Script orquestrador
-├── makerar.py
-├── makepar.py
-├── upfolder.py
-tests/               ← Testes unitários
-│   ├── test_main.py
-│   ├── test_makerar.py
-│   ├── test_makepar.py
-│   └── test_upfolder.py
-requirements.txt
-setup.py
-README.md
-```
-
-### Rodando Testes
+Para o `parpar`, você pode usar o `npm`, que pode ser instalado via Chocolatey também:
 
 ```bash
-# Todos os testes
-pytest
-
-# Com cobertura
-pytest --cov=. --cov-report=html
-
-# Teste específico
-pytest tests/test_main.py::test_dry_run -v
-```
-
----
-
-## ✅ Verificação de Instalação
-
-### Checklist Completo
-
-```bash
-# 1. Verificar Python
-python3 --version
-# Deve mostrar 3.10+
-
-# 2. Verificar ferramentas externas
-which rar
-which parpar  # ou which par2 se usar par2
-which nyuu
-# Todos devem mostrar um path
-
-# 3. Verificar repo
-cd upapasta
-git status
-# Não deve ter mudanças não commitadas
-
-# 4. Verificar dependências Python
-pip list | grep -E "tqdm|pytest|black"
-
-# 5. Rodar help
-python3 -m upapasta.main --help
-# Deve mostrar menu de ajuda
-
-# 6. Testar imports
-python3 -c "import sys, os, subprocess, pathlib, glob, argparse, re, time, json, logging; print('✅ Imports OK')"
-
-# 7. Fazer teste de dry-run
-python3 -m upapasta.main /tmp --dry-run
-# Deve mostrar processo sem executar
-```
-
-### Testes Rápidos
-
-```bash
-# Teste 1: Criar RAR (em arquivo de teste)
-mkdir -p /tmp/teste_upapasta
-echo "teste" > /tmp/teste_upapasta/arquivo.txt
-python3 -m upapasta.makerar /tmp/teste_upapasta
-ls -lh /tmp/teste_upapasta.rar
-# Deve criar arquivo .rar
-
-# Teste 2: Gerar PAR2 (usa parpar por padrão)
-python3 -m upapasta.makepar /tmp/teste_upapasta.rar -r 10
-ls -lh /tmp/teste_upapasta.par2
-# Deve criar arquivo .par2
-
-# Teste alternativo: Usar par2
-# python3 -m upapasta.makepar /tmp/teste_upapasta.rar -r 10 --backend par2
-
-# Teste 3: Dry-run completo
-python3 -m upapasta.main /tmp/teste_upapasta --dry-run
-# Deve mostrar workflow sem executar
-```
-
----
-
-## 🐛 Troubleshooting
-
-### Erro: "python3: command not found"
-
-**Causa:** Python não está instalado ou não está no PATH
-
-**Solução:**
-```bash
-# Ubuntu/Debian
-sudo apt-get install python3 python3-pip
-
-# macOS
-brew install python3
-
-# Verificar
-python3 --version
-```
-
----
-
-### Erro: "rar: command not found"
-
-**Causa:** RAR não está instalado
-
-**Solução:**
-```bash
-# Ubuntu/Debian
-sudo apt-get install rar
-
-# macOS
-brew install rar
-
-# Fedora
-sudo dnf install rar
-
-# Verificar
-rar --version
-```
-
----
-
-### Erro: "parpar: command not found" ou "par2: command not found"
-
-**Causa:** Backend PAR2 não está instalado
-
-**Solução (Recomendada - parpar):**
-```bash
-# Ubuntu/Debian
-sudo apt-get install npm
-sudo npm install -g parpar
-
-# macOS
-brew install npm
+choco install nodejs
 npm install -g parpar
-
-# Fedora
-sudo dnf install npm
-sudo npm install -g parpar
-
-# Verificar
-parpar --version
 ```
 
-**Alternativa (par2):**
+### Passo 4: Configure o Arquivo de Ambiente
+
+Finalmente, você precisará configurar o arquivo de ambiente com as suas credenciais da Usenet. Comece copiando o arquivo `.env.example`:
+
 ```bash
-# Ubuntu/Debian
-sudo apt-get install par2
-
-# macOS
-brew install par2
-
-# Fedora
-sudo dnf install par2cmdline-mt
-
-# Verificar
-par2 --version
-```
-
----
-
-### Erro: "nyuu: command not found"
-
-**Causa:** Nyuu não está instalado
-
-**Solução:**
-```bash
-# Instalar via npm
-sudo npm install -g nyuu
-
-# Ou compilar do source
-git clone https://github.com/Piorosen/nyuu.git
-cd nyuu
-npm install
-npm run build
-
-# Verificar
-nyuu --version
-```
-
----
-
-### Erro: "ModuleNotFoundError: No module named 'tqdm'"
-
-**Causa:** Dependências opcionais não instaladas
-
-**Solução:**
-```bash
-# Instalar todas
-pip install -r requirements.txt
-
-# Ou apenas a que falta
-pip install tqdm
-```
-
----
-
-### Erro: "Permission denied" em .env
-
-**Causa:** Arquivo de credenciais com permissão incorreta
-
-**Solução:**
-```bash
-# Dar permissão apenas ao usuário
-chmod 600 .env
-
-# Verificar
-ls -la .env
-# Deve mostrar: -rw------- (600)
-```
-
----
-
-### Erro: ".env file not found"
-
-**Causa:** Arquivo não foi criado
-
-**Solução:**
-```bash
-# Criar de exemplo
 cp .env.example .env
-
-# Editar
-nano .env
-
-# Verificar que foi criado
-ls -la .env
 ```
 
----
+Em seguida, edite o arquivo `.env` com as suas informações.
 
-## 🎯 Próximos Passos
+```bash
+nano .env  # ou seu editor de texto preferido
+```
 
-Após instalar com sucesso:
+O arquivo se parecerá com isto:
 
-1. **Editar `.env`** com suas credenciais Usenet
-2. **Testar com `--dry-run`:**
-   ```bash
-   python3 -m upapasta.main /sua/pasta --dry-run
-   ```
-3. **Se OK, fazer upload real:**
-   ```bash
-   python3 -m upapasta.main /sua/pasta
-   ```
+```
+USENET_HOST=news.your-provider.com
+USENET_PORT=563
+USENET_USER=your-username
+USENET_PASS=your-password
+USENET_GROUP=alt.binaries.test
+USENET_SSL=true
+```
 
----
+## 3. Verificando a Instalação
 
-## 📚 Documentação Relacionada
+Para garantir que tudo foi instalado corretamente, você pode executar o UpaPasta com a flag `--help`:
 
-- [README.md](./README.md) — Guia principal
-- [ROADMAP.md](./ROADMAP.md) — Features e próximos passos
-- [requirements.txt](./requirements.txt) — Dependências Python
+```bash
+python3 -m upapasta.main --help
+```
 
----
+Se a instalação foi bem-sucedida, você verá uma mensagem de ajuda com todas as opções de linha de comando disponíveis.
 
-## 💬 Precisa de Ajuda?
-
-- **Issues no GitHub:** Reporte bugs e problemas
-- **Discussions:** Pergunte sobre instalação
-- **Email:** seu-email@exemplo.com
-
----
-
-**Última atualização:** 20 de novembro de 2025  
-**Versão:** 1.1
+Agora você está pronto para usar o UpaPasta!
