@@ -1,121 +1,86 @@
 # Guia de Instalação — UpaPasta
 
-Este guia irá ajudá-lo a instalar o **UpaPasta** e suas dependências para que você possa começar a usá-lo o mais rápido possível.
+Este guia irá ajudá-lo a instalar o **UpaPasta** e suas dependências.
 
 ## 1. Pré-requisitos
 
 Antes de começar, você precisará ter os seguintes softwares instalados em seu sistema:
 
--   **Python 3.10+**: A linguagem de programação na qual o UpaPasta é construído.
--   **Git**: O sistema de controle de versão usado para baixar o código-fonte do UpaPasta.
--   **RAR**: O utilitário de compressão usado para criar os arquivos `.rar`.
--   **par2** ou **parpar**: As ferramentas de linha de comando usadas para gerar os arquivos de paridade. O `parpar` é recomendado por ser mais rápido.
+-   **Python 3.8+**: A linguagem de programação na qual o UpaPasta é construído.
+-   **pip**: O instalador de pacotes do Python.
 
-## 2. Instalação
+### Dependências de Sistema
 
-Siga os passos abaixo para instalar o UpaPasta e suas dependências.
+O UpaPasta orquestra ferramentas de linha de comando. Você DEVE instalar as seguintes ferramentas e garantir que elas estejam no PATH do seu sistema:
 
-### Passo 1: Clone o Repositório
+-   **`rar`**: O utilitário de compressão.
+    -   *Debian/Ubuntu*: `sudo apt install rar`
+    -   *macOS*: `brew install rar`
+-   **`nyuu`**: O uploader de Usenet.
+    -   *Via npm*: `npm install -g nyuu`
+-   **`parpar`**: O gerador de paridade (recomendado, mais rápido que `par2`).
+    -   *Via npm*: `npm install -g parpar`
 
-Primeiro, clone o repositório do UpaPasta para a sua máquina local usando o Git:
+Consulte o `requirements.txt` para mais detalhes e alternativas de instalação.
+
+## 2. Instalação do UpaPasta
+
+Com os pré-requisitos instalados, você pode instalar o UpaPasta como um comando de linha.
+
+### Passo 1: Obtenha o Código-Fonte
+
+Clone o repositório do UpaPasta para a sua máquina local usando Git (ou baixe o ZIP):
 
 ```bash
 git clone https://github.com/franzopl/upapasta.git
 cd upapasta
 ```
 
-### Passo 2: Instale as Dependências do Python
+### Passo 2: Instale o Pacote
 
-Em seguida, instale as dependências do Python listadas no arquivo `requirements.txt`. É altamente recomendável que você faça isso em um ambiente virtual para evitar conflitos com outros pacotes Python em seu sistema.
+Use `pip` para instalar o UpaPasta. Este comando irá criar o executável `upapasta` no seu sistema, permitindo que você o execute de qualquer lugar.
+
+É altamente recomendável fazer isso em um ambiente virtual (`venv`).
 
 ```bash
+# Opcional, mas recomendado: criar e ativar um ambiente virtual
 python3 -m venv venv
 source venv/bin/activate  # Em sistemas baseados em Unix (Linux, macOS)
-# ou
-venv\Scripts\activate  # Em Windows
 
-pip install -r requirements.txt
+# Instalar o UpaPasta
+pip install .
 ```
 
-### Passo 3: Instale as Dependências Externas
-
-Agora, você precisará instalar as dependências externas. As instruções abaixo cobrem os sistemas operacionais mais comuns.
-
-#### Em Debian/Ubuntu:
+Para desenvolvimento, use o modo "editável", que permite que as alterações no código-fonte sejam refletidas imediatamente sem a necessidade de reinstalar:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y rar par2
+pip install -e .
 ```
 
-Se você preferir usar o `parpar`, pode instalá-lo via `npm`:
+## 3. Configuração e Uso
+
+### Configuração de Credenciais
+
+Na primeira vez que você executar o `upapasta`, o script irá verificar se as credenciais de Usenet estão configuradas. Se não estiverem, ele solicitará que você as insira e as salvará em um arquivo `.env` no diretório de trabalho atual.
+
+### Executando o UpaPasta
+
+Após a instalação, você pode usar o comando `upapasta` de qualquer lugar no seu terminal:
 
 ```bash
-sudo apt-get install -y npm
-sudo npm install -g parpar
+upapasta /caminho/para/sua/pasta [OPÇÕES]
 ```
 
-#### Em macOS (usando [Homebrew](https://brew.sh/)):
+**Exemplo:**
 
 ```bash
-brew install rar par2
+upapasta "/media/downloads/meu_projeto_secreto" --redundancy 20
 ```
 
-Para instalar o `parpar`, você pode usar o `npm`:
+Para ver todas as opções disponíveis, use a flag `--help`:
 
 ```bash
-brew install npm
-npm install -g parpar
+upapasta --help
 ```
 
-#### Em Windows:
-
-A maneira mais fácil de instalar as dependências externas no Windows é usando o [Chocolatey](https://chocolatey.org/).
-
-```bash
-choco install winrar par2
-```
-
-Para o `parpar`, você pode usar o `npm`, que pode ser instalado via Chocolatey também:
-
-```bash
-choco install nodejs
-npm install -g parpar
-```
-
-### Passo 4: Configure o Arquivo de Ambiente
-
-Finalmente, você precisará configurar o arquivo de ambiente com as suas credenciais da Usenet. Comece copiando o arquivo `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-Em seguida, edite o arquivo `.env` com as suas informações.
-
-```bash
-nano .env  # ou seu editor de texto preferido
-```
-
-O arquivo se parecerá com isto:
-
-```
-USENET_HOST=news.your-provider.com
-USENET_PORT=563
-USENET_USER=your-username
-USENET_PASS=your-password
-USENET_GROUP=alt.binaries.test
-USENET_SSL=true
-```
-
-## 3. Verificando a Instalação
-
-Para garantir que tudo foi instalado corretamente, você pode executar o UpaPasta com a flag `--help`:
-
-```bash
-python3 -m upapasta.main --help
-```
-
-Se a instalação foi bem-sucedida, você verá uma mensagem de ajuda com todas as opções de linha de comando disponíveis.
-
-Agora você está pronto para usar o UpaPasta!
+É isso! Agora você está pronto para usar o UpaPasta.
