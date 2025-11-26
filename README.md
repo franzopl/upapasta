@@ -14,6 +14,7 @@ A ferramenta foi projetada para ser simples, eficiente e exibir barras de progre
 -   **Flexibilidade**: Permite pular etapas individuais (`--skip-rar`, `--skip-par`, `--skip-upload`).
 -   **Customização**: Opções para configurar a redundância dos arquivos PAR2, o tamanho dos posts e o assunto da postagem.
 -   **Segurança**: Carrega as credenciais da Usenet a partir de um arquivo `.env` para não expor informações sensíveis.
+-   **Geração de NZB**: Cria automaticamente um arquivo `.nzb` na pasta de execução para facilitar downloads.
 -   **Limpeza Automática**: Remove os arquivos `.rar` e `.par2` gerados após o upload (pode ser desativado com `--keep-files`).
 -   **Dry Run**: Permite simular a execução sem criar ou enviar arquivos (`--dry-run`).
 
