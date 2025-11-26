@@ -40,7 +40,7 @@ pip install upapasta
     ```
 
 3.  **Dependências Externas:**
-    Além das dependências do Python (nenhuma adicional), certifique-se de ter o `rar`, `parpar` (ou `par2`) e `nyuu` instalados e disponíveis no seu `PATH`.
+    Certifique-se de ter o `rar`, `parpar` (ou `par2`) e `nyuu` instalados e disponíveis no seu `PATH`.
 
 ### Configuração de Credenciais
 O script usa um arquivo de configuração global em `~/.config/upapasta/.env` por padrão. Na primeira execução, será solicitado que você forneça as credenciais, que serão salvas automaticamente.
@@ -63,16 +63,16 @@ Para configurar manualmente:
 
 ## Como Usar
 
-O uso básico do `upapasta` envolve a execução do script `main.py`, passando o caminho da pasta que você deseja enviar.
+Após a instalação via PyPI, use o comando `upapasta` diretamente.
 
 **Sintaxe:**
 ```bash
-python3 -m upapasta.main /caminho/para/sua/pasta [OPÇÕES]
+upapasta /caminho/para/sua/pasta [OPÇÕES]
 ```
 
 **Exemplo básico:**
 ```bash
-python3 -m upapasta.main /home/user/documentos/meu-arquivo-importante
+upapasta /home/user/documentos/meu-arquivo-importante
 ```
 
 ### Opções de Linha de Comando
@@ -90,7 +90,7 @@ python3 -m upapasta.main /home/user/documentos/meu-arquivo-importante
 | `--skip-par`       | Pula a etapa de geração dos arquivos de paridade `.par2`.                        | Desativado                              |
 | `--skip-upload`    | Pula a etapa de upload para a Usenet.                                          | Desativado                              |
 | `-f`, `--force`      | Força a sobrescrita de arquivos `.rar` ou `.par2` que já existam.              | Desativado                              |
-| `--env-file`       | Especifica um caminho alternativo para o arquivo `.env`.                         | `.env`                                  |
+| `--env-file`       | Especifica um caminho alternativo para o arquivo `.env`.                         | `~/.config/upapasta/.env`              |
 | `--keep-files`     | Mantém os arquivos `.rar` e `.par2` no disco após o upload.                    | Desativado                              |
 
 ## Estrutura do Projeto
@@ -98,14 +98,24 @@ python3 -m upapasta.main /home/user/documentos/meu-arquivo-importante
 ```
 upapasta/
 ├── upapasta/
+│   ├── __init__.py    # Inicialização do pacote
 │   ├── main.py        # Orquestrador principal
 │   ├── makerar.py     # Lógica para criar arquivos .rar
 │   ├── makepar.py     # Lógica para gerar arquivos .par2
 │   └── upfolder.py    # Lógica para fazer o upload
 ├── .env.example       # Exemplo de arquivo de configuração
-├── requirements.txt   # Dependências do Python
+├── LICENSE            # Licença MIT
+├── MANIFEST.in        # Arquivos extras para incluir no pacote
+├── pyproject.toml     # Configuração do pacote
+├── tests/
+│   └── test_upapasta.py # Testes unitários
+├── INSTALL.md         # Instruções de instalação detalhadas
 └── README.md          # Este arquivo
 ```
+
+## Licença
+
+Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ## Contribuição
 
