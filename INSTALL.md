@@ -16,12 +16,19 @@ O UpaPasta orquestra ferramentas de linha de comando. Você DEVE instalar as seg
 -   **`rar`**: O utilitário de compressão.
     -   *Debian/Ubuntu*: `sudo apt install rar`
     -   *macOS*: `brew install rar`
+    -   *Windows*: Instale WinRAR (rar.exe estará no PATH) ou use 7-Zip.
 -   **`nyuu`**: O uploader de Usenet.
-    -   *Via npm*: `npm install -g nyuu`
+    -   *Via npm*: `npm install -g nyuu` (certifique-se de que Node.js está instalado)
+    -   *Ou baixe o binário*: Visite https://github.com/Piorosen/nyuu/releases e baixe a versão para seu sistema.
 -   **`parpar`**: O gerador de paridade (recomendado, mais rápido que `par2`).
-    -   *Via npm*: `npm install -g parpar`
+    -   *Via pip*: `pip install parpar` (instalação Python, cross-platform)
 
-Consulte o `requirements.txt` para mais detalhes e alternativas de instalação.
+Alternativas: Em vez de `parpar`, você pode usar `par2` (mais lento):
+-   *Debian/Ubuntu*: `sudo apt install par2`
+-   *macOS*: `brew install par2`
+-   *Windows*: Baixe de https://github.com/Parchive/par2cmdline/releases
+
+Consulte as seções abaixo para mais detalhes.
 
 ## 2. Instalação do UpaPasta
 

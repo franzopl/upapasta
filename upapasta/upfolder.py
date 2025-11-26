@@ -36,7 +36,11 @@ import string
 
 def find_nyuu() -> str | None:
     """Procura executável 'nyuu' no PATH."""
-    return shutil.which("nyuu")
+    for cmd in ("nyuu", "nyuu.exe"):
+        path = shutil.which(cmd)
+        if path:
+            return path
+    return None
 
 
 def parse_args():

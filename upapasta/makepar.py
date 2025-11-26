@@ -28,7 +28,7 @@ import sys
 
 
 def find_par2():
-    for cmd in ("par2", "par2create"):
+    for cmd in ("par2", "par2create", "par2.exe", "par2create.exe"):
         path = shutil.which(cmd)
         if path:
             return ("par2", path)
