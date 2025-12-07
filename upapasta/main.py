@@ -144,6 +144,8 @@ class UpaPastaOrchestrator:
         env_file: str = ".env",
         keep_files: bool = False,
         backend: str = "parpar",
+        rar_threads: int | None = None,
+        par_threads: int | None = None,
     ):
         self.folder_path = Path(folder_path).absolute()
         self.dry_run = dry_run
@@ -158,6 +160,8 @@ class UpaPastaOrchestrator:
         self.env_file = env_file
         self.keep_files = keep_files
         self.backend = backend
+        self.rar_threads = rar_threads if rar_threads is not None else (os.cpu_count() or 4)
+        self.par_threads = par_threads if par_threads is not None else (os.cpu_count() or 4)
         self.rar_file: str | None = None
         self.par_file: str | None = None
         self.env_vars: dict = {}
@@ -203,7 +207,7 @@ class UpaPastaOrchestrator:
         print("-" * 60)
 
         try:
-            rc = make_rar(str(self.folder_path), self.force)
+            rc = make_rar(str(self.folder_path), self.force, threads=self.rar_threads)
             if rc == 0:
                 print("-" * 60)
                 self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
@@ -259,6 +263,7 @@ class UpaPastaOrchestrator:
                 backend=self.backend,
                 usenet=True,
                 post_size=self.post_size,
+                threads=self.par_threads,
             )
             if rc == 0:
                 print("-" * 60)
@@ -373,6 +378,8 @@ class UpaPastaOrchestrator:
         print(f"🛡️  Redundância: {self.redundancy}%")
         print(f"📊 Post-size:  {self.post_size}")
         print(f"✉️  Subject:    {self.subject}")
+        print(f"⚡ Threads RAR: {self.rar_threads}")
+        print(f"⚡ Threads PAR: {self.par_threads}")
         if self.dry_run:
             print("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado")
         print()
@@ -534,6 +541,18 @@ def parse_args():
         action="store_true",
         help="Mantém arquivos RAR e PAR2 após upload",
     )
+    p.add_argument(
+        "--rar-threads",
+        type=int,
+        default=None,
+        help="Número de threads para criação de RAR (padrão: número de CPUs disponíveis)",
+    )
+    p.add_argument(
+        "--par-threads",
+        type=int,
+        default=None,
+        help="Número de threads para geração de PAR2 (padrão: número de CPUs disponíveis)",
+    )
     return p.parse_args()
 
 
@@ -579,6 +598,8 @@ def main():
         force=args.force,
         env_file=args.env_file,
         keep_files=args.keep_files,
+        rar_threads=args.rar_threads,
+        par_threads=args.par_threads,
     )
 
     rc = orchestrator.run()

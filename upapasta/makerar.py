@@ -27,6 +27,9 @@ import shutil
 import subprocess
 import sys
 import time
+import threading
+from queue import Queue
+from typing import Optional
 
 
 def find_rar():
@@ -38,7 +41,61 @@ def find_rar():
 	return None
 
 
-def make_rar(folder_path: str, force: bool = False) -> int:
+def _read_output(pipe, queue: Queue):
+	"""Thread worker para ler linhas do subprocess stdout."""
+	if pipe is None:
+		return
+	try:
+		for line in pipe:
+			queue.put(line.rstrip("\n"))
+	except:
+		pass
+	finally:
+		queue.put(None)  # Sinal de fim
+
+
+def _process_output(queue: Queue) -> tuple[int, bool]:
+	"""
+	Processa linhas de output da fila em thread principal.
+	Retorna (último_percent, teve_percentual).
+	"""
+	last_percent = -1
+	teve_percentual = False
+	spinner = "|/-\\"
+	spin_idx = 0
+	bar_width = 40
+
+	while True:
+		line = queue.get()
+		if line is None:  # Fim da leitura
+			break
+
+		# Tenta encontrar porcentagem no formato 'xx%'
+		m = re.search(r"(\d{1,3})%", line)
+		if m:
+			pct = None
+			try:
+				pct = int(m.group(1))
+			except ValueError:
+				pass
+			if pct is not None:
+				last_percent = pct
+				teve_percentual = True
+				filled = int((pct / 100.0) * bar_width)
+				bar = "#" * filled + "-" * (bar_width - filled)
+				sys.stdout.write(f"\r[{bar}] {pct:3d}%")
+				sys.stdout.flush()
+				continue
+
+		# Se não houver porcentagem, mostra linha compacta com spinner
+		sys.stdout.write(f"\r{spinner[spin_idx % len(spinner)]} {line[:70]}")
+		sys.stdout.flush()
+		spin_idx += 1
+
+	return last_percent, teve_percentual
+
+
+def make_rar(folder_path: str, force: bool = False, threads: int | None = None) -> int:
 	folder_path = os.path.abspath(folder_path)
 	if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
 		print(f"Erro: '{folder_path}' não existe ou não é um diretório.")
@@ -62,9 +119,12 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 	# Executar o comando no diretório pai para que o arquivo inclua a
 	# pasta com seu nome (em vez de incluir caminhos absolutos).
 	# -m0 -> store (sem compressão)
-	cmd = [rar_exec, "a", "-r", "-m0", out_rar, base]
+	# -ma5 -> algoritmo de compressão RAR5
+	# -mt -> usar múltiplos threads
+	num_threads = threads if threads is not None else (os.cpu_count() or 4)
+	cmd = [rar_exec, "a", "-r", "-m0", f"-mt{num_threads}", "-ma5", out_rar, base]
 
-	print(f"Criando '{out_rar}' a partir de '{folder_path}' (sem compressão)...")
+	print(f"Criando '{out_rar}' a partir de '{folder_path}' (usando {num_threads} threads)...")
 
 	try:
 		# Executa o rar e captura stdout/stderr para parsear progresso
@@ -77,42 +137,25 @@ def make_rar(folder_path: str, force: bool = False) -> int:
 			bufsize=1,
 		)
 
-		last_percent = -1
-		spinner = "|/-\\"
-		spin_idx = 0
-		bar_width = 40
+		# Fila para comunicação entre threads
+		output_queue: Queue = Queue()
 
-		# Leitura linha a linha em tempo real
-		if proc.stdout is not None:
-			for raw_line in proc.stdout:
-				line = raw_line.rstrip("\n")
-				# Tenta encontrar porcentagem no formato 'xx%'
-				m = re.search(r"(\d{1,3})%", line)
-				if m:
-					pct = None
-					try:
-						pct = int(m.group(1))
-					except ValueError:
-						pass
-					if pct is not None:
-						last_percent = pct
-						filled = int((pct / 100.0) * bar_width)
-						bar = "#" * filled + "-" * (bar_width - filled)
-						sys.stdout.write(f"\r[{bar}] {pct:3d}%")
-						sys.stdout.flush()
-						continue
+		# Thread para ler output do subprocess
+		reader_thread = threading.Thread(
+			target=_read_output,
+			args=(proc.stdout, output_queue),
+			daemon=True
+		)
+		reader_thread.start()
 
-				# Se não houver porcentagem, mostra linha compacta com spinner
-				sys.stdout.write(f"\r{spinner[spin_idx % len(spinner)]} {line[:70]}")
-				sys.stdout.flush()
-				spin_idx += 1
-				# pequena pausa para evitar uso excessivo de CPU quando output é frequente
-				time.sleep(0.01)
+		# Processa output na thread principal
+		last_percent, teve_percentual = _process_output(output_queue)
 
+		# Aguarda o fim do processo
 		rc = proc.wait()
 
 		# Se parseamos uma porcentagem final, garante newline limpo
-		if last_percent >= 0:
+		if teve_percentual and last_percent >= 0:
 			sys.stdout.write("\n")
 
 		if rc == 0:

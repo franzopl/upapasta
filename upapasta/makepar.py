@@ -25,6 +25,8 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+from queue import Queue
 
 
 def find_par2():
@@ -94,10 +96,42 @@ def parse_args():
             "Padrão: 10M (assumido como padrão do nyuu)."
         ),
     )
+    p.add_argument(
+        "-t", "--threads",
+        type=int,
+        default=None,
+        help=(
+            "Número de threads a usar (parpar). Padrão: número de CPUs disponíveis. "
+            "Use 0 ou omita para deixar o parpar decidir automaticamente."
+        ),
+    )
     return p.parse_args()
 
 
-def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None) -> int:
+def _read_output(pipe, queue: Queue):
+	"""Thread worker para ler linhas do subprocess stdout."""
+	if pipe is None:
+		return
+	try:
+		for line in pipe:
+			queue.put(line)
+	except:
+		pass
+	finally:
+		queue.put(None)  # Sinal de fim
+
+
+def _process_output(queue: Queue):
+	"""Processa linhas de output da fila na thread principal."""
+	while True:
+		line = queue.get()
+		if line is None:  # Fim da leitura
+			break
+		sys.stdout.write(line)
+		sys.stdout.flush()
+
+
+def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None, threads: int | None = None) -> int:
     rar_path = os.path.abspath(rar_path)
     if not os.path.exists(rar_path) or not os.path.isfile(rar_path):
         print(f"Erro: '{rar_path}' não existe ou não é um arquivo.")
@@ -226,7 +260,9 @@ def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backen
             cmd.append('-s1M')
         if auto_slice_size:
             cmd.append('-S')
-        cmd.extend([f'-r{redundancy}%', '-o', out_par2, rar_path])
+        # Adicionar suporte a multithreading
+        num_threads = threads if threads is not None else (os.cpu_count() or 4)
+        cmd.extend([f'-t{num_threads}', f'-r{redundancy}%', '-o', out_par2, rar_path])
     else:  # par2
         cmd = [exe_path, 'create', f'-r{redundancy}', out_par2, rar_path]
 
@@ -239,20 +275,36 @@ def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backen
             except Exception:
                 pass
 
-    print(f"Criando paridade para '{rar_path}' -> '{out_par2}' (redundância {redundancy}%) usando {chosen}...")
+    # Mostrar informação sobre threads se for parpar
+    threads_info = ""
+    if chosen == 'parpar':
+        num_threads_used = threads if threads is not None else (os.cpu_count() or 4)
+        threads_info = f" (usando {num_threads_used} threads)"
+    
+    print(f"Criando paridade para '{rar_path}' -> '{out_par2}' (redundância {redundancy}%) usando {chosen}{threads_info}...")
 
     try:
         proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
         )
 
-        if proc.stdout is not None:
-            for line in proc.stdout:
-                # Apenas repassa linhas para saída; o usuário verá progresso se o par2 imprimir
-                sys.stdout.write(line)
-                sys.stdout.flush()
+        # Fila para comunicação entre threads
+        output_queue: Queue = Queue()
 
+        # Thread para ler output do subprocess
+        reader_thread = threading.Thread(
+            target=_read_output,
+            args=(proc.stdout, output_queue),
+            daemon=True
+        )
+        reader_thread.start()
+
+        # Processa output na thread principal
+        _process_output(output_queue)
+
+        # Aguarda o fim do processo
         rc = proc.wait()
+        
         if rc == 0:
             print("Arquivos de paridade criados com sucesso.")
             return 0
@@ -260,7 +312,7 @@ def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backen
             print(f"Erro: '{chosen}' retornou código {rc}.")
             return 5
     except Exception as e:
-        print("Erro ao executar 'par2':", e)
+        print(f"Erro ao executar '{chosen}':", e)
         return 5
 
 
