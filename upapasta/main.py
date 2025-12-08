@@ -133,8 +133,8 @@ class UpaPastaOrchestrator:
         self,
         folder_path: str,
         dry_run: bool = False,
-        redundancy: int = 15,
-        post_size: str = "20M",
+        redundancy: int | None = None,
+        post_size: str | None = None,
         subject: str | None = None,
         group: str | None = None,
         skip_rar: bool = False,
@@ -146,11 +146,12 @@ class UpaPastaOrchestrator:
         backend: str = "parpar",
         rar_threads: int | None = None,
         par_threads: int | None = None,
+        par_profile: str = "balanced",
     ):
         self.folder_path = Path(folder_path).absolute()
         self.dry_run = dry_run
-        self.redundancy = redundancy
-        self.post_size = post_size
+        self.redundancy = redundancy  # None = usar padrão do perfil
+        self.post_size = post_size  # None = usar padrão do perfil
         self.subject = subject or self.folder_path.name
         self.group = group
         self.skip_rar = skip_rar
@@ -162,6 +163,7 @@ class UpaPastaOrchestrator:
         self.backend = backend
         self.rar_threads = rar_threads if rar_threads is not None else (os.cpu_count() or 4)
         self.par_threads = par_threads if par_threads is not None else (os.cpu_count() or 4)
+        self.par_profile = par_profile
         self.rar_file: str | None = None
         self.par_file: str | None = None
         self.env_vars: dict = {}
@@ -252,7 +254,7 @@ class UpaPastaOrchestrator:
             print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
             return True
 
-        print(f"🔐 Gerando paridade com {self.redundancy}% de redundância...")
+        print(f"🔐 Gerando paridade (perfil: {self.par_profile})...")
         print("-" * 60)
 
         try:
@@ -264,6 +266,7 @@ class UpaPastaOrchestrator:
                 usenet=True,
                 post_size=self.post_size,
                 threads=self.par_threads,
+                profile=self.par_profile,
             )
             if rc == 0:
                 print("-" * 60)
@@ -375,8 +378,8 @@ class UpaPastaOrchestrator:
         print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
         print("=" * 60)
         print(f"📁 Pasta:      {self.folder_path.name}")
-        print(f"🛡️  Redundância: {self.redundancy}%")
-        print(f"📊 Post-size:  {self.post_size}")
+        print(f"🎯 Perfil PAR2: {self.par_profile}")
+        print(f"📊 Post-size:  {self.post_size or '(do perfil)'}")
         print(f"✉️  Subject:    {self.subject}")
         print(f"⚡ Threads RAR: {self.rar_threads}")
         print(f"⚡ Threads PAR: {self.par_threads}")
@@ -485,10 +488,16 @@ def parse_args():
         help="Mostra o que seria feito sem executar",
     )
     p.add_argument(
+        "--par-profile",
+        choices=("fast", "balanced", "safe"),
+        default="balanced",
+        help="Perfil de otimização PAR2 (padrão: balanced)",
+    )
+    p.add_argument(
         "-r", "--redundancy",
         type=int,
-        default=15,
-        help="Redundância PAR2 em porcentagem (padrão: 15)",
+        default=None,
+        help="Redundância PAR2 em porcentagem (sobrescreve perfil)",
     )
     p.add_argument(
         "--backend",
@@ -498,8 +507,8 @@ def parse_args():
     )
     p.add_argument(
         "--post-size",
-        default="20M",
-        help="Tamanho alvo de post Usenet (padrão: 20M)",
+        default=None,
+        help="Tamanho alvo de post Usenet (sobrescreve perfil)",
     )
     p.add_argument(
         "-s", "--subject",
@@ -600,6 +609,7 @@ def main():
         keep_files=args.keep_files,
         rar_threads=args.rar_threads,
         par_threads=args.par_threads,
+        par_profile=args.par_profile,
     )
 
     rc = orchestrator.run()

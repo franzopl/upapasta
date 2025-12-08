@@ -8,8 +8,14 @@ Uso:
   python3 makepar.py arquivo.rar
 
 Opções:
-  -r, --redundancy PERCENT   Percentual de redundância (ex: 10 para 10%). Default: 10
+  -r, --redundancy PERCENT   Percentual de redundância (ex: 10 para 10%). Default: varia por perfil
   -f, --force                Sobrescrever arquivos .par2 existentes
+  --profile PROFILE          Perfil de otimização: fast, balanced (padrão), safe
+
+Perfis:
+  fast                       Máxima velocidade: slice 20M, redundância 5%, post 100M
+  balanced                   Equilibrado (PADRÃO): slice 10M, redundância 10%, post 50M
+  safe                       Alta proteção: slice 5M, redundância 20%, post 30M
 
 Retornos:
   0: sucesso
@@ -27,6 +33,31 @@ import subprocess
 import sys
 import threading
 from queue import Queue
+
+
+# Definição dos perfis de otimização
+PROFILES = {
+    "fast": {
+        "description": "Máxima velocidade (ideal para upload urgente)",
+        "slice_size": "20M",
+        "redundancy": 5,
+        "post_size": "100M",
+    },
+    "balanced": {
+        "description": "Equilibrado (RECOMENDADO para Usenet)",
+        "slice_size": "10M",
+        "redundancy": 10,
+        "post_size": "50M",
+    },
+    "safe": {
+        "description": "Alta proteção (ideal para arquivos críticos)",
+        "slice_size": "5M",
+        "redundancy": 20,
+        "post_size": "30M",
+    },
+}
+
+DEFAULT_PROFILE = "balanced"
 
 
 def find_par2():
@@ -48,7 +79,13 @@ def find_parpar():
 def parse_args():
     p = argparse.ArgumentParser(description="Cria arquivos de paridade para um arquivo .rar (par2/parpar)")
     p.add_argument("rarfile", help="Caminho para o arquivo .rar")
-    p.add_argument("-r", "--redundancy", type=int, default=10, help="Redundância em porcentagem (ex: 10)")
+    p.add_argument(
+        "--profile",
+        choices=tuple(PROFILES.keys()),
+        default=DEFAULT_PROFILE,
+        help=f"Perfil de otimização (padrão: {DEFAULT_PROFILE})",
+    )
+    p.add_argument("-r", "--redundancy", type=int, default=None, help="Redundância em porcentagem (sobrescreve perfil)")
     p.add_argument("-f", "--force", action="store_true", help="Sobrescrever .par2 existente")
     p.add_argument(
         "--backend",
@@ -131,7 +168,26 @@ def _process_output(queue: Queue):
 		sys.stdout.flush()
 
 
-def make_parity(rar_path: str, redundancy: int = 10, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None, threads: int | None = None) -> int:
+def make_parity(rar_path: str, redundancy: int | None = None, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None, threads: int | None = None, profile: str = DEFAULT_PROFILE) -> int:
+    # Aplicar configurações do perfil se redundancy ou post_size não foram fornecidos
+    if profile not in PROFILES:
+        print(f"Erro: perfil '{profile}' inválido. Opções: {', '.join(PROFILES.keys())}")
+        return 2
+    
+    profile_config = PROFILES[profile]
+    
+    # Se redundância não foi especificada, usar do perfil
+    if redundancy is None:
+        redundancy = profile_config["redundancy"]
+    
+    # Se post_size não foi especificado, usar do perfil
+    if post_size is None:
+        post_size = profile_config["post_size"]
+    
+    # Se slice_size não foi especificado, usar do perfil
+    if slice_size is None:
+        slice_size = profile_config["slice_size"]
+    
     rar_path = os.path.abspath(rar_path)
     if not os.path.exists(rar_path) or not os.path.isfile(rar_path):
         print(f"Erro: '{rar_path}' não existe ou não é um arquivo.")
