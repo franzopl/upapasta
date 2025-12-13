@@ -46,12 +46,15 @@ def fix_nzb_subjects(nzb_path: str, file_list: list[str]) -> None:
         
         if len(files) == len(file_list):
             for i, file_elem in enumerate(files):
-                # Atualizar o atributo subject
-                file_elem.set("subject", file_list[i])
+                filename = file_list[i]
+                # Manter subjects dos PAR2 inalterados para reparo funcionar
+                if not filename.lower().endswith('.par2'):
+                    # Atualizar o atributo subject apenas para arquivos de dados
+                    file_elem.set("subject", filename)
         
         # Salvar o NZB corrigido
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
-        print(f"NZB corrigido: subjects atualizados para preservar estrutura.")
+        print(f"NZB corrigido: subjects dos arquivos de dados atualizados para preservar estrutura.")
     except Exception as e:
         print(f"Aviso: não foi possível corrigir o NZB: {e}")
 
