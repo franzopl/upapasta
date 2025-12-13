@@ -141,7 +141,7 @@ def upload_to_usenet(
     par2_files = sorted(glob.glob(par2_pattern))
 
     if not par2_files:
-        print(f"Erro: nenhum arquivo de paridade encontrado para '{rar_path}'.")
+        print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")
         print("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2")
         return 3
 
@@ -169,12 +169,15 @@ def upload_to_usenet(
     quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
     log_time = env_vars.get("LOG_TIME", "true").lower() in ("true", "1", "yes")
 
-    # Processar template NZB_OUT: substitui {filename} pelo nome da pasta
+    # Processar template NZB_OUT: substitui {filename} pelo nome da pasta/arquivo
     nzb_out = None
     if nzb_out_template:
-        # {filename} é substituído pelo nome do arquivo RAR sem extensão
-        rar_basename = os.path.splitext(os.path.basename(rar_path))[0]
-        nzb_out = nzb_out_template.replace("{filename}", rar_basename)
+        # {filename} é substituído pelo nome base sem extensão
+        if is_folder:
+            basename = os.path.basename(input_path)
+        else:
+            basename = os.path.splitext(os.path.basename(input_path))[0]
+        nzb_out = nzb_out_template.replace("{filename}", basename)
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print("Erro: credenciais incompletas. Configure .env com:")
