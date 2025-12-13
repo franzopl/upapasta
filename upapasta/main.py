@@ -341,6 +341,13 @@ class UpaPastaOrchestrator:
         # Arquivos de volume PAR2 (.vol00+01.par2, .vol01+02.par2, etc.)
         if self.rar_file:
             base_name = os.path.splitext(self.rar_file)[0]
+        elif self.par_file:
+            # Para --skip-rar, usar o nome base do arquivo PAR2
+            base_name = os.path.splitext(self.par_file)[0]
+        else:
+            base_name = None
+
+        if base_name:
             import glob
             # Usar glob.escape para lidar com caracteres especiais (como [, ])
             par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
