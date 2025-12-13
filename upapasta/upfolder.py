@@ -32,6 +32,28 @@ import subprocess
 import sys
 import random
 import string
+import xml.etree.ElementTree as ET
+
+
+def fix_nzb_subjects(nzb_path: str, file_list: list[str]) -> None:
+    """Corrige os subjects no NZB para incluir o caminho relativo do arquivo."""
+    try:
+        tree = ET.parse(nzb_path)
+        root = tree.getroot()
+        
+        # Encontrar todos os elementos <file>
+        files = root.findall(".//{http://www.newzbin.com/DTD/2003/nzb}file")
+        
+        if len(files) == len(file_list):
+            for i, file_elem in enumerate(files):
+                # Atualizar o atributo subject
+                file_elem.set("subject", file_list[i])
+        
+        # Salvar o NZB corrigido
+        tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
+        print(f"NZB corrigido: subjects atualizados para preservar estrutura.")
+    except Exception as e:
+        print(f"Aviso: não foi possível corrigir o NZB: {e}")
 
 
 def find_nyuu() -> str | None:
@@ -247,7 +269,7 @@ def upload_to_usenet(
         "-a", article_size,
         "-f", generate_anonymous_uploader(),  # Nome anônimo para proteger privacidade
         "--date", "now",  # Fixar timestamp para proteger privacidade
-        "-s", "{filename}",  # Usar nome do arquivo como subject
+        "-s", subject,
     ])
     
     # Adicionar opção -o para arquivo NZB se configurado
@@ -282,7 +304,11 @@ def upload_to_usenet(
         # Executar nyuu e deixar que ele controle o output diretamente
         # Isso permite que a barra de progresso nativa do nyuu funcione
         subprocess.run(cmd, check=True, cwd=working_dir)
-        
+
+        # Corrigir NZB para preservar estrutura de pastas
+        if nzb_out and os.path.exists(nzb_out) and is_folder:
+            fix_nzb_subjects(nzb_out, files_to_upload + par2_files)
+
         # Limpar diretório temporário se foi criado
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
