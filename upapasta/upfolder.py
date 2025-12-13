@@ -119,32 +119,45 @@ def upload_to_usenet(
         print(f"Erro: '{input_path}' não é um arquivo nem pasta.")
         return 1
 
-    # Coletar arquivos a fazer upload
+    # Preparar arquivos para upload
+    import tempfile
+    import shutil
+
     if is_folder:
+        # Para pastas, criar diretório temporário e copiar estrutura
+        temp_dir = tempfile.mkdtemp(prefix="upapasta_")
+        folder_name = os.path.basename(input_path)
+        temp_folder_path = os.path.join(temp_dir, folder_name)
+        
+        # Copiar a pasta inteira para temp
+        shutil.copytree(input_path, temp_folder_path)
+        
+        # Coletar arquivos relativos à temp
         files_to_upload = []
-        for root, dirs, files in os.walk(input_path):
+        for root, dirs, files in os.walk(temp_folder_path):
             for file in files:
-                # Usar caminho relativo à pasta raiz para preservar estrutura
-                rel_path = os.path.relpath(os.path.join(root, file), os.path.dirname(input_path))
+                rel_path = os.path.relpath(os.path.join(root, file), temp_dir)
                 files_to_upload.append(rel_path)
+        
+        # Copiar arquivos PAR2 para temp
         base_name = input_path
-        working_dir = os.path.dirname(input_path)
+        par2_pattern = glob.escape(base_name) + "*par2*"
+        par2_files_abs = sorted(glob.glob(par2_pattern))
+        par2_files = []
+        for par2 in par2_files_abs:
+            temp_par2 = os.path.join(temp_dir, os.path.basename(par2))
+            shutil.copy2(par2, temp_par2)
+            par2_files.append(os.path.basename(par2))
+        
+        working_dir = temp_dir
     else:
+        # Para arquivos únicos, comportamento normal
         files_to_upload = [os.path.basename(input_path)]
         base_name = os.path.splitext(input_path)[0]
+        par2_pattern = glob.escape(base_name) + "*par2*"
+        par2_files = [os.path.basename(f) for f in sorted(glob.glob(par2_pattern))]
         working_dir = os.path.dirname(input_path)
-
-    if not files_to_upload:
-        print(f"Erro: nenhum arquivo encontrado em '{input_path}'.")
-        return 1
-
-    # Procurar todos os arquivos .par2 correspondentes
-    # Usar glob.escape para lidar com caracteres especiais no path (como [, ])
-    # Padrão: base_name + qualquer coisa + "par2" + qualquer coisa
-    par2_pattern = glob.escape(base_name) + "*par2*"
-    par2_files_abs = sorted(glob.glob(par2_pattern))
-    # Converter para caminhos relativos ao working_dir
-    par2_files = [os.path.relpath(f, working_dir) for f in par2_files_abs]
+        temp_dir = None
 
     if not par2_files:
         print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")
@@ -269,9 +282,17 @@ def upload_to_usenet(
         # Executar nyuu e deixar que ele controle o output diretamente
         # Isso permite que a barra de progresso nativa do nyuu funcione
         subprocess.run(cmd, check=True, cwd=working_dir)
+        
+        # Limpar diretório temporário se foi criado
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        
         return 0
     except subprocess.CalledProcessError as e:
         print(f"\nErro: nyuu retornou código {e.returncode}.")
+        # Limpar temp_dir mesmo em erro
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
         return 5
     except Exception as e:
         print(f"Erro ao executar nyuu: {e}")
