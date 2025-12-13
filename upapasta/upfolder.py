@@ -35,23 +35,27 @@ import string
 import xml.etree.ElementTree as ET
 
 
-def fix_nzb_subjects(nzb_path: str, file_list: list[str]) -> None:
+def fix_nzb_subjects(nzb_path: str, file_list: list[str], folder_name: str = None) -> None:
     """Corrige os subjects no NZB para incluir o caminho relativo do arquivo."""
     try:
         tree = ET.parse(nzb_path)
         root = tree.getroot()
-        
+
         # Encontrar todos os elementos <file>
         files = root.findall(".//{http://www.newzbin.com/DTD/2003/nzb}file")
-        
+
         if len(files) == len(file_list):
             for i, file_elem in enumerate(files):
                 filename = file_list[i]
                 # Manter subjects dos PAR2 inalterados para reparo funcionar
                 if not filename.lower().endswith('.par2'):
-                    # Atualizar o atributo subject apenas para arquivos de dados
-                    file_elem.set("subject", filename)
-        
+                    if folder_name and '/' not in filename:
+                        # Para pastas, adicionar prefixo da pasta aos arquivos na raiz
+                        new_subject = f"{folder_name}/{filename}"
+                    else:
+                        new_subject = filename
+                    file_elem.set("subject", new_subject)
+
         # Salvar o NZB corrigido
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
         print(f"NZB corrigido: subjects dos arquivos de dados atualizados para preservar estrutura.")
@@ -312,7 +316,8 @@ def upload_to_usenet(
 
         # Corrigir NZB para preservar estrutura de pastas
         if nzb_out and os.path.exists(nzb_out) and is_folder:
-            fix_nzb_subjects(nzb_out, files_to_upload + par2_files)
+            folder_name = os.path.basename(input_path)
+            fix_nzb_subjects(nzb_out, files_to_upload + par2_files, folder_name)
 
         # Limpar diretório temporário se foi criado
         if temp_dir and os.path.exists(temp_dir):
