@@ -248,6 +248,7 @@ def upload_to_usenet(
         "-f", generate_anonymous_uploader(),  # Nome anônimo para proteger privacidade
         "--date", "now",  # Fixar timestamp para proteger privacidade
         "-s", subject,
+        "-S",  # Usar nome do arquivo como subject individual
     ])
     
     # Adicionar opção -o para arquivo NZB se configurado
