@@ -98,28 +98,43 @@ def generate_anonymous_uploader() -> str:
 
 
 def upload_to_usenet(
-    rar_path: str,
+    input_path: str,
     env_vars: dict,
     dry_run: bool = False,
     nyuu_path: str | None = None,
     subject: str | None = None,
     group: str | None = None,
 ) -> int:
-    """Upload de .rar e .par2 para Usenet usando nyuu."""
+    """Upload de arquivos para Usenet usando nyuu."""
 
-    rar_path = os.path.abspath(rar_path)
+    input_path = os.path.abspath(input_path)
 
-    # Validar arquivo .rar
-    if not os.path.exists(rar_path) or not os.path.isfile(rar_path):
-        print(f"Erro: '{rar_path}' não existe ou não é um arquivo.")
+    # Validar entrada
+    if not os.path.exists(input_path):
+        print(f"Erro: '{input_path}' não existe.")
         return 1
 
-    if not rar_path.lower().endswith(".rar"):
-        print("Erro: o arquivo de entrada não parece ser um .rar")
+    is_folder = os.path.isdir(input_path)
+    if not is_folder and not os.path.isfile(input_path):
+        print(f"Erro: '{input_path}' não é um arquivo nem pasta.")
+        return 1
+
+    # Coletar arquivos a fazer upload
+    if is_folder:
+        files_to_upload = []
+        for root, dirs, files in os.walk(input_path):
+            for file in files:
+                files_to_upload.append(os.path.join(root, file))
+        base_name = input_path
+    else:
+        files_to_upload = [input_path]
+        base_name = os.path.splitext(input_path)[0]
+
+    if not files_to_upload:
+        print(f"Erro: nenhum arquivo encontrado em '{input_path}'.")
         return 1
 
     # Procurar todos os arquivos .par2 correspondentes
-    base_name = os.path.splitext(rar_path)[0]
     # Usar glob.escape para lidar com caracteres especiais no path (como [, ])
     # Padrão: base_name + qualquer coisa + "par2" + qualquer coisa
     par2_pattern = glob.escape(base_name) + "*par2*"
@@ -183,7 +198,10 @@ def upload_to_usenet(
 
     # Define subject
     if not subject:
-        subject = os.path.basename(os.path.splitext(rar_path)[0])
+        if is_folder:
+            subject = os.path.basename(input_path)
+        else:
+            subject = os.path.basename(os.path.splitext(input_path)[0])
 
     # Constrói comando nyuu com todas as opções
     # nyuu -h <host> [-P <port>] [-S] [-i] -u <user> -p <pass> -c <connections> -g <group> -a <article-size> -s <subject> <files>
@@ -219,7 +237,7 @@ def upload_to_usenet(
         cmd.append("-O")
     
     # Adicionar arquivos a fazer upload
-    cmd.append(rar_path)
+    cmd.extend(files_to_upload)
     # Adicionar todos os arquivos .par2
     cmd.extend(par2_files)
 
@@ -232,7 +250,8 @@ def upload_to_usenet(
     print(f"  Host: {nntp_host}:{nntp_port}")
     print(f"  Grupo: {usenet_group}")
     print(f"  Subject: {subject}")
-    print(f"  Arquivos: {rar_path}, {', '.join(par2_files)}")
+    all_files = files_to_upload + par2_files
+    print(f"  Arquivos: {len(all_files)} arquivos ({', '.join(os.path.basename(f) for f in all_files[:3])}{'...' if len(all_files) > 3 else ''})")
     if nzb_out:
         print(f"  NZB será salvo em: {nzb_out}")
     print()
