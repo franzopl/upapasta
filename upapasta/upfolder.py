@@ -235,7 +235,6 @@ def upload_to_usenet(
         "-f", generate_anonymous_uploader(),  # Nome anônimo para proteger privacidade
         "--date", "now",  # Fixar timestamp para proteger privacidade
         "-s", subject,
-        "-d", working_dir,  # Diretório base para preservar estrutura
     ])
     
     # Adicionar opção -o para arquivo NZB se configurado
@@ -269,7 +268,7 @@ def upload_to_usenet(
     try:
         # Executar nyuu e deixar que ele controle o output diretamente
         # Isso permite que a barra de progresso nativa do nyuu funcione
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, cwd=working_dir)
         return 0
     except subprocess.CalledProcessError as e:
         print(f"\nErro: nyuu retornou código {e.returncode}.")
