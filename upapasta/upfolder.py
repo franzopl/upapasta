@@ -32,6 +32,35 @@ import subprocess
 import sys
 import random
 import string
+import xml.etree.ElementTree as ET
+
+
+def fix_nzb_subjects(nzb_path: str, file_list: list[str], folder_name: str = None) -> None:
+    """Corrige os subjects no NZB para incluir o caminho relativo do arquivo."""
+    try:
+        tree = ET.parse(nzb_path)
+        root = tree.getroot()
+
+        # Encontrar todos os elementos <file>
+        files = root.findall(".//{http://www.newzbin.com/DTD/2003/nzb}file")
+
+        if len(files) == len(file_list):
+            for i, file_elem in enumerate(files):
+                filename = file_list[i]
+                # Manter subjects dos PAR2 inalterados para reparo funcionar
+                if not filename.lower().endswith('.par2'):
+                    if folder_name and '/' not in filename:
+                        # Para pastas, adicionar prefixo da pasta aos arquivos na raiz
+                        new_subject = f"{folder_name}/{filename}"
+                    else:
+                        new_subject = filename
+                    file_elem.set("subject", new_subject)
+
+        # Salvar o NZB corrigido
+        tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
+        print(f"NZB corrigido: subjects dos arquivos de dados atualizados para preservar estrutura.")
+    except Exception as e:
+        print(f"Aviso: não foi possível corrigir o NZB: {e}")
 
 
 def find_nyuu() -> str | None:
@@ -98,35 +127,69 @@ def generate_anonymous_uploader() -> str:
 
 
 def upload_to_usenet(
-    rar_path: str,
+    input_path: str,
     env_vars: dict,
     dry_run: bool = False,
     nyuu_path: str | None = None,
     subject: str | None = None,
     group: str | None = None,
 ) -> int:
-    """Upload de .rar e .par2 para Usenet usando nyuu."""
+    """Upload de arquivos para Usenet usando nyuu."""
 
-    rar_path = os.path.abspath(rar_path)
+    input_path = os.path.abspath(input_path)
 
-    # Validar arquivo .rar
-    if not os.path.exists(rar_path) or not os.path.isfile(rar_path):
-        print(f"Erro: '{rar_path}' não existe ou não é um arquivo.")
+    # Validar entrada
+    if not os.path.exists(input_path):
+        print(f"Erro: '{input_path}' não existe.")
         return 1
 
-    if not rar_path.lower().endswith(".rar"):
-        print("Erro: o arquivo de entrada não parece ser um .rar")
+    is_folder = os.path.isdir(input_path)
+    if not is_folder and not os.path.isfile(input_path):
+        print(f"Erro: '{input_path}' não é um arquivo nem pasta.")
         return 1
 
-    # Procurar todos os arquivos .par2 correspondentes
-    base_name = os.path.splitext(rar_path)[0]
-    # Usar glob.escape para lidar com caracteres especiais no path (como [, ])
-    # Padrão: base_name + qualquer coisa + "par2" + qualquer coisa
-    par2_pattern = glob.escape(base_name) + "*par2*"
-    par2_files = sorted(glob.glob(par2_pattern))
+    # Preparar arquivos para upload
+    import tempfile
+    import shutil
+
+    if is_folder:
+        # Para pastas, criar diretório temporário e copiar estrutura
+        temp_dir = tempfile.mkdtemp(prefix="upapasta_")
+        folder_name = os.path.basename(input_path)
+        temp_folder_path = os.path.join(temp_dir, folder_name)
+        
+        # Copiar a pasta inteira para temp
+        shutil.copytree(input_path, temp_folder_path)
+        
+        # Coletar arquivos relativos à temp
+        files_to_upload = []
+        for root, dirs, files in os.walk(temp_folder_path):
+            for file in files:
+                rel_path = os.path.relpath(os.path.join(root, file), temp_dir)
+                files_to_upload.append(rel_path)
+        
+        # Copiar arquivos PAR2 para temp
+        base_name = input_path
+        par2_pattern = glob.escape(base_name) + "*par2*"
+        par2_files_abs = sorted(glob.glob(par2_pattern))
+        par2_files = []
+        for par2 in par2_files_abs:
+            temp_par2 = os.path.join(temp_dir, os.path.basename(par2))
+            shutil.copy2(par2, temp_par2)
+            par2_files.append(os.path.basename(par2))
+        
+        working_dir = temp_dir
+    else:
+        # Para arquivos únicos, comportamento normal
+        files_to_upload = [os.path.basename(input_path)]
+        base_name = os.path.splitext(input_path)[0]
+        par2_pattern = glob.escape(base_name) + "*par2*"
+        par2_files = [os.path.basename(f) for f in sorted(glob.glob(par2_pattern))]
+        working_dir = os.path.dirname(input_path)
+        temp_dir = None
 
     if not par2_files:
-        print(f"Erro: nenhum arquivo de paridade encontrado para '{rar_path}'.")
+        print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")
         print("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2")
         return 3
 
@@ -147,19 +210,24 @@ def upload_to_usenet(
     check_delay = env_vars.get("CHECK_DELAY") or os.environ.get("CHECK_DELAY", "5s")
     check_retry_delay = env_vars.get("CHECK_RETRY_DELAY") or os.environ.get("CHECK_RETRY_DELAY", "30s")
     check_post_tries = env_vars.get("CHECK_POST_TRIES") or os.environ.get("CHECK_POST_TRIES", "2")
-    nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
+    nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
+    if not nzb_out_template:
+        nzb_out_template = "{filename}_content.nzb" if is_folder else "{filename}.nzb"
     nzb_overwrite = env_vars.get("NZB_OVERWRITE", "true").lower() in ("true", "1", "yes")
     skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
     dump_failed_posts = env_vars.get("DUMP_FAILED_POSTS") or os.environ.get("DUMP_FAILED_POSTS")
     quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
     log_time = env_vars.get("LOG_TIME", "true").lower() in ("true", "1", "yes")
 
-    # Processar template NZB_OUT: substitui {filename} pelo nome da pasta
+    # Processar template NZB_OUT: substitui {filename} pelo nome da pasta/arquivo
     nzb_out = None
     if nzb_out_template:
-        # {filename} é substituído pelo nome do arquivo RAR sem extensão
-        rar_basename = os.path.splitext(os.path.basename(rar_path))[0]
-        nzb_out = nzb_out_template.replace("{filename}", rar_basename)
+        # {filename} é substituído pelo nome base sem extensão
+        if is_folder:
+            basename = os.path.basename(input_path) + "_content"
+        else:
+            basename = os.path.splitext(os.path.basename(input_path))[0]
+        nzb_out = nzb_out_template.replace("{filename}", basename)
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print("Erro: credenciais incompletas. Configure .env com:")
@@ -183,7 +251,10 @@ def upload_to_usenet(
 
     # Define subject
     if not subject:
-        subject = os.path.basename(os.path.splitext(rar_path)[0])
+        if is_folder:
+            subject = os.path.basename(input_path)
+        else:
+            subject = os.path.basename(os.path.splitext(input_path)[0])
 
     # Constrói comando nyuu com todas as opções
     # nyuu -h <host> [-P <port>] [-S] [-i] -u <user> -p <pass> -c <connections> -g <group> -a <article-size> -s <subject> <files>
@@ -219,7 +290,7 @@ def upload_to_usenet(
         cmd.append("-O")
     
     # Adicionar arquivos a fazer upload
-    cmd.append(rar_path)
+    cmd.extend(files_to_upload)
     # Adicionar todos os arquivos .par2
     cmd.extend(par2_files)
 
@@ -232,7 +303,8 @@ def upload_to_usenet(
     print(f"  Host: {nntp_host}:{nntp_port}")
     print(f"  Grupo: {usenet_group}")
     print(f"  Subject: {subject}")
-    print(f"  Arquivos: {rar_path}, {', '.join(par2_files)}")
+    all_files = files_to_upload + par2_files
+    print(f"  Arquivos: {len(all_files)} arquivos ({', '.join(os.path.basename(f) for f in all_files[:3])}{'...' if len(all_files) > 3 else ''})")
     if nzb_out:
         print(f"  NZB será salvo em: {nzb_out}")
     print()
@@ -240,10 +312,23 @@ def upload_to_usenet(
     try:
         # Executar nyuu e deixar que ele controle o output diretamente
         # Isso permite que a barra de progresso nativa do nyuu funcione
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, cwd=working_dir)
+
+        # Corrigir NZB para preservar estrutura de pastas
+        if nzb_out and os.path.exists(nzb_out) and is_folder:
+            folder_name = os.path.basename(input_path)
+            fix_nzb_subjects(nzb_out, files_to_upload + par2_files, folder_name)
+
+        # Limpar diretório temporário se foi criado
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        
         return 0
     except subprocess.CalledProcessError as e:
         print(f"\nErro: nyuu retornou código {e.returncode}.")
+        # Limpar temp_dir mesmo em erro
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
         return 5
     except Exception as e:
         print(f"Erro ao executar nyuu: {e}")

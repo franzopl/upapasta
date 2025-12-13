@@ -22,7 +22,7 @@ Opções:
   --post-size SIZE           Tamanho alvo de post (padrão: 20M)
   --subject SUBJECT          Subject da postagem (padrão: nome da pasta)
   --group GROUP              Newsgroup (padrão: do .env)
-  --skip-rar                 Pula criação de RAR (assume arquivo existe)
+  --skip-rar                 Pula criação de RAR (upload da pasta diretamente)
   --skip-par                 Pula geração de paridade
   --skip-upload              Pula upload para Usenet
   --force                    Força sobrescrita de arquivos existentes
@@ -166,6 +166,7 @@ class UpaPastaOrchestrator:
         self.par_profile = par_profile
         self.rar_file: str | None = None
         self.par_file: str | None = None
+        self.input_path: str | None = None
         self.env_vars: dict = {}
 
     def validate(self) -> bool:
@@ -183,17 +184,10 @@ class UpaPastaOrchestrator:
     def run_makerar(self) -> bool:
         """Executa makerar.py."""
         if self.skip_rar:
-            # Procura arquivo .rar existente
-            parent = self.folder_path.parent
-            potential_rar = parent / f"{self.folder_path.name}.rar"
-            if potential_rar.exists():
-                self.rar_file = str(potential_rar)
-                size_mb = os.path.getsize(self.rar_file) / (1024 * 1024)
-                print(f"✅ Usando RAR existente: {size_mb:.2f} MB")
-                return True
-            else:
-                print(f"❌ Erro: --skip-rar mas arquivo {potential_rar} não existe.")
-                return False
+            # Modo upload de pasta sem RAR: usar a pasta diretamente
+            self.input_path = str(self.folder_path)
+            print(f"✅ Modo upload de pasta: {self.folder_path.name}")
+            return True
 
         print("\n" + "=" * 60)
         print("📦 ETAPA 1: Criar arquivo RAR")
@@ -202,6 +196,7 @@ class UpaPastaOrchestrator:
         if self.dry_run:
             print(f"[DRY-RUN] pularia a criação do RAR.")
             self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
+            self.input_path = self.rar_file
             print(f"[DRY-RUN] RAR seria criado em: {self.rar_file}")
             return True
 
@@ -213,6 +208,7 @@ class UpaPastaOrchestrator:
             if rc == 0:
                 print("-" * 60)
                 self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
+                self.input_path = self.rar_file
                 if os.path.exists(self.rar_file):
                     return True
                 else:
@@ -228,13 +224,16 @@ class UpaPastaOrchestrator:
 
     def run_makepar(self) -> bool:
         """Executa makepar.py."""
-        if not self.rar_file:
-            print("Erro: arquivo RAR não definido.")
+        if not self.input_path:
+            print("Erro: caminho de entrada não definido.")
             return False
 
         if self.skip_par:
             # Procura arquivo .par2 existente
-            par_path = os.path.splitext(self.rar_file)[0] + ".par2"
+            if os.path.isdir(self.input_path):
+                par_path = os.path.join(os.path.dirname(self.input_path), os.path.basename(self.input_path) + ".par2")
+            else:
+                par_path = os.path.splitext(self.input_path)[0] + ".par2"
             if os.path.exists(par_path):
                 self.par_file = par_path
                 size_mb = os.path.getsize(self.par_file) / (1024 * 1024)
@@ -250,7 +249,10 @@ class UpaPastaOrchestrator:
 
         if self.dry_run:
             print(f"[DRY-RUN] pularia a criação do PAR2.")
-            self.par_file = os.path.splitext(self.rar_file)[0] + ".par2"
+            if os.path.isdir(self.input_path):
+                self.par_file = os.path.join(os.path.dirname(self.input_path), os.path.basename(self.input_path) + ".par2")
+            else:
+                self.par_file = os.path.splitext(self.input_path)[0] + ".par2"
             print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
             return True
 
@@ -259,7 +261,7 @@ class UpaPastaOrchestrator:
 
         try:
             rc = make_parity(
-                self.rar_file,
+                self.input_path,
                 redundancy=self.redundancy,
                 force=self.force,
                 backend=self.backend,
@@ -270,7 +272,10 @@ class UpaPastaOrchestrator:
             )
             if rc == 0:
                 print("-" * 60)
-                self.par_file = os.path.splitext(self.rar_file)[0] + ".par2"
+                if os.path.isdir(self.input_path):
+                    self.par_file = os.path.join(os.path.dirname(self.input_path), os.path.basename(self.input_path) + ".par2")
+                else:
+                    self.par_file = os.path.splitext(self.input_path)[0] + ".par2"
                 if os.path.exists(self.par_file):
                     return True
                 else:
@@ -286,8 +291,8 @@ class UpaPastaOrchestrator:
 
     def run_upload(self) -> bool:
         """Executa upfolder.py, permitindo que a barra de progresso nativa apareça."""
-        if not self.rar_file:
-            print("Erro: arquivo RAR não definido.")
+        if not self.input_path:
+            print("Erro: caminho de entrada não definido.")
             return False
         
         if self.dry_run:
@@ -304,7 +309,7 @@ class UpaPastaOrchestrator:
 
         try:
             rc = upload_to_usenet(
-                self.rar_file,
+                self.input_path,
                 env_vars=self.env_vars,
                 dry_run=self.dry_run,
                 subject=self.subject,
@@ -336,6 +341,13 @@ class UpaPastaOrchestrator:
         # Arquivos de volume PAR2 (.vol00+01.par2, .vol01+02.par2, etc.)
         if self.rar_file:
             base_name = os.path.splitext(self.rar_file)[0]
+        elif self.par_file:
+            # Para --skip-rar, usar o nome base do arquivo PAR2
+            base_name = os.path.splitext(self.par_file)[0]
+        else:
+            base_name = None
+
+        if base_name:
             import glob
             # Usar glob.escape para lidar com caracteres especiais (como [, ])
             par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
@@ -412,10 +424,19 @@ class UpaPastaOrchestrator:
                 return 2
 
         # Coletar informações dos arquivos ANTES do upload/cleanup
-        if self.rar_file and os.path.exists(self.rar_file):
-            stats["rar_size_mb"] = os.path.getsize(self.rar_file) / (1024 * 1024)
+        if self.input_path:
+            if os.path.isdir(self.input_path):
+                # Calcular tamanho total da pasta
+                total_size_bytes = 0
+                for root, dirs, files in os.walk(self.input_path):
+                    for file in files:
+                        total_size_bytes += os.path.getsize(os.path.join(root, file))
+                stats["rar_size_mb"] = total_size_bytes / (1024 * 1024)
+                base_name = self.input_path
+            else:
+                stats["rar_size_mb"] = os.path.getsize(self.input_path) / (1024 * 1024)
+                base_name = os.path.splitext(self.input_path)[0]
             
-            base_name = os.path.splitext(self.rar_file)[0]
             import glob
             par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
             stats["par2_file_count"] = len(par_volumes)
@@ -452,7 +473,8 @@ class UpaPastaOrchestrator:
 
         print("\n⏱️ ESTATÍSTICAS DE TEMPO:")
         print("-" * 25)
-        print(f"  » Tempo para criar RAR:    {format_time(int(timings['rar']))}")
+        if not self.skip_rar:
+            print(f"  » Tempo para criar RAR:    {format_time(int(timings['rar']))}")
         print(f"  » Tempo para gerar PAR2:   {format_time(int(timings['par']))}")
         if not self.skip_upload:
             print(f"  » Tempo de Upload:         {format_time(int(timings['upload']))}")
@@ -462,7 +484,10 @@ class UpaPastaOrchestrator:
         print("\n📦 ARQUIVOS GERADOS:")
         print("-" * 25)
         if stats["rar_size_mb"] > 0:
-            print(f"  » Arquivo RAR: {os.path.basename(self.rar_file)} ({stats['rar_size_mb']:.2f} MB)")
+            if os.path.isdir(self.input_path):
+                print(f"  » Arquivos da pasta: {os.path.basename(self.input_path)} ({stats['rar_size_mb']:.2f} MB)")
+            else:
+                print(f"  » Arquivo RAR: {os.path.basename(self.input_path)} ({stats['rar_size_mb']:.2f} MB)")
         
         if stats["par2_file_count"] > 0:
             print(f"  » Arquivos PAR2: {stats['par2_file_count']} arquivos ({stats['par2_size_mb']:.2f} MB)")

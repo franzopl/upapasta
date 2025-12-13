@@ -189,22 +189,42 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
         slice_size = profile_config["slice_size"]
     
     rar_path = os.path.abspath(rar_path)
-    if not os.path.exists(rar_path) or not os.path.isfile(rar_path):
-        print(f"Erro: '{rar_path}' não existe ou não é um arquivo.")
+    if not os.path.exists(rar_path):
+        print(f"Erro: '{rar_path}' não existe.")
         return 2
 
-    if not rar_path.lower().endswith('.rar'):
+    is_folder = os.path.isdir(rar_path)
+    if not is_folder and not os.path.isfile(rar_path):
+        print(f"Erro: '{rar_path}' não é um arquivo nem pasta.")
+        return 2
+
+    if not is_folder and not rar_path.lower().endswith('.rar'):
         print("Erro: o arquivo de entrada não parece ser um .rar")
         return 2
 
     parent = os.path.dirname(rar_path)
     base = os.path.basename(rar_path)
-    name_no_ext = os.path.splitext(base)[0]
+    if is_folder:
+        name_no_ext = base
+    else:
+        name_no_ext = os.path.splitext(base)[0]
     out_par2 = os.path.join(parent, name_no_ext + ".par2")
 
     if os.path.exists(out_par2) and not force:
         print(f"Erro: '{out_par2}' já existe. Use --force para sobrescrever.")
         return 3
+
+    # Collect files to process
+    if is_folder:
+        files_to_process = []
+        for root, dirs, files in os.walk(rar_path):
+            for file in files:
+                files_to_process.append(os.path.join(root, file))
+        if not files_to_process:
+            print(f"Erro: pasta '{rar_path}' está vazia.")
+            return 2
+    else:
+        files_to_process = [rar_path]
 
     # Detect backends
     parpar_found = find_parpar()
@@ -318,9 +338,9 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
             cmd.append('-S')
         # Adicionar suporte a multithreading
         num_threads = threads if threads is not None else (os.cpu_count() or 4)
-        cmd.extend([f'-t{num_threads}', f'-r{redundancy}%', '-o', out_par2, rar_path])
+        cmd.extend([f'-t{num_threads}', f'-r{redundancy}%', '-o', out_par2] + files_to_process)
     else:  # par2
-        cmd = [exe_path, 'create', f'-r{redundancy}', out_par2, rar_path]
+        cmd = [exe_path, 'create', f'-r{redundancy}', out_par2] + files_to_process
 
     # If force requested, remove existing .par2 files matching the base name to allow overwrite
     if force:
@@ -337,7 +357,8 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
         num_threads_used = threads if threads is not None else (os.cpu_count() or 4)
         threads_info = f" (usando {num_threads_used} threads)"
     
-    print(f"Criando paridade para '{rar_path}' -> '{out_par2}' (redundância {redundancy}%) usando {chosen}{threads_info}...")
+    input_desc = f"pasta '{rar_path}' ({len(files_to_process)} arquivos)" if is_folder else f"'{rar_path}'"
+    print(f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}{threads_info}...")
 
     try:
         proc = subprocess.Popen(
