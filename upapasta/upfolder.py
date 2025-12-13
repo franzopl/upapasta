@@ -124,11 +124,15 @@ def upload_to_usenet(
         files_to_upload = []
         for root, dirs, files in os.walk(input_path):
             for file in files:
-                files_to_upload.append(os.path.join(root, file))
+                # Usar caminho relativo à pasta raiz para preservar estrutura
+                rel_path = os.path.relpath(os.path.join(root, file), os.path.dirname(input_path))
+                files_to_upload.append(rel_path)
         base_name = input_path
+        working_dir = os.path.dirname(input_path)
     else:
-        files_to_upload = [input_path]
+        files_to_upload = [os.path.basename(input_path)]
         base_name = os.path.splitext(input_path)[0]
+        working_dir = os.path.dirname(input_path)
 
     if not files_to_upload:
         print(f"Erro: nenhum arquivo encontrado em '{input_path}'.")
@@ -138,7 +142,9 @@ def upload_to_usenet(
     # Usar glob.escape para lidar com caracteres especiais no path (como [, ])
     # Padrão: base_name + qualquer coisa + "par2" + qualquer coisa
     par2_pattern = glob.escape(base_name) + "*par2*"
-    par2_files = sorted(glob.glob(par2_pattern))
+    par2_files_abs = sorted(glob.glob(par2_pattern))
+    # Converter para caminhos relativos ao working_dir
+    par2_files = [os.path.relpath(f, working_dir) for f in par2_files_abs]
 
     if not par2_files:
         print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")
@@ -229,6 +235,7 @@ def upload_to_usenet(
         "-f", generate_anonymous_uploader(),  # Nome anônimo para proteger privacidade
         "--date", "now",  # Fixar timestamp para proteger privacidade
         "-s", subject,
+        "-d", working_dir,  # Diretório base para preservar estrutura
     ])
     
     # Adicionar opção -o para arquivo NZB se configurado
