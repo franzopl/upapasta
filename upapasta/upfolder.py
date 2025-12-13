@@ -206,7 +206,9 @@ def upload_to_usenet(
     check_delay = env_vars.get("CHECK_DELAY") or os.environ.get("CHECK_DELAY", "5s")
     check_retry_delay = env_vars.get("CHECK_RETRY_DELAY") or os.environ.get("CHECK_RETRY_DELAY", "30s")
     check_post_tries = env_vars.get("CHECK_POST_TRIES") or os.environ.get("CHECK_POST_TRIES", "2")
-    nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
+    nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
+    if not nzb_out_template:
+        nzb_out_template = "{filename}_content.nzb" if is_folder else "{filename}.nzb"
     nzb_overwrite = env_vars.get("NZB_OVERWRITE", "true").lower() in ("true", "1", "yes")
     skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
     dump_failed_posts = env_vars.get("DUMP_FAILED_POSTS") or os.environ.get("DUMP_FAILED_POSTS")
@@ -218,7 +220,7 @@ def upload_to_usenet(
     if nzb_out_template:
         # {filename} é substituído pelo nome base sem extensão
         if is_folder:
-            basename = os.path.basename(input_path)
+            basename = os.path.basename(input_path) + "_content"
         else:
             basename = os.path.splitext(os.path.basename(input_path))[0]
         nzb_out = nzb_out_template.replace("{filename}", basename)
