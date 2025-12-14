@@ -72,6 +72,15 @@ def find_nyuu() -> str | None:
     return None
 
 
+def find_mediainfo() -> str | None:
+    """Procura executável 'mediainfo' no PATH."""
+    for cmd in ("mediainfo", "mediainfo.exe"):
+        path = shutil.which(cmd)
+        if path:
+            return path
+    return None
+
+
 def parse_args():
     p = argparse.ArgumentParser(
         description="Upload de .rar + .par2 para Usenet com nyuu"
@@ -297,6 +306,22 @@ def upload_to_usenet(
     if dry_run:
         print("Comando nyuu (dry-run):")
         print(" ".join(str(x) for x in cmd))
+        # For single-file uploads, generate a .nfo containing mediainfo output even in dry-run.
+        if not is_folder and nzb_out:
+            # create nfo filename in working_dir with same basename as nzb
+            nfo_filename = os.path.splitext(os.path.basename(nzb_out))[0] + ".nfo"
+            nfo_path = os.path.join(working_dir, nfo_filename)
+            mediainfo_path = find_mediainfo()
+            if mediainfo_path:
+                try:
+                    mi_proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+                    with open(nfo_path, "w", encoding="utf-8") as f:
+                        f.write(mi_proc.stdout)
+                    print(f"  ✔️ Arquivo NFO gerado (dry-run): {nfo_filename}")
+                except Exception as e:
+                    print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
+            else:
+                print("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo.")
         return 0
 
     print("Iniciando upload para Usenet...")
