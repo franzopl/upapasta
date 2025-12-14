@@ -221,7 +221,10 @@ def upload_to_usenet(
     check_post_tries = env_vars.get("CHECK_POST_TRIES") or os.environ.get("CHECK_POST_TRIES", "2")
     nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
     if not nzb_out_template:
-        nzb_out_template = "{filename}_content.nzb" if is_folder else "{filename}.nzb"
+        if is_folder and not skip_rar:
+            nzb_out_template = "{filename}_content.nzb"
+        else:
+            nzb_out_template = "{filename}.nzb"
     # NZB_OVERWRITE environment variable overrides conflict handling behavior.
     nzb_overwrite_env = env_vars.get("NZB_OVERWRITE") or os.environ.get("NZB_OVERWRITE")
     skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
@@ -233,10 +236,10 @@ def upload_to_usenet(
     nzb_out = None
     if nzb_out_template:
         # {filename} é substituído pelo nome base sem extensão
-        if is_folder:
-            basename = os.path.basename(input_path) + "_content"
-        else:
-            basename = os.path.splitext(os.path.basename(input_path))[0]
+        basename = os.path.basename(input_path)
+        if not is_folder:
+            # Remove extensão para arquivos
+            basename = os.path.splitext(basename)[0]
         nzb_out = nzb_out_template.replace("{filename}", basename)
 
     # Conflict-handling behavior for NZB file collisions (rename | overwrite | fail)
