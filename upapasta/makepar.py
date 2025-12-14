@@ -28,7 +28,9 @@ Retornos:
 import argparse
 import glob
 import os
+import random
 import shutil
+import string
 import subprocess
 import sys
 import threading
@@ -58,6 +60,79 @@ PROFILES = {
 }
 
 DEFAULT_PROFILE = "balanced"
+
+
+def generate_random_name(length: int = 12) -> str:
+    """Gera um nome de arquivo aleatório com letras e dígitos."""
+    chars = string.ascii_lowercase + string.digits
+    return "".join(random.choice(chars) for _ in range(length))
+
+
+def obfuscate_and_par(
+    input_path: str,
+    redundancy: int | None = None,
+    force: bool = False,
+    backend: str = "auto",
+    usenet: bool = False,
+    post_size: str | None = None,
+    threads: int | None = None,
+    profile: str = DEFAULT_PROFILE,
+) -> tuple[int, str | None]:
+    """
+    Ofusca o nome do arquivo/pasta e depois gera a paridade.
+
+    Retorna uma tupla: (código de retorno, novo_caminho_ofuscado).
+    """
+    input_path = os.path.abspath(input_path)
+    if not os.path.exists(input_path):
+        print(f"Erro: '{input_path}' não existe.")
+        return 2, None
+
+    parent_dir = os.path.dirname(input_path)
+    is_folder = os.path.isdir(input_path)
+    
+    # Manter a extensão original se for um arquivo
+    ext = ""
+    if not is_folder:
+        _, ext = os.path.splitext(input_path)
+
+    # Gerar novo nome aleatório
+    random_name = generate_random_name()
+    obfuscated_name = random_name + ext
+    obfuscated_path = os.path.join(parent_dir, obfuscated_name)
+
+    print(f"Ofuscando: {os.path.basename(input_path)} -> {obfuscated_name}")
+
+    try:
+        # Renomear o arquivo/pasta
+        os.rename(input_path, obfuscated_path)
+    except OSError as e:
+        print(f"Erro ao renomear para o nome ofuscado: {e}")
+        return 1, None
+
+    # Chamar make_parity no novo caminho ofuscado
+    rc = make_parity(
+        obfuscated_path,
+        redundancy=redundancy,
+        force=force,
+        backend=backend,
+        usenet=usenet,
+        post_size=post_size,
+        threads=threads,
+        profile=profile,
+    )
+
+    if rc == 0:
+        return 0, obfuscated_path
+    else:
+        # Se make_parity falhar, tentar reverter a renomeação
+        print("Erro ao gerar paridade para o arquivo ofuscado. Revertendo a renomeação...")
+        try:
+            os.rename(obfuscated_path, input_path)
+            print("Renomeação revertida com sucesso.")
+        except OSError as e:
+            print(f"Falha ao reverter a renomeação: {e}")
+        return rc, None
 
 
 def find_par2():

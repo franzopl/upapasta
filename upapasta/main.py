@@ -47,7 +47,7 @@ import time
 from pathlib import Path
 
 from .makerar import make_rar
-from .makepar import make_parity
+from .makepar import make_parity, obfuscate_and_par
 from .upfolder import upload_to_usenet
 
 
@@ -148,6 +148,7 @@ class UpaPastaOrchestrator:
         par_threads: int | None = None,
         par_profile: str = "balanced",
         nzb_conflict: str | None = None,
+        obfuscate: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -166,6 +167,7 @@ class UpaPastaOrchestrator:
         self.par_threads = par_threads if par_threads is not None else (os.cpu_count() or 4)
         self.par_profile = par_profile
         self.nzb_conflict = nzb_conflict
+        self.obfuscate = obfuscate
         self.rar_file: str | None = None
         self.par_file: str | None = None
         # input_target is the path used for subsequent steps (string): either
@@ -275,6 +277,34 @@ class UpaPastaOrchestrator:
 
         print(f"🔐 Gerando paridade (perfil: {self.par_profile})...")
         print("-" * 60)
+
+        if self.obfuscate:
+            print("🔐 Ofuscando nome do arquivo antes de gerar paridade...")
+            rc, obfuscated_path = obfuscate_and_par(
+                self.input_target,
+                redundancy=self.redundancy,
+                force=self.force,
+                backend=self.backend,
+                usenet=True,
+                post_size=self.post_size,
+                threads=self.par_threads,
+                profile=self.par_profile,
+            )
+            if rc == 0 and obfuscated_path:
+                print("-" * 60)
+                # O caminho de destino agora é o arquivo ofuscado
+                self.input_target = obfuscated_path
+                # O nome do arquivo par2 também será baseado no nome ofuscado
+                self.par_file = os.path.splitext(obfuscated_path)[0] + ".par2"
+                if os.path.exists(self.par_file):
+                    return True
+                else:
+                    print("❌ Erro: Arquivo de paridade não foi encontrado após a ofuscação.")
+                    return False
+            else:
+                print("-" * 60)
+                print("\n❌ Erro ao ofuscar e gerar paridade.")
+                return False
 
         try:
             rc = make_parity(
@@ -556,19 +586,25 @@ class UpaPastaOrchestrator:
                 self._cleanup_on_error()
                 return 2
 
+        if self.obfuscate:
+            # Se a ofuscação estiver ativa, o nome do subject deve ser o nome do arquivo ofuscado
+            base_name = os.path.basename(self.input_target)
+            self.subject = os.path.splitext(base_name)[0]
+            print(f"✨ Subject da postagem atualizado para nome ofuscado: {self.subject}")
+
         # Coletar informações dos arquivos ANTES do upload/cleanup
-        if self.input_path:
-            if os.path.isdir(self.input_path):
+        if self.input_target:
+            if os.path.isdir(self.input_target):
                 # Calcular tamanho total da pasta
                 total_size_bytes = 0
-                for root, dirs, files in os.walk(self.input_path):
+                for root, dirs, files in os.walk(self.input_target):
                     for file in files:
                         total_size_bytes += os.path.getsize(os.path.join(root, file))
                 stats["rar_size_mb"] = total_size_bytes / (1024 * 1024)
-                base_name = str(self.input_target) if self.input_target else str(self.input_path)
+                base_name = self.input_target
             else:
-                stats["rar_size_mb"] = os.path.getsize(self.input_path) / (1024 * 1024)
-                base_name = os.path.splitext(self.input_target)[0] if self.input_target else os.path.splitext(str(self.input_path))[0]
+                stats["rar_size_mb"] = os.path.getsize(self.input_target) / (1024 * 1024)
+                base_name = os.path.splitext(self.input_target)[0]
             
             import glob
             par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
@@ -729,6 +765,11 @@ def parse_args():
         default=None,
         help="Como tratar conflitos quando o .nzb já existe na pasta de destino (default: Env or 'rename')",
     )
+    p.add_argument(
+        "--obfuscate",
+        action="store_true",
+        help="Ofusca o nome do arquivo antes de gerar o PAR2 e fazer o upload.",
+    )
     return p.parse_args()
 
 
@@ -792,6 +833,7 @@ def main():
         par_threads=args.par_threads,
         par_profile=args.par_profile,
         nzb_conflict=args.nzb_conflict,
+        obfuscate=args.obfuscate,
     )
 
     rc = orchestrator.run()
