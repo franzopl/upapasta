@@ -91,6 +91,15 @@ for video in /home/user/Videos/*.mkv; do
     upapasta "$video" --nzb-conflict fail
 done
 ```
+
+**Exemplo para uploads sequenciais de pastas (aborta se .nzb já existe):**
+```bash
+# Útil para enviar múltiplas pastas em sequência
+# sem sobrescrever NZBs existentes
+for pasta in /home/user/Pastas/*/; do
+    upapasta "$pasta" --nzb-conflict fail
+done
+```
 """
 
 ### Opções de Linha de Comando
