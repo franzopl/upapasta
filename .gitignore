@@ -78,3 +78,6 @@ CLEANUP.md
 BUG_FIX_CLEANUP.md
 DOCUMENTATION.md
 INDEX.md
+
+# Local test venv
+.venv_test
