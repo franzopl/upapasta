@@ -265,6 +265,28 @@ def upload_to_usenet(
         else:
             subject = os.path.basename(os.path.splitext(input_path)[0])
 
+    # Single-file: generate .nfo and add it to upload list
+    if not is_folder:
+        # create nfo filename based on nzb (same basename)
+        if nzb_out:
+            nfo_filename = os.path.splitext(os.path.basename(nzb_out))[0] + ".nfo"
+        else:
+            nfo_filename = os.path.splitext(os.path.basename(input_path))[0] + ".nfo"
+        nfo_path = os.path.join(working_dir, nfo_filename)
+        mediainfo_path = find_mediainfo()
+        if mediainfo_path:
+            try:
+                mi_proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+                with open(nfo_path, "w", encoding="utf-8") as f:
+                    f.write(mi_proc.stdout)
+                print(f"  ✔️ Arquivo NFO gerado: {nfo_filename}")
+                # Add nfo to files to upload
+                files_to_upload.append(nfo_filename)
+            except Exception as e:
+                print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
+        else:
+            print("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo.")
+
     # Constrói comando nyuu com todas as opções
     # nyuu -h <host> [-P <port>] [-S] [-i] -u <user> -p <pass> -c <connections> -g <group> -a <article-size> -s <subject> <files>
     cmd = [
