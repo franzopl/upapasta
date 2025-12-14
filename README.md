@@ -76,11 +76,18 @@ upapasta /caminho/para/sua/pasta [OPÇÕES]
 upapasta /home/user/documentos/meu-arquivo-importante
 ```
 
+**Exemplo para arquivo único (.mkv):**
+```bash
+upapasta /home/user/Videos/filme.mkv
+```
+"""
+
 ### Opções de Linha de Comando
 
 | Opção              | Descrição                                                                      | Padrão                                  |
 | ------------------ | ------------------------------------------------------------------------------ | --------------------------------------- |
-| `folder`           | **(Obrigatório)** A pasta que será enviada.                                    | N/A                                     |
+| `input`            | **(Obrigatório)** Arquivo ou pasta que será enviada. Para arquivo único (ex: .mkv) o comportamento padrão é pular a criação do `.rar` e gerar apenas `.par2`.
+|                    |                                                                              | N/A                                     |
 | `--dry-run`        | Simula a execução sem criar ou enviar arquivos.                                | Desativado                              |
 | `-r`, `--redundancy` | Define a porcentagem de redundância para os arquivos PAR2.                       | `15`                                    |
 | `--backend`        | Escolhe o backend para a geração de paridade (`parpar` ou `par2`).               | `parpar`                                |
