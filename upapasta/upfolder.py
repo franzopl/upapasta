@@ -222,7 +222,8 @@ def upload_to_usenet(
     nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
     if not nzb_out_template:
         nzb_out_template = "{filename}_content.nzb" if is_folder else "{filename}.nzb"
-    nzb_overwrite = env_vars.get("NZB_OVERWRITE", "true").lower() in ("true", "1", "yes")
+    # NZB_OVERWRITE environment variable overrides conflict handling behavior.
+    nzb_overwrite_env = env_vars.get("NZB_OVERWRITE") or os.environ.get("NZB_OVERWRITE")
     skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
     dump_failed_posts = env_vars.get("DUMP_FAILED_POSTS") or os.environ.get("DUMP_FAILED_POSTS")
     quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
@@ -240,6 +241,11 @@ def upload_to_usenet(
 
     # Conflict-handling behavior for NZB file collisions (rename | overwrite | fail)
     nzb_conflict = env_vars.get("NZB_CONFLICT") or os.environ.get("NZB_CONFLICT") or "rename"
+
+    if nzb_overwrite_env is not None:
+        nzb_overwrite = nzb_overwrite_env.lower() in ("true", "1", "yes")
+    else:
+        nzb_overwrite = nzb_conflict == "overwrite"
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print("Erro: credenciais incompletas. Configure .env com:")
