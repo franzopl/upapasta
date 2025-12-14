@@ -161,11 +161,11 @@ class UpaPastaOrchestrator:
         self.force = force
         self.env_file = env_file
         self.keep_files = keep_files
-        self.nzb_conflict = nzb_conflict
         self.backend = backend
         self.rar_threads = rar_threads if rar_threads is not None else (os.cpu_count() or 4)
         self.par_threads = par_threads if par_threads is not None else (os.cpu_count() or 4)
         self.par_profile = par_profile
+        self.nzb_conflict = nzb_conflict
         self.rar_file: str | None = None
         self.par_file: str | None = None
         # input_target is the path used for subsequent steps (string): either
@@ -616,7 +616,7 @@ def parse_args():
         "--nzb-conflict",
         choices=("rename", "overwrite", "fail"),
         default=None,
-        help="Como tratar conflito de nome de arquivo NZB (default: Env or 'rename')",
+        help="Como tratar conflitos quando o .nzb já existe na pasta de destino (default: Env or 'rename')",
     )
     return p.parse_args()
 
