@@ -43,6 +43,7 @@ pip install upapasta
 
 3.  **Dependências Externas:**
     Certifique-se de ter o `rar`, `parpar` (ou `par2`) e `nyuu` instalados e disponíveis no seu `PATH`.
+  - Para uploads de arquivo único, recomenda-se também ter `mediainfo` instalado para gerar o arquivo `.nfo` automaticamente.
 
 ### Configuração de Credenciais
 O script usa um arquivo de configuração global em `~/.config/upapasta/.env` por padrão. Na primeira execução, será solicitado que você forneça as credenciais, que serão salvas automaticamente.
