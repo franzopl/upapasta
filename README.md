@@ -82,6 +82,15 @@ upapasta /home/user/documentos/meu-arquivo-importante
 ```bash
 upapasta /home/user/Videos/filme.mkv
 ```
+
+**Exemplo para uploads sequenciais (aborta se .nzb já existe):**
+```bash
+# Útil para enviar múltiplos vídeos de uma pasta em sequência
+# sem sobrescrever NZBs existentes
+for video in /home/user/Videos/*.mkv; do
+    upapasta "$video" --nzb-conflict fail
+done
+```
 """
 
 ### Opções de Linha de Comando
