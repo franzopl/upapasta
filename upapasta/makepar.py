@@ -198,9 +198,10 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
         print(f"Erro: '{rar_path}' não é um arquivo nem pasta.")
         return 2
 
-    if not is_folder and not rar_path.lower().endswith('.rar'):
-        print("Erro: o arquivo de entrada não parece ser um .rar")
-        return 2
+    # Accept either a folder or a single file (not necessarily .rar).
+    # Historically this tool created parity for a .rar; since we now support
+    # direct single-file uploads (e.g. .mkv), we allow single files of any
+    # extension to be processed.
 
     parent = os.path.dirname(rar_path)
     base = os.path.basename(rar_path)

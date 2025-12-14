@@ -72,6 +72,15 @@ def find_nyuu() -> str | None:
     return None
 
 
+def find_mediainfo() -> str | None:
+    """Procura executável 'mediainfo' no PATH."""
+    for cmd in ("mediainfo", "mediainfo.exe"):
+        path = shutil.which(cmd)
+        if path:
+            return path
+    return None
+
+
 def parse_args():
     p = argparse.ArgumentParser(
         description="Upload de .rar + .par2 para Usenet com nyuu"
@@ -256,6 +265,46 @@ def upload_to_usenet(
         else:
             subject = os.path.basename(os.path.splitext(input_path)[0])
 
+    # Single-file: generate .nfo and save to the same directory as NZB (if defined), otherwise to the working_dir
+    if not is_folder:
+        # create nfo filename based on nzb (same basename) or the input filename
+        if nzb_out:
+            nfo_filename = os.path.splitext(os.path.basename(nzb_out))[0] + ".nfo"
+            nzb_dir_part = os.path.dirname(nzb_out)
+        else:
+            nfo_filename = os.path.splitext(os.path.basename(input_path))[0] + ".nfo"
+            nzb_dir_part = ""
+
+        # Determine absolute path where we should write the .nfo file
+        if nzb_dir_part:
+            if os.path.isabs(nzb_dir_part):
+                nfo_dir_abs = nzb_dir_part
+            else:
+                # resolve relative nzb_out path against the working_dir
+                nfo_dir_abs = os.path.join(working_dir, nzb_dir_part)
+        else:
+            nfo_dir_abs = working_dir
+
+        # Ensure destination directory exists
+        try:
+            os.makedirs(nfo_dir_abs, exist_ok=True)
+        except Exception:
+            pass
+
+        nfo_path = os.path.join(nfo_dir_abs, nfo_filename)
+        mediainfo_path = find_mediainfo()
+        if mediainfo_path:
+            try:
+                mi_proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+                with open(nfo_path, "w", encoding="utf-8") as f:
+                    f.write(mi_proc.stdout)
+                print(f"  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nfo_dir_abs})")
+                # Do not upload .nfo to Usenet; it's saved locally for archiving only.
+            except Exception as e:
+                print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
+        else:
+            print("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo.")
+
     # Constrói comando nyuu com todas as opções
     # nyuu -h <host> [-P <port>] [-S] [-i] -u <user> -p <pass> -c <connections> -g <group> -a <article-size> -s <subject> <files>
     cmd = [
@@ -295,6 +344,9 @@ def upload_to_usenet(
     cmd.extend(par2_files)
 
     if dry_run:
+        # Print the nyuu command but do not run it. The .nfo (for single-file uploads)
+        # is already generated above (if mediainfo was found) and written to the
+        # resolved `nfo_path` directory. No further .nfo writing should occur here.
         print("Comando nyuu (dry-run):")
         print(" ".join(str(x) for x in cmd))
         return 0

@@ -15,6 +15,7 @@ A ferramenta foi projetada para ser simples, eficiente e exibir barras de progre
 -   **Customização**: Opções para configurar a redundância dos arquivos PAR2, o tamanho dos posts e o assunto da postagem.
 -   **Segurança**: Carrega as credenciais da Usenet a partir de um arquivo `.env` para não expor informações sensíveis.
 -   **Geração de NZB**: Cria automaticamente um arquivo `.nzb` na pasta de execução para facilitar downloads.
+ -   **Geração de NFO (arquivo único)**: Para uploads de arquivo único, gera automaticamente um arquivo `.nfo` com a saída do `mediainfo` e o salva no mesmo destino do `.nzb` para arquivamento local. **Este `.nfo` não será enviado para a Usenet.**
 -   **Limpeza Automática**: Remove os arquivos `.rar` e `.par2` gerados após o upload (pode ser desativado com `--keep-files`).
 -   **Dry Run**: Permite simular a execução sem criar ou enviar arquivos (`--dry-run`).
 
@@ -42,6 +43,7 @@ pip install upapasta
 
 3.  **Dependências Externas:**
     Certifique-se de ter o `rar`, `parpar` (ou `par2`) e `nyuu` instalados e disponíveis no seu `PATH`.
+  - Para uploads de arquivo único, recomenda-se também ter `mediainfo` instalado para gerar o arquivo `.nfo` automaticamente.
 
 ### Configuração de Credenciais
 O script usa um arquivo de configuração global em `~/.config/upapasta/.env` por padrão. Na primeira execução, será solicitado que você forneça as credenciais, que serão salvas automaticamente.
@@ -76,11 +78,18 @@ upapasta /caminho/para/sua/pasta [OPÇÕES]
 upapasta /home/user/documentos/meu-arquivo-importante
 ```
 
+**Exemplo para arquivo único (.mkv):**
+```bash
+upapasta /home/user/Videos/filme.mkv
+```
+"""
+
 ### Opções de Linha de Comando
 
 | Opção              | Descrição                                                                      | Padrão                                  |
 | ------------------ | ------------------------------------------------------------------------------ | --------------------------------------- |
-| `folder`           | **(Obrigatório)** A pasta que será enviada.                                    | N/A                                     |
+| `input`            | **(Obrigatório)** Arquivo ou pasta que será enviada. Para arquivo único (ex: .mkv) o comportamento padrão é pular a criação do `.rar` e gerar apenas `.par2`.
+|                    |                                                                              | N/A                                     |
 | `--dry-run`        | Simula a execução sem criar ou enviar arquivos.                                | Desativado                              |
 | `-r`, `--redundancy` | Define a porcentagem de redundância para os arquivos PAR2.                       | `15`                                    |
 | `--backend`        | Escolhe o backend para a geração de paridade (`parpar` ou `par2`).               | `parpar`                                |

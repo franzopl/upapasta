@@ -27,3 +27,7 @@ Issues = "https://github.com/franzopl/upapasta/issues"
 
 [project.scripts]
 upapasta = "upapasta.main:main"
+
+[tool.setuptools.packages.find]
+include = ["upapasta*"]
+exclude = ["test_file*", "tests*"]

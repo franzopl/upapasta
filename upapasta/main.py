@@ -131,7 +131,7 @@ class UpaPastaOrchestrator:
 
     def __init__(
         self,
-        folder_path: str,
+        input_path: str,
         dry_run: bool = False,
         redundancy: int | None = None,
         post_size: str | None = None,
@@ -148,11 +148,11 @@ class UpaPastaOrchestrator:
         par_threads: int | None = None,
         par_profile: str = "balanced",
     ):
-        self.folder_path = Path(folder_path).absolute()
+        self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
         self.redundancy = redundancy  # None = usar padrão do perfil
         self.post_size = post_size  # None = usar padrão do perfil
-        self.subject = subject or self.folder_path.name
+        self.subject = subject or self.input_path.name
         self.group = group
         self.skip_rar = skip_rar
         self.skip_par = skip_par
@@ -166,27 +166,42 @@ class UpaPastaOrchestrator:
         self.par_profile = par_profile
         self.rar_file: str | None = None
         self.par_file: str | None = None
-        self.input_path: str | None = None
+        # input_target is the path used for subsequent steps (string): either
+        # the original folder/file or the rar file created for upload.
+        self.input_target: str | None = None
         self.env_vars: dict = {}
 
     def validate(self) -> bool:
         """Valida entrada e ambiente."""
-        if not self.folder_path.exists():
-            print(f"Erro: pasta '{self.folder_path}' não existe.")
+        if not self.input_path.exists():
+            print(f"Erro: arquivo ou pasta '{self.input_path}' não existe.")
             return False
 
-        if not self.folder_path.is_dir():
-            print(f"Erro: '{self.folder_path}' não é um diretório.")
+        # We allow either directories (old behaviour) or a single file
+        if not self.input_path.is_dir() and not self.input_path.is_file():
+            print(f"Erro: '{self.input_path}' não é um arquivo nem um diretório.")
             return False
 
         return True
 
     def run_makerar(self) -> bool:
         """Executa makerar.py."""
+        # If the input is a file, default to skip RAR (do not create a RAR). The
+        # caller can override via --skip-rar but the default is convenient for
+        # single-file uploads that should not be repackaged into a RAR.
+        if self.input_path.is_file():
+            self.skip_rar = True
+            print(f"✅ Single-file upload detected: {self.input_path.name} (skip RAR by default)")
+
         if self.skip_rar:
-            # Modo upload de pasta sem RAR: usar a pasta diretamente
-            self.input_path = str(self.folder_path)
-            print(f"✅ Modo upload de pasta: {self.folder_path.name}")
+            # Modo upload sem RAR: use the path directly
+            self.rar_file = None
+            self.input_target = str(self.input_path)
+            if self.input_path.is_dir():
+                print(f"✅ Modo upload de pasta: {self.input_path.name}")
+            else:
+                print(f"✅ Modo upload de arquivo: {self.input_path.name}")
+            # return True, but don't set rar_file
             return True
 
         print("\n" + "=" * 60)
@@ -195,20 +210,20 @@ class UpaPastaOrchestrator:
 
         if self.dry_run:
             print(f"[DRY-RUN] pularia a criação do RAR.")
-            self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
-            self.input_path = self.rar_file
+            self.rar_file = str(self.input_path.parent / f"{self.input_path.name}.rar")
+            self.input_target = self.rar_file
             print(f"[DRY-RUN] RAR seria criado em: {self.rar_file}")
             return True
 
-        print(f"📥 Compactando {self.folder_path.name}...")
+        print(f"📥 Compactando {self.input_path.name}...")
         print("-" * 60)
 
         try:
-            rc = make_rar(str(self.folder_path), self.force, threads=self.rar_threads)
+            rc = make_rar(str(self.input_path), self.force, threads=self.rar_threads)
             if rc == 0:
                 print("-" * 60)
-                self.rar_file = str(self.folder_path.parent / f"{self.folder_path.name}.rar")
-                self.input_path = self.rar_file
+                self.rar_file = str(self.input_path.parent / f"{self.input_path.name}.rar")
+                self.input_target = self.rar_file
                 if os.path.exists(self.rar_file):
                     return True
                 else:
@@ -224,16 +239,16 @@ class UpaPastaOrchestrator:
 
     def run_makepar(self) -> bool:
         """Executa makepar.py."""
-        if not self.input_path:
+        if not self.input_target:
             print("Erro: caminho de entrada não definido.")
             return False
 
         if self.skip_par:
             # Procura arquivo .par2 existente
-            if os.path.isdir(self.input_path):
-                par_path = os.path.join(os.path.dirname(self.input_path), os.path.basename(self.input_path) + ".par2")
+            if os.path.isdir(self.input_target):
+                par_path = os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
             else:
-                par_path = os.path.splitext(self.input_path)[0] + ".par2"
+                par_path = os.path.splitext(self.input_target)[0] + ".par2"
             if os.path.exists(par_path):
                 self.par_file = par_path
                 size_mb = os.path.getsize(self.par_file) / (1024 * 1024)
@@ -249,10 +264,10 @@ class UpaPastaOrchestrator:
 
         if self.dry_run:
             print(f"[DRY-RUN] pularia a criação do PAR2.")
-            if os.path.isdir(self.input_path):
-                self.par_file = os.path.join(os.path.dirname(self.input_path), os.path.basename(self.input_path) + ".par2")
+            if os.path.isdir(self.input_target):
+                self.par_file = os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
             else:
-                self.par_file = os.path.splitext(self.input_path)[0] + ".par2"
+                self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
             print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
             return True
 
@@ -261,7 +276,7 @@ class UpaPastaOrchestrator:
 
         try:
             rc = make_parity(
-                self.input_path,
+                self.input_target,
                 redundancy=self.redundancy,
                 force=self.force,
                 backend=self.backend,
@@ -272,10 +287,10 @@ class UpaPastaOrchestrator:
             )
             if rc == 0:
                 print("-" * 60)
-                if os.path.isdir(self.input_path):
-                    self.par_file = os.path.join(os.path.dirname(self.input_path), os.path.basename(self.input_path) + ".par2")
+                if os.path.isdir(self.input_target):
+                    self.par_file = os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
                 else:
-                    self.par_file = os.path.splitext(self.input_path)[0] + ".par2"
+                    self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
                 if os.path.exists(self.par_file):
                     return True
                 else:
@@ -291,7 +306,7 @@ class UpaPastaOrchestrator:
 
     def run_upload(self) -> bool:
         """Executa upfolder.py, permitindo que a barra de progresso nativa apareça."""
-        if not self.input_path:
+        if not self.input_target:
             print("Erro: caminho de entrada não definido.")
             return False
         
@@ -309,7 +324,7 @@ class UpaPastaOrchestrator:
 
         try:
             rc = upload_to_usenet(
-                self.input_path,
+                self.input_target,
                 env_vars=self.env_vars,
                 dry_run=self.dry_run,
                 subject=self.subject,
@@ -389,7 +404,7 @@ class UpaPastaOrchestrator:
         print("\n" + "=" * 60)
         print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
         print("=" * 60)
-        print(f"📁 Pasta:      {self.folder_path.name}")
+        print(f"📁 Entrada:      {self.input_path.name}")
         print(f"🎯 Perfil PAR2: {self.par_profile}")
         print(f"📊 Post-size:  {self.post_size or '(do perfil)'}")
         print(f"✉️  Subject:    {self.subject}")
@@ -432,10 +447,10 @@ class UpaPastaOrchestrator:
                     for file in files:
                         total_size_bytes += os.path.getsize(os.path.join(root, file))
                 stats["rar_size_mb"] = total_size_bytes / (1024 * 1024)
-                base_name = self.input_path
+                base_name = str(self.input_target) if self.input_target else str(self.input_path)
             else:
                 stats["rar_size_mb"] = os.path.getsize(self.input_path) / (1024 * 1024)
-                base_name = os.path.splitext(self.input_path)[0]
+                base_name = os.path.splitext(self.input_target)[0] if self.input_target else os.path.splitext(str(self.input_path))[0]
             
             import glob
             par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
@@ -463,7 +478,7 @@ class UpaPastaOrchestrator:
         
         print("\n📊 RESUMO DA OPERAÇÃO:")
         print("-" * 25)
-        print(f"  » Pasta de Origem: {self.folder_path.name}")
+        print(f"  » Entrada de Origem: {self.input_path.name}")
         if not self.skip_upload:
             # Mostra o grupo do argumento, ou do .env, ou um fallback
             group_from_env = self.env_vars.get("USENET_GROUP")
@@ -484,10 +499,12 @@ class UpaPastaOrchestrator:
         print("\n📦 ARQUIVOS GERADOS:")
         print("-" * 25)
         if stats["rar_size_mb"] > 0:
-            if os.path.isdir(self.input_path):
+            if self.rar_file and os.path.exists(self.rar_file):
+                print(f"  » Arquivo RAR: {os.path.basename(self.rar_file)} ({stats['rar_size_mb']:.2f} MB)")
+            elif os.path.isdir(self.input_path):
                 print(f"  » Arquivos da pasta: {os.path.basename(self.input_path)} ({stats['rar_size_mb']:.2f} MB)")
             else:
-                print(f"  » Arquivo RAR: {os.path.basename(self.input_path)} ({stats['rar_size_mb']:.2f} MB)")
+                print(f"  » Arquivo: {os.path.basename(self.input_path)} ({stats['rar_size_mb']:.2f} MB)")
         
         if stats["par2_file_count"] > 0:
             print(f"  » Arquivos PAR2: {stats['par2_file_count']} arquivos ({stats['par2_size_mb']:.2f} MB)")
@@ -506,7 +523,7 @@ def parse_args():
         description="UpaPasta — Upload de pasta para Usenet com RAR + PAR2",
         epilog="Exemplo: python3 main.py /caminho/para/pasta",
     )
-    p.add_argument("folder", help="Pasta a fazer upload")
+    p.add_argument("input", help="Arquivo ou pasta a fazer upload")
     p.add_argument(
         "--dry-run",
         action="store_true",
@@ -590,10 +607,12 @@ def parse_args():
     return p.parse_args()
 
 
-def check_dependencies():
+def check_dependencies(needs_rar: bool = True):
     """Verifica se as dependências de linha de comando (rar, nyuu, parpar) estão instaladas."""
     print("🔍 Verificando dependências...")
-    required_commands = ["rar", "nyuu", "parpar"]
+    required_commands = ["nyuu", "parpar"]
+    if needs_rar:
+        required_commands.insert(0, "rar")
     missing_commands = []
 
     for cmd in required_commands:
@@ -613,13 +632,25 @@ def check_dependencies():
 
 
 def main():
-    if not check_dependencies():
-        sys.exit(1)
-
     args = parse_args()
 
+    # Determine whether rar is needed: rar not needed for single-file uploads
+    # when skip_rar is expected. If input is a file and user didn't explicitly
+    # disable skip-rar, then rar is not required.
+    needs_rar = True
+    try:
+        from pathlib import Path
+        p = Path(args.input)
+        if p.exists() and p.is_file():
+            needs_rar = False
+    except Exception:
+        pass
+
+    if not check_dependencies(needs_rar):
+        sys.exit(1)
+
     orchestrator = UpaPastaOrchestrator(
-        folder_path=args.folder,
+        input_path=args.input,
         dry_run=args.dry_run,
         redundancy=args.redundancy,
         backend=args.backend,
