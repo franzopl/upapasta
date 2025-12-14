@@ -142,6 +142,7 @@ def upload_to_usenet(
     nyuu_path: str | None = None,
     subject: str | None = None,
     group: str | None = None,
+    skip_rar: bool = False,
 ) -> int:
     """Upload de arquivos para Usenet usando nyuu."""
 

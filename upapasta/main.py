@@ -337,6 +337,7 @@ class UpaPastaOrchestrator:
                 dry_run=self.dry_run,
                 subject=self.subject,
                 group=self.group,
+                skip_rar=self.skip_rar,
             )
             return rc == 0
         except Exception as e:
@@ -391,6 +392,107 @@ class UpaPastaOrchestrator:
             print(f"\n✅ {deleted_count} arquivo(s) removido(s) com sucesso")
         print()
 
+    def _cleanup_on_error(self) -> None:
+        """Limpa arquivos temporários criados quando há erro/falha."""
+        print("\n🧹 Limpando arquivos temporários devido a erro...")
+
+        files_to_delete = []
+
+        # Arquivo RAR
+        if self.rar_file and os.path.exists(self.rar_file):
+            files_to_delete.append(self.rar_file)
+
+        # Arquivo PAR2 base
+        if self.par_file and os.path.exists(self.par_file):
+            files_to_delete.append(self.par_file)
+
+        # Arquivos de volume PAR2 (.vol00+01.par2, .vol01+02.par2, etc.)
+        if self.rar_file:
+            base_name = os.path.splitext(self.rar_file)[0]
+        elif self.par_file:
+            # Para --skip-rar, usar o nome base do arquivo PAR2
+            base_name = os.path.splitext(self.par_file)[0]
+        else:
+            base_name = None
+
+        if base_name:
+            import glob
+            # Usar glob.escape para lidar com caracteres especiais (como [, ])
+            par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
+            files_to_delete.extend(par_volumes)
+
+        # Deletar arquivos
+        deleted_count = 0
+        for file_path in files_to_delete:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"  ✓ Removido: {os.path.basename(file_path)}")
+                    deleted_count += 1
+            except Exception as e:
+                print(f"  ✗ Erro ao remover {file_path}: {e}")
+
+        if deleted_count > 0:
+            print(f"\n✅ {deleted_count} arquivo(s) removido(s) com sucesso")
+        print()
+
+    def check_nzb_conflict_early(self) -> bool:
+        """Verifica conflito de NZB antecipadamente, antes de qualquer processamento."""
+        if self.skip_upload or self.dry_run:
+            return True  # Não há upload, então não há conflito
+
+        # Determinar o caminho do NZB que seria criado
+        from .upfolder import upload_to_usenet
+        import tempfile
+        import os
+
+        # Simular a lógica de upload_to_usenet para determinar o nzb_out
+        input_path = str(self.input_target) if self.input_target else str(self.input_path)
+        is_folder = os.path.isdir(input_path)
+
+        # Usar a mesma lógica de template do upfolder.py
+        env_vars = self.env_vars.copy()
+        if self.nzb_conflict:
+            env_vars['NZB_CONFLICT'] = self.nzb_conflict
+
+        nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
+        if not nzb_out_template:
+            if is_folder and not self.skip_rar:
+                nzb_out_template = "{filename}_content.nzb"
+            else:
+                nzb_out_template = "{filename}.nzb"
+
+        # Determinar o basename
+        basename = os.path.basename(input_path)
+        if not is_folder:
+            basename = os.path.splitext(basename)[0]
+        nzb_filename = nzb_out_template.replace("{filename}", basename)
+
+        # Determinar o diretório de saída do NZB
+        nzb_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+        nzb_out_abs = os.path.join(nzb_dir, nzb_filename)
+
+        # Verificar conflito
+        nzb_conflict = env_vars.get("NZB_CONFLICT") or os.environ.get("NZB_CONFLICT") or "rename"
+
+        if os.path.exists(nzb_out_abs):
+            if nzb_conflict == "fail":
+                print(f"Erro: arquivo NZB já existe: {nzb_out_abs}. Parando por configuração 'fail'.")
+                return False
+            elif nzb_conflict == "overwrite":
+                print(f"Aviso: arquivo NZB já existe: {nzb_out_abs} - será sobrescrito.")
+            else:  # rename
+                base, ext = os.path.splitext(nzb_out_abs)
+                counter = 1
+                while True:
+                    candidate = f"{base}-{counter}{ext}"
+                    if not os.path.exists(candidate):
+                        break
+                    counter += 1
+                print(f"Aviso: arquivo NZB já existe: {nzb_out_abs} - será usado: {os.path.basename(candidate)}")
+
+        return True
+
     def run(self) -> int:
         """Executa o workflow completo."""
         
@@ -426,24 +528,32 @@ class UpaPastaOrchestrator:
         if not self.validate():
             return 1
 
+        # Verificar conflito de NZB antecipadamente (antes de qualquer processamento)
+        if not self.check_nzb_conflict_early():
+            return 3  # Mesmo código de erro do upload
+
         # Etapa 1: Criar RAR
         if not self.skip_rar:
             step_start_time = time.time()
             if not self.run_makerar():
+                self._cleanup_on_error()
                 return 1
             timings["rar"] = time.time() - step_start_time
         else:
             if not self.run_makerar():  # tenta pular, mas valida existência
+                self._cleanup_on_error()
                 return 1
 
         # Etapa 2: Gerar paridade
         if not self.skip_par:
             step_start_time = time.time()
             if not self.run_makepar():
+                self._cleanup_on_error()
                 return 2
             timings["par"] = time.time() - step_start_time
         else:
             if not self.run_makepar():  # tenta pular, mas valida existência
+                self._cleanup_on_error()
                 return 2
 
         # Coletar informações dos arquivos ANTES do upload/cleanup
@@ -470,6 +580,7 @@ class UpaPastaOrchestrator:
         if not self.skip_upload:
             step_start_time = time.time()
             if not self.run_upload():
+                self._cleanup_on_error()
                 return 3
             timings["upload"] = time.time() - step_start_time
             # Limpar arquivos após upload bem-sucedido
