@@ -338,7 +338,7 @@ def upload_to_usenet(
                     mi_proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
                     with open(nfo_path, "w", encoding="utf-8") as f:
                         f.write(mi_proc.stdout)
-                    # NFO already generated and added to files_to_upload above; no need to re-print here.
+                    # NFO generated for dry-run (saved locally); do NOT upload it to Usenet.
                 except Exception as e:
                     print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
             else:
