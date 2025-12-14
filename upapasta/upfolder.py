@@ -238,6 +238,9 @@ def upload_to_usenet(
             basename = os.path.splitext(os.path.basename(input_path))[0]
         nzb_out = nzb_out_template.replace("{filename}", basename)
 
+    # Conflict-handling behavior for NZB file collisions (rename | overwrite | fail)
+    nzb_conflict = env_vars.get("NZB_CONFLICT") or os.environ.get("NZB_CONFLICT") or "rename"
+
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print("Erro: credenciais incompletas. Configure .env com:")
         print("  NNTP_HOST=<seu_servidor>")
@@ -332,6 +335,40 @@ def upload_to_usenet(
     
     # Adicionar opção -o para arquivo NZB se configurado
     if nzb_out:
+        # Resolve absolute path for nzb_out to perform conflict checks
+        if os.path.isabs(nzb_out):
+            nzb_out_abs = nzb_out
+        else:
+            nzb_out_abs = os.path.join(working_dir, nzb_out)
+
+        # If a file already exists at the NZB path, perform conflict action
+        if os.path.exists(nzb_out_abs):
+            if nzb_conflict == "overwrite":
+                # Allow nyuu to overwrite: preserve current behavior by setting the nzb_overwrite flag
+                nzb_overwrite = True
+                print(f"Aviso: arquivo NZB já existe: {nzb_out_abs} - sobrescrevendo por solicitação (overwrite)")
+            elif nzb_conflict == "fail":
+                print(f"Erro: arquivo NZB já existe: {nzb_out_abs}. Parando por configuração 'fail'.")
+                return 6
+            else:
+                # Default: try to find a non-colliding filename by appending incremental suffix
+                base, ext = os.path.splitext(nzb_out_abs)
+                counter = 1
+                while True:
+                    candidate = f"{base}-{counter}{ext}"
+                    if not os.path.exists(candidate):
+                        break
+                    counter += 1
+                # Update both nzb_out (relative) and nzb_out_abs
+                # If original nzb_out was relative, keep relative variant
+                if os.path.isabs(nzb_out):
+                    nzb_out_abs = candidate
+                    nzb_out = candidate
+                else:
+                    # compute relative candidate path from working_dir
+                    nzb_out = os.path.relpath(candidate, working_dir)
+                    nzb_out_abs = candidate
+                print(f"Aviso: arquivo NZB já existe: {candidate} - usando novo nome (rename)")
         cmd.extend(["-o", nzb_out])
     
     # Adicionar opção -O para sobrescrever NZB se configurado

@@ -102,6 +102,7 @@ upapasta /home/user/Videos/filme.mkv
 | `-f`, `--force`      | Força a sobrescrita de arquivos `.rar` ou `.par2` que já existam.              | Desativado                              |
 | `--env-file`       | Especifica um caminho alternativo para o arquivo `.env`.                         | `~/.config/upapasta/.env`              |
 | `--keep-files`     | Mantém os arquivos `.rar` e `.par2` no disco após o upload.                    | Desativado                              |
+| `--nzb-conflict`     | Como tratar conflitos quando o `.nzb` já existe na pasta de destino (`rename`, `overwrite`, `fail`). | `rename` (padrão: renomeia para evitar perda) |
 
 ## Estrutura do Projeto
 
