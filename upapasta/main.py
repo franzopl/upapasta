@@ -147,6 +147,7 @@ class UpaPastaOrchestrator:
         rar_threads: int | None = None,
         par_threads: int | None = None,
         par_profile: str = "balanced",
+        nzb_conflict: str | None = None,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -164,6 +165,7 @@ class UpaPastaOrchestrator:
         self.rar_threads = rar_threads if rar_threads is not None else (os.cpu_count() or 4)
         self.par_threads = par_threads if par_threads is not None else (os.cpu_count() or 4)
         self.par_profile = par_profile
+        self.nzb_conflict = nzb_conflict
         self.rar_file: str | None = None
         self.par_file: str | None = None
         # input_target is the path used for subsequent steps (string): either
@@ -323,6 +325,12 @@ class UpaPastaOrchestrator:
             return True
 
         try:
+            # If a nzb_conflict mode was given via CLI, inject it into env_vars so
+            # upload_to_usenet can read it. Otherwise, the env_vars may already
+            # contain NZB_CONFLICT from the .env file.
+            if self.nzb_conflict:
+                self.env_vars['NZB_CONFLICT'] = self.nzb_conflict
+
             rc = upload_to_usenet(
                 self.input_target,
                 env_vars=self.env_vars,
@@ -604,6 +612,12 @@ def parse_args():
         default=None,
         help="Número de threads para geração de PAR2 (padrão: número de CPUs disponíveis)",
     )
+    p.add_argument(
+        "--nzb-conflict",
+        choices=("rename", "overwrite", "fail"),
+        default=None,
+        help="Como tratar conflitos quando o .nzb já existe na pasta de destino (default: Env or 'rename')",
+    )
     return p.parse_args()
 
 
@@ -666,6 +680,7 @@ def main():
         rar_threads=args.rar_threads,
         par_threads=args.par_threads,
         par_profile=args.par_profile,
+        nzb_conflict=args.nzb_conflict,
     )
 
     rc = orchestrator.run()

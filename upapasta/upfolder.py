@@ -222,7 +222,8 @@ def upload_to_usenet(
     nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
     if not nzb_out_template:
         nzb_out_template = "{filename}_content.nzb" if is_folder else "{filename}.nzb"
-    nzb_overwrite = env_vars.get("NZB_OVERWRITE", "true").lower() in ("true", "1", "yes")
+    # NZB_OVERWRITE environment variable overrides conflict handling behavior.
+    nzb_overwrite_env = env_vars.get("NZB_OVERWRITE") or os.environ.get("NZB_OVERWRITE")
     skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
     dump_failed_posts = env_vars.get("DUMP_FAILED_POSTS") or os.environ.get("DUMP_FAILED_POSTS")
     quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
@@ -237,6 +238,51 @@ def upload_to_usenet(
         else:
             basename = os.path.splitext(os.path.basename(input_path))[0]
         nzb_out = nzb_out_template.replace("{filename}", basename)
+
+    # Conflict-handling behavior for NZB file collisions (rename | overwrite | fail)
+    nzb_conflict = env_vars.get("NZB_CONFLICT") or os.environ.get("NZB_CONFLICT") or "rename"
+
+    if nzb_overwrite_env is not None:
+        nzb_overwrite = nzb_overwrite_env.lower() in ("true", "1", "yes")
+    else:
+        nzb_overwrite = nzb_conflict == "overwrite"
+
+    # Adicionar opção -o para arquivo NZB se configurado
+    if nzb_out:
+        # Resolve absolute path for nzb_out to perform conflict checks
+        if os.path.isabs(nzb_out):
+            nzb_out_abs = nzb_out
+        else:
+            nzb_out_abs = os.path.join(working_dir, nzb_out)
+
+        # If a file already exists at the NZB path, perform conflict action
+        if os.path.exists(nzb_out_abs):
+            if nzb_conflict == "overwrite":
+                # Allow nyuu to overwrite: preserve current behavior by setting the nzb_overwrite flag
+                nzb_overwrite = True
+                print(f"Aviso: arquivo NZB já existe: {nzb_out_abs} - sobrescrevendo por solicitação (overwrite)")
+            elif nzb_conflict == "fail":
+                print(f"Erro: arquivo NZB já existe: {nzb_out_abs}. Parando por configuração 'fail'.")
+                return 6
+            else:
+                # Default: try to find a non-colliding filename by appending incremental suffix
+                base, ext = os.path.splitext(nzb_out_abs)
+                counter = 1
+                while True:
+                    candidate = f"{base}-{counter}{ext}"
+                    if not os.path.exists(candidate):
+                        break
+                    counter += 1
+                # Update both nzb_out (relative) and nzb_out_abs
+                # If original nzb_out was relative, keep relative variant
+                if os.path.isabs(nzb_out):
+                    nzb_out_abs = candidate
+                    nzb_out = candidate
+                else:
+                    # compute relative candidate path from working_dir
+                    nzb_out = os.path.relpath(candidate, working_dir)
+                    nzb_out_abs = candidate
+                print(f"Aviso: arquivo NZB já existe: {candidate} - usando novo nome (rename)")
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print("Erro: credenciais incompletas. Configure .env com:")
