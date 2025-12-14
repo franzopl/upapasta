@@ -280,8 +280,7 @@ def upload_to_usenet(
                 with open(nfo_path, "w", encoding="utf-8") as f:
                     f.write(mi_proc.stdout)
                 print(f"  ✔️ Arquivo NFO gerado: {nfo_filename}")
-                # Add nfo to files to upload
-                files_to_upload.append(nfo_filename)
+                # Do not upload .nfo to Usenet; it's saved locally for archiving only.
             except Exception as e:
                 print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
         else:
