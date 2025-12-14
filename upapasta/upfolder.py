@@ -143,10 +143,12 @@ def upload_to_usenet(
     subject: str | None = None,
     group: str | None = None,
     skip_rar: bool = False,
+    obfuscated_map: dict[str, str] | None = None,
 ) -> int:
     """Upload de arquivos para Usenet usando nyuu."""
 
     input_path = os.path.abspath(input_path)
+
 
     # Validar entrada
     if not os.path.exists(input_path):
@@ -163,17 +165,21 @@ def upload_to_usenet(
     import shutil
 
     if is_folder:
-        # Para pastas, criar diretório temporário e copiar estrutura
+        # Para pastas, criar diretório temporário e copiar CONTEÚDO
         temp_dir = tempfile.mkdtemp(prefix="upapasta_")
-        folder_name = os.path.basename(input_path)
-        temp_folder_path = os.path.join(temp_dir, folder_name)
         
-        # Copiar a pasta inteira para temp
-        shutil.copytree(input_path, temp_folder_path)
-        
+        # Copiar o conteúdo da pasta de origem para a raiz do temp_dir
+        for item in os.listdir(input_path):
+            s = os.path.join(input_path, item)
+            d = os.path.join(temp_dir, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d, symlinks=False, ignore=None)
+            else:
+                shutil.copy2(s, d)
+
         # Coletar arquivos relativos à temp
         files_to_upload = []
-        for root, dirs, files in os.walk(temp_folder_path):
+        for root, _, files in os.walk(temp_dir):
             for file in files:
                 rel_path = os.path.relpath(os.path.join(root, file), temp_dir)
                 files_to_upload.append(rel_path)
@@ -237,10 +243,25 @@ def upload_to_usenet(
     nzb_out = None
     if nzb_out_template:
         # {filename} é substituído pelo nome base sem extensão
-        basename = os.path.basename(input_path)
-        if not is_folder:
-            # Remove extensão para arquivos
-            basename = os.path.splitext(basename)[0]
+        # Se ofuscado, usar o nome original para o arquivo NZB
+        if obfuscated_map:
+            if is_folder:
+                # Para pastas, obter o nome original da pasta do mapa
+                obfuscated_basename = os.path.basename(input_path)
+                original_name = obfuscated_map.get(obfuscated_basename)
+                if original_name:
+                    basename = original_name
+                else:
+                    basename = obfuscated_basename
+            else:
+                # Para arquivos, usar o nome original
+                original_name = next(iter(obfuscated_map.values()))
+                basename = os.path.splitext(os.path.basename(original_name))[0]
+        else:
+            basename = os.path.basename(input_path)
+            if not is_folder:
+                # Remove extensão para arquivos
+                basename = os.path.splitext(basename)[0]
         nzb_out = nzb_out_template.replace("{filename}", basename)
 
     # Conflict-handling behavior for NZB file collisions (rename | overwrite | fail)
@@ -322,7 +343,12 @@ def upload_to_usenet(
             nfo_filename = os.path.splitext(os.path.basename(nzb_out))[0] + ".nfo"
             nzb_dir_part = os.path.dirname(nzb_out)
         else:
-            nfo_filename = os.path.splitext(os.path.basename(input_path))[0] + ".nfo"
+            # Se ofuscado, usar o nome original para o arquivo NFO
+            if obfuscated_map:
+                original_name = next(iter(obfuscated_map.values()))
+                nfo_filename = os.path.splitext(os.path.basename(original_name))[0] + ".nfo"
+            else:
+                nfo_filename = os.path.splitext(os.path.basename(input_path))[0] + ".nfo"
             nzb_dir_part = ""
 
         # Determine absolute path where we should write the .nfo file
@@ -388,8 +414,32 @@ def upload_to_usenet(
     if nzb_overwrite:
         cmd.append("-O")
     
-    # Adicionar arquivos a fazer upload
-    cmd.extend(files_to_upload)
+    # Adicionar arquivos a fazer upload, aplicando renomeação se necessário
+    if obfuscated_map:
+        if is_folder:
+            # Para pastas, o mapa contém a relação nome_ofuscado -> nome_original da pasta
+            obfuscated_folder_name = os.path.basename(input_path)
+            original_folder_name = obfuscated_map.get(obfuscated_folder_name)
+
+            if original_folder_name:
+                for file_path in files_to_upload:
+                    # O 'file_path' aqui é relativo ao temp_dir, ex: 'sub/file.txt'
+                    # O nome da pasta ofuscada não faz parte do caminho relativo
+                    original_file_path = f"{original_folder_name}/{file_path}"
+                    cmd.extend([f"{file_path}"])  # Sem renomeação, usar o arquivo físico
+            else:
+                 cmd.extend(files_to_upload) # Fallback se o mapa estiver errado
+        else:
+            # Para arquivos únicos
+            file_to_upload = files_to_upload[0]
+            original_name = obfuscated_map.get(file_to_upload)
+            if original_name:
+                cmd.extend([f"{file_to_upload}"])  # Sem renomeação
+            else:
+                cmd.append(file_to_upload)
+    else:
+        cmd.extend(files_to_upload)
+
     # Adicionar todos os arquivos .par2
     cmd.extend(par2_files)
 

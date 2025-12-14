@@ -101,13 +101,19 @@ def obfuscate_and_par(
     obfuscated_name = random_name + ext
     obfuscated_path = os.path.join(parent_dir, obfuscated_name)
 
-    print(f"Ofuscando: {os.path.basename(input_path)} -> {obfuscated_name}")
+    print(f"Ofuscando: {os.path.basename(input_path)} -> {obfuscated_name} (criando cópia)")
+    print(f"DEBUG: obfuscate_and_par() - input_path antes da cópia: {input_path}")
 
     try:
-        # Renomear o arquivo/pasta
-        os.rename(input_path, obfuscated_path)
+        # Copiar em vez de renomear para preservar o original
+        if is_folder:
+            shutil.copytree(input_path, obfuscated_path)
+        else:
+            shutil.copy2(input_path, obfuscated_path)
+        print(f"DEBUG: obfuscate_and_par() - input_path após cópia (deve existir): {input_path} -> {os.path.exists(input_path)}")
+        print(f"DEBUG: obfuscate_and_par() - obfuscated_path após cópia (deve existir): {obfuscated_path} -> {os.path.exists(obfuscated_path)}")
     except OSError as e:
-        print(f"Erro ao renomear para o nome ofuscado: {e}")
+        print(f"Erro ao criar a cópia ofuscada: {e}")
         return 1, None
 
     # Chamar make_parity no novo caminho ofuscado
@@ -125,13 +131,16 @@ def obfuscate_and_par(
     if rc == 0:
         return 0, obfuscated_path
     else:
-        # Se make_parity falhar, tentar reverter a renomeação
-        print("Erro ao gerar paridade para o arquivo ofuscado. Revertendo a renomeação...")
+        # Se make_parity falhar, limpar a cópia ofuscada
+        print("Erro ao gerar paridade para o arquivo ofuscado. Limpando a cópia temporária...")
         try:
-            os.rename(obfuscated_path, input_path)
-            print("Renomeação revertida com sucesso.")
+            if is_folder:
+                shutil.rmtree(obfuscated_path)
+            else:
+                os.remove(obfuscated_path)
+            print("Cópia temporária removida.")
         except OSError as e:
-            print(f"Falha ao reverter a renomeação: {e}")
+            print(f"Falha ao remover a cópia temporária: {e}")
         return rc, None
 
 

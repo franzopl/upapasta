@@ -47,7 +47,7 @@ import time
 from pathlib import Path
 
 from .makerar import make_rar
-from .makepar import make_parity, obfuscate_and_par
+from .makepar import make_parity, obfuscate_and_par, generate_random_name
 from .upfolder import upload_to_usenet
 
 
@@ -275,66 +275,75 @@ class UpaPastaOrchestrator:
             print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
             return True
 
-        print(f"🔐 Gerando paridade (perfil: {self.par_profile})...")
-        print("-" * 60)
-
         if self.obfuscate:
-            print("🔐 Ofuscando nome do arquivo antes de gerar paridade...")
-            rc, obfuscated_path = obfuscate_and_par(
-                self.input_target,
-                redundancy=self.redundancy,
-                force=self.force,
-                backend=self.backend,
-                usenet=True,
-                post_size=self.post_size,
-                threads=self.par_threads,
-                profile=self.par_profile,
-            )
-            if rc == 0 and obfuscated_path:
-                print("-" * 60)
-                # O caminho de destino agora é o arquivo ofuscado
-                self.input_target = obfuscated_path
-                # O nome do arquivo par2 também será baseado no nome ofuscado
-                self.par_file = os.path.splitext(obfuscated_path)[0] + ".par2"
-                if os.path.exists(self.par_file):
-                    return True
-                else:
-                    print("❌ Erro: Arquivo de paridade não foi encontrado após a ofuscação.")
-                    return False
-            else:
-                print("-" * 60)
-                print("\n❌ Erro ao ofuscar e gerar paridade.")
+            print("🔐 Gerando paridade com ofuscação no subject...")
+            print("-" * 60)
+
+            try:
+                rc = make_parity(
+                    self.input_target,
+                    redundancy=self.redundancy,
+                    force=True,  # Sempre forçar para ofuscação, pois subject muda
+                    backend=self.backend,
+                    usenet=True,
+                    post_size=self.post_size,
+                    threads=self.par_threads,
+                    profile=self.par_profile,
+                )
+            except Exception as e:
+                print(f"Erro ao executar make_parity: {e}")
                 return False
 
-        try:
-            rc = make_parity(
-                self.input_target,
-                redundancy=self.redundancy,
-                force=self.force,
-                backend=self.backend,
-                usenet=True,
-                post_size=self.post_size,
-                threads=self.par_threads,
-                profile=self.par_profile,
-            )
-            if rc == 0:
+            if rc != 0:
                 print("-" * 60)
-                if os.path.isdir(self.input_target):
-                    self.par_file = os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
-                else:
-                    self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
-                if os.path.exists(self.par_file):
-                    return True
-                else:
-                    print("❌ Erro: Arquivo de paridade não foi encontrado após a execução bem-sucedida.")
-                    return False
-            else:
-                print("-" * 60)
-                print(f"\n❌ Erro ao gerar paridade. Veja o output acima para detalhes. (rc={rc})")
+                print(f"\n❌ Erro ao gerar paridade (código {rc}).")
                 return False
-        except Exception as e:
-            print(f"❌ Erro inesperado ao executar make_parity: {e}")
-            return False
+
+            print("-" * 60)
+            # Ofuscar apenas o subject
+            base_name = os.path.basename(self.input_target)
+            if self.input_path.is_file():
+                name, ext = os.path.splitext(base_name)
+                obfuscated_subject = generate_random_name() + ext
+            else:
+                obfuscated_subject = generate_random_name()
+            self.subject = obfuscated_subject
+            print(f"✨ Subject da postagem atualizado para nome ofuscado: {self.subject}")
+            # O nome do arquivo par2 é baseado no nome original
+            self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
+            if os.path.exists(self.par_file):
+                return True
+            else:
+                print("❌ Erro: Arquivo de paridade não foi encontrado.")
+                return False
+        else:
+            print(f"🔐 Gerando paridade (perfil: {self.par_profile})...")
+            print("-" * 60)
+
+            try:
+                rc = make_parity(
+                    self.input_target,
+                    redundancy=self.redundancy,
+                    force=self.force,
+                    backend=self.backend,
+                    usenet=True,
+                    post_size=self.post_size,
+                    threads=self.par_threads,
+                    profile=self.par_profile,
+                )
+            except Exception as e:
+                print(f"Erro ao executar make_parity: {e}")
+                return False
+
+            if rc != 0:
+                print("-" * 60)
+                print(f"\n❌ Erro ao gerar paridade (código {rc}).")
+                return False
+
+            print("-" * 60)
+            # O nome do arquivo par2 é baseado no nome original
+            self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
+            return True
 
     def run_upload(self) -> bool:
         """Executa upfolder.py, permitindo que a barra de progresso nativa apareça."""
@@ -381,7 +390,6 @@ class UpaPastaOrchestrator:
             return
 
         print("\n🧹 Limpando arquivos temporários...")
-
         files_to_delete = []
         
         # Arquivo RAR
@@ -412,8 +420,12 @@ class UpaPastaOrchestrator:
         for file_path in files_to_delete:
             try:
                 if os.path.exists(file_path):
-                    os.remove(file_path)
-                    print(f"  ✓ Removido: {os.path.basename(file_path)}")
+                    if os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                        print(f"  ✓ Removido diretório: {os.path.basename(file_path)}")
+                    else:
+                        os.remove(file_path)
+                        print(f"  ✓ Removido: {os.path.basename(file_path)}")
                     deleted_count += 1
             except Exception as e:
                 print(f"  ✗ Erro ao remover {file_path}: {e}")
@@ -456,8 +468,12 @@ class UpaPastaOrchestrator:
         for file_path in files_to_delete:
             try:
                 if os.path.exists(file_path):
-                    os.remove(file_path)
-                    print(f"  ✓ Removido: {os.path.basename(file_path)}")
+                    if os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                        print(f"  ✓ Removido diretório: {os.path.basename(file_path)}")
+                    else:
+                        os.remove(file_path)
+                        print(f"  ✓ Removido: {os.path.basename(file_path)}")
                     deleted_count += 1
             except Exception as e:
                 print(f"  ✗ Erro ao remover {file_path}: {e}")
@@ -535,6 +551,9 @@ class UpaPastaOrchestrator:
         }
         total_start_time = time.time()
         
+        # DEBUG: Original input_path
+        print(f"DEBUG: UpaPastaOrchestrator.run() - Original input_path: {self.input_path}")
+        
         # Carrega e valida as credenciais se o upload não for pulado
         if not self.skip_upload:
             self.env_vars = check_or_prompt_credentials(self.env_file)
@@ -585,12 +604,6 @@ class UpaPastaOrchestrator:
             if not self.run_makepar():  # tenta pular, mas valida existência
                 self._cleanup_on_error()
                 return 2
-
-        if self.obfuscate:
-            # Se a ofuscação estiver ativa, o nome do subject deve ser o nome do arquivo ofuscado
-            base_name = os.path.basename(self.input_target)
-            self.subject = os.path.splitext(base_name)[0]
-            print(f"✨ Subject da postagem atualizado para nome ofuscado: {self.subject}")
 
         # Coletar informações dos arquivos ANTES do upload/cleanup
         if self.input_target:
