@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.4 - 2025-12-14
+- Fix: Early NZB conflict detection before processing to avoid wasted work
+- Fix: Automatic cleanup of temporary PAR2 files when errors occur
+- Performance: Skip PAR2 generation when NZB conflict is detected with 'fail' mode
+
 ## 0.3.3 - 2025-12-14
 - Fix: Correct NZB filename for folders processed with `--skip-rar` flag (remove unwanted "_content" suffix).
 
