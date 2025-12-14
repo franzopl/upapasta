@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.3 - 2025-12-14
+- Fix: Correct NZB filename for folders processed with `--skip-rar` flag (remove unwanted "_content" suffix).
+
 ## 0.3.2 - 2025-12-14
 - Feature: Add NZB conflict handling with `--nzb-conflict` option (rename|overwrite|fail) to control behavior when NZB file already exists.
 - Docs: Add example for sequential uploads using `--nzb-conflict fail`.
