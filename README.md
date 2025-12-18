@@ -15,7 +15,10 @@ A ferramenta foi projetada para ser simples, eficiente e exibir barras de progre
 -   **Customização**: Opções para configurar a redundância dos arquivos PAR2, o tamanho dos posts e o assunto da postagem.
 -   **Segurança**: Carrega as credenciais da Usenet a partir de um arquivo `.env` para não expor informações sensíveis.
 -   **Geração de NZB**: Cria automaticamente um arquivo `.nzb` na pasta de execução para facilitar downloads.
- -   **Geração de NFO (arquivo único)**: Para uploads de arquivo único, gera automaticamente um arquivo `.nfo` com a saída do `mediainfo` e o salva no mesmo destino do `.nzb` para arquivamento local. **Este `.nfo` não será enviado para a Usenet.**
+-   **Geração de NFO**: Gera automaticamente arquivos `.nfo` detalhados:
+  - Para arquivos únicos: saída do `mediainfo` com caminho sanitizado (apenas nome do arquivo).
+  - Para pastas: descrição completa com estatísticas, estrutura em árvore e metadados de vídeo (duração, resolução, codec, bitrate).
+  - Banner configurável: suporte a banner ASCII art customizável via variável `NFO_BANNER` no `.env`.
 -   **Limpeza Automática**: Remove os arquivos `.rar` e `.par2` gerados após o upload (pode ser desativado com `--keep-files`).
 -   **Dry Run**: Permite simular a execução sem criar ou enviar arquivos (`--dry-run`).
 
@@ -43,6 +46,7 @@ pip install upapasta
 
 3.  **Dependências Externas:**
     Certifique-se de ter o `rar`, `parpar` (ou `par2`) e `nyuu` instalados e disponíveis no seu `PATH`.
+  - Para geração de `.nfo` com metadados de vídeo (duração, resolução, codec, bitrate), recomenda-se instalar `ffmpeg` (que inclui `ffprobe`).
   - Para uploads de arquivo único, recomenda-se também ter `mediainfo` instalado para gerar o arquivo `.nfo` automaticamente.
 
 ### Configuração de Credenciais
@@ -63,6 +67,20 @@ Para configurar manualmente:
   USENET_GROUP=alt.binaries.test
   NNTP_SSL=true
   ```
+
+### Configuração do Banner NFO (Opcional)
+
+Para personalizar o banner ASCII art nos arquivos `.nfo` de pastas, adicione a variável `NFO_BANNER` ao seu arquivo `.env`:
+
+```ini
+# Banner customizado (múltiplas linhas usando \n)
+NFO_BANNER=LINHA 1\nLINHA 2\nLINHA 3
+
+# Ou deixe vazio para usar o banner padrão do UpaPasta
+NFO_BANNER=
+```
+
+Se `NFO_BANNER` não for definido ou estiver vazio, será usado o banner padrão do UpaPasta.
 
 ## Como Usar
 

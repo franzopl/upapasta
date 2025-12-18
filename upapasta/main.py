@@ -188,6 +188,16 @@ class UpaPastaOrchestrator:
 
         return True
 
+    def generate_upapasta_ascii_art(self):
+        """Gera o logo 'UpaPasta' em ASCII Art."""
+        ascii_art = """██╗   ██╗██████╗  █████╗ ██████╗  █████╗ ███████╗████████╗ █████╗
+██║   ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝╚══██╔══╝██╔══██╗
+██║   ██║██████╔╝███████║██████╔╝███████║███████╗   ██║   ███████║
+██║   ██║██╔═══╝ ██╔══██║██╔═══╝ ██╔══██║╚════██║   ██║   ██╔══██║
+╚██████╔╝██║     ██║  ██║██║     ██║  ██║███████║   ██║   ██║  ██║
+ ╚═════╝ ╚═╝     ╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝"""
+        return ascii_art
+
     def run_generate_nfo(self) -> bool:
         """Gera arquivo .nfo baseado na entrada original."""
         from .upfolder import find_mediainfo
@@ -412,10 +422,17 @@ class UpaPastaOrchestrator:
 
                 nfo_content = []
                 
-                # Adicionar banner se definido no .env
+                # Adicionar banner
                 nfo_banner = env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
                 if nfo_banner:
-                    nfo_content.append(nfo_banner)
+                    # Permitir múltiplas linhas usando \n no .env
+                    nfo_banner = nfo_banner.replace('\\n', '\n')
+                    nfo_content.extend(nfo_banner.split('\n'))
+                    nfo_content.append("")
+                else:
+                    # Banner padrão do UpaPasta
+                    default_banner = self.generate_upapasta_ascii_art()
+                    nfo_content.extend(default_banner.split('\n'))
                     nfo_content.append("")
                 
                 nfo_content.append("+" + "-" * 78 + "+")
