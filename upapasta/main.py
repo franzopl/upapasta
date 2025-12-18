@@ -411,6 +411,13 @@ class UpaPastaOrchestrator:
                     extension_counts[ext] = extension_counts.get(ext, 0) + 1
 
                 nfo_content = []
+                
+                # Adicionar banner se definido no .env
+                nfo_banner = env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
+                if nfo_banner:
+                    nfo_content.append(nfo_banner)
+                    nfo_content.append("")
+                
                 nfo_content.append("+" + "-" * 78 + "+")
                 nfo_content.append("|" + center_text(title.upper(), 78) + "|")
                 nfo_content.append("+" + "-" * 78 + "+")
