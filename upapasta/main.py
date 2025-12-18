@@ -215,9 +215,16 @@ class UpaPastaOrchestrator:
             basename = os.path.splitext(basename)[0]
         nzb_filename = nzb_out_template.replace("{filename}", basename)
 
-        # Determinar diretório de saída do NZB
-        nzb_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
-        nfo_filename = os.path.splitext(nzb_filename)[0] + ".nfo"
+        # Determinar caminho do .nfo na mesma pasta do .nzb
+        if os.path.isabs(nzb_filename):
+            # nzb_filename é absoluto, então .nfo vai na mesma pasta
+            nzb_dir = os.path.dirname(nzb_filename)
+            nfo_filename = os.path.splitext(os.path.basename(nzb_filename))[0] + ".nfo"
+        else:
+            # nzb_filename é relativo, usar NZB_OUT_DIR ou cwd
+            nzb_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+            nfo_filename = os.path.splitext(nzb_filename)[0] + ".nfo"
+        
         nfo_path = os.path.join(nzb_dir, nfo_filename)
 
         # Ensure directory exists
@@ -436,7 +443,7 @@ class UpaPastaOrchestrator:
                 # Salvar em CP1252 para compatibilidade
                 with open(nfo_path, 'w', encoding='cp1252', errors='replace') as f:
                     f.write('\n'.join(nfo_content))
-                print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nfo_dir_abs})")
+                print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nzb_dir})")
                 return True
             except Exception as e:
                 print(f"Atenção: falha ao gerar NFO de pasta: {e}")
