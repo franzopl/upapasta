@@ -262,33 +262,181 @@ class UpaPastaOrchestrator:
                 print("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo.")
                 return False
         else:
-            # Para pastas: gerar descrição textual
+            # Para pastas: gerar .nfo detalhado inspirado no generate_nfo.py
             try:
-                lines = []
-                lines.append(f"Description of folder: {os.path.basename(input_path)}")
-                lines.append("")
-                for root, dirs, files in os.walk(input_path):
-                    rel_root = os.path.relpath(root, input_path)
-                    if rel_root == '.':
-                        rel_root = ''
-                    if rel_root:
-                        lines.append(f"[{rel_root}]")
-                    for f in sorted(files):
-                        full = os.path.join(root, f)
-                        try:
-                            size = os.path.getsize(full)
-                        except Exception:
-                            size = 0
-                        if rel_root:
-                            lines.append(f"{rel_root}/{f} — {size} bytes")
-                        else:
-                            lines.append(f"{f} — {size} bytes")
-                    if rel_root:
-                        lines.append("")
+                # Funções auxiliares adaptadas
+                def normalize_text(text: str) -> str:
+                    translation_table = str.maketrans(
+                        "áàâãäéèêëíìîïóòôõöúùûüçÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ",
+                        "aaaaaeeeeiiiiooooouuuucAAAAAEEEEIIIIOOOOOUUUUC"
+                    )
+                    return text.translate(translation_table)
 
-                with open(nfo_path, "w", encoding="utf-8") as f:
-                    f.write("\n".join(lines) + "\n")
-                print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nzb_dir})")
+                def get_video_duration(file_path: str) -> float:
+                    try:
+                        cmd = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', file_path]
+                        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=True)
+                        return float(result.stdout.strip())
+                    except:
+                        return 0
+
+                def get_video_metadata(file_path: str) -> dict:
+                    metadata = {'codec': 'N/A', 'resolution': 'N/A', 'bitrate': 'N/A'}
+                    try:
+                        cmd = [
+                            'ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                            '-show_entries', 'stream=codec_name,width,height,bit_rate',
+                            '-of', 'default=noprint_wrappers=1:nokey=1', file_path
+                        ]
+                        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=True)
+                        data = result.stdout.strip().split('\n')
+                        if len(data) >= 3:
+                            metadata['codec'] = data[0] if data[0] != 'N/A' else 'N/A'
+                            width = int(data[1])
+                            height = int(data[2])
+                            metadata['resolution'] = f"{width}x{height}"
+                        if len(data) >= 4 and data[3].isdigit() and int(data[3]) > 0:
+                            bitrate_kbps = int(data[3]) / 1000
+                            metadata['bitrate'] = f"{bitrate_kbps:.0f} kbps"
+                    except:
+                        pass
+                    return metadata
+
+                def format_duration(seconds: float) -> str:
+                    seconds = int(seconds)
+                    hours = seconds // 3600
+                    minutes = (seconds % 3600) // 60
+                    secs = seconds % 60
+                    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+                def center_text(text: str, width: int = 80) -> str:
+                    return text.center(width)
+
+                def generate_tree_structure(start_path: str, video_metadata_map: dict):
+                    if not os.path.isdir(start_path):
+                        return [], 0, 0
+                    lines = []
+                    file_count = 0
+                    dir_count = 0
+
+                    def _walk_tree(current_dir, prefix=''):
+                        nonlocal file_count, dir_count
+                        contents = sorted(os.listdir(current_dir), key=str.lower)
+                        current_nfo_name = os.path.basename(start_path) + '.nfo'
+                        contents = [c for c in contents if c != current_nfo_name]
+
+                        for i, item in enumerate(contents):
+                            path = os.path.join(current_dir, item)
+                            is_last = (i == len(contents) - 1)
+                            pointer = '`-- ' if is_last else '|-- '
+                            normalized_item = normalize_text(item)
+
+                            if os.path.isdir(path):
+                                lines.append(f"{prefix}{pointer}{normalized_item}")
+                                new_prefix = prefix + ('    ' if is_last else '|   ')
+                                dir_count += 1
+                                _walk_tree(path, new_prefix)
+                            else:
+                                file_count += 1
+                                metadata_line = ""
+                                abs_path_key = os.path.abspath(path)
+                                if abs_path_key in video_metadata_map:
+                                    meta = video_metadata_map[abs_path_key]
+                                    duration = meta.get('duration_str', '00:00:00')
+                                    resolution = meta.get('resolution', 'N/A')
+                                    codec = meta.get('codec', 'N/A')
+                                    bitrate = meta.get('bitrate', 'N/A')
+                                    metadata_line = f" | {duration} | {resolution:<10} | {codec:<10} | {bitrate:<10}"
+                                lines.append(f"{prefix}{pointer}{normalized_item}{metadata_line}")
+
+                    lines.append(normalize_text(os.path.basename(start_path)))
+                    _walk_tree(start_path)
+                    return lines, dir_count, file_count
+
+                # Lógica principal
+                folder_name = os.path.basename(input_path.rstrip(os.sep))
+                title = folder_name
+                producer = "Desconhecido"
+                year = "N/A"
+                title_temp = folder_name
+
+                year_match = re.search(r'\[(\d{4})\]', title_temp)
+                if year_match:
+                    year = year_match.group(1).strip()
+                    title_temp = title_temp[:year_match.start()] + title_temp[year_match.end():]
+                    title_temp = title_temp.strip()
+
+                producer_match = re.search(r'\[([^\]]+)\]$', title_temp)
+                if producer_match:
+                    producer = producer_match.group(1).strip()
+                    title_temp = title_temp[:producer_match.start()].strip()
+                else:
+                    producer = "Desconhecido"
+
+                title = title_temp
+                if year != "N/A":
+                    title += f" [{year}]"
+                title += f" [{producer}]"
+
+                title = normalize_text(title)
+                producer = normalize_text(producer)
+
+                root_path = Path(input_path)
+                all_files = [p for p in root_path.rglob('*') if p.is_file() and p.name != f"{folder_name}.nfo"]
+                total_files_count = len(all_files)
+
+                video_files = [f for f in all_files if f.suffix.lower() in ('.mp4', '.mkv', '.mov', '.avi', '.flv', '.ts', '.webm', '.wmv')]
+
+                video_metadata_map = {}
+                total_duration_seconds = 0
+                for video in video_files:
+                    duration_sec = get_video_duration(str(video))
+                    meta = get_video_metadata(str(video))
+                    meta['duration_str'] = format_duration(duration_sec)
+                    total_duration_seconds += duration_sec
+                    video_metadata_map[os.path.abspath(video)] = meta
+
+                tree_lines, total_dirs, total_files_in_tree = generate_tree_structure(input_path, video_metadata_map)
+
+                extension_counts = {}
+                for file in all_files:
+                    ext = file.suffix.lower() if file.suffix else ".sem_extensao"
+                    extension_counts[ext] = extension_counts.get(ext, 0) + 1
+
+                nfo_content = []
+                nfo_content.append("+" + "-" * 78 + "+")
+                nfo_content.append("|" + center_text(title.upper(), 78) + "|")
+                nfo_content.append("+" + "-" * 78 + "+")
+                nfo_content.append("")
+                nfo_content.append("-" * 80)
+                nfo_content.append("")
+                nfo_content.append("+" + "-" * 78 + "+")
+                nfo_content.append("|" + center_text("*** ESTATISTICAS GERAIS ***", 78) + "|")
+                nfo_content.append("+" + "-" * 78 + "+")
+                nfo_content.append("")
+                nfo_content.append(f"  > Diretorios: {total_dirs}")
+                nfo_content.append(f"  > Total de Arquivos: {total_files_count}")
+
+                if total_duration_seconds > 0:
+                    nfo_content.append(f"  > Duracao Total de Video: {format_duration(total_duration_seconds)} ({total_duration_seconds/3600:.2f} horas)")
+
+                sorted_extensions = sorted(extension_counts.items(), key=lambda item: item[1], reverse=True)
+                nfo_content.append("  > Arquivos por Tipo:")
+                for ext, count in sorted_extensions:
+                    nfo_content.append(f"    - {ext.upper().replace('.', '')}: {count} arquivo(s)")
+                nfo_content.append("")
+                nfo_content.append("")
+                nfo_content.append("+" + "-" * 78 + "+")
+                nfo_content.append("|" + center_text("*** ESTRUTURA DE ARQUIVOS E DIRETORIOS ***", 78) + "|")
+                nfo_content.append("+" + "-" * 78 + "+")
+                nfo_content.append("")
+                nfo_content.extend(tree_lines)
+                nfo_content.append(f"\n{total_dirs} diretorios, {total_files_in_tree} arquivos")
+
+                # Salvar em CP1252 para compatibilidade
+                with open(nfo_path, 'w', encoding='cp1252', errors='replace') as f:
+                    f.write('\n'.join(nfo_content))
+                print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nfo_dir_abs})")
                 return True
             except Exception as e:
                 print(f"Atenção: falha ao gerar NFO de pasta: {e}")
