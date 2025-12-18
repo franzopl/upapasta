@@ -33,6 +33,7 @@ import sys
 import random
 import string
 import xml.etree.ElementTree as ET
+import re
 
 
 def fix_nzb_subjects(nzb_path: str, file_list: list[str], folder_name: str = None) -> None:
@@ -372,14 +373,90 @@ def upload_to_usenet(
         if mediainfo_path:
             try:
                 mi_proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+                mi_out = mi_proc.stdout
+
+                # If the input is a video file (common extensions), sanitize the "Complete name" field
+                video_exts = ('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm')
+                if os.path.splitext(input_path)[1].lower() in video_exts:
+                    lines = []
+                    filename_only = os.path.basename(input_path)
+                    for line in mi_out.splitlines():
+                        # Match lines like: "Complete name                            : /full/path/to/file"
+                        if re.match(r"^\s*Complete name\s*:\s*", line, flags=re.IGNORECASE):
+                            # Replace the value with just the filename
+                            parts = line.split(":", 1)
+                            if len(parts) == 2:
+                                left = parts[0]
+                                # Keep same left-hand spacing, then a colon and a single space + filename
+                                lines.append(f"{left}: {filename_only}")
+                                continue
+                        lines.append(line)
+                    processed = "\n".join(lines) + ("\n" if mi_out.endswith("\n") else "")
+                else:
+                    processed = mi_out
+
                 with open(nfo_path, "w", encoding="utf-8") as f:
-                    f.write(mi_proc.stdout)
+                    f.write(processed)
                 print(f"  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nfo_dir_abs})")
                 # Do not upload .nfo to Usenet; it's saved locally for archiving only.
             except Exception as e:
                 print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
         else:
             print("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo.")
+
+    else:
+        # For folders, generate a simple textual description of the folder contents
+        try:
+            # Decide nfo filename/place similar to single-file logic
+            if nzb_out:
+                nfo_filename = os.path.splitext(os.path.basename(nzb_out))[0] + ".nfo"
+                nzb_dir_part = os.path.dirname(nzb_out)
+            else:
+                nfo_filename = os.path.basename(input_path) + ".nfo"
+                nzb_dir_part = ""
+
+            if nzb_dir_part:
+                if os.path.isabs(nzb_dir_part):
+                    nfo_dir_abs = nzb_dir_part
+                else:
+                    nfo_dir_abs = os.path.join(working_dir, nzb_dir_part)
+            else:
+                nfo_dir_abs = working_dir
+
+            try:
+                os.makedirs(nfo_dir_abs, exist_ok=True)
+            except Exception:
+                pass
+
+            nfo_path = os.path.join(nfo_dir_abs, nfo_filename)
+
+            lines = []
+            lines.append(f"Description of folder: {os.path.basename(input_path)}")
+            lines.append("")
+            for root, dirs, files in os.walk(input_path):
+                rel_root = os.path.relpath(root, input_path)
+                if rel_root == '.':
+                    rel_root = ''
+                if rel_root:
+                    lines.append(f"[{rel_root}]")
+                for f in sorted(files):
+                    full = os.path.join(root, f)
+                    try:
+                        size = os.path.getsize(full)
+                    except Exception:
+                        size = 0
+                    if rel_root:
+                        lines.append(f"{rel_root}/{f} — {size} bytes")
+                    else:
+                        lines.append(f"{f} — {size} bytes")
+                if rel_root:
+                    lines.append("")
+
+            with open(nfo_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nfo_dir_abs})")
+        except Exception as e:
+            print(f"Atenção: falha ao gerar NFO de pasta: {e}")
 
     # Constrói comando nyuu com todas as opções
     # nyuu -h <host> [-P <port>] [-S] [-i] -u <user> -p <pass> -c <connections> -g <group> -a <article-size> -s <subject> <files>
