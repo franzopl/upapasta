@@ -188,6 +188,112 @@ class UpaPastaOrchestrator:
 
         return True
 
+    def run_generate_nfo(self) -> bool:
+        """Gera arquivo .nfo baseado na entrada original."""
+        from .upfolder import find_mediainfo
+        import subprocess
+        import re
+
+        input_path = str(self.input_path)
+        is_folder = self.input_path.is_dir()
+
+        # Determinar caminho do .nfo similar ao NZB
+        env_vars = self.env_vars.copy()
+        if self.nzb_conflict:
+            env_vars['NZB_CONFLICT'] = self.nzb_conflict
+
+        nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
+        if not nzb_out_template:
+            if is_folder and not self.skip_rar:
+                nzb_out_template = "{filename}_content.nzb"
+            else:
+                nzb_out_template = "{filename}.nzb"
+
+        # Determinar basename
+        basename = os.path.basename(input_path)
+        if not is_folder:
+            basename = os.path.splitext(basename)[0]
+        nzb_filename = nzb_out_template.replace("{filename}", basename)
+
+        # Determinar diretório de saída do NZB
+        nzb_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+        nfo_filename = os.path.splitext(nzb_filename)[0] + ".nfo"
+        nfo_path = os.path.join(nzb_dir, nfo_filename)
+
+        # Ensure directory exists
+        try:
+            os.makedirs(nzb_dir, exist_ok=True)
+        except Exception:
+            pass
+
+        if not is_folder:
+            # Para arquivos únicos: gerar mediainfo sanitizado
+            mediainfo_path = find_mediainfo()
+            if mediainfo_path:
+                try:
+                    mi_proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+                    mi_out = mi_proc.stdout
+
+                    # Sanitize "Complete name" for video files
+                    video_exts = ('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm')
+                    if os.path.splitext(input_path)[1].lower() in video_exts:
+                        lines = []
+                        filename_only = os.path.basename(input_path)
+                        for line in mi_out.splitlines():
+                            if re.match(r"^\s*Complete name\s*:\s*", line, flags=re.IGNORECASE):
+                                parts = line.split(":", 1)
+                                if len(parts) == 2:
+                                    left = parts[0]
+                                    lines.append(f"{left}: {filename_only}")
+                                    continue
+                            lines.append(line)
+                        processed = "\n".join(lines) + ("\n" if mi_out.endswith("\n") else "")
+                    else:
+                        processed = mi_out
+
+                    with open(nfo_path, "w", encoding="utf-8") as f:
+                        f.write(processed)
+                    print(f"  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nzb_dir})")
+                    return True
+                except Exception as e:
+                    print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
+                    return False
+            else:
+                print("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo.")
+                return False
+        else:
+            # Para pastas: gerar descrição textual
+            try:
+                lines = []
+                lines.append(f"Description of folder: {os.path.basename(input_path)}")
+                lines.append("")
+                for root, dirs, files in os.walk(input_path):
+                    rel_root = os.path.relpath(root, input_path)
+                    if rel_root == '.':
+                        rel_root = ''
+                    if rel_root:
+                        lines.append(f"[{rel_root}]")
+                    for f in sorted(files):
+                        full = os.path.join(root, f)
+                        try:
+                            size = os.path.getsize(full)
+                        except Exception:
+                            size = 0
+                        if rel_root:
+                            lines.append(f"{rel_root}/{f} — {size} bytes")
+                        else:
+                            lines.append(f"{f} — {size} bytes")
+                    if rel_root:
+                        lines.append("")
+
+                with open(nfo_path, "w", encoding="utf-8") as f:
+                    f.write("\n".join(lines) + "\n")
+                print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nzb_dir})")
+                return True
+            except Exception as e:
+                print(f"Atenção: falha ao gerar NFO de pasta: {e}")
+                return False
+
     def run_makerar(self) -> bool:
         """Executa makerar.py."""
         # If the input is a file, default to skip RAR (do not create a RAR). The
@@ -577,6 +683,11 @@ class UpaPastaOrchestrator:
         if not self.validate():
             return 1
 
+        # Etapa 0: Gerar .nfo (antes de qualquer processamento para capturar estado original)
+        if not self.skip_upload:
+            if not self.run_generate_nfo():
+                print("Atenção: falha ao gerar .nfo, mas continuando...")
+
         # Verificar conflito de NZB antecipadamente (antes de qualquer processamento)
         if not self.check_nzb_conflict_early():
             return 3  # Mesmo código de erro do upload
@@ -606,23 +717,35 @@ class UpaPastaOrchestrator:
                 return 2
 
         # Coletar informações dos arquivos ANTES do upload/cleanup
-        if self.input_target:
+        if self.input_target and os.path.exists(self.input_target):
             if os.path.isdir(self.input_target):
                 # Calcular tamanho total da pasta
                 total_size_bytes = 0
                 for root, dirs, files in os.walk(self.input_target):
                     for file in files:
-                        total_size_bytes += os.path.getsize(os.path.join(root, file))
+                        try:
+                            total_size_bytes += os.path.getsize(os.path.join(root, file))
+                        except OSError:
+                            pass
                 stats["rar_size_mb"] = total_size_bytes / (1024 * 1024)
                 base_name = self.input_target
             else:
-                stats["rar_size_mb"] = os.path.getsize(self.input_target) / (1024 * 1024)
-                base_name = os.path.splitext(self.input_target)[0]
+                try:
+                    stats["rar_size_mb"] = os.path.getsize(self.input_target) / (1024 * 1024)
+                    base_name = os.path.splitext(self.input_target)[0]
+                except OSError:
+                    stats["rar_size_mb"] = 0.0
+                    base_name = os.path.splitext(self.input_target)[0]
             
             import glob
             par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
             stats["par2_file_count"] = len(par_volumes)
-            total_par_size_bytes = sum(os.path.getsize(f) for f in par_volumes)
+            total_par_size_bytes = 0
+            for f in par_volumes:
+                try:
+                    total_par_size_bytes += os.path.getsize(f)
+                except OSError:
+                    pass
             stats["par2_size_mb"] = total_par_size_bytes / (1024 * 1024)
 
         # Etapa 3: Upload
