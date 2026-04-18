@@ -36,30 +36,7 @@ import sys
 import threading
 from queue import Queue
 
-
-# Definição dos perfis de otimização
-PROFILES = {
-    "fast": {
-        "description": "Máxima velocidade (ideal para upload urgente)",
-        "slice_size": "20M",
-        "redundancy": 5,
-        "post_size": "100M",
-    },
-    "balanced": {
-        "description": "Equilibrado (RECOMENDADO para Usenet)",
-        "slice_size": "10M",
-        "redundancy": 10,
-        "post_size": "50M",
-    },
-    "safe": {
-        "description": "Alta proteção (ideal para arquivos críticos)",
-        "slice_size": "5M",
-        "redundancy": 20,
-        "post_size": "30M",
-    },
-}
-
-DEFAULT_PROFILE = "balanced"
+from .config import PROFILES, DEFAULT_PROFILE
 
 
 def generate_random_name(length: int = 12) -> str:

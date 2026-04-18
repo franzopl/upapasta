@@ -1,74 +1,52 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Regras de Economia de Tokens (sempre siga primeiro)
 
-## Project Overview
+- Para qualquer tarefa de exploracao, leitura, busca, grep ou mapeamento no codigo, use preferencialmente o subagent code-explorer (model Haiku).
+- Nunca use subagents com modelo Opus ou Sonnet para tarefas simples de leitura ou exploracao.
+- Mantenha respostas de subagents curtas, objetivas e em bullet points.
+- Evite paralelismo excessivo de subagents. Use apenas quando realmente necessario.
+- Seja extremamente especifico nos prompts.
+- Use clear ou abra uma nova sessao ao mudar de tarefa grande.
 
-**UpaPasta** is a Python CLI tool that automates the complete Usenet upload workflow:
-1. Creates RAR archives from input folders/files
-2. Generates PAR2 parity files
-3. Uploads to Usenet via `nyuu`
-4. Generates NZB and NFO metadata files
-5. Cleans up temporary files
+Project Overview
 
-## Development Setup
+UpaPasta e uma ferramenta CLI em Python que automatiza o upload completo para Usenet.
 
-```bash
+1. Cria arquivos RAR a partir de pastas ou arquivos
+2. Gera arquivos PAR2 de paridade
+3. Faz upload via nyuu
+4. Gera arquivos NZB e NFO
+5. Limpa arquivos temporarios
+
+Development Setup
+
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
-```
 
-External binaries required: `rar`, `nyuu`, and `parpar` (or `par2`). Optional: `ffmpeg`/`ffprobe`, `mediainfo` (for NFO generation).
+Binarios externos necessarios: rar, nyuu, parpar (ou par2).
+Opcionais: ffmpeg ffprobe, mediainfo (para geracao de NFO).
 
-## Common Commands
+Core Modules
 
-```bash
-# Run all tests
-pytest tests/
+- main.py - UpaPastaOrchestrator + CLI. Orquestra o pipeline completo, gerencia mais de 40 opcoes CLI, dry-run, obfuscation e cleanup.
+- makerar.py - Cria RAR5 com progresso ao vivo. Retorna codigos de erro inteiros.
+- makepar.py - Gera PAR2 com 3 perfis (fast, balanced - default, safe). Suporta backends parpar e par2.
+- upfolder.py - Upload via nyuu, gera NZB, resolve conflitos de nome e cria NFOs.
 
-# Run a single test file
-pytest tests/test_orchestrator.py
+Key Conventions
 
-# Run a single test by name
-pytest tests/test_upfolder.py::test_upload_to_usenet_dry_run_single_file -v
+- Todas as funcoes principais retornam codigos inteiros: 0 = sucesso, 1-6 = erros especificos (veja docstrings).
+- Upload de arquivo unico pula criacao de RAR automaticamente (skip-rar implicito).
+- NFO usa mediainfo para arquivos unicos e tree + stats + metadados de video para pastas.
+- Configuracao fica em ~/.config/upapasta/.env (veja .env.example).
+- Comportamentos importantes: --dry-run, --obfuscate, --skip-rar.
 
-# Run the CLI in dry-run mode
-upapasta /path/to/folder --dry-run
-```
+Common Commands
 
-## Architecture
+pytest tests/                          todos os testes
+pytest tests/test_orchestrator.py      teste especifico
+upapasta /path/to/folder --dry-run     teste sem upload real
 
-The project has four core modules in `upapasta/`:
-
-- **`main.py`** — `UpaPastaOrchestrator` class + CLI. Parses 40+ CLI options, loads credentials from `~/.config/upapasta/.env`, and orchestrates the 4-stage pipeline (RAR → PAR2 → NFO → Upload). Handles timing stats, dry-run simulation, obfuscation, and cleanup on error.
-
-- **`makerar.py`** — `make_rar(folder_path, force, threads)`. Creates RAR5 archives with live progress. Returns int error codes (0=success, 2=invalid input, 3=exists, 4=rar not found, 5=exec error).
-
-- **`makepar.py`** — `make_parity(rar_path, redundancy, force, backend, profile, threads)`. Generates PAR2 parity with three profiles:
-  - `fast`: 5% redundancy, 20M slices
-  - `balanced` (default): 10%, 10M slices
-  - `safe`: 20%, 5M slices
-  Backends: `parpar` (preferred) or `par2`.
-
-- **`upfolder.py`** — `upload_to_usenet(input_path, env_vars, dry_run, subject, group, skip_rar)`. Builds and runs `nyuu`, handles folder uploads via temp dir, generates `.nzb`, resolves NZB conflicts (rename/overwrite/fail), and creates anonymous uploader identities.
-
-## Error Code Convention
-
-All module functions return integer codes: `0` = success, `1`–`6` = specific failures (documented in each function's docstring). The orchestrator checks these codes to decide whether to continue or abort.
-
-## Configuration
-
-Credentials and defaults live in `~/.config/upapasta/.env` (or `--env-file` override). See `.env.example` for all variables: NNTP connection params, `USENET_GROUP`, `ARTICLE_SIZE`, `NZB_OUT`, `NZB_CONFLICT`, `NFO_BANNER` (ASCII art prepended to folder `.nfo` files).
-
-## Key Behaviors
-
-- **Single-file uploads**: Detected automatically; RAR creation is skipped by default (`--skip-rar` implied).
-- **NFO generation**: Single files use `mediainfo` output; folders get a tree + stats + optional `ffprobe` video metadata.
-- **Obfuscation** (`--obfuscate`): Replaces the upload subject with a random alphanumeric string.
-- **NZB conflict pre-check**: Happens before any processing starts to avoid partial work.
-
-## Notes
-
-- README and inline comments are written in Portuguese.
-- No Python package dependencies beyond the stdlib — all heavy lifting is done by external binaries via `subprocess`.
+Estilo: Comentarios e README em portugues. Usa apenas stdlib + subprocess para binarios externos (sem dependencias pesadas).
