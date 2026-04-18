@@ -21,6 +21,7 @@ Saídas:
 """
 
 import argparse
+import math
 import os
 import re
 import shutil
@@ -95,6 +96,44 @@ def _process_output(queue: Queue) -> tuple[int, bool]:
 	return last_percent, teve_percentual
 
 
+_MIN_SPLIT_SIZE = 200 * 1024 * 1024   # 200 MB — abaixo disso, RAR único
+_MIN_VOLUME_SIZE = 50 * 1024 * 1024  # 50 MB — tamanho mínimo de cada parte
+_MAX_VOLUMES = 100
+
+
+def _folder_size(path: str) -> int:
+	"""Retorna o tamanho total em bytes de todos os arquivos sob path."""
+	total = 0
+	for dirpath, _, filenames in os.walk(path):
+		for fname in filenames:
+			try:
+				total += os.path.getsize(os.path.join(dirpath, fname))
+			except OSError:
+				pass
+	return total
+
+
+def _volume_size_bytes(total_bytes: int) -> int | None:
+	"""
+	Calcula o tamanho ideal de cada volume RAR em bytes.
+	Retorna None quando o conteúdo é pequeno o suficiente para um RAR único.
+
+	Regras:
+	  - Abaixo de _MIN_SPLIT_SIZE → sem volumes (None)
+	  - Tamanho = max(_MIN_VOLUME_SIZE, ceil(total / _MAX_VOLUMES))
+	  - Arredondado para o próximo múltiplo de 5 MB para ficar redondo
+	"""
+	if total_bytes < _MIN_SPLIT_SIZE:
+		return None
+
+	raw = math.ceil(total_bytes / _MAX_VOLUMES)
+	vol = max(_MIN_VOLUME_SIZE, raw)
+
+	five_mb = 5 * 1024 * 1024
+	vol = math.ceil(vol / five_mb) * five_mb
+	return vol
+
+
 def make_rar(folder_path: str, force: bool = False, threads: int | None = None) -> int:
 	folder_path = os.path.abspath(folder_path)
 	if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
@@ -116,15 +155,24 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None) 
 		)
 		return 4
 
-	# Executar o comando no diretório pai para que o arquivo inclua a
-	# pasta com seu nome (em vez de incluir caminhos absolutos).
-	# -m0 -> store (sem compressão)
-	# -ma5 -> algoritmo de compressão RAR5
-	# -mt -> usar múltiplos threads
-	num_threads = threads if threads is not None else (os.cpu_count() or 4)
-	cmd = [rar_exec, "a", "-r", "-m0", f"-mt{num_threads}", "-ma5", out_rar, base]
+	total_bytes = _folder_size(folder_path)
+	vol_bytes = _volume_size_bytes(total_bytes)
 
-	print(f"Criando '{out_rar}' a partir de '{folder_path}' (usando {num_threads} threads)...")
+	num_threads = threads if threads is not None else (os.cpu_count() or 4)
+
+	# -m0 → store, -ma5 → RAR5, -mt → threads, -v → volumes
+	cmd = [rar_exec, "a", "-r", "-m0", f"-mt{num_threads}", "-ma5"]
+	if vol_bytes is not None:
+		cmd.append(f"-v{vol_bytes}b")
+		num_vols = max(1, -(-total_bytes // vol_bytes))  # ceil division
+		print(
+			f"Criando '{out_rar}' em volumes de {vol_bytes // (1024*1024)} MB"
+			f" (~{num_vols} partes, {total_bytes // (1024*1024)} MB total)..."
+		)
+	else:
+		print(f"Criando '{out_rar}' a partir de '{folder_path}' (usando {num_threads} threads)...")
+
+	cmd += [out_rar, base]
 
 	try:
 		# Executa o rar e captura stdout/stderr para parsear progresso

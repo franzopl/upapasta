@@ -1,162 +1,185 @@
 # UpaPasta
 
-**UpaPasta** é uma ferramenta de linha de comando (CLI) em Python para automatizar o processo de upload de pastas para a Usenet. O script orquestra um fluxo de trabalho completo, que inclui:
+**UpaPasta** é uma ferramenta de linha de comando (CLI) em Python para automatizar o processo completo de upload de arquivos e pastas para a Usenet. O fluxo cobre:
 
-1.  **Compactação**: Cria um arquivo `.rar` a partir da pasta de origem.
-2.  **Geração de Paridade**: Gera arquivos de paridade `.par2` para garantir a integridade dos dados.
-3.  **Upload**: Faz o upload dos arquivos `.rar` e `.par2` para o grupo de notícias Usenet especificado.
-
-A ferramenta foi projetada para ser simples, eficiente e exibir barras de progresso em cada etapa do processo.
+1. **Compactação em volumes RAR**: Cria arquivos `.rar` em múltiplas partes quando necessário (prática recomendada na Usenet).
+2. **Geração de paridade PAR2**: Garante a integridade e permite recuperação mesmo com artigos faltando.
+3. **Upload via nyuu**: Envia os arquivos ao newsgroup configurado.
+4. **Geração de NZB e NFO**: Cria automaticamente o `.nzb` e um `.nfo` detalhado.
+5. **Limpeza automática**: Remove arquivos temporários após o upload.
 
 ## Funcionalidades
 
--   **Workflow Automatizado**: Orquestra a compactação, geração de paridade e upload com um único comando.
--   **Flexibilidade**: Permite pular etapas individuais (`--skip-rar`, `--skip-par`, `--skip-upload`).
--   **Customização**: Opções para configurar a redundância dos arquivos PAR2, o tamanho dos posts e o assunto da postagem.
--   **Segurança**: Carrega as credenciais da Usenet a partir de um arquivo `.env` para não expor informações sensíveis.
--   **Geração de NZB**: Cria automaticamente um arquivo `.nzb` na pasta de execução para facilitar downloads.
--   **Geração de NFO**: Gera automaticamente arquivos `.nfo` detalhados:
-  - Para arquivos únicos: saída do `mediainfo` com caminho sanitizado (apenas nome do arquivo).
-  - Para pastas: descrição completa com estatísticas, estrutura em árvore e metadados de vídeo (duração, resolução, codec, bitrate).
-  - Banner configurável: suporte a banner ASCII art customizável via variável `NFO_BANNER` no `.env`.
--   **Limpeza Automática**: Remove os arquivos `.rar` e `.par2` gerados após o upload (pode ser desativado com `--keep-files`).
--   **Dry Run**: Permite simular a execução sem criar ou enviar arquivos (`--dry-run`).
+- **Workflow automatizado**: Um único comando orquestra todas as etapas.
+- **Volumes RAR inteligentes**: Pastas pequenas (< 200 MB) geram um RAR único; pastas maiores são divididas em partes de tamanho ideal — no máximo 100 partes, mínimo 50 MB cada.
+- **Arquivo único nativo**: Envio de arquivos `.mkv`, `.mp4` etc. sem criar RAR.
+- **Perfis PAR2**: Três perfis pré-configurados (`fast`, `balanced`, `safe`) com opção de redundância manual.
+- **Ofuscação**: Randomiza nomes de arquivos antes do upload (`--obfuscate`).
+- **Geração de NFO automática**:
+  - Para arquivos únicos: saída do `mediainfo`.
+  - Para pastas: estrutura em árvore, estatísticas e metadados de vídeo (duração, resolução, codec, bitrate).
+  - Banner ASCII art customizável via variável `NFO_BANNER` no `.env`.
+- **Dry Run**: Simula toda a execução sem criar ou enviar nada (`--dry-run`).
+- **Limpeza automática**: Remove `.rar` e `.par2` após upload (desative com `--keep-files`).
+- **Controle de conflitos NZB**: Define o comportamento quando um `.nzb` já existe (`rename`, `overwrite`, `fail`).
+
+## Pré-requisitos
+
+Antes de instalar, certifique-se de ter os seguintes binários externos disponíveis no `PATH`:
+
+| Binário | Obrigatório | Função |
+|---|---|---|
+| `rar` | Sim | Compactação em formato RAR5 |
+| `nyuu` | Sim | Upload para Usenet |
+| `parpar` ou `par2` | Sim | Geração de arquivos de paridade |
+| `ffmpeg` / `ffprobe` | Recomendado | Metadados de vídeo no NFO de pastas |
+| `mediainfo` | Recomendado | NFO de arquivos únicos |
 
 ## Instalação
 
-### Via PyPI (Recomendado)
+### Via PyPI (recomendado)
+
 ```bash
 pip install upapasta
 ```
 
-### Para Desenvolvimento
-1.  **Clone o repositório:**
-    ```bash
-    git clone https://github.com/franzopl/upapasta.git
-    cd upapasta
-    ```
+### Para desenvolvimento
 
-2.  **Instale em modo editável:**
-    Recomenda-se o uso de um ambiente virtual (`venv`).
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-    pip install -e .
-    ```
+```bash
+git clone https://github.com/franzopl/upapasta.git
+cd upapasta
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
 
-3.  **Dependências Externas:**
-    Certifique-se de ter o `rar`, `parpar` (ou `par2`) e `nyuu` instalados e disponíveis no seu `PATH`.
-  - Para geração de `.nfo` com metadados de vídeo (duração, resolução, codec, bitrate), recomenda-se instalar `ffmpeg` (que inclui `ffprobe`).
-  - Para uploads de arquivo único, recomenda-se também ter `mediainfo` instalado para gerar o arquivo `.nfo` automaticamente.
+## Configuração
 
-### Configuração de Credenciais
-O script usa um arquivo de configuração global em `~/.config/upapasta/.env` por padrão. Na primeira execução, será solicitado que você forneça as credenciais, que serão salvas automaticamente.
+O UpaPasta armazena as configurações em `~/.config/upapasta/.env`. Na primeira execução as credenciais são solicitadas e salvas automaticamente.
 
 Para configurar manualmente:
-- Copie o arquivo de exemplo `.env.example` para `~/.config/upapasta/.env` e edite:
-  ```bash
-  mkdir -p ~/.config/upapasta
-  cp .env.example ~/.config/upapasta/.env
-  ```
-- Edite o arquivo `~/.config/upapasta/.env`:
-  ```ini
-  NNTP_HOST=news.your-provider.com
-  NNTP_PORT=563
-  NNTP_USER=your-username
-  NNTP_PASS=your-password
-  USENET_GROUP=alt.binaries.test
-  NNTP_SSL=true
-  ```
 
-### Configuração do Banner NFO (Opcional)
+```bash
+mkdir -p ~/.config/upapasta
+cp .env.example ~/.config/upapasta/.env
+```
 
-Para personalizar o banner ASCII art nos arquivos `.nfo` de pastas, adicione a variável `NFO_BANNER` ao seu arquivo `.env`:
+Edite o arquivo `.env` com seus dados:
 
 ```ini
-# Banner customizado (múltiplas linhas usando \n)
-NFO_BANNER=LINHA 1\nLINHA 2\nLINHA 3
+NNTP_HOST=news.seu-provedor.com
+NNTP_PORT=563
+NNTP_USER=seu-usuario
+NNTP_PASS=sua-senha
+NNTP_SSL=true
+USENET_GROUP=alt.binaries.test
 
-# Ou deixe vazio para usar o banner padrão do UpaPasta
-NFO_BANNER=
+# Comportamento padrão para conflitos de NZB (rename | overwrite | fail)
+NZB_CONFLICT=rename
+
+# Banner ASCII art personalizado para arquivos .nfo (use \n para quebras de linha)
+# NFO_BANNER=MINHA CENA\nLINHA 2
 ```
 
-Se `NFO_BANNER` não for definido ou estiver vazio, será usado o banner padrão do UpaPasta.
+## Como usar
 
-## Como Usar
-
-Após a instalação via PyPI, use o comando `upapasta` diretamente.
-
-**Sintaxe:**
 ```bash
-upapasta /caminho/para/sua/pasta [OPÇÕES]
+upapasta /caminho/para/pasta [OPÇÕES]
 ```
 
-**Exemplo básico:**
+### Exemplos
+
+**Upload básico de uma pasta:**
 ```bash
-upapasta /home/user/documentos/meu-arquivo-importante
+upapasta /home/user/Series/Show.S01E01
 ```
 
-**Exemplo para arquivo único (.mkv):**
+**Arquivo único (sem RAR):**
 ```bash
 upapasta /home/user/Videos/filme.mkv
 ```
 
-**Exemplo para uploads sequenciais (aborta se .nzb já existe):**
+**Simular sem enviar nada:**
 ```bash
-# Útil para enviar múltiplos vídeos de uma pasta em sequência
-# sem sobrescrever NZBs existentes
+upapasta /home/user/pasta --dry-run
+```
+
+**Redundância PAR2 maior e manter arquivos gerados:**
+```bash
+upapasta /home/user/pasta --par-profile safe --keep-files
+```
+
+**Upload com nome ofuscado:**
+```bash
+upapasta /home/user/pasta --obfuscate
+```
+
+**Envio em lote — aborta se NZB já existe:**
+```bash
 for video in /home/user/Videos/*.mkv; do
     upapasta "$video" --nzb-conflict fail
 done
 ```
 
-**Exemplo para uploads sequenciais de pastas (aborta se .nzb já existe):**
+**Envio em lote de pastas:**
 ```bash
-# Útil para enviar múltiplas pastas em sequência
-# sem sobrescrever NZBs existentes
 for pasta in /home/user/Pastas/*/; do
     upapasta "$pasta" --nzb-conflict fail
 done
 ```
-"""
 
-### Opções de Linha de Comando
+### Opções de linha de comando
 
-| Opção              | Descrição                                                                      | Padrão                                  |
-| ------------------ | ------------------------------------------------------------------------------ | --------------------------------------- |
-| `input`            | **(Obrigatório)** Arquivo ou pasta que será enviada. Para arquivo único (ex: .mkv) o comportamento padrão é pular a criação do `.rar` e gerar apenas `.par2`.
-|                    |                                                                              | N/A                                     |
-| `--dry-run`        | Simula a execução sem criar ou enviar arquivos.                                | Desativado                              |
-| `-r`, `--redundancy` | Define a porcentagem de redundância para os arquivos PAR2.                       | `15`                                    |
-| `--backend`        | Escolhe o backend para a geração de paridade (`parpar` ou `par2`).               | `parpar`                                |
-| `--post-size`      | Define o tamanho alvo para cada post na Usenet (ex: `20M`, `700k`).               | `20M`                                   |
-| `-s`, `--subject`    | Define o assunto da postagem na Usenet.                                        | Nome da pasta                           |
-| `-g`, `--group`      | Define o grupo de notícias (newsgroup) para o upload.                          | Valor definido no arquivo `.env`        |
-| `--skip-rar`       | Pula a etapa de criação do arquivo `.rar`.                                     | Desativado                              |
-| `--skip-par`       | Pula a etapa de geração dos arquivos de paridade `.par2`.                        | Desativado                              |
-| `--skip-upload`    | Pula a etapa de upload para a Usenet.                                          | Desativado                              |
-| `-f`, `--force`      | Força a sobrescrita de arquivos `.rar` ou `.par2` que já existam.              | Desativado                              |
-| `--env-file`       | Especifica um caminho alternativo para o arquivo `.env`.                         | `~/.config/upapasta/.env`              |
-| `--keep-files`     | Mantém os arquivos `.rar` e `.par2` no disco após o upload.                    | Desativado                              |
-| `--nzb-conflict`     | Como tratar conflitos quando o `.nzb` já existe na pasta de destino (`rename`, `overwrite`, `fail`). | `rename` (padrão: renomeia para evitar perda) |
+| Opção | Descrição | Padrão |
+|---|---|---|
+| `input` | **(Obrigatório)** Arquivo ou pasta a enviar | — |
+| `--dry-run` | Simula a execução sem criar ou enviar arquivos | desativado |
+| `--par-profile` | Perfil PAR2: `fast`, `balanced`, `safe` | `balanced` |
+| `-r`, `--redundancy` | Redundância PAR2 em % (sobrescreve `--par-profile`) | conforme perfil |
+| `--backend` | Backend PAR2: `parpar` ou `par2` | `parpar` |
+| `--post-size` | Tamanho alvo de cada post (ex: `20M`, `700k`) | conforme perfil |
+| `-s`, `--subject` | Assunto da postagem | nome da pasta/arquivo |
+| `-g`, `--group` | Newsgroup de destino | valor do `.env` |
+| `--skip-rar` | Pula a criação do `.rar` | desativado |
+| `--skip-par` | Pula a geração de paridade | desativado |
+| `--skip-upload` | Pula o upload | desativado |
+| `-f`, `--force` | Sobrescreve `.rar` e `.par2` existentes | desativado |
+| `--obfuscate` | Randomiza nomes de arquivos antes do upload | desativado |
+| `--keep-files` | Mantém `.rar` e `.par2` após o upload | desativado |
+| `--rar-threads` | Threads para criação do RAR | número de CPUs |
+| `--par-threads` | Threads para geração do PAR2 | número de CPUs |
+| `--nzb-conflict` | Conflito de NZB: `rename`, `overwrite`, `fail` | `rename` |
+| `--env-file` | Caminho alternativo para o arquivo `.env` | `~/.config/upapasta/.env` |
 
-## Estrutura do Projeto
+## Lógica de volumes RAR
+
+O UpaPasta decide automaticamente se divide o arquivo em partes:
+
+| Tamanho total da pasta | Comportamento |
+|---|---|
+| < 200 MB | RAR único (sem volumes) |
+| 200 MB – 5 GB | Volumes de 50 MB (arredondado para múltiplo de 5 MB) |
+| > 5 GB | Volumes calculados para não ultrapassar 100 partes |
+
+Isso garante compatibilidade máxima com newsreaders, facilita repair parcial via PAR2 e evita downloads interrompidos sem recuperação.
+
+## Estrutura do projeto
 
 ```
 upapasta/
 ├── upapasta/
 │   ├── __init__.py    # Inicialização do pacote
-│   ├── main.py        # Orquestrador principal
-│   ├── makerar.py     # Lógica para criar arquivos .rar
-│   ├── makepar.py     # Lógica para gerar arquivos .par2
-│   └── upfolder.py    # Lógica para fazer o upload
-├── .env.example       # Exemplo de arquivo de configuração
-├── LICENSE            # Licença MIT
-├── MANIFEST.in        # Arquivos extras para incluir no pacote
-├── pyproject.toml     # Configuração do pacote
-├── tests/
-│   └── test_upapasta.py # Testes unitários
-├── INSTALL.md         # Instruções de instalação detalhadas
+│   ├── config.py      # Carregamento e validação de configuração
+│   ├── main.py        # Orquestrador principal e CLI
+│   ├── makerar.py     # Criação de arquivos RAR em volumes
+│   ├── makepar.py     # Geração de arquivos PAR2
+│   ├── nfo.py         # Geração de arquivos NFO
+│   ├── nzb.py         # Geração de arquivos NZB
+│   └── upfolder.py    # Upload via nyuu
+├── tests/             # Testes unitários
+├── .env.example       # Exemplo de configuração
+├── pyproject.toml     # Metadados e dependências do pacote
+├── CHANGELOG.md       # Histórico de versões
 └── README.md          # Este arquivo
 ```
 
@@ -166,4 +189,4 @@ Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICEN
 
 ## Contribuição
 
-Contribuições são bem-vindas! Se você encontrar um bug ou tiver uma sugestão de melhoria, sinta-se à vontade para abrir uma *issue* ou enviar um *pull request*.
+Contribuições são bem-vindas! Se você encontrar um bug ou tiver uma sugestão de melhoria, abra uma *issue* ou envie um *pull request*.
