@@ -97,8 +97,8 @@ def _process_output(queue: Queue) -> tuple[int, bool]:
 	return last_percent, teve_percentual
 
 
-_MIN_SPLIT_SIZE = 200 * 1024 * 1024   # 200 MB — abaixo disso, RAR único
-_MIN_VOLUME_SIZE = 50 * 1024 * 1024  # 50 MB — tamanho mínimo de cada parte
+_MIN_SPLIT_SIZE = 10 * 1024 * 1024 * 1024  # 10 GB — abaixo disso, RAR único
+_MIN_VOLUME_SIZE = 1024 * 1024 * 1024      # 1 GB — tamanho mínimo de cada parte
 _MAX_VOLUMES = 100
 
 

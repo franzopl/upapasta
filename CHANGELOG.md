@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.8 - 2026-04-18
+- Fix: RAR volume thresholds ajustados — arquivos até 10 GB geram RAR único; acima disso volumes de no mínimo 1 GB (antes: split a partir de 200 MB com partes de 50 MB)
+
 ## 0.6.7 - 2026-04-18
 - Fix: cleanup now deletes all RAR volumes and PAR2 files after successful upload — previously only the first 2 files were removed due to incorrect .partXX suffix stripping (only 2-digit parts were handled, but rar generates 3-digit parts like .part001)
 
