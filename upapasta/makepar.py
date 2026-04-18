@@ -78,17 +78,24 @@ def obfuscate_and_par(
     obfuscated_name = random_name + ext
     obfuscated_path = os.path.join(parent_dir, obfuscated_name)
 
-    print(f"Ofuscando: {os.path.basename(input_path)} -> {obfuscated_name} (criando cópia)")
+    print(f"Ofuscando: {os.path.basename(input_path)} -> {obfuscated_name}")
 
     try:
-        # Copiar em vez de renomear para preservar o original
-        if is_folder:
-            shutil.copytree(input_path, obfuscated_path)
-        else:
-            shutil.copy2(input_path, obfuscated_path)
-    except OSError as e:
-        print(f"Erro ao criar a cópia ofuscada: {e}")
-        return 1, None
+        os.rename(input_path, obfuscated_path)
+    except OSError:
+        # Cross-device move: fall back to copy+delete
+        try:
+            if is_folder:
+                shutil.copytree(input_path, obfuscated_path)
+                shutil.rmtree(input_path)
+            else:
+                shutil.copy2(input_path, obfuscated_path)
+                os.remove(input_path)
+        except OSError as e:
+            print(f"Erro ao ofuscar arquivo: {e}")
+            if os.path.exists(obfuscated_path):
+                shutil.rmtree(obfuscated_path) if is_folder else os.remove(obfuscated_path)
+            return 1, None
 
     # Chamar make_parity no novo caminho ofuscado
     rc = make_parity(
@@ -105,16 +112,12 @@ def obfuscate_and_par(
     if rc == 0:
         return 0, obfuscated_path
     else:
-        # Se make_parity falhar, limpar a cópia ofuscada
-        print("Erro ao gerar paridade para o arquivo ofuscado. Limpando a cópia temporária...")
+        # Reverter renomeação para não deixar o usuário sem o arquivo original
+        print("Erro ao gerar paridade para o arquivo ofuscado. Revertendo renomeação...")
         try:
-            if is_folder:
-                shutil.rmtree(obfuscated_path)
-            else:
-                os.remove(obfuscated_path)
-            print("Cópia temporária removida.")
+            os.rename(obfuscated_path, input_path)
         except OSError as e:
-            print(f"Falha ao remover a cópia temporária: {e}")
+            print(f"Falha ao reverter renomeação: {e}")
         return rc, None
 
 

@@ -184,6 +184,8 @@ def upload_to_usenet(
     if not par2_files:
         print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")
         print("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2")
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
         return 3
 
     # Carrega credenciais do .env
@@ -227,17 +229,23 @@ def upload_to_usenet(
         print("  NNTP_USER=<seu_usuario>")
         print("  NNTP_PASS=<sua_senha>")
         print("  USENET_GROUP=<seu_grupo>")
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
         return 2
 
     # Encontra nyuu
     if nyuu_path:
         if not os.path.exists(nyuu_path):
             print(f"Erro: nyuu não encontrado em '{nyuu_path}'")
+            if temp_dir and os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
             return 4
     else:
         nyuu_path = find_nyuu()
         if not nyuu_path:
             print("Erro: nyuu não encontrado. Instale-o (https://github.com/Piorosen/nyuu)")
+            if temp_dir and os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
             return 4
 
     # Define subject
@@ -310,11 +318,10 @@ def upload_to_usenet(
     cmd.extend(par2_files)
 
     if dry_run:
-        # Print the nyuu command but do not run it. The .nfo (for single-file uploads)
-        # is already generated above (if mediainfo was found) and written to the
-        # resolved `nfo_path` directory. No further .nfo writing should occur here.
         print("Comando nyuu (dry-run):")
         print(" ".join(str(x) for x in cmd))
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
         return 0
 
     print("Iniciando upload para Usenet...")
@@ -350,6 +357,8 @@ def upload_to_usenet(
         return 5
     except Exception as e:
         print(f"Erro ao executar nyuu: {e}")
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
         return 5
 
 
