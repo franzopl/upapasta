@@ -39,6 +39,7 @@ Retornos:
 import argparse
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -389,9 +390,9 @@ class UpaPastaOrchestrator:
 
         if self.rar_file:
             rar_base = os.path.splitext(self.rar_file)[0]
-            # remove .partXX suffix se presente para obter o nome base do conjunto
-            if rar_base.endswith(tuple(f".part{n:02d}" for n in range(1, 100))):
-                rar_base = rar_base.rsplit(".", 1)[0]
+            # remove .partXXX suffix (qualquer qtd de dígitos) para obter nome base do conjunto
+            if re.search(r'\.part\d+$', rar_base):
+                rar_base = re.sub(r'\.part\d+$', '', rar_base)
             rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
             if rar_volumes:
                 files_to_delete.extend(rar_volumes)
@@ -403,8 +404,8 @@ class UpaPastaOrchestrator:
 
         if self.rar_file:
             rar_stem = os.path.splitext(self.rar_file)[0]
-            if rar_stem.endswith(tuple(f".part{n:02d}" for n in range(1, 100))):
-                rar_stem = rar_stem.rsplit(".", 1)[0]
+            if re.search(r'\.part\d+$', rar_stem):
+                rar_stem = re.sub(r'\.part\d+$', '', rar_stem)
             base_name = rar_stem
         elif self.par_file:
             base_name = os.path.splitext(self.par_file)[0]
