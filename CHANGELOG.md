@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.2 - 2026-04-18
+- Fix: PAR2 generation now covers all RAR volumes in a set (not just part01.rar)
+- Fix: upload now sends all RAR volume parts + their PAR2 files
+- Fix: PAR2 filename uses the set base name (without .part01 suffix)
+
 ## 0.6.1 - 2026-04-18
 - Fix: detect RAR volumes (part01.rar…partNN.rar) after creation — single-file check was failing for multi-part sets
 - Fix: cleanup now removes all RAR volume parts, not just the first file
