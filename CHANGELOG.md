@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.6 - 2026-04-18
+- Fix: make_rar() now returns generated RAR path to fix part001.rar detection for large archives (>99 parts)
+- Fix: Added force mode to remove existing partial RAR volumes before creating new ones
+- Fix: Improved RAR volume detection to handle both part01.rar and part001.rar naming schemes
+
 ## 0.6.5 - 2026-04-18
 - Feat: series folders (SXX / SXXEXX pattern) generate NFO using mediainfo of the first episode; generic folders keep the tree+stats layout
 
