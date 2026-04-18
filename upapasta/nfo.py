@@ -116,7 +116,7 @@ def _default_banner() -> str:
         "|   | |_| |  __/ ___ \\|  __/ ___ \\ ___) || |/ ___ \\                         |\n"
         "|    \\___/|_| /_/   \\_\\_| /_/   \\_\\____/ |_/_/   \\_\\                        |\n"
         "|                                                                              |\n"
-        "|          automated usenet uploader  //  github.com/franzopl/upapasta        |\n"
+        "|                    automated usenet uploader                                  |\n"
         "|                                                                              |\n"
         "'------------------------------------------------------------------------------'"
     )
