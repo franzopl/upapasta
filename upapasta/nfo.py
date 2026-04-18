@@ -153,12 +153,40 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
         return False
 
 
+def _is_series_folder(folder_name: str) -> bool:
+    """Retorna True se o nome da pasta contém padrão de temporada (S01, S02E03, etc.)."""
+    return bool(re.search(r'(?<![A-Za-z])S\d{2}(?:E\d{2})?(?![0-9])', folder_name, re.IGNORECASE))
+
+
+def _find_first_episode(folder_path: str) -> str | None:
+    """Retorna o caminho do primeiro episódio de vídeo encontrado na pasta, ordenado."""
+    video_exts = {".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".ts", ".webm"}
+    candidates = []
+    for root, _, files in os.walk(folder_path):
+        for f in files:
+            if os.path.splitext(f)[1].lower() in video_exts:
+                candidates.append(os.path.join(root, f))
+    if not candidates:
+        return None
+    return sorted(candidates)[0]
+
+
 def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = None) -> bool:
-    """Gera .nfo detalhado para uma pasta com árvore e estatísticas."""
+    """Gera .nfo detalhado para uma pasta.
+
+    Para pastas de série (padrão SXX no nome): usa mediainfo do primeiro episódio.
+    Para pastas genéricas: gera árvore de arquivos + estatísticas.
+    """
     from pathlib import Path
 
     try:
         folder_name = os.path.basename(input_path.rstrip(os.sep))
+
+        if _is_series_folder(folder_name):
+            first_ep = _find_first_episode(input_path)
+            if first_ep:
+                return generate_nfo_single_file(first_ep, nfo_path)
+
         title_temp = folder_name
 
         year = "N/A"
