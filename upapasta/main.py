@@ -37,7 +37,6 @@ Retornos:
 """
 
 import argparse
-import getpass
 import os
 import re
 import shutil
@@ -46,75 +45,11 @@ import sys
 import time
 from pathlib import Path
 
+from .config import load_env_file, check_or_prompt_credentials, DEFAULT_ENV_FILE
 from .makerar import make_rar
 from .makepar import make_parity, obfuscate_and_par, generate_random_name
 from .nzb import resolve_nzb_out, handle_nzb_conflict
 from .upfolder import upload_to_usenet
-
-
-def load_env_file(env_path: str = ".env") -> dict:
-    """Carrega variáveis de ambiente de um arquivo .env simples."""
-    env_vars = {}
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    if "=" in line:
-                        key, val = line.split("=", 1)
-                        env_vars[key.strip()] = val.strip()
-    return env_vars
-
-
-def prompt_for_credentials(env_file: str) -> dict:
-    """Solicita credenciais ao usuário e salva no arquivo .env."""
-    print("🔑 Credenciais de Usenet não encontradas ou incompletas.")
-    print("Por favor, forneça as seguintes informações:")
-    
-    creds = {
-        "NNTP_HOST": input("   - Servidor NNTP (ex: news.example.com): "),
-        "NNTP_PORT": input("   - Porta NNTP (ex: 563): "),
-        "NNTP_USER": input("   - Usuário NNTP: "),
-        "NNTP_PASS": getpass.getpass("   - Senha NNTP: "),
-        "USENET_GROUP": input("   - Grupo Usenet (ex: alt.binaries.test): "),
-    }
-    
-    # Adiciona valores padrão para outros campos importantes
-    creds["NNTP_SSL"] = "true"
-    creds["NNTP_CONNECTIONS"] = "50"
-    creds["ARTICLE_SIZE"] = "700K"
-
-    # Cria o diretório se não existir
-    os.makedirs(os.path.dirname(env_file), exist_ok=True)
-
-    with open(env_file, "w") as f:
-        f.write("# Configuração de credenciais para upload em Usenet com nyuu\n")
-        for key, value in creds.items():
-            f.write(f"{key}={value}\n")
-    
-    print(f"\n✅ Credenciais salvas em '{env_file}'.")
-    return creds
-
-
-def check_or_prompt_credentials(env_file: str) -> dict:
-    """Verifica se as credenciais existem e estão preenchidas, senão, solicita."""
-    required_keys = ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS", "USENET_GROUP"]
-    env_vars = load_env_file(env_file)
-    
-    # Verifica se todas as chaves obrigatórias existem e não estão vazias
-    missing_or_empty_keys = [
-        key for key in required_keys if not env_vars.get(key)
-    ]
-    
-    # Verifica se os valores padrão do .env.example não foram alterados
-    is_default_host = env_vars.get("NNTP_HOST") == "news.example.com"
-    is_default_user = env_vars.get("NNTP_USER") == "seu_usuario"
-
-    if missing_or_empty_keys or is_default_host or is_default_user:
-        return prompt_for_credentials(env_file)
-    
-    print("✅ Credenciais de Usenet carregadas.")
-    return env_vars
 
 
 def format_time(seconds: int) -> str:
@@ -636,7 +571,7 @@ class UpaPastaOrchestrator:
         if not self.input_target:
             print("Erro: caminho de entrada não definido.")
             return False
-        
+
         if self.dry_run:
             print("DRY-RUN: Pularia o upload.")
             return True
@@ -644,10 +579,6 @@ class UpaPastaOrchestrator:
         print("\n" + "=" * 60)
         print("📤 ETAPA 3: Upload para Usenet")
         print("=" * 60)
-
-        if self.dry_run:
-            print(f"[DRY-RUN] pularia o upload.")
-            return True
 
         try:
             # If a nzb_conflict mode was given via CLI, inject it into env_vars so
@@ -669,39 +600,36 @@ class UpaPastaOrchestrator:
             print(f"\n❌ Erro ao executar upload_to_usenet: {e}")
             return False
 
-    def cleanup(self) -> None:
-        """Remove arquivos RAR e PAR2 após upload bem-sucedido."""
-        if self.keep_files:
-            print("\n⚡ [--keep-files] Mantendo arquivos RAR e PAR2.")
-            return
+    def _do_cleanup(self, on_error: bool = False) -> None:
+        """Remove arquivos RAR e PAR2 gerados."""
+        if on_error:
+            print("\n🧹 Limpando arquivos temporários devido a erro...")
+        else:
+            if self.keep_files:
+                print("\n⚡ [--keep-files] Mantendo arquivos RAR e PAR2.")
+                return
+            print("\n🧹 Limpando arquivos temporários...")
 
-        print("\n🧹 Limpando arquivos temporários...")
         files_to_delete = []
-        
-        # Arquivo RAR
+
         if self.rar_file and os.path.exists(self.rar_file):
             files_to_delete.append(self.rar_file)
 
-        # Arquivo PAR2 base
         if self.par_file and os.path.exists(self.par_file):
             files_to_delete.append(self.par_file)
 
-        # Arquivos de volume PAR2 (.vol00+01.par2, .vol01+02.par2, etc.)
         if self.rar_file:
             base_name = os.path.splitext(self.rar_file)[0]
         elif self.par_file:
-            # Para --skip-rar, usar o nome base do arquivo PAR2
             base_name = os.path.splitext(self.par_file)[0]
         else:
             base_name = None
 
         if base_name:
             import glob
-            # Usar glob.escape para lidar com caracteres especiais (como [, ])
             par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
             files_to_delete.extend(par_volumes)
 
-        # Deletar arquivos
         deleted_count = 0
         for file_path in files_to_delete:
             try:
@@ -719,54 +647,12 @@ class UpaPastaOrchestrator:
         if deleted_count > 0:
             print(f"\n✅ {deleted_count} arquivo(s) removido(s) com sucesso")
         print()
+
+    def cleanup(self) -> None:
+        self._do_cleanup(on_error=False)
 
     def _cleanup_on_error(self) -> None:
-        """Limpa arquivos temporários criados quando há erro/falha."""
-        print("\n🧹 Limpando arquivos temporários devido a erro...")
-
-        files_to_delete = []
-
-        # Arquivo RAR
-        if self.rar_file and os.path.exists(self.rar_file):
-            files_to_delete.append(self.rar_file)
-
-        # Arquivo PAR2 base
-        if self.par_file and os.path.exists(self.par_file):
-            files_to_delete.append(self.par_file)
-
-        # Arquivos de volume PAR2 (.vol00+01.par2, .vol01+02.par2, etc.)
-        if self.rar_file:
-            base_name = os.path.splitext(self.rar_file)[0]
-        elif self.par_file:
-            # Para --skip-rar, usar o nome base do arquivo PAR2
-            base_name = os.path.splitext(self.par_file)[0]
-        else:
-            base_name = None
-
-        if base_name:
-            import glob
-            # Usar glob.escape para lidar com caracteres especiais (como [, ])
-            par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
-            files_to_delete.extend(par_volumes)
-
-        # Deletar arquivos
-        deleted_count = 0
-        for file_path in files_to_delete:
-            try:
-                if os.path.exists(file_path):
-                    if os.path.isdir(file_path):
-                        shutil.rmtree(file_path)
-                        print(f"  ✓ Removido diretório: {os.path.basename(file_path)}")
-                    else:
-                        os.remove(file_path)
-                        print(f"  ✓ Removido: {os.path.basename(file_path)}")
-                    deleted_count += 1
-            except Exception as e:
-                print(f"  ✗ Erro ao remover {file_path}: {e}")
-
-        if deleted_count > 0:
-            print(f"\n✅ {deleted_count} arquivo(s) removido(s) com sucesso")
-        print()
+        self._do_cleanup(on_error=True)
 
     def check_nzb_conflict_early(self) -> bool:
         """Verifica conflito de NZB antecipadamente, antes de qualquer processamento."""
@@ -1015,7 +901,7 @@ def parse_args():
     )
     p.add_argument(
         "--env-file",
-        default=os.path.expanduser("~/.config/upapasta/.env"),
+        default=DEFAULT_ENV_FILE,
         help="Arquivo .env para credenciais (padrão: ~/.config/upapasta/.env)",
     )
     p.add_argument(
