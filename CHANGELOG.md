@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.0 - 2026-04-18
+- Feature: Automatic RAR volume splitting for Usenet best practices — folders < 200 MB generate a single RAR; larger folders are split into volumes (min 50 MB each, max 100 parts)
+- Docs: Rewrite README with prerequisites table, all CLI options documented, and RAR volume logic explained
+
 ## 0.5.0 - 2025-12-18
 - Feature: Add configurable ASCII art banner for folder .nfo files via NFO_BANNER env variable
 - Feature: Enhanced folder .nfo generation with detailed statistics, tree structure, and video metadata
