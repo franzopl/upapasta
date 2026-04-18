@@ -14,8 +14,6 @@ def resolve_nzb_template(env_vars: dict, is_folder: bool, skip_rar: bool) -> str
     """Retorna o template NZB_OUT a ser usado."""
     template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
     if not template:
-        if is_folder and not skip_rar:
-            return "{filename}_content.nzb"
         return "{filename}.nzb"
     return template
 
@@ -38,6 +36,9 @@ def resolve_nzb_basename(
     basename = os.path.basename(input_path)
     if not is_folder:
         basename = os.path.splitext(basename)[0]
+        # Volumes RAR: "nome.part01" → "nome"
+        if input_path.endswith(".rar") and ".part" in basename:
+            basename = basename.rsplit(".part", 1)[0]
     return basename
 
 

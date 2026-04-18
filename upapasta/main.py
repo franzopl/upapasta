@@ -133,9 +133,7 @@ class UpaPastaOrchestrator:
         if self.nzb_conflict:
             env_vars["NZB_CONFLICT"] = self.nzb_conflict
 
-        nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
-        if not nzb_out_template:
-            nzb_out_template = "{filename}_content.nzb" if (is_folder and not self.skip_rar) else "{filename}.nzb"
+        nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
 
         basename = os.path.basename(input_path)
         if not is_folder:
