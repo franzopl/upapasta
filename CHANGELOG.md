@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.1 - 2026-04-18
+- Fix: detect RAR volumes (part01.rar…partNN.rar) after creation — single-file check was failing for multi-part sets
+- Fix: cleanup now removes all RAR volume parts, not just the first file
+- Fix: summary stats now sum all RAR volumes for correct total size display
+
 ## 0.6.0 - 2026-04-18
 - Feature: Automatic RAR volume splitting for Usenet best practices — folders < 200 MB generate a single RAR; larger folders are split into volumes (min 50 MB each, max 100 parts)
 - Docs: Rewrite README with prerequisites table, all CLI options documented, and RAR volume logic explained
