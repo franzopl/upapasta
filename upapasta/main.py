@@ -38,6 +38,7 @@ Retornos:
 
 import argparse
 import glob
+import logging
 import os
 import re
 import shutil
@@ -51,6 +52,19 @@ from .makerar import make_rar
 from .makepar import make_parity, obfuscate_and_par, generate_random_name
 from .nzb import resolve_nzb_out, handle_nzb_conflict
 from .upfolder import upload_to_usenet
+
+logger = logging.getLogger("upapasta")
+
+
+def setup_logging(verbose: bool = False) -> None:
+    level = logging.DEBUG if verbose else logging.INFO
+    handler = logging.StreamHandler()
+    handler.setLevel(level)
+    formatter = logging.Formatter("%(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    root = logging.getLogger("upapasta")
+    root.setLevel(level)
+    root.addHandler(handler)
 
 
 def format_time(seconds: int) -> str:
@@ -86,6 +100,10 @@ class UpaPastaOrchestrator:
         par_profile: str = "balanced",
         nzb_conflict: str | None = None,
         obfuscate: bool = False,
+        par_slice_size: str | None = None,
+        upload_timeout: int | None = None,
+        upload_retries: int = 0,
+        verbose: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -105,6 +123,10 @@ class UpaPastaOrchestrator:
         self.par_profile = par_profile
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
+        self.par_slice_size = par_slice_size
+        self.upload_timeout = upload_timeout
+        self.upload_retries = upload_retries
+        self.verbose = verbose
         self.rar_file: str | None = None
         self.par_file: str | None = None
         # input_target is the path used for subsequent steps (string): either
@@ -226,8 +248,14 @@ class UpaPastaOrchestrator:
                 print("-" * 60)
                 print(f"\n❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})")
                 return False
-        except Exception as e:
-            print(f"❌ Erro inesperado ao executar make_rar: {e}")
+        except FileNotFoundError:
+            print("❌ Erro: binário 'rar' não encontrado no PATH.")
+            return False
+        except PermissionError as e:
+            print(f"❌ Erro de permissão ao criar RAR: {e}")
+            return False
+        except OSError as e:
+            print(f"❌ Erro de I/O ao criar RAR: {e}")
             return False
 
     def _par_file_path(self) -> str:
@@ -286,9 +314,16 @@ class UpaPastaOrchestrator:
                     post_size=self.post_size,
                     threads=self.par_threads,
                     profile=self.par_profile,
+                    slice_size=self.par_slice_size,
                 )
-            except Exception as e:
-                print(f"Erro ao executar make_parity: {e}")
+            except FileNotFoundError:
+                print("❌ Erro: binário de paridade não encontrado no PATH.")
+                return False
+            except PermissionError as e:
+                print(f"❌ Erro de permissão ao gerar paridade: {e}")
+                return False
+            except OSError as e:
+                print(f"❌ Erro de I/O ao gerar paridade: {e}")
                 return False
 
             if rc != 0:
@@ -327,9 +362,16 @@ class UpaPastaOrchestrator:
                     post_size=self.post_size,
                     threads=self.par_threads,
                     profile=self.par_profile,
+                    slice_size=self.par_slice_size,
                 )
-            except Exception as e:
-                print(f"Erro ao executar make_parity: {e}")
+            except FileNotFoundError:
+                print("❌ Erro: binário de paridade não encontrado no PATH.")
+                return False
+            except PermissionError as e:
+                print(f"❌ Erro de permissão ao gerar paridade: {e}")
+                return False
+            except OSError as e:
+                print(f"❌ Erro de I/O ao gerar paridade: {e}")
                 return False
 
             if rc != 0:
@@ -370,10 +412,18 @@ class UpaPastaOrchestrator:
                 subject=self.subject,
                 group=self.group,
                 skip_rar=self.skip_rar,
+                upload_timeout=self.upload_timeout,
+                upload_retries=self.upload_retries,
             )
             return rc == 0
-        except Exception as e:
-            print(f"\n❌ Erro ao executar upload_to_usenet: {e}")
+        except FileNotFoundError as e:
+            print(f"\n❌ Erro: arquivo não encontrado durante upload: {e}")
+            return False
+        except PermissionError as e:
+            print(f"\n❌ Erro de permissão durante upload: {e}")
+            return False
+        except OSError as e:
+            print(f"\n❌ Erro de I/O durante upload: {e}")
             return False
 
     def _do_cleanup(self, on_error: bool = False) -> None:
@@ -714,6 +764,28 @@ def parse_args():
         action="store_true",
         help="Ofusca o nome do arquivo antes de gerar o PAR2 e fazer o upload.",
     )
+    p.add_argument(
+        "--par-slice-size",
+        default=None,
+        help="Tamanho de slice PAR2 manual (ex: 512K, 1M, 2M). Sobrescreve o cálculo automático.",
+    )
+    p.add_argument(
+        "--upload-timeout",
+        type=int,
+        default=None,
+        help="Timeout de conexão para nyuu em segundos (ex: 30).",
+    )
+    p.add_argument(
+        "--upload-retries",
+        type=int,
+        default=0,
+        help="Número de tentativas extras de upload em caso de falha transitória (padrão: 0).",
+    )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Ativa saída de debug detalhada (logging nível DEBUG).",
+    )
     return p.parse_args()
 
 
@@ -743,6 +815,7 @@ def check_dependencies(needs_rar: bool = True):
 
 def main():
     args = parse_args()
+    setup_logging(verbose=getattr(args, "verbose", False))
 
     # Determine whether rar is needed: rar not needed for single-file uploads
     # when skip_rar is expected. If input is a file and user didn't explicitly
@@ -778,6 +851,10 @@ def main():
         par_profile=args.par_profile,
         nzb_conflict=args.nzb_conflict,
         obfuscate=args.obfuscate,
+        par_slice_size=args.par_slice_size,
+        upload_timeout=args.upload_timeout,
+        upload_retries=args.upload_retries,
+        verbose=args.verbose,
     )
 
     rc = orchestrator.run()

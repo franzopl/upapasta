@@ -236,8 +236,14 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None) 
 		else:
 			print(f"Erro: 'rar' retornou código {rc}.")
 			return 5, None
-	except Exception as e:
-		print("Erro ao executar 'rar':", e)
+	except FileNotFoundError:
+		print("Erro: binário 'rar' não encontrado no PATH.")
+		return 4, None
+	except PermissionError as e:
+		print(f"Erro de permissão ao executar 'rar': {e}")
+		return 5, None
+	except OSError as e:
+		print(f"Erro de I/O ao executar 'rar': {e}")
 		return 5, None
 
 

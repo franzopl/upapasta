@@ -33,8 +33,25 @@ import sys
 import random
 import string
 import re
+import xml.etree.ElementTree as ET
 
 from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects
+
+
+def _verify_nzb(nzb_path: str) -> bool:
+    """Verifica que o NZB existe, não está vazio e contém ao menos um elemento <file>."""
+    if not os.path.exists(nzb_path):
+        return False
+    if os.path.getsize(nzb_path) == 0:
+        return False
+    try:
+        tree = ET.parse(nzb_path)
+        root = tree.getroot()
+        # Suporta NZB com ou sem namespace
+        files = root.findall('.//{http://www.newzbin.com/DTD/2003/nzb}file') or root.findall('.//file')
+        return len(files) > 0
+    except ET.ParseError:
+        return False
 
 
 def find_nyuu() -> str | None:
@@ -109,6 +126,8 @@ def upload_to_usenet(
     group: str | None = None,
     skip_rar: bool = False,
     obfuscated_map: dict[str, str] | None = None,
+    upload_timeout: int | None = None,
+    upload_retries: int = 0,
 ) -> int:
     """Upload de arquivos para Usenet usando nyuu."""
 
@@ -287,6 +306,10 @@ def upload_to_usenet(
     # Adicionar opção -O para sobrescrever NZB se configurado
     if nzb_overwrite:
         cmd.append("-O")
+
+    # Timeout de conexão (nyuu usa --timeout em segundos)
+    if upload_timeout is not None:
+        cmd.extend(["--timeout", str(upload_timeout)])
     
     # Adicionar arquivos a fazer upload, aplicando renomeação se necessário
     if obfuscated_map:
@@ -334,32 +357,51 @@ def upload_to_usenet(
         print(f"  NZB será salvo em: {nzb_out}")
     print()
 
-    try:
-        # Executar nyuu e deixar que ele controle o output diretamente
-        # Isso permite que a barra de progresso nativa do nyuu funcione
-        subprocess.run(cmd, check=True, cwd=working_dir)
+    max_attempts = 1 + max(0, upload_retries)
+    last_rc = 5
+    for attempt in range(1, max_attempts + 1):
+        if attempt > 1:
+            print(f"\n🔄 Tentativa {attempt}/{max_attempts} de upload...")
+        try:
+            # Executar nyuu e deixar que ele controle o output diretamente
+            # Isso permite que a barra de progresso nativa do nyuu funcione
+            subprocess.run(cmd, check=True, cwd=working_dir)
+            last_rc = 0
+            break
+        except subprocess.CalledProcessError as e:
+            print(f"\nErro: nyuu retornou código {e.returncode}.")
+            last_rc = 5
+        except FileNotFoundError:
+            print(f"\nErro: nyuu não encontrado em '{nyuu_path}'.")
+            if temp_dir and os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            return 4
+        except OSError as e:
+            print(f"\nErro de I/O ao executar nyuu: {e}")
+            last_rc = 5
 
-        # Corrigir NZB para preservar estrutura de pastas
-        if nzb_out_abs and os.path.exists(nzb_out_abs) and is_folder:
-            folder_name = os.path.basename(input_path)
-            fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_files, folder_name)
-
-        # Limpar diretório temporário se foi criado
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        
-        return 0
-    except subprocess.CalledProcessError as e:
-        print(f"\nErro: nyuu retornou código {e.returncode}.")
-        # Limpar temp_dir mesmo em erro
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        return 5
-    except Exception as e:
-        print(f"Erro ao executar nyuu: {e}")
+    if last_rc != 0:
         if temp_dir and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
-        return 5
+        return last_rc
+
+    # Corrigir NZB para preservar estrutura de pastas
+    if nzb_out_abs and os.path.exists(nzb_out_abs) and is_folder:
+        folder_name = os.path.basename(input_path)
+        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_files, folder_name)
+
+    # Verificar integridade do NZB gerado
+    if nzb_out_abs:
+        if not _verify_nzb(nzb_out_abs):
+            print(f"⚠️  Aviso: NZB gerado em '{nzb_out_abs}' está ausente, vazio ou não contém elementos <file>.")
+        else:
+            print(f"✅ NZB verificado: {os.path.basename(nzb_out_abs)}")
+
+    # Limpar diretório temporário se foi criado
+    if temp_dir and os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+
+    return 0
 
 
 

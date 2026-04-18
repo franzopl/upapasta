@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0 - 2026-04-18
+- Feat: logging estruturado com `setup_logging()` e flag `--verbose` para nível DEBUG
+- Feat: `--par-slice-size` para override manual do tamanho de slice PAR2
+- Feat: `--upload-timeout` passa timeout de conexão ao nyuu (`--timeout N`)
+- Feat: `--upload-retries` implementa retry automático em falha de upload (N tentativas extras)
+- Feat: verificação pós-upload do NZB gerado (existência, tamanho > 0, elemento `<file>` via XML)
+- Fix: error handling diferenciado — `FileNotFoundError`, `PermissionError`, `OSError` em vez de `except Exception` genérico em makerar, makepar e upfolder
+- Docs: heurística `target_slices=4` em makepar.py documentada com exemplos e orientação para arquivos grandes
+- Tests: +17 testes cobrindo cleanup, multivolume RAR, keep-files, error paths de RAR/PAR2, verificação de NZB e retry de upload
+
 ## 0.6.8 - 2026-04-18
 - Fix: RAR volume thresholds ajustados — arquivos até 10 GB geram RAR único; acima disso volumes de no mínimo 1 GB (antes: split a partir de 200 MB com partes de 50 MB)
 

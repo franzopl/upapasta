@@ -374,10 +374,13 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
             post_size_bytes = parse_size('10M')
 
         if usenet or post_size_bytes:
-            # heuristic: aim for ~4 slices per post
+            # Heurística: 4 slices por post garante granularidade razoável para
+            # recuperação parcial sem gerar arquivos .par2 excessivamente pequenos.
+            # Com post_size=20M → slice=5M; post_size=50M → slice=4M (clamped).
+            # Use --par-slice-size para override manual em arquivos muito grandes (50+ GB).
             target_slices = 4
             calc = max(64 * 1024, post_size_bytes // target_slices)
-            # clamp reasonable bounds
+            # clamp: mínimo 64K (par2 exige blocos alinhados), máximo 4M
             calc = min(calc, 4 * 1024 * 1024)
             used_slice = fmt_size(calc)
 
