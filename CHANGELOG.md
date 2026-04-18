@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.5 - 2026-04-18
+- Feat: series folders (SXX / SXXEXX pattern) generate NFO using mediainfo of the first episode; generic folders keep the tree+stats layout
+
 ## 0.6.4 - 2026-04-18
 - Feat: new NFO banner — clean ASCII art "UPAPASTA" with border, fits 80 columns, pure ASCII (compatible with all NFO viewers)
 
