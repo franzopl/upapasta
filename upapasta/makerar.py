@@ -21,6 +21,7 @@ Saídas:
 """
 
 import argparse
+import glob
 import math
 import os
 import re
@@ -134,26 +135,42 @@ def _volume_size_bytes(total_bytes: int) -> int | None:
 	return vol
 
 
-def make_rar(folder_path: str, force: bool = False, threads: int | None = None) -> int:
+def make_rar(folder_path: str, force: bool = False, threads: int | None = None) -> tuple[int, str | None]:
+	"""Cria um arquivo RAR para a pasta fornecida.
+
+	Retorna uma tupla (código_de_retorno, caminho_do_rar_gerado).
+	O caminho é o arquivo base do RAR ou o primeiro volume quando há split.
+	"""
 	folder_path = os.path.abspath(folder_path)
 	if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
 		print(f"Erro: '{folder_path}' não existe ou não é um diretório.")
-		return 2
+		return 2, None
 
 	parent = os.path.dirname(folder_path)
 	base = os.path.basename(os.path.normpath(folder_path))
 	out_rar = os.path.join(parent, base + ".rar")
-
-	if os.path.exists(out_rar) and not force:
-		print(f"Erro: '{out_rar}' já existe. Use --force para sobrescrever.")
-		return 3
+	existing_parts = glob.glob(os.path.join(parent, f"{base}.part*.rar"))
+	if (os.path.exists(out_rar) or existing_parts) and not force:
+		print(f"Erro: '{out_rar}' ou volumes parciais já existem. Use --force para sobrescrever.")
+		return 3, None
+	if force:
+		if os.path.exists(out_rar):
+			try:
+				os.remove(out_rar)
+			except OSError:
+				pass
+		for part in existing_parts:
+			try:
+				os.remove(part)
+			except OSError:
+				pass
 
 	rar_exec = find_rar()
 	if not rar_exec:
 		print(
 			"Erro: utilitário 'rar' não encontrado. Instale-o (ex: sudo apt install rar)"
 		)
-		return 4
+		return 4, None
 
 	total_bytes = _folder_size(folder_path)
 	vol_bytes = _volume_size_bytes(total_bytes)
@@ -162,6 +179,8 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None) 
 
 	# -m0 → store, -ma5 → RAR5, -mt → threads, -v → volumes
 	cmd = [rar_exec, "a", "-r", "-m0", f"-mt{num_threads}", "-ma5"]
+	if force:
+		cmd.append("-o+")
 	if vol_bytes is not None:
 		cmd.append(f"-v{vol_bytes}b")
 		num_vols = max(1, -(-total_bytes // vol_bytes))  # ceil division
@@ -208,10 +227,15 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None) 
 
 		if rc == 0:
 			print("Arquivo .rar criado com sucesso.")
-			return 0
+			if vol_bytes is None:
+				return 0, out_rar
+			matches = glob.glob(os.path.join(parent, f"{base}.part*.rar"))
+			if matches:
+				return 0, sorted(matches)[0]
+			return 0, out_rar
 		else:
 			print(f"Erro: 'rar' retornou código {rc}.")
-			return 5
+			return 5, None
 	except Exception as e:
 		print("Erro ao executar 'rar':", e)
 		return 5

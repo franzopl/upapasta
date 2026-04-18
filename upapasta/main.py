@@ -215,18 +215,10 @@ class UpaPastaOrchestrator:
         print("-" * 60)
 
         try:
-            rc = make_rar(str(self.input_path), self.force, threads=self.rar_threads)
-            if rc == 0:
+            rc, generated_rar = make_rar(str(self.input_path), self.force, threads=self.rar_threads)
+            if rc == 0 and generated_rar:
                 print("-" * 60)
-                base_rar = str(self.input_path.parent / f"{self.input_path.name}.rar")
-                part1 = str(self.input_path.parent / f"{self.input_path.name}.part01.rar")
-                if os.path.exists(base_rar):
-                    self.rar_file = base_rar
-                elif os.path.exists(part1):
-                    self.rar_file = part1
-                else:
-                    print("❌ Erro: Arquivo RAR não foi encontrado após a execução bem-sucedida.")
-                    return False
+                self.rar_file = generated_rar
                 self.input_target = self.rar_file
                 return True
             else:
