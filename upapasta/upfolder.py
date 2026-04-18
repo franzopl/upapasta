@@ -161,13 +161,25 @@ def upload_to_usenet(
         
         working_dir = temp_dir
     else:
-        # Para arquivos únicos, comportamento normal
-        files_to_upload = [os.path.basename(input_path)]
-        base_name = os.path.splitext(input_path)[0]
-        par2_pattern = glob.escape(base_name) + "*par2*"
-        par2_files = [os.path.basename(f) for f in sorted(glob.glob(par2_pattern))]
         working_dir = os.path.dirname(input_path)
         temp_dir = None
+
+        base_no_ext = os.path.splitext(os.path.basename(input_path))[0]
+        is_rar_volume = input_path.endswith(".rar") and ".part" in base_no_ext
+
+        if is_rar_volume:
+            # Conjunto de volumes: inclui todos os partXX.rar do conjunto
+            set_base = base_no_ext.rsplit(".part", 1)[0]
+            vol_pattern = os.path.join(working_dir, glob.escape(set_base) + ".part*.rar")
+            rar_volumes = sorted(glob.glob(vol_pattern))
+            files_to_upload = [os.path.basename(v) for v in rar_volumes] if rar_volumes else [os.path.basename(input_path)]
+            base_name = os.path.join(working_dir, set_base)
+        else:
+            files_to_upload = [os.path.basename(input_path)]
+            base_name = os.path.splitext(input_path)[0]
+
+        par2_pattern = glob.escape(base_name) + "*par2*"
+        par2_files = [os.path.basename(f) for f in sorted(glob.glob(par2_pattern))]
 
     if not par2_files:
         print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")

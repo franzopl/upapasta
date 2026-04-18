@@ -239,6 +239,14 @@ class UpaPastaOrchestrator:
             print(f"❌ Erro inesperado ao executar make_rar: {e}")
             return False
 
+    def _par_file_path(self) -> str:
+        """Retorna o caminho esperado do .par2 para self.input_target."""
+        stem = os.path.splitext(self.input_target)[0]
+        # Volumes RAR: "nome.part01" → "nome"
+        if self.input_target.endswith(".rar") and ".part" in stem:
+            stem = stem.rsplit(".part", 1)[0]
+        return stem + ".par2"
+
     def run_makepar(self) -> bool:
         """Executa makepar.py."""
         if not self.input_target:
@@ -250,7 +258,7 @@ class UpaPastaOrchestrator:
             if os.path.isdir(self.input_target):
                 par_path = os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
             else:
-                par_path = os.path.splitext(self.input_target)[0] + ".par2"
+                par_path = self._par_file_path()
             if os.path.exists(par_path):
                 self.par_file = par_path
                 size_mb = os.path.getsize(self.par_file) / (1024 * 1024)
@@ -269,7 +277,7 @@ class UpaPastaOrchestrator:
             if os.path.isdir(self.input_target):
                 self.par_file = os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
             else:
-                self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
+                self.par_file = self._par_file_path()
             print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
             return True
 
@@ -308,7 +316,7 @@ class UpaPastaOrchestrator:
             self.subject = obfuscated_subject
             print(f"✨ Subject da postagem atualizado para nome ofuscado: {self.subject}")
             # O nome do arquivo par2 é baseado no nome original
-            self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
+            self.par_file = self._par_file_path()
             if os.path.exists(self.par_file):
                 return True
             else:
@@ -340,7 +348,7 @@ class UpaPastaOrchestrator:
 
             print("-" * 60)
             # O nome do arquivo par2 é baseado no nome original
-            self.par_file = os.path.splitext(self.input_target)[0] + ".par2"
+            self.par_file = self._par_file_path()
             return True
 
     def run_upload(self) -> bool:

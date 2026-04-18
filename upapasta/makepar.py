@@ -259,17 +259,21 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
         print(f"Erro: '{rar_path}' não é um arquivo nem pasta.")
         return 2
 
-    # Accept either a folder or a single file (not necessarily .rar).
-    # Historically this tool created parity for a .rar; since we now support
-    # direct single-file uploads (e.g. .mkv), we allow single files of any
-    # extension to be processed.
-
     parent = os.path.dirname(rar_path)
     base = os.path.basename(rar_path)
     if is_folder:
         name_no_ext = base
     else:
         name_no_ext = os.path.splitext(base)[0]
+
+    # Quando o arquivo é part01.rar de um conjunto de volumes, usar o nome
+    # base do conjunto para o PAR2 e processar todas as partes.
+    is_rar_volume_set = (not is_folder) and base.endswith(".rar") and ".part" in name_no_ext
+    if is_rar_volume_set:
+        # ex: "nome.part01" → "nome"
+        set_base_name = name_no_ext.rsplit(".part", 1)[0]
+        name_no_ext = set_base_name
+
     out_par2 = os.path.join(parent, name_no_ext + ".par2")
 
     if os.path.exists(out_par2) and not force:
@@ -285,6 +289,12 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
         if not files_to_process:
             print(f"Erro: pasta '{rar_path}' está vazia.")
             return 2
+    elif is_rar_volume_set:
+        # Inclui todos os volumes do conjunto ordenados
+        pattern = os.path.join(parent, glob.escape(name_no_ext) + ".part*.rar")
+        files_to_process = sorted(glob.glob(pattern))
+        if not files_to_process:
+            files_to_process = [rar_path]
     else:
         files_to_process = [rar_path]
 
