@@ -32,36 +32,9 @@ import subprocess
 import sys
 import random
 import string
-import xml.etree.ElementTree as ET
 import re
 
-
-def fix_nzb_subjects(nzb_path: str, file_list: list[str], folder_name: str = None) -> None:
-    """Corrige os subjects no NZB para incluir o caminho relativo do arquivo."""
-    try:
-        tree = ET.parse(nzb_path)
-        root = tree.getroot()
-
-        # Encontrar todos os elementos <file>
-        files = root.findall(".//{http://www.newzbin.com/DTD/2003/nzb}file")
-
-        if len(files) == len(file_list):
-            for i, file_elem in enumerate(files):
-                filename = file_list[i]
-                # Manter subjects dos PAR2 inalterados para reparo funcionar
-                if not filename.lower().endswith('.par2'):
-                    if folder_name and '/' not in filename:
-                        # Para pastas, adicionar prefixo da pasta aos arquivos na raiz
-                        new_subject = f"{folder_name}/{filename}"
-                    else:
-                        new_subject = filename
-                    file_elem.set("subject", new_subject)
-
-        # Salvar o NZB corrigido
-        tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
-        print(f"NZB corrigido: subjects dos arquivos de dados atualizados para preservar estrutura.")
-    except Exception as e:
-        print(f"Aviso: não foi possível corrigir o NZB: {e}")
+from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects
 
 
 def find_nyuu() -> str | None:
@@ -227,88 +200,22 @@ def upload_to_usenet(
     check_delay = env_vars.get("CHECK_DELAY") or os.environ.get("CHECK_DELAY", "5s")
     check_retry_delay = env_vars.get("CHECK_RETRY_DELAY") or os.environ.get("CHECK_RETRY_DELAY", "30s")
     check_post_tries = env_vars.get("CHECK_POST_TRIES") or os.environ.get("CHECK_POST_TRIES", "2")
-    nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
-    if not nzb_out_template:
-        if is_folder and not skip_rar:
-            nzb_out_template = "{filename}_content.nzb"
-        else:
-            nzb_out_template = "{filename}.nzb"
-    # NZB_OVERWRITE environment variable overrides conflict handling behavior.
     nzb_overwrite_env = env_vars.get("NZB_OVERWRITE") or os.environ.get("NZB_OVERWRITE")
     skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
     dump_failed_posts = env_vars.get("DUMP_FAILED_POSTS") or os.environ.get("DUMP_FAILED_POSTS")
     quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
     log_time = env_vars.get("LOG_TIME", "true").lower() in ("true", "1", "yes")
 
-    # Processar template NZB_OUT: substitui {filename} pelo nome da pasta/arquivo
-    nzb_out = None
-    if nzb_out_template:
-        # {filename} é substituído pelo nome base sem extensão
-        # Se ofuscado, usar o nome original para o arquivo NZB
-        if obfuscated_map:
-            if is_folder:
-                # Para pastas, obter o nome original da pasta do mapa
-                obfuscated_basename = os.path.basename(input_path)
-                original_name = obfuscated_map.get(obfuscated_basename)
-                if original_name:
-                    basename = original_name
-                else:
-                    basename = obfuscated_basename
-            else:
-                # Para arquivos, usar o nome original
-                original_name = next(iter(obfuscated_map.values()))
-                basename = os.path.splitext(os.path.basename(original_name))[0]
-        else:
-            basename = os.path.basename(input_path)
-            if not is_folder:
-                # Remove extensão para arquivos
-                basename = os.path.splitext(basename)[0]
-        nzb_out = nzb_out_template.replace("{filename}", basename)
-
-    # Conflict-handling behavior for NZB file collisions (rename | overwrite | fail)
-    nzb_conflict = env_vars.get("NZB_CONFLICT") or os.environ.get("NZB_CONFLICT") or "rename"
-
-    if nzb_overwrite_env is not None:
-        nzb_overwrite = nzb_overwrite_env.lower() in ("true", "1", "yes")
-    else:
-        nzb_overwrite = nzb_conflict == "overwrite"
-
-    # Adicionar opção -o para arquivo NZB se configurado
-    if nzb_out:
-        # Resolve absolute path for nzb_out to perform conflict checks
-        if os.path.isabs(nzb_out):
-            nzb_out_abs = nzb_out
-        else:
-            nzb_out_abs = os.path.join(working_dir, nzb_out)
-
-        # If a file already exists at the NZB path, perform conflict action
-        if os.path.exists(nzb_out_abs):
-            if nzb_conflict == "overwrite":
-                # Allow nyuu to overwrite: preserve current behavior by setting the nzb_overwrite flag
-                nzb_overwrite = True
-                print(f"Aviso: arquivo NZB já existe: {nzb_out_abs} - sobrescrevendo por solicitação (overwrite)")
-            elif nzb_conflict == "fail":
-                print(f"Erro: arquivo NZB já existe: {nzb_out_abs}. Parando por configuração 'fail'.")
-                return 6
-            else:
-                # Default: try to find a non-colliding filename by appending incremental suffix
-                base, ext = os.path.splitext(nzb_out_abs)
-                counter = 1
-                while True:
-                    candidate = f"{base}-{counter}{ext}"
-                    if not os.path.exists(candidate):
-                        break
-                    counter += 1
-                # Update both nzb_out (relative) and nzb_out_abs
-                # If original nzb_out was relative, keep relative variant
-                if os.path.isabs(nzb_out):
-                    nzb_out_abs = candidate
-                    nzb_out = candidate
-                else:
-                    # compute relative candidate path from working_dir
-                    nzb_out = os.path.relpath(candidate, working_dir)
-                    nzb_out_abs = candidate
-                print(f"Aviso: arquivo NZB já existe: {candidate} - usando novo nome (rename)")
+    nzb_out, nzb_out_abs = resolve_nzb_out(
+        input_path, env_vars, is_folder, skip_rar, working_dir, obfuscated_map
+    )
+    nzb_out, nzb_out_abs, nzb_overwrite, ok = handle_nzb_conflict(
+        nzb_out, nzb_out_abs, env_vars, nzb_overwrite_env, working_dir
+    )
+    if not ok:
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        return 6
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print("Erro: credenciais incompletas. Configure .env com:")
@@ -423,9 +330,9 @@ def upload_to_usenet(
         subprocess.run(cmd, check=True, cwd=working_dir)
 
         # Corrigir NZB para preservar estrutura de pastas
-        if nzb_out and os.path.exists(nzb_out) and is_folder:
+        if nzb_out_abs and os.path.exists(nzb_out_abs) and is_folder:
             folder_name = os.path.basename(input_path)
-            fix_nzb_subjects(nzb_out, files_to_upload + par2_files, folder_name)
+            fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_files, folder_name)
 
         # Limpar diretório temporário se foi criado
         if temp_dir and os.path.exists(temp_dir):
