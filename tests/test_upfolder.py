@@ -35,7 +35,7 @@ def test_upload_to_usenet_dry_run_single_file(monkeypatch, tmp_path):
 
     # Monkeypatch find_mediainfo and subprocess.run to return fake mediainfo output for capture
     import upapasta.upfolder as upfolder
-    monkeypatch.setattr(upfolder, "find_mediainfo", lambda: "/usr/bin/mediainfo")
+    import upapasta.nfo as _nfo_mod; monkeypatch.setattr(_nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
     class DummyCompletedProcess:
         def __init__(self, stdout: str = ""):
             self.stdout = stdout
@@ -86,7 +86,7 @@ def test_upload_single_file_generates_nfo(monkeypatch, tmp_path):
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
     # Monkeypatch find_mediainfo and subprocess.run to return fake mediainfo output
-    monkeypatch.setattr(upfolder, "find_mediainfo", lambda: "/usr/bin/mediainfo")
+    import upapasta.nfo as _nfo_mod; monkeypatch.setattr(_nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
 
     class DummyCompletedProcess:
         def __init__(self, stdout: str = ""):
@@ -144,7 +144,7 @@ def test_upload_single_file_generates_nfo_in_nzb_out_dir(monkeypatch, tmp_path):
 
     import upapasta.upfolder as upfolder
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
-    monkeypatch.setattr(upfolder, "find_mediainfo", lambda: "/usr/bin/mediainfo")
+    import upapasta.nfo as _nfo_mod; monkeypatch.setattr(_nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
 
     class DummyCompletedProcess:
         def __init__(self, stdout: str = ""):
@@ -182,7 +182,7 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
 
     import upapasta.upfolder as upfolder
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
-    monkeypatch.setattr(upfolder, "find_mediainfo", lambda: "/usr/bin/mediainfo")
+    import upapasta.nfo as _nfo_mod; monkeypatch.setattr(_nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
 
     # Capture the args passed to nyuu (the non-mediainfo call)
     captured = {}
@@ -360,7 +360,7 @@ def test_upload_folder_skip_rar_nzb_naming(monkeypatch, tmp_path):
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
     # Monkeypatch find_mediainfo and subprocess.run to return fake mediainfo output
-    monkeypatch.setattr(upfolder, "find_mediainfo", lambda: "/usr/bin/mediainfo")
+    import upapasta.nfo as _nfo_mod; monkeypatch.setattr(_nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
     class DummyCompletedProcess:
         def __init__(self, stdout: str = ""):
             self.stdout = stdout
@@ -407,7 +407,7 @@ def test_upload_folder_skip_rar_nzb_naming(monkeypatch, tmp_path):
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
     # Monkeypatch find_mediainfo and subprocess.run to return fake mediainfo output
-    monkeypatch.setattr(upfolder, "find_mediainfo", lambda: "/usr/bin/mediainfo")
+    import upapasta.nfo as _nfo_mod; monkeypatch.setattr(_nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
     class DummyCompletedProcess:
         def __init__(self, stdout: str = ""):
             self.stdout = stdout

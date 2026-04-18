@@ -46,15 +46,6 @@ def find_nyuu() -> str | None:
     return None
 
 
-def find_mediainfo() -> str | None:
-    """Procura executável 'mediainfo' no PATH."""
-    for cmd in ("mediainfo", "mediainfo.exe"):
-        path = shutil.which(cmd)
-        if path:
-            return path
-    return None
-
-
 def parse_args():
     p = argparse.ArgumentParser(
         description="Upload de .rar + .par2 para Usenet com nyuu"
