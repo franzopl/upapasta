@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.3 - 2026-04-18
+- Fix: NFO and NZB filenames now match the source folder name exactly (no _content suffix)
+- Fix: NZB basename for RAR volume sets strips the .partXX suffix correctly
+
 ## 0.6.2 - 2026-04-18
 - Fix: PAR2 generation now covers all RAR volumes in a set (not just part01.rar)
 - Fix: upload now sends all RAR volume parts + their PAR2 files
