@@ -37,6 +37,7 @@ Retornos:
 """
 
 import argparse
+import glob
 import os
 import shutil
 import subprocess
@@ -219,13 +220,17 @@ class UpaPastaOrchestrator:
             rc = make_rar(str(self.input_path), self.force, threads=self.rar_threads)
             if rc == 0:
                 print("-" * 60)
-                self.rar_file = str(self.input_path.parent / f"{self.input_path.name}.rar")
-                self.input_target = self.rar_file
-                if os.path.exists(self.rar_file):
-                    return True
+                base_rar = str(self.input_path.parent / f"{self.input_path.name}.rar")
+                part1 = str(self.input_path.parent / f"{self.input_path.name}.part01.rar")
+                if os.path.exists(base_rar):
+                    self.rar_file = base_rar
+                elif os.path.exists(part1):
+                    self.rar_file = part1
                 else:
                     print("❌ Erro: Arquivo RAR não foi encontrado após a execução bem-sucedida.")
                     return False
+                self.input_target = self.rar_file
+                return True
             else:
                 print("-" * 60)
                 print(f"\n❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})")
@@ -384,21 +389,31 @@ class UpaPastaOrchestrator:
 
         files_to_delete = []
 
-        if self.rar_file and os.path.exists(self.rar_file):
-            files_to_delete.append(self.rar_file)
+        if self.rar_file:
+            rar_base = os.path.splitext(self.rar_file)[0]
+            # remove .partXX suffix se presente para obter o nome base do conjunto
+            if rar_base.endswith(tuple(f".part{n:02d}" for n in range(1, 100))):
+                rar_base = rar_base.rsplit(".", 1)[0]
+            rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
+            if rar_volumes:
+                files_to_delete.extend(rar_volumes)
+            elif os.path.exists(self.rar_file):
+                files_to_delete.append(self.rar_file)
 
         if self.par_file and os.path.exists(self.par_file):
             files_to_delete.append(self.par_file)
 
         if self.rar_file:
-            base_name = os.path.splitext(self.rar_file)[0]
+            rar_stem = os.path.splitext(self.rar_file)[0]
+            if rar_stem.endswith(tuple(f".part{n:02d}" for n in range(1, 100))):
+                rar_stem = rar_stem.rsplit(".", 1)[0]
+            base_name = rar_stem
         elif self.par_file:
             base_name = os.path.splitext(self.par_file)[0]
         else:
             base_name = None
 
         if base_name:
-            import glob
             par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
             files_to_delete.extend(par_volumes)
 
@@ -529,13 +544,19 @@ class UpaPastaOrchestrator:
                 base_name = self.input_target
             else:
                 try:
-                    stats["rar_size_mb"] = os.path.getsize(self.input_target) / (1024 * 1024)
-                    base_name = os.path.splitext(self.input_target)[0]
+                    rar_stem = os.path.splitext(self.input_target)[0]
+                    if rar_stem.endswith(tuple(f".part{n:02d}" for n in range(1, 100))):
+                        rar_stem = rar_stem.rsplit(".", 1)[0]
+                    rar_vols = glob.glob(glob.escape(rar_stem) + ".part*.rar")
+                    if rar_vols:
+                        stats["rar_size_mb"] = sum(os.path.getsize(f) for f in rar_vols) / (1024 * 1024)
+                    else:
+                        stats["rar_size_mb"] = os.path.getsize(self.input_target) / (1024 * 1024)
+                    base_name = rar_stem
                 except OSError:
                     stats["rar_size_mb"] = 0.0
                     base_name = os.path.splitext(self.input_target)[0]
-            
-            import glob
+
             par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
             stats["par2_file_count"] = len(par_volumes)
             total_par_size_bytes = 0
