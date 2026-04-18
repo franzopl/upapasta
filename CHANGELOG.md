@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.4 - 2026-04-18
+- Feat: new NFO banner — clean ASCII art "UPAPASTA" with border, fits 80 columns, pure ASCII (compatible with all NFO viewers)
+
 ## 0.6.3 - 2026-04-18
 - Fix: NFO and NZB filenames now match the source folder name exactly (no _content suffix)
 - Fix: NZB basename for RAR volume sets strips the .partXX suffix correctly
