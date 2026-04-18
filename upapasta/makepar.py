@@ -79,7 +79,6 @@ def obfuscate_and_par(
     obfuscated_path = os.path.join(parent_dir, obfuscated_name)
 
     print(f"Ofuscando: {os.path.basename(input_path)} -> {obfuscated_name} (criando cópia)")
-    print(f"DEBUG: obfuscate_and_par() - input_path antes da cópia: {input_path}")
 
     try:
         # Copiar em vez de renomear para preservar o original
@@ -87,8 +86,6 @@ def obfuscate_and_par(
             shutil.copytree(input_path, obfuscated_path)
         else:
             shutil.copy2(input_path, obfuscated_path)
-        print(f"DEBUG: obfuscate_and_par() - input_path após cópia (deve existir): {input_path} -> {os.path.exists(input_path)}")
-        print(f"DEBUG: obfuscate_and_par() - obfuscated_path após cópia (deve existir): {obfuscated_path} -> {os.path.exists(obfuscated_path)}")
     except OSError as e:
         print(f"Erro ao criar a cópia ofuscada: {e}")
         return 1, None

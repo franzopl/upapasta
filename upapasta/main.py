@@ -389,28 +389,21 @@ class UpaPastaOrchestrator:
         files_to_delete = []
 
         if self.rar_file:
-            rar_base = os.path.splitext(self.rar_file)[0]
-            # remove .partXXX suffix (qualquer qtd de dígitos) para obter nome base do conjunto
-            if re.search(r'\.part\d+$', rar_base):
-                rar_base = re.sub(r'\.part\d+$', '', rar_base)
+            rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
             rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
             if rar_volumes:
                 files_to_delete.extend(rar_volumes)
             elif os.path.exists(self.rar_file):
                 files_to_delete.append(self.rar_file)
+            base_name = rar_base
+        else:
+            base_name = None
 
         if self.par_file and os.path.exists(self.par_file):
             files_to_delete.append(self.par_file)
 
-        if self.rar_file:
-            rar_stem = os.path.splitext(self.rar_file)[0]
-            if re.search(r'\.part\d+$', rar_stem):
-                rar_stem = re.sub(r'\.part\d+$', '', rar_stem)
-            base_name = rar_stem
-        elif self.par_file:
+        if base_name is None and self.par_file:
             base_name = os.path.splitext(self.par_file)[0]
-        else:
-            base_name = None
 
         if base_name:
             par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
@@ -469,9 +462,6 @@ class UpaPastaOrchestrator:
         }
         total_start_time = time.time()
         
-        # DEBUG: Original input_path
-        print(f"DEBUG: UpaPastaOrchestrator.run() - Original input_path: {self.input_path}")
-        
         # Carrega e valida as credenciais se o upload não for pulado
         if not self.skip_upload:
             self.env_vars = check_or_prompt_credentials(self.env_file)
@@ -496,7 +486,7 @@ class UpaPastaOrchestrator:
             return 1
 
         # Etapa 0: Gerar .nfo (antes de qualquer processamento para capturar estado original)
-        if not self.skip_upload:
+        if not self.skip_upload and not self.dry_run:
             if not self.run_generate_nfo():
                 print("Atenção: falha ao gerar .nfo, mas continuando...")
 

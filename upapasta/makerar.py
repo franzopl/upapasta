@@ -238,7 +238,7 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None) 
 			return 5, None
 	except Exception as e:
 		print("Erro ao executar 'rar':", e)
-		return 5
+		return 5, None
 
 
 def parse_args():
