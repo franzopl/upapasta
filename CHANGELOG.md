@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.8.0 - 2026-04-19
+- Feat: ofuscação real — RAR/PAR2 são renomeados fisicamente no disco com nomes aleatórios de 12 caracteres (`--obfuscate`); NZB salvo com o nome original preservado
+- Feat: suporte a volume sets — todos os arquivos `nome.part*.rar` são renomeados atomicamente para `random.part*.rar`; PAR2 gerado depois da renomeação
+- Feat: senha RAR automática — com `--obfuscate`, senha segura de 16 caracteres gerada via `secrets` e aplicada com `-hp` (cifra conteúdo E nomes internos)
+- Feat: `--password SENHA` para senha RAR customizável (funciona com ou sem `--obfuscate`)
+- Feat: senha injetada no `.nzb` como `<meta type="password">` para extração automática por SABnzbd, NZBGet e outros clientes
+- Feat: senha e nome ofuscado exibidos no cabeçalho e no sumário final do workflow
+- Fix: revert automático da renomeação em caso de falha na geração do PAR2
+
 ## 0.7.0 - 2026-04-18
 - Feat: logging estruturado com `setup_logging()` e flag `--verbose` para nível DEBUG
 - Feat: `--par-slice-size` para override manual do tamanho de slice PAR2

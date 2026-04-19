@@ -35,7 +35,7 @@ import string
 import re
 import xml.etree.ElementTree as ET
 
-from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects
+from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects, inject_nzb_password
 
 
 def _verify_nzb(nzb_path: str) -> bool:
@@ -128,6 +128,7 @@ def upload_to_usenet(
     obfuscated_map: dict[str, str] | None = None,
     upload_timeout: int | None = None,
     upload_retries: int = 0,
+    password: str | None = None,
 ) -> int:
     """Upload de arquivos para Usenet usando nyuu."""
 
@@ -389,6 +390,11 @@ def upload_to_usenet(
     if nzb_out_abs and os.path.exists(nzb_out_abs) and is_folder:
         folder_name = os.path.basename(input_path)
         fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_files, folder_name)
+
+    # Injetar senha no NZB para extração automática pelos clientes
+    if nzb_out_abs and os.path.exists(nzb_out_abs) and password:
+        inject_nzb_password(nzb_out_abs, password)
+        print(f"🔑 Senha injetada no NZB.")
 
     # Verificar integridade do NZB gerado
     if nzb_out_abs:

@@ -118,6 +118,33 @@ def handle_nzb_conflict(
     return nzb_out, nzb_out_abs, nzb_overwrite, True
 
 
+def inject_nzb_password(nzb_path: str, password: str) -> None:
+    """Injeta senha RAR no <head> do NZB para extração automática pelos clientes."""
+    try:
+        ns = "http://www.newzbin.com/DTD/2003/nzb"
+        ET.register_namespace("", ns)
+        tree = ET.parse(nzb_path)
+        root = tree.getroot()
+
+        head = root.find(f"{{{ns}}}head") or root.find("head")
+        if head is None:
+            head = ET.Element(f"{{{ns}}}head")
+            root.insert(0, head)
+
+        # Remove senha anterior se existir
+        for meta in list(head):
+            if meta.get("type") == "password":
+                head.remove(meta)
+
+        meta_elem = ET.SubElement(head, f"{{{ns}}}meta")
+        meta_elem.set("type", "password")
+        meta_elem.text = password
+
+        tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
+    except Exception as e:
+        print(f"Aviso: não foi possível injetar senha no NZB: {e}")
+
+
 def fix_nzb_subjects(nzb_path: str, file_list: list[str], folder_name: str | None = None) -> None:
     """Corrige os subjects no NZB para incluir o caminho relativo do arquivo."""
     try:

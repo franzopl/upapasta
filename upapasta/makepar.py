@@ -54,52 +54,95 @@ def obfuscate_and_par(
     post_size: str | None = None,
     threads: int | None = None,
     profile: str = DEFAULT_PROFILE,
-) -> tuple[int, str | None]:
+    slice_size: str | None = None,
+) -> tuple[int, str | None, dict[str, str]]:
     """
-    Ofusca o nome do arquivo/pasta e depois gera a paridade.
+    Renomeia fisicamente o arquivo/pasta para nome aleatório e gera paridade.
 
-    Retorna uma tupla: (código de retorno, novo_caminho_ofuscado).
+    Retorna (rc, novo_caminho, obfuscated_map) onde obfuscated_map é
+    {base_ofuscada: base_original} — usado para nomear o NZB corretamente.
     """
     input_path = os.path.abspath(input_path)
     if not os.path.exists(input_path):
         print(f"Erro: '{input_path}' não existe.")
-        return 2, None
+        return 2, None, {}
 
     parent_dir = os.path.dirname(input_path)
     is_folder = os.path.isdir(input_path)
-    
-    # Manter a extensão original se for um arquivo
-    ext = ""
-    if not is_folder:
-        _, ext = os.path.splitext(input_path)
+    base = os.path.basename(input_path)
+    random_base = generate_random_name()
+    obfuscated_map: dict[str, str] = {}
 
-    # Gerar novo nome aleatório
-    random_name = generate_random_name()
-    obfuscated_name = random_name + ext
-    obfuscated_path = os.path.join(parent_dir, obfuscated_name)
-
-    print(f"Ofuscando: {os.path.basename(input_path)} -> {obfuscated_name}")
-
-    try:
-        os.rename(input_path, obfuscated_path)
-    except OSError:
-        # Cross-device move: fall back to copy+delete
+    # ── Pasta ────────────────────────────────────────────────────────────────
+    if is_folder:
+        obfuscated_path = os.path.join(parent_dir, random_base)
+        print(f"Ofuscando pasta: {base} -> {random_base}")
         try:
-            if is_folder:
+            os.rename(input_path, obfuscated_path)
+        except OSError:
+            try:
                 shutil.copytree(input_path, obfuscated_path)
                 shutil.rmtree(input_path)
-            else:
-                shutil.copy2(input_path, obfuscated_path)
-                os.remove(input_path)
-        except OSError as e:
-            print(f"Erro ao ofuscar arquivo: {e}")
-            if os.path.exists(obfuscated_path):
-                shutil.rmtree(obfuscated_path) if is_folder else os.remove(obfuscated_path)
-            return 1, None
+            except OSError as e:
+                print(f"Erro ao ofuscar pasta: {e}")
+                return 1, None, {}
+        obfuscated_map[random_base] = base
+        par_input = obfuscated_path
 
-    # Chamar make_parity no novo caminho ofuscado
+    else:
+        name_no_ext = os.path.splitext(base)[0]
+        is_rar_vol_set = base.endswith(".rar") and ".part" in name_no_ext
+
+        # ── Conjunto de volumes RAR ───────────────────────────────────────────
+        if is_rar_vol_set:
+            original_base = name_no_ext.rsplit(".part", 1)[0]
+            vol_pattern = os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar")
+            volumes = sorted(glob.glob(vol_pattern)) or [input_path]
+
+            print(f"Ofuscando {len(volumes)} volumes RAR: {original_base}.part*.rar -> {random_base}.part*.rar")
+            renamed: list[tuple[str, str]] = []
+            for vol in volumes:
+                vol_b = os.path.basename(vol)
+                suffix = vol_b[len(original_base):]   # ex: ".part001.rar"
+                new_path = os.path.join(parent_dir, random_base + suffix)
+                try:
+                    os.rename(vol, new_path)
+                    renamed.append((vol, new_path))
+                except OSError as e:
+                    print(f"Erro ao renomear {vol_b}: {e}")
+                    for orig, new in renamed:
+                        try:
+                            os.rename(new, orig)
+                        except OSError:
+                            pass
+                    return 1, None, {}
+
+            obfuscated_map[random_base] = original_base
+            first_suffix = os.path.basename(volumes[0])[len(original_base):]
+            obfuscated_path = os.path.join(parent_dir, random_base + first_suffix)
+            par_input = obfuscated_path
+
+        # ── Arquivo único ─────────────────────────────────────────────────────
+        else:
+            _, ext = os.path.splitext(base)
+            obfuscated_name = random_base + ext
+            obfuscated_path = os.path.join(parent_dir, obfuscated_name)
+            print(f"Ofuscando: {base} -> {obfuscated_name}")
+            try:
+                os.rename(input_path, obfuscated_path)
+            except OSError:
+                try:
+                    shutil.copy2(input_path, obfuscated_path)
+                    os.remove(input_path)
+                except OSError as e:
+                    print(f"Erro ao ofuscar arquivo: {e}")
+                    return 1, None, {}
+            obfuscated_map[random_base] = name_no_ext
+            par_input = obfuscated_path
+
+    # ── Gerar paridade nos arquivos já renomeados ─────────────────────────────
     rc = make_parity(
-        obfuscated_path,
+        par_input,
         redundancy=redundancy,
         force=force,
         backend=backend,
@@ -107,18 +150,33 @@ def obfuscate_and_par(
         post_size=post_size,
         threads=threads,
         profile=profile,
+        slice_size=slice_size,
     )
 
     if rc == 0:
-        return 0, obfuscated_path
-    else:
-        # Reverter renomeação para não deixar o usuário sem o arquivo original
-        print("Erro ao gerar paridade para o arquivo ofuscado. Revertendo renomeação...")
+        return 0, obfuscated_path, obfuscated_map
+
+    # Tentar reverter renomeação
+    print("Erro ao gerar paridade. Revertendo ofuscação...")
+    if is_folder:
         try:
             os.rename(obfuscated_path, input_path)
-        except OSError as e:
-            print(f"Falha ao reverter renomeação: {e}")
-        return rc, None
+        except OSError:
+            pass
+    elif is_rar_vol_set:
+        orig_base_name = list(obfuscated_map.values())[0]
+        for vol in sorted(glob.glob(os.path.join(parent_dir, glob.escape(random_base) + ".part*.rar"))):
+            suffix = os.path.basename(vol)[len(random_base):]
+            try:
+                os.rename(vol, os.path.join(parent_dir, orig_base_name + suffix))
+            except OSError:
+                pass
+    else:
+        try:
+            os.rename(obfuscated_path, input_path)
+        except OSError:
+            pass
+    return rc, None, {}
 
 
 def find_par2():
@@ -463,8 +521,14 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
         else:
             print(f"Erro: '{chosen}' retornou código {rc}.")
             return 5
-    except Exception as e:
-        print(f"Erro ao executar '{chosen}':", e)
+    except FileNotFoundError:
+        print(f"Erro: binário '{chosen}' não encontrado no PATH.")
+        return 4
+    except PermissionError as e:
+        print(f"Erro de permissão ao executar '{chosen}': {e}")
+        return 5
+    except OSError as e:
+        print(f"Erro de I/O ao executar '{chosen}': {e}")
         return 5
 
 

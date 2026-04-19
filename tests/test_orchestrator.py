@@ -25,7 +25,7 @@ def test_run_makerar_uses_generated_rar_path(tmp_path, monkeypatch):
     temp_dir = tmp_path / "Gravity.Falls.S02.720p.DSNP.WEB-DL.AAC2.0.H.264.DUAL-NeX"
     temp_dir.mkdir()
 
-    def fake_make_rar(folder_path, force, threads=None):
+    def fake_make_rar(folder_path, force, threads=None, **kwargs):
         return 0, str(temp_dir / "Gravity.Falls.S02.720p.DSNP.WEB-DL.AAC2.0.H.264.DUAL-NeX.part001.rar")
 
     monkeypatch.setattr('upapasta.main.make_rar', fake_make_rar)

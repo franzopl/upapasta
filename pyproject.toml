@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "upapasta"
-version = "0.7.0"
+version = "0.8.0"
 authors = [
-  { name="Franzopl", email="franzopl@example.com" },
+  { name="Franzopl", email="franzopl@pm.me" },
 ]
 description = "A script to upload folders to Usenet with RAR, PAR2, and nyuu."
 readme = "README.md"

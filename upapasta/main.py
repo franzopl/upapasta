@@ -41,7 +41,9 @@ import glob
 import logging
 import os
 import re
+import secrets
 import shutil
+import string
 import subprocess
 import sys
 import time
@@ -56,15 +58,19 @@ from .upfolder import upload_to_usenet
 logger = logging.getLogger("upapasta")
 
 
-def setup_logging(verbose: bool = False) -> None:
+def setup_logging(verbose: bool = False, log_file: str | None = None) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     handler = logging.StreamHandler()
     handler.setLevel(level)
-    formatter = logging.Formatter("%(levelname)s %(message)s")
-    handler.setFormatter(formatter)
+    handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
     root = logging.getLogger("upapasta")
     root.setLevel(level)
     root.addHandler(handler)
+    if log_file:
+        fh = logging.FileHandler(log_file, encoding="utf-8")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        root.addHandler(fh)
 
 
 def format_time(seconds: int) -> str:
@@ -75,6 +81,58 @@ def format_time(seconds: int) -> str:
     minutes = (seconds % 3600) // 60
     secs = seconds % 60
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+class PhaseBar:
+    """Barra de progresso compacta com 4 fases: RAR → PAR2 → UPLOAD → DONE.
+
+    Imprime uma linha de status sempre que uma fase muda de estado.
+    Compatível com saída de subprocessos — não usa posicionamento de cursor.
+    """
+
+    PHASES = ("RAR", "PAR2", "UPLOAD", "DONE")
+    _ICONS = {"pending": "⬜", "active": "▶ ", "done": "✅", "skipped": "⏭ ", "error": "❌"}
+
+    def __init__(self) -> None:
+        self._state: dict[str, str] = {p: "pending" for p in self.PHASES}
+        self._elapsed: dict[str, float] = {}
+        self._start: dict[str, float] = {}
+
+    def start(self, phase: str) -> None:
+        self._state[phase] = "active"
+        self._start[phase] = time.time()
+        self._render()
+
+    def done(self, phase: str) -> None:
+        if phase in self._start:
+            self._elapsed[phase] = time.time() - self._start[phase]
+        self._state[phase] = "done"
+        self._render()
+
+    def skip(self, phase: str) -> None:
+        self._state[phase] = "skipped"
+
+    def error(self, phase: str) -> None:
+        if phase in self._start:
+            self._elapsed[phase] = time.time() - self._start[phase]
+        self._state[phase] = "error"
+        self._render()
+
+    def _fmt(self, phase: str) -> str:
+        state = self._state[phase]
+        icon = self._ICONS.get(state, "⬜")
+        if state == "done":
+            t = int(self._elapsed.get(phase, 0))
+            return f"[{icon} {phase} {t // 60:02d}:{t % 60:02d}]"
+        if state == "active":
+            return f"[{icon} {phase}...]"
+        if state in ("skipped", "error"):
+            return f"[{icon} {phase}]"
+        return f"[{icon} {phase}]"
+
+    def _render(self) -> None:
+        bar = "  ".join(self._fmt(p) for p in self.PHASES)
+        print(f"\n{bar}")
 
 
 class UpaPastaOrchestrator:
@@ -100,6 +158,7 @@ class UpaPastaOrchestrator:
         par_profile: str = "balanced",
         nzb_conflict: str | None = None,
         obfuscate: bool = False,
+        rar_password: str | None = None,
         par_slice_size: str | None = None,
         upload_timeout: int | None = None,
         upload_retries: int = 0,
@@ -123,6 +182,12 @@ class UpaPastaOrchestrator:
         self.par_profile = par_profile
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
+        self.obfuscated_map: dict[str, str] = {}
+        # Gera senha aleatória quando obfuscate=True e nenhuma senha foi fornecida
+        if obfuscate and rar_password is None:
+            self.rar_password: str | None = self._generate_password()
+        else:
+            self.rar_password = rar_password
         self.par_slice_size = par_slice_size
         self.upload_timeout = upload_timeout
         self.upload_retries = upload_retries
@@ -133,6 +198,11 @@ class UpaPastaOrchestrator:
         # the original folder/file or the rar file created for upload.
         self.input_target: str | None = None
         self.env_vars: dict = {}
+
+    @staticmethod
+    def _generate_password(length: int = 16) -> str:
+        chars = string.ascii_letters + string.digits
+        return "".join(secrets.choice(chars) for _ in range(length))
 
     def validate(self) -> bool:
         """Valida entrada e ambiente."""
@@ -149,7 +219,6 @@ class UpaPastaOrchestrator:
 
     def _resolve_nfo_path(self) -> tuple[str, str]:
         """Retorna (nfo_path_absoluto, nfo_dir) onde o .nfo deve ser salvo."""
-        input_path = str(self.input_path)
         is_folder = self.input_path.is_dir()
 
         env_vars = self.env_vars.copy()
@@ -158,9 +227,9 @@ class UpaPastaOrchestrator:
 
         nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
 
-        basename = os.path.basename(input_path)
+        basename = self.input_path.name
         if not is_folder:
-            basename = os.path.splitext(basename)[0]
+            basename = self.input_path.stem
         nzb_filename = nzb_out_template.replace("{filename}", basename)
 
         if os.path.isabs(nzb_filename):
@@ -176,7 +245,6 @@ class UpaPastaOrchestrator:
         """Gera arquivo .nfo baseado na entrada original."""
         from .nfo import generate_nfo_single_file, generate_nfo_folder
 
-        input_path = str(self.input_path)
         is_folder = self.input_path.is_dir()
 
         env_vars = self.env_vars.copy()
@@ -188,17 +256,17 @@ class UpaPastaOrchestrator:
 
         try:
             os.makedirs(nzb_dir, exist_ok=True)
-        except Exception:
+        except OSError:
             pass
 
         if not is_folder:
-            ok = generate_nfo_single_file(input_path, nfo_path)
+            ok = generate_nfo_single_file(str(self.input_path), nfo_path)
             if ok:
                 print(f"  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nzb_dir})")
             return ok
         else:
             banner = env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
-            ok = generate_nfo_folder(input_path, nfo_path, banner=banner)
+            ok = generate_nfo_folder(str(self.input_path), nfo_path, banner=banner)
             if ok:
                 print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nzb_dir})")
             return ok
@@ -238,7 +306,7 @@ class UpaPastaOrchestrator:
         print("-" * 60)
 
         try:
-            rc, generated_rar = make_rar(str(self.input_path), self.force, threads=self.rar_threads)
+            rc, generated_rar = make_rar(str(self.input_path), self.force, threads=self.rar_threads, password=self.rar_password)
             if rc == 0 and generated_rar:
                 print("-" * 60)
                 self.rar_file = generated_rar
@@ -301,14 +369,21 @@ class UpaPastaOrchestrator:
             return True
 
         if self.obfuscate:
-            print("🔐 Gerando paridade com ofuscação no subject...")
+            print("🔐 Ofuscando arquivos e gerando paridade...")
             print("-" * 60)
 
+            if self.dry_run:
+                obf_name = generate_random_name()
+                print(f"[DRY-RUN] Renomearia para: {obf_name}")
+                self.subject = obf_name
+                self.par_file = self._par_file_path()
+                return True
+
             try:
-                rc = make_parity(
+                rc, obfuscated_path, obf_map = obfuscate_and_par(
                     self.input_target,
                     redundancy=self.redundancy,
-                    force=True,  # Sempre forçar para ofuscação, pois subject muda
+                    force=True,
                     backend=self.backend,
                     usenet=True,
                     post_size=self.post_size,
@@ -328,25 +403,29 @@ class UpaPastaOrchestrator:
 
             if rc != 0:
                 print("-" * 60)
-                print(f"\n❌ Erro ao gerar paridade (código {rc}).")
+                print(f"\n❌ Erro ao ofuscar/gerar paridade (código {rc}).")
                 return False
 
             print("-" * 60)
-            # Ofuscar apenas o subject
-            base_name = os.path.basename(self.input_target)
-            if self.input_path.is_file():
-                name, ext = os.path.splitext(base_name)
-                obfuscated_subject = generate_random_name() + ext
-            else:
-                obfuscated_subject = generate_random_name()
-            self.subject = obfuscated_subject
-            print(f"✨ Subject da postagem atualizado para nome ofuscado: {self.subject}")
-            # O nome do arquivo par2 é baseado no nome original
+
+            # Atualiza caminhos para os nomes ofuscados
+            self.obfuscated_map = obf_map
+            self.input_target = obfuscated_path
+            if self.rar_file:
+                self.rar_file = obfuscated_path
+
+            # Subject = base name ofuscado (sem extensão e sem .partNNN)
+            obf_basename = os.path.basename(obfuscated_path)
+            obf_base_no_ext = re.sub(r'\.part\d+\.rar$', '', obf_basename)
+            obf_base_no_ext = re.sub(r'\.rar$', '', obf_base_no_ext)
+            self.subject = obf_base_no_ext
+            print(f"✨ Subject ofuscado: {self.subject}")
+
             self.par_file = self._par_file_path()
             if os.path.exists(self.par_file):
                 return True
             else:
-                print("❌ Erro: Arquivo de paridade não foi encontrado.")
+                print("❌ Erro: Arquivo de paridade não encontrado após ofuscação.")
                 return False
         else:
             print(f"🔐 Gerando paridade (perfil: {self.par_profile})...")
@@ -412,8 +491,10 @@ class UpaPastaOrchestrator:
                 subject=self.subject,
                 group=self.group,
                 skip_rar=self.skip_rar,
+                obfuscated_map=self.obfuscated_map or None,
                 upload_timeout=self.upload_timeout,
                 upload_retries=self.upload_retries,
+                password=self.rar_password,
             )
             return rc == 0
         except FileNotFoundError as e:
@@ -436,28 +517,31 @@ class UpaPastaOrchestrator:
                 return
             print("\n🧹 Limpando arquivos temporários...")
 
-        files_to_delete = []
+        candidates: list[str] = []
 
         if self.rar_file:
+            # Strip .partNNN suffix to get the base name for glob
             rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
             rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
             if rar_volumes:
-                files_to_delete.extend(rar_volumes)
+                candidates.extend(rar_volumes)
             elif os.path.exists(self.rar_file):
-                files_to_delete.append(self.rar_file)
-            base_name = rar_base
+                candidates.append(self.rar_file)
+            base_name: str | None = rar_base
         else:
             base_name = None
-
-        if self.par_file and os.path.exists(self.par_file):
-            files_to_delete.append(self.par_file)
 
         if base_name is None and self.par_file:
             base_name = os.path.splitext(self.par_file)[0]
 
         if base_name:
-            par_volumes = glob.glob(glob.escape(base_name) + ".vol*.par2")
-            files_to_delete.extend(par_volumes)
+            # Captura tanto o índice (.par2) quanto volumes (.vol*.par2) em uma passada
+            candidates.extend(glob.glob(glob.escape(base_name) + "*.par2"))
+        elif self.par_file and os.path.exists(self.par_file):
+            candidates.append(self.par_file)
+
+        # Deduplica preservando ordem
+        files_to_delete = list(dict.fromkeys(candidates))
 
         deleted_count = 0
         for file_path in files_to_delete:
@@ -502,21 +586,24 @@ class UpaPastaOrchestrator:
 
     def run(self) -> int:
         """Executa o workflow completo."""
-        
-        # --- Timers e stats ---
-        timings = {
-            "total": 0.0, "rar": 0.0, "par": 0.0, "upload": 0.0
-        }
-        stats = {
-            "rar_size_mb": 0.0, "par2_size_mb": 0.0, "par2_file_count": 0
-        }
-        total_start_time = time.time()
-        
-        # Carrega e valida as credenciais se o upload não for pulado
+
+        stats = {"rar_size_mb": 0.0, "par2_size_mb": 0.0, "par2_file_count": 0}
+        total_start = time.time()
+
+        bar = PhaseBar()
+        # Fases puladas não exibem temporizador — marca antes de renderizar
+        if self.skip_rar or self.input_path.is_file():
+            bar.skip("RAR")
+        if self.skip_par:
+            bar.skip("PAR2")
+        if self.skip_upload:
+            bar.skip("UPLOAD")
+
+        # Carrega credenciais antes de exibir o cabeçalho
         if not self.skip_upload:
             self.env_vars = check_or_prompt_credentials(self.env_file)
             if not self.env_vars:
-                return 3  # Erro na obtenção de credenciais
+                return 3
 
         print("\n" + "=" * 60)
         print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
@@ -525,53 +612,58 @@ class UpaPastaOrchestrator:
         print(f"🎯 Perfil PAR2: {self.par_profile}")
         print(f"📊 Post-size:  {self.post_size or '(do perfil)'}")
         print(f"✉️  Subject:    {self.subject}")
-        print(f"⚡ Threads RAR: {self.rar_threads}")
-        print(f"⚡ Threads PAR: {self.par_threads}")
+        print(f"⚡ Threads RAR: {self.rar_threads}  PAR: {self.par_threads}")
+        if self.obfuscate:
+            print(f"🔒 Ofuscação: ativada")
+            if self.rar_password:
+                print(f"🔑 Senha RAR:  {self.rar_password}")
         if self.dry_run:
             print("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado")
-        print()
 
-        # Valida ambiente
+        # Estado inicial das fases
+        bar._render()
+
         if not self.validate():
             return 1
 
-        # Etapa 0: Gerar .nfo (antes de qualquer processamento para capturar estado original)
+        # Etapa 0: NFO
         if not self.skip_upload and not self.dry_run:
             if not self.run_generate_nfo():
                 print("Atenção: falha ao gerar .nfo, mas continuando...")
 
-        # Verificar conflito de NZB antecipadamente (antes de qualquer processamento)
         if not self.check_nzb_conflict_early():
-            return 3  # Mesmo código de erro do upload
+            return 3
 
-        # Etapa 1: Criar RAR
-        if not self.skip_rar:
-            step_start_time = time.time()
+        # ── Etapa 1: RAR ────────────────────────────────────────────────────
+        if not self.skip_rar and not self.input_path.is_file():
+            bar.start("RAR")
+            if not self.run_makerar():
+                bar.error("RAR")
+                self._cleanup_on_error()
+                return 1
+            bar.done("RAR")
+        else:
+            # skip ou single-file: apenas valida
             if not self.run_makerar():
                 self._cleanup_on_error()
                 return 1
-            timings["rar"] = time.time() - step_start_time
-        else:
-            if not self.run_makerar():  # tenta pular, mas valida existência
-                self._cleanup_on_error()
-                return 1
 
-        # Etapa 2: Gerar paridade
+        # ── Etapa 2: PAR2 ───────────────────────────────────────────────────
         if not self.skip_par:
-            step_start_time = time.time()
+            bar.start("PAR2")
+            if not self.run_makepar():
+                bar.error("PAR2")
+                self._cleanup_on_error()
+                return 2
+            bar.done("PAR2")
+        else:
             if not self.run_makepar():
                 self._cleanup_on_error()
                 return 2
-            timings["par"] = time.time() - step_start_time
-        else:
-            if not self.run_makepar():  # tenta pular, mas valida existência
-                self._cleanup_on_error()
-                return 2
 
-        # Coletar informações dos arquivos ANTES do upload/cleanup
+        # Coletar tamanhos ANTES do upload/cleanup
         if self.input_target and os.path.exists(self.input_target):
             if os.path.isdir(self.input_target):
-                # Calcular tamanho total da pasta
                 total_size_bytes = 0
                 for root, dirs, files in os.walk(self.input_target):
                     for file in files:
@@ -598,70 +690,58 @@ class UpaPastaOrchestrator:
 
             par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
             stats["par2_file_count"] = len(par_volumes)
-            total_par_size_bytes = 0
-            for f in par_volumes:
-                try:
-                    total_par_size_bytes += os.path.getsize(f)
-                except OSError:
-                    pass
-            stats["par2_size_mb"] = total_par_size_bytes / (1024 * 1024)
+            stats["par2_size_mb"] = sum(
+                os.path.getsize(f) for f in par_volumes if os.path.exists(f)
+            ) / (1024 * 1024)
 
-        # Etapa 3: Upload
+        # ── Etapa 3: Upload ──────────────────────────────────────────────────
         if not self.skip_upload:
-            step_start_time = time.time()
+            bar.start("UPLOAD")
             if not self.run_upload():
+                bar.error("UPLOAD")
                 self._cleanup_on_error()
                 return 3
-            timings["upload"] = time.time() - step_start_time
-            # Limpar arquivos após upload bem-sucedido
+            bar.done("UPLOAD")
             self.cleanup()
         else:
             print("\n⏭️  [--skip-upload] Upload foi pulado.")
 
-        timings["total"] = time.time() - total_start_time
-        
-        # --- SUMÁRIO FINAL ---
-        print("\n\n" + "=" * 60)
+        total_elapsed = time.time() - total_start
+        bar.done("DONE")
+
+        # ── Sumário final ────────────────────────────────────────────────────
+        print("=" * 60)
         print("🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉")
         print("=" * 60)
-        
+
         print("\n📊 RESUMO DA OPERAÇÃO:")
         print("-" * 25)
         print(f"  » Entrada de Origem: {self.input_path.name}")
+        if self.obfuscate:
+            print(f"  » Nome Ofuscado:    {self.subject}")
+        if self.rar_password:
+            print(f"  » Senha RAR:        {self.rar_password}")
         if not self.skip_upload:
-            # Mostra o grupo do argumento, ou do .env, ou um fallback
             group_from_env = self.env_vars.get("USENET_GROUP")
             display_group = self.group or group_from_env or "(Não especificado)"
             print(f"  » Subject da Postagem: {self.subject}")
             print(f"  » Grupo Usenet: {display_group}")
 
-        print("\n⏱️ ESTATÍSTICAS DE TEMPO:")
-        print("-" * 25)
-        if not self.skip_rar:
-            print(f"  » Tempo para criar RAR:    {format_time(int(timings['rar']))}")
-        print(f"  » Tempo para gerar PAR2:   {format_time(int(timings['par']))}")
-        if not self.skip_upload:
-            print(f"  » Tempo de Upload:         {format_time(int(timings['upload']))}")
-        print("-" * 25)
-        print(f"  » Tempo Total:             {format_time(int(timings['total']))}")
-
         print("\n📦 ARQUIVOS GERADOS:")
         print("-" * 25)
         if stats["rar_size_mb"] > 0:
             if self.rar_file and os.path.exists(self.rar_file):
-                print(f"  » Arquivo RAR: {os.path.basename(self.rar_file)} ({stats['rar_size_mb']:.2f} MB)")
+                print(f"  » RAR: {os.path.basename(self.rar_file)} ({stats['rar_size_mb']:.2f} MB)")
             elif os.path.isdir(self.input_path):
-                print(f"  » Arquivos da pasta: {os.path.basename(self.input_path)} ({stats['rar_size_mb']:.2f} MB)")
+                print(f"  » Pasta: {self.input_path.name} ({stats['rar_size_mb']:.2f} MB)")
             else:
-                print(f"  » Arquivo: {os.path.basename(self.input_path)} ({stats['rar_size_mb']:.2f} MB)")
-        
+                print(f"  » Arquivo: {self.input_path.name} ({stats['rar_size_mb']:.2f} MB)")
         if stats["par2_file_count"] > 0:
-            print(f"  » Arquivos PAR2: {stats['par2_file_count']} arquivos ({stats['par2_size_mb']:.2f} MB)")
+            print(f"  » PAR2: {stats['par2_file_count']} arquivo(s) ({stats['par2_size_mb']:.2f} MB)")
+        total_size = stats["rar_size_mb"] + stats["par2_size_mb"]
+        print(f"  » Total: {total_size:.2f} MB")
 
-        print("-" * 25)
-        total_size = stats['rar_size_mb'] + stats['par2_size_mb']
-        print(f"  » Tamanho Total: {total_size:.2f} MB")
-
+        print(f"\n  » Tempo total: {format_time(int(total_elapsed))}")
         print("\n" + "=" * 60 + "\n")
 
         return 0
@@ -765,6 +845,15 @@ def parse_args():
         help="Ofusca o nome do arquivo antes de gerar o PAR2 e fazer o upload.",
     )
     p.add_argument(
+        "--password",
+        default=None,
+        metavar="SENHA",
+        help=(
+            "Senha para o arquivo RAR. Com --obfuscate, uma senha aleatória é gerada "
+            "automaticamente se esta opção for omitida. A senha é salva no NZB."
+        ),
+    )
+    p.add_argument(
         "--par-slice-size",
         default=None,
         help="Tamanho de slice PAR2 manual (ex: 512K, 1M, 2M). Sobrescreve o cálculo automático.",
@@ -785,6 +874,12 @@ def parse_args():
         "--verbose",
         action="store_true",
         help="Ativa saída de debug detalhada (logging nível DEBUG).",
+    )
+    p.add_argument(
+        "--log-file",
+        default=None,
+        metavar="PATH",
+        help="Grava log completo (nível DEBUG) em arquivo (ex: upapasta.log).",
     )
     return p.parse_args()
 
@@ -815,7 +910,7 @@ def check_dependencies(needs_rar: bool = True):
 
 def main():
     args = parse_args()
-    setup_logging(verbose=getattr(args, "verbose", False))
+    setup_logging(verbose=getattr(args, "verbose", False), log_file=getattr(args, "log_file", None))
 
     # Determine whether rar is needed: rar not needed for single-file uploads
     # when skip_rar is expected. If input is a file and user didn't explicitly
@@ -851,6 +946,7 @@ def main():
         par_profile=args.par_profile,
         nzb_conflict=args.nzb_conflict,
         obfuscate=args.obfuscate,
+        rar_password=args.password,
         par_slice_size=args.par_slice_size,
         upload_timeout=args.upload_timeout,
         upload_retries=args.upload_retries,

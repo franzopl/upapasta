@@ -135,11 +135,12 @@ def _volume_size_bytes(total_bytes: int) -> int | None:
 	return vol
 
 
-def make_rar(folder_path: str, force: bool = False, threads: int | None = None) -> tuple[int, str | None]:
+def make_rar(folder_path: str, force: bool = False, threads: int | None = None, password: str | None = None) -> tuple[int, str | None]:
 	"""Cria um arquivo RAR para a pasta fornecida.
 
-	Retorna uma tupla (código_de_retorno, caminho_do_rar_gerado).
-	O caminho é o arquivo base do RAR ou o primeiro volume quando há split.
+	Retorna (código_de_retorno, primeiro_arquivo_gerado).
+	Sem volumes: ("nome.rar",). Com volumes: primeiro é "nome.part001.rar".
+	Em caso de erro o segundo elemento é sempre None.
 	"""
 	folder_path = os.path.abspath(folder_path)
 	if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
@@ -178,7 +179,10 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None) 
 	num_threads = threads if threads is not None else (os.cpu_count() or 4)
 
 	# -m0 → store, -ma5 → RAR5, -mt → threads, -v → volumes
+	# -hp cifra conteúdo E nomes de arquivo internos (mais forte que -p)
 	cmd = [rar_exec, "a", "-r", "-m0", f"-mt{num_threads}", "-ma5"]
+	if password:
+		cmd.append(f"-hp{password}")
 	if force:
 		cmd.append("-o+")
 	if vol_bytes is not None:
@@ -232,6 +236,8 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None) 
 			matches = glob.glob(os.path.join(parent, f"{base}.part*.rar"))
 			if matches:
 				return 0, sorted(matches)[0]
+			# Volumes esperados mas não encontrados — rar gerou arquivo único
+			print("Aviso: volumes RAR não encontrados, usando arquivo único.")
 			return 0, out_rar
 		else:
 			print(f"Erro: 'rar' retornou código {rc}.")

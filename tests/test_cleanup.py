@@ -104,7 +104,7 @@ def test_run_makerar_rar_failure_returns_false(tmp_path, monkeypatch):
     folder = tmp_path / "MyShow"
     folder.mkdir()
 
-    def fake_make_rar(path, force, threads=None):
+    def fake_make_rar(path, force, threads=None, **kwargs):
         return 5, None  # código de erro
 
     monkeypatch.setattr("upapasta.main.make_rar", fake_make_rar)
@@ -118,7 +118,7 @@ def test_run_makerar_file_not_found_returns_false(tmp_path, monkeypatch):
     folder = tmp_path / "MyShow"
     folder.mkdir()
 
-    def fake_make_rar(path, force, threads=None):
+    def fake_make_rar(path, force, threads=None, **kwargs):
         raise FileNotFoundError("rar not found")
 
     monkeypatch.setattr("upapasta.main.make_rar", fake_make_rar)

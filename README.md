@@ -14,7 +14,8 @@
 - **Volumes RAR inteligentes**: Pastas pequenas (< 200 MB) geram um RAR único; pastas maiores são divididas em partes de tamanho ideal — no máximo 100 partes, mínimo 50 MB cada.
 - **Arquivo único nativo**: Envio de arquivos `.mkv`, `.mp4` etc. sem criar RAR.
 - **Perfis PAR2**: Três perfis pré-configurados (`fast`, `balanced`, `safe`) com opção de redundância manual.
-- **Ofuscação**: Randomiza nomes de arquivos antes do upload (`--obfuscate`).
+- **Ofuscação real**: Renomeia fisicamente os arquivos RAR/PAR2 no disco com nomes aleatórios (`--obfuscate`). O NZB é salvo com o nome original.
+- **Senha RAR automática**: Com `--obfuscate`, uma senha de 16 caracteres é gerada automaticamente e injetada no `.nzb` para extração automática pelos clientes. Personalizável com `--password`.
 - **Geração de NFO automática**:
   - Para arquivos únicos: saída do `mediainfo`.
   - Para pastas: estrutura em árvore, estatísticas e metadados de vídeo (duração, resolução, codec, bitrate).
@@ -109,9 +110,15 @@ upapasta /home/user/pasta --dry-run
 upapasta /home/user/pasta --par-profile safe --keep-files
 ```
 
-**Upload com nome ofuscado:**
+**Upload ofuscado com senha RAR aleatória:**
 ```bash
 upapasta /home/user/pasta --obfuscate
+# Gera senha aleatória, renomeia RAR/PAR2, injeta senha no .nzb
+```
+
+**Upload ofuscado com senha customizada:**
+```bash
+upapasta /home/user/pasta --obfuscate --password "MinhaSenh@Segura"
 ```
 
 **Envio em lote — aborta se NZB já existe:**
@@ -144,7 +151,8 @@ done
 | `--skip-par` | Pula a geração de paridade | desativado |
 | `--skip-upload` | Pula o upload | desativado |
 | `-f`, `--force` | Sobrescreve `.rar` e `.par2` existentes | desativado |
-| `--obfuscate` | Randomiza nomes de arquivos antes do upload | desativado |
+| `--obfuscate` | Renomeia fisicamente RAR/PAR2 para nomes aleatórios; gera senha RAR automática | desativado |
+| `--password` | Senha para o RAR (com `--obfuscate`, gerada automaticamente se omitida) | automática |
 | `--keep-files` | Mantém `.rar` e `.par2` após o upload | desativado |
 | `--rar-threads` | Threads para criação do RAR | número de CPUs |
 | `--par-threads` | Threads para geração do PAR2 | número de CPUs |

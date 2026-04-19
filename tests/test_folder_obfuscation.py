@@ -19,19 +19,18 @@ class TestFolderObfuscation(unittest.TestCase):
     def tearDown(self):
         if self.test_dir.exists():
             shutil.rmtree(self.test_dir)
-        
-        # Cleanup obfuscated folders that might be left over
+        # Remove pasta ofuscada (nome aleatório de 12 chars) que possa ter sobrado
         for item in Path(".").glob("*"):
-            if item.is_dir() and len(item.name) == 12: # Heuristic for random name
+            if item.is_dir() and len(item.name) == 12 and item.name.isalnum():
                 shutil.rmtree(item, ignore_errors=True)
-
+            # Remove par2 files gerados
+            if item.is_file() and item.suffix == ".par2" and len(item.stem) >= 12:
+                item.unlink(missing_ok=True)
 
     @patch('upapasta.main.check_or_prompt_credentials')
     @patch('upapasta.upfolder.subprocess.run')
     def test_folder_obfuscation_workflow(self, mock_subprocess_run: MagicMock, mock_check_creds: MagicMock):
-        # Mock para evitar a execução real do nyuu
         mock_subprocess_run.return_value = MagicMock(returncode=0)
-        # Mock credenciais
         mock_check_creds.return_value = {
             "NNTP_HOST": "dummy", "NNTP_USER": "dummy", "NNTP_PASS": "dummy", "USENET_GROUP": "dummy"
         }
@@ -39,46 +38,40 @@ class TestFolderObfuscation(unittest.TestCase):
         orchestrator = UpaPastaOrchestrator(
             input_path=str(self.test_dir),
             dry_run=False,
-            skip_upload=False, # We need to run the upload part to check the command
-            skip_rar=True, # Skip RAR to deal with the folder directly
+            skip_upload=False,
+            skip_rar=True,
             force=True,
             obfuscate=True,
             keep_files=True,
-            # Mock env vars to prevent credential prompts
-            env_file="/dev/null" 
+            env_file="/dev/null"
         )
-        
+
         result = orchestrator.run()
-        self.assertEqual(result, 0, f"O orquestrador deve retornar 0. Log: {result}")
+        self.assertEqual(result, 0, f"O orquestrador deve retornar 0. rc={result}")
 
-        # Verificar se a pasta original ainda existe
-        self.assertTrue(self.test_dir.exists(), "A pasta original deve permanecer após a ofuscação.")
+        # A pasta original é renomeada durante a ofuscação — não deve mais existir
+        self.assertFalse(self.test_dir.exists(), "A pasta original deve ser renomeada pela ofuscação.")
 
-        # Verificar se o nyuu foi chamado
-        self.assertTrue(mock_subprocess_run.called, "subprocess.run com o comando nyuu deveria ter sido chamado.")
-        
-        # Extrair o comando que foi passado para o subprocess
-        call_args = mock_subprocess_run.call_args
-        nyuu_command = call_args[0][0]
+        # O mapeamento deve ter a relação ofuscado → original
+        self.assertTrue(orchestrator.obfuscated_map, "obfuscated_map deve ser preenchido.")
+        obf_base = list(orchestrator.obfuscated_map.keys())[0]
+        original_base = list(orchestrator.obfuscated_map.values())[0]
+        self.assertEqual(original_base, self.test_dir.name)
+        self.assertNotEqual(obf_base, self.test_dir.name)
 
-        # O nome da pasta ofuscada é aleatório, mas podemos encontrá-lo
-        obfuscated_folder_name = None
-        original_folder_name = self.test_dir.name
-        
-        arg_index = -1
-        for i, arg in enumerate(nyuu_command):
-            if ":sub" in arg:
-                arg_index = i
-                break
-        
-        self.assertNotEqual(arg_index, -1, "Não foi encontrado o argumento de renomeação para o arquivo aninhado.")
+        # A pasta ofuscada deve existir no disco
+        obf_path = self.test_dir.parent / obf_base
+        self.assertTrue(obf_path.exists(), f"Pasta ofuscada '{obf_base}' deve existir no disco.")
 
-        rename_arg = nyuu_command[arg_index]
-        self.assertTrue(rename_arg.startswith(f"{original_folder_name}/sub/file.txt:"))
-        
-        # O nome do arquivo no disco deve ser diferente
-        on_disk_file = rename_arg.split(":")[1]
-        self.assertFalse(on_disk_file.startswith(original_folder_name))
+        # O subject deve ser o nome ofuscado (não o original)
+        self.assertEqual(orchestrator.subject, obf_base)
+
+        # nyuu deve ter sido chamado
+        self.assertTrue(mock_subprocess_run.called, "nyuu deveria ter sido chamado.")
+
+        # Senha RAR deve ter sido gerada automaticamente
+        self.assertIsNotNone(orchestrator.rar_password, "Senha RAR deve ser gerada automaticamente com --obfuscate.")
+        self.assertGreater(len(orchestrator.rar_password), 8)
 
 if __name__ == "__main__":
     unittest.main()
