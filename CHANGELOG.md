@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.8.1 - 2026-04-19
+- Fix: nome do NZB preserva tags completas (ex: `.DUAL-EcK`) — `splitext()` era aplicado duplamente sobre o basename já sem extensão no `obfuscated_map`
+
 ## 0.8.0 - 2026-04-19
 - Feat: ofuscação real — RAR/PAR2 são renomeados fisicamente no disco com nomes aleatórios de 12 caracteres (`--obfuscate`); NZB salvo com o nome original preservado
 - Feat: suporte a volume sets — todos os arquivos `nome.part*.rar` são renomeados atomicamente para `random.part*.rar`; PAR2 gerado depois da renomeação
