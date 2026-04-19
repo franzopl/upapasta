@@ -30,8 +30,8 @@ def resolve_nzb_basename(
             original_name = obfuscated_map.get(obfuscated_basename)
             return original_name if original_name else obfuscated_basename
         else:
-            original_name = next(iter(obfuscated_map.values()))
-            return os.path.splitext(os.path.basename(original_name))[0]
+            # Valor já é base name sem extensão — não aplicar splitext novamente
+            return next(iter(obfuscated_map.values()))
 
     basename = os.path.basename(input_path)
     if not is_folder:
