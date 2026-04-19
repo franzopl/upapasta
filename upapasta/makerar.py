@@ -150,7 +150,7 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None, 
 	parent = os.path.dirname(folder_path)
 	base = os.path.basename(os.path.normpath(folder_path))
 	out_rar = os.path.join(parent, base + ".rar")
-	existing_parts = glob.glob(os.path.join(parent, f"{base}.part*.rar"))
+	existing_parts = glob.glob(os.path.join(parent, glob.escape(base) + ".part*.rar"))
 	if (os.path.exists(out_rar) or existing_parts) and not force:
 		print(f"Erro: '{out_rar}' ou volumes parciais já existem. Use --force para sobrescrever.")
 		return 3, None
@@ -233,7 +233,7 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None, 
 			print("Arquivo .rar criado com sucesso.")
 			if vol_bytes is None:
 				return 0, out_rar
-			matches = glob.glob(os.path.join(parent, f"{base}.part*.rar"))
+			matches = glob.glob(os.path.join(parent, glob.escape(base) + ".part*.rar"))
 			if matches:
 				return 0, sorted(matches)[0]
 			# Volumes esperados mas não encontrados — rar gerou arquivo único
