@@ -65,12 +65,25 @@ def _process_output(queue: Queue) -> tuple[int, bool]:
 	teve_percentual = False
 	spinner = "|/-\\"
 	spin_idx = 0
-	bar_width = 40
+	bar_width = 30
+
+	# Pega o tamanho do terminal para evitar quebra de linha
+	try:
+		term_columns = shutil.get_terminal_size().columns
+	except:
+		term_columns = 80
 
 	while True:
 		line = queue.get()
 		if line is None:  # Fim da leitura
 			break
+
+		line = line.strip()
+		if not line:
+			continue
+
+		# Limpa a linha atual completamente antes de escrever a nova
+		sys.stdout.write("\r" + " " * (term_columns - 1) + "\r")
 
 		# Tenta encontrar porcentagem no formato 'xx%'
 		m = re.search(r"(\d{1,3})%", line)
@@ -85,14 +98,23 @@ def _process_output(queue: Queue) -> tuple[int, bool]:
 				teve_percentual = True
 				filled = int((pct / 100.0) * bar_width)
 				bar = "#" * filled + "-" * (bar_width - filled)
-				sys.stdout.write(f"\r[{bar}] {pct:3d}%")
+				
+				# Remove a porcentagem do texto para não duplicar na exibição
+				clean_line = re.sub(r"\d{1,3}%", "", line).strip().strip("...")
+				msg = f"[{bar}] {pct:3d}% {clean_line}"
+				sys.stdout.write(msg[:term_columns - 1])
 				sys.stdout.flush()
 				continue
 
 		# Se não houver porcentagem, mostra linha compacta com spinner
-		sys.stdout.write(f"\r{spinner[spin_idx % len(spinner)]} {line[:70]}")
+		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
+		sys.stdout.write(msg[:term_columns - 1])
 		sys.stdout.flush()
 		spin_idx += 1
+
+	# Garante newline limpo após o loop de progresso
+	sys.stdout.write("\n")
+	sys.stdout.flush()
 
 	return last_percent, teve_percentual
 
@@ -224,10 +246,6 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None, 
 
 		# Aguarda o fim do processo
 		rc = proc.wait()
-
-		# Se parseamos uma porcentagem final, garante newline limpo
-		if teve_percentual and last_percent >= 0:
-			sys.stdout.write("\n")
 
 		if rc == 0:
 			print("Arquivo .rar criado com sucesso.")

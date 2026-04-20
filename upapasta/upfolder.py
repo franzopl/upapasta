@@ -348,14 +348,31 @@ def upload_to_usenet(
             shutil.rmtree(temp_dir, ignore_errors=True)
         return 0
 
-    print("Iniciando upload para Usenet...")
-    print(f"  Host: {nntp_host}:{nntp_port}")
-    print(f"  Grupo: {usenet_group}")
-    print(f"  Subject: {subject}")
+    # Calcular tamanho total
     all_files = files_to_upload + par2_files
-    print(f"  Arquivos: {len(all_files)} arquivos ({', '.join(os.path.basename(f) for f in all_files[:3])}{'...' if len(all_files) > 3 else ''})")
+    total_size_bytes = 0
+    for f in all_files:
+        try:
+            total_size_bytes += os.path.getsize(os.path.join(working_dir, f))
+        except OSError:
+            pass
+    
+    def format_size(size_bytes):
+        if size_bytes < 1024: return f"{size_bytes} B"
+        elif size_bytes < 1024**2: return f"{size_bytes/1024:.2f} KB"
+        elif size_bytes < 1024**3: return f"{size_bytes/1024**2:.2f} MB"
+        else: return f"{size_bytes/1024**3:.2f} GB"
+
+    print("┌" + "─" * 60)
+    print(f"│ 🚀 Iniciando upload para Usenet")
+    print("├" + "─" * 60)
+    print(f"│ 🌐 Host:    {nntp_host}:{nntp_port}")
+    print(f"│ 📢 Grupo:   {usenet_group}")
+    print(f"│ 📝 Subject: {subject}")
+    print(f"│ 📦 Total:   {format_size(total_size_bytes)} ({len(all_files)} arquivos)")
     if nzb_out:
-        print(f"  NZB será salvo em: {nzb_out}")
+        print(f"│ 📄 NZB:     {nzb_out}")
+    print("└" + "─" * 60)
     print()
 
     max_attempts = 1 + max(0, upload_retries)

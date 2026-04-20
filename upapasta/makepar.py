@@ -29,6 +29,7 @@ import argparse
 import glob
 import os
 import random
+import re
 import shutil
 import string
 import subprocess
@@ -303,12 +304,54 @@ def _read_output(pipe, queue: Queue):
 
 def _process_output(queue: Queue):
 	"""Processa linhas de output da fila na thread principal."""
+	bar_width = 30
+	spinner = "|/-\\"
+	spin_idx = 0
+	
+	# Pega o tamanho do terminal
+	try:
+		term_columns = shutil.get_terminal_size().columns
+	except:
+		term_columns = 80
+
 	while True:
 		line = queue.get()
 		if line is None:  # Fim da leitura
 			break
-		sys.stdout.write(line)
+		
+		line = line.strip()
+		if not line:
+			continue
+
+		# Limpa a linha atual
+		sys.stdout.write("\r" + " " * (term_columns - 1) + "\r")
+
+		# Tenta encontrar porcentagem (ex: "10.5%" ou "10%")
+		m = re.search(r"(\d{1,3}(?:\.\d+)?)%", line)
+		if m:
+			try:
+				pct_val = float(m.group(1))
+				filled = int((pct_val / 100.0) * bar_width)
+				bar = "#" * filled + "-" * (bar_width - filled)
+				
+				# Remove a porcentagem do texto para exibição limpa
+				clean_line = re.sub(r"\d{1,3}(?:\.\d+)?%", "", line).strip().strip("...").strip(":")
+				msg = f"[{bar}] {pct_val:5.1f}% {clean_line}"
+				sys.stdout.write(msg[:term_columns - 1])
+				sys.stdout.flush()
+				continue
+			except ValueError:
+				pass
+
+		# Fallback para linhas sem porcentagem
+		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
+		sys.stdout.write(msg[:term_columns - 1])
 		sys.stdout.flush()
+		spin_idx += 1
+
+	# Garante que a última linha seja finalizada
+	sys.stdout.write("\n")
+	sys.stdout.flush()
 
 
 def make_parity(rar_path: str, redundancy: int | None = None, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None, threads: int | None = None, profile: str = DEFAULT_PROFILE, memory_mb: int | None = None) -> int:
