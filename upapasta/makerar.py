@@ -112,9 +112,8 @@ def _process_output(queue: Queue) -> tuple[int, bool]:
 			filled = int((pct / 100.0) * bar_width)
 			bar = "#" * filled + "-" * (bar_width - filled)
 
-			# Limpa o texto da linha para mostrar detalhes
-			clean_line = re.sub(r"\d{1,3}%?", "", line).strip().strip("...").strip(":")
-			if clean_line.isdigit(): clean_line = ""
+			# Pega o texto antes da porcentagem (ex: "Creating archive foo.rar  50%")
+			clean_line = line[:m.start()].strip().rstrip(".").rstrip(":").strip() if m else ""
 
 			msg = f"[{bar}] {pct:3d}% {clean_line}"
 			sys.stdout.write(msg[:term_columns - 1])
