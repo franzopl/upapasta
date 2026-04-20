@@ -67,19 +67,28 @@ def calculate_optimal_resources(
     total_gb = total_size_bytes / (1024 ** 3)
     conservative = total_gb > 200 or mem_avail < 4096
 
-    # Threads
+    # Threads RAR: RAR é CPU+I/O bound e escala bem até ~32 threads
     if user_threads is not None:
-        threads = max(1, user_threads)
+        rar_threads = max(1, user_threads)
     elif total_gb > 200:
-        # Jobs massivos: cap absoluto de 8 threads — parpar crasha com SIGSEGV
-        # acima disso em datasets grandes (bug de concorrência no parpar).
-        threads = min(8, max(4, int(cpu * 0.25)))
-    elif total_gb > 100:
-        threads = min(16, max(4, int(cpu * 0.40)))
+        rar_threads = min(32, max(4, int(cpu * 0.50)))
     elif total_gb > 50:
-        threads = max(2, int(cpu * 0.65))
+        rar_threads = min(32, max(4, int(cpu * 0.65)))
     else:
-        threads = max(2, int(cpu * 0.75))
+        rar_threads = min(32, max(4, int(cpu * 0.75)))
+
+    # Threads parpar: retorno decrescente acima de 8-16 threads devido à
+    # largura de banda de memória; >16 threads pode causar SIGSEGV em jobs grandes.
+    if user_threads is not None:
+        par_threads = max(1, user_threads)
+    elif total_gb > 200:
+        par_threads = min(8, max(4, int(cpu * 0.125)))
+    elif total_gb > 100:
+        par_threads = min(12, max(4, int(cpu * 0.175)))
+    elif total_gb > 10:
+        par_threads = min(16, max(4, int(cpu * 0.25)))
+    else:
+        par_threads = min(8, max(2, int(cpu * 0.125)))
 
     # Memória: mantém ao menos 2GB livres para o sistema
     if user_memory_mb is not None:
@@ -93,7 +102,8 @@ def calculate_optimal_resources(
         max_memory_mb = max(512, min(safe, 8192))
 
     return {
-        "threads": threads,
+        "threads": rar_threads,
+        "par_threads": par_threads,
         "max_memory_mb": max_memory_mb,
         "conservative_mode": conservative,
         "total_gb": round(total_gb, 2),

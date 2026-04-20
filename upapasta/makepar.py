@@ -571,8 +571,6 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
             mem_limit = get_parpar_memory_limit()
         if mem_limit:
             cmd.append(f'-m{mem_limit}')
-            source = "calculado dinamicamente" if memory_mb is not None else "detectado da RAM disponível"
-            print(f"Limite de memória parpar: {mem_limit} ({source})")
         # Adicionar suporte a multithreading
         num_threads = threads if threads is not None else (os.cpu_count() or 4)
         cmd.extend([f'-t{num_threads}', f'-r{redundancy}%', '-o', out_par2] + files_to_process)
@@ -589,13 +587,8 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
                 pass
 
     # Mostrar informação sobre threads se for parpar
-    threads_info = ""
-    if chosen == 'parpar':
-        num_threads_used = threads if threads is not None else (os.cpu_count() or 4)
-        threads_info = f" (usando {num_threads_used} threads)"
-    
     input_desc = f"pasta '{rar_path}' ({len(files_to_process)} arquivos)" if is_folder else f"'{rar_path}'"
-    print(f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}{threads_info}...")
+    print(f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}...")
 
     try:
         proc = subprocess.Popen(

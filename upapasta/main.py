@@ -690,47 +690,46 @@ class UpaPastaOrchestrator:
             if not self.env_vars:
                 return 3
 
-        print("\n" + "=" * 60)
-        print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
-        print("=" * 60)
-        print(f"📁 Entrada:      {self.input_path.name}")
-        print(f"🎯 Perfil PAR2: {self.par_profile}")
-        print(f"📊 Post-size:  {self.post_size or '(do perfil)'}")
-        print(f"✉️  Subject:    {self.subject}")
-        print(f"⚡ Threads RAR: {self.rar_threads}  PAR: {self.par_threads}")
-        if self.obfuscate:
-            print(f"🔒 Ofuscação: ativada")
-            if self.rar_password:
-                print(f"🔑 Senha RAR:  {self.rar_password}")
-        if self.dry_run:
-            print("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado")
-
-        # Estado inicial das fases
-        bar._render()
-
         if not self.validate():
             return 1
 
-        # Cálculo dinâmico de recursos (threads + memória) baseado no tamanho real da fonte
+        # Cálculo dinâmico de recursos ANTES do header para exibir valores reais
         total_bytes = get_total_size(str(self.input_path))
         res = calculate_optimal_resources(
             total_bytes,
             user_threads=self._user_rar_threads if self._user_rar_threads == self._user_par_threads else None,
             user_memory_mb=self._user_memory_mb,
         )
-        # Aplicar apenas se o usuário não sobrescreveu manualmente cada um
         if self._user_rar_threads is None:
             self.rar_threads = res["threads"]
         if self._user_par_threads is None:
-            self.par_threads = res["threads"]
+            self.par_threads = res["par_threads"]
         self.par_memory_mb = res["max_memory_mb"]
 
-        conservative_tag = " [modo conservador]" if res["conservative_mode"] else ""
-        logger.info(
-            f"Recursos calculados: {res['threads']} threads, "
-            f"{res['max_memory_mb']} MB RAM para PAR2"
-            f"{conservative_tag} ({res['total_gb']} GB de entrada)"
-        )
+        conservative_tag = " (conservador)" if res["conservative_mode"] else ""
+        rar_src = f"manual" if self._user_rar_threads is not None else f"auto{conservative_tag}"
+        par_src = f"manual" if self._user_par_threads is not None else f"auto{conservative_tag}"
+        mem_gb = res["max_memory_mb"] / 1024
+
+        print("\n" + "=" * 60)
+        print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
+        print("=" * 60)
+        print(f"📁 Entrada:     {self.input_path.name}")
+        print(f"📦 Tamanho:     {res['total_gb']} GB")
+        print(f"🎯 Perfil PAR2: {self.par_profile}")
+        print(f"📊 Post-size:   {self.post_size or '(do perfil)'}")
+        print(f"✉️  Subject:     {self.subject}")
+        print(f"⚡ Threads RAR: {self.rar_threads} ({rar_src})  PAR: {self.par_threads} ({par_src})")
+        print(f"🧠 Memória PAR: {mem_gb:.1f} GB")
+        if self.obfuscate:
+            print(f"🔒 Ofuscação:   ativada")
+            if self.rar_password:
+                print(f"🔑 Senha RAR:   {self.rar_password}")
+        if self.dry_run:
+            print("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado")
+
+        # Estado inicial das fases
+        bar._render()
 
         # Etapa 0: NFO
         if not self.skip_upload and not self.dry_run:
