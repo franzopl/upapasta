@@ -71,8 +71,11 @@ def calculate_optimal_resources(
     if user_threads is not None:
         threads = max(1, user_threads)
     elif total_gb > 200:
-        # Jobs massivos são I/O-bound: menos threads evita contenção
-        threads = max(2, int(cpu * 0.5))
+        # Jobs massivos: cap absoluto de 8 threads — parpar crasha com SIGSEGV
+        # acima disso em datasets grandes (bug de concorrência no parpar).
+        threads = min(8, max(4, int(cpu * 0.25)))
+    elif total_gb > 100:
+        threads = min(16, max(4, int(cpu * 0.40)))
     elif total_gb > 50:
         threads = max(2, int(cpu * 0.65))
     else:

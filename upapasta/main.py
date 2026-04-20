@@ -465,12 +465,82 @@ class UpaPastaOrchestrator:
             if rc != 0:
                 print("-" * 60)
                 print(f"\n❌ Erro ao gerar paridade (código {rc}).")
-                return False
+                return self._handle_par_failure(rc)
 
             print("-" * 60)
             # O nome do arquivo par2 é baseado no nome original
             self.par_file = self._par_file_path()
             return True
+
+    def _handle_par_failure(self, rc: int) -> bool:
+        """
+        Chamado quando o PAR2 falha. Tenta retry automático com perfil safe
+        e threads reduzidas. Se o retry também falhar, preserva os RARs e
+        orienta o usuário sobre como retomar.
+        """
+        # Limpa arquivos .par2 parciais (mas NÃO os RARs)
+        if self.input_target:
+            stem = os.path.splitext(self.input_target)[0]
+            if self.input_target.endswith(".rar") and ".part" in stem:
+                stem = stem.rsplit(".part", 1)[0]
+            for f in glob.glob(glob.escape(stem) + "*.par2"):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
+
+        # Calcula configurações conservadoras para retry
+        retry_threads = max(1, min(4, self.par_threads // 2))
+        retry_profile = "safe"
+        retry_memory_mb = max(512, (self.par_memory_mb or 2048) // 2)
+
+        print(f"\n⚠️  Tentando novamente com configurações conservadoras...")
+        print(f"   Perfil: {retry_profile} | Threads: {retry_threads} | Memória: {retry_memory_mb} MB")
+        print("-" * 60)
+
+        try:
+            rc2 = make_parity(
+                self.input_target,
+                redundancy=self.redundancy,
+                force=True,
+                backend=self.backend,
+                usenet=True,
+                post_size=self.post_size,
+                threads=retry_threads,
+                profile=retry_profile,
+                slice_size=self.par_slice_size,
+                memory_mb=retry_memory_mb,
+            )
+        except Exception as e:
+            print(f"❌ Erro no retry: {e}")
+            rc2 = 5
+
+        if rc2 == 0:
+            print("-" * 60)
+            self.par_file = self._par_file_path()
+            print(f"✅ Paridade gerada com sucesso no retry (perfil {retry_profile}).")
+            return True
+
+        # Retry também falhou — preservar RARs e orientar o usuário
+        print("-" * 60)
+        print(f"\n❌ Falha persistente ao gerar paridade (código original {rc}, retry {rc2}).")
+
+        if self.rar_file:
+            rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
+            rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
+            count = len(rar_volumes)
+            print(f"\n📦 Arquivos RAR preservados ({count} parte(s)) em:")
+            print(f"   {os.path.dirname(self.rar_file)}")
+            print(f"\n💡 Para retomar quando o problema for resolvido:")
+            input_arg = str(self.input_path)
+            extra = ""
+            if self.par_profile != "safe":
+                extra += " --par-profile safe"
+            if self.par_threads != retry_threads:
+                extra += f" --par-threads {retry_threads}"
+            print(f"   upapasta {input_arg} --skip-rar --force{extra}")
+
+        return False
 
     def run_upload(self) -> bool:
         """Executa upfolder.py, permitindo que a barra de progresso nativa apareça."""
@@ -516,7 +586,7 @@ class UpaPastaOrchestrator:
             print(f"\n❌ Erro de I/O durante upload: {e}")
             return False
 
-    def _do_cleanup(self, on_error: bool = False) -> None:
+    def _do_cleanup(self, on_error: bool = False, preserve_rar: bool = False) -> None:
         """Remove arquivos RAR e PAR2 gerados."""
         if on_error:
             print("\n🧹 Limpando arquivos temporários devido a erro...")
@@ -528,7 +598,7 @@ class UpaPastaOrchestrator:
 
         candidates: list[str] = []
 
-        if self.rar_file:
+        if self.rar_file and not preserve_rar:
             # Strip .partNNN suffix to get the base name for glob
             rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
             rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
@@ -537,6 +607,9 @@ class UpaPastaOrchestrator:
             elif os.path.exists(self.rar_file):
                 candidates.append(self.rar_file)
             base_name: str | None = rar_base
+        elif self.rar_file and preserve_rar:
+            rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
+            base_name = rar_base
         else:
             base_name = None
 
@@ -573,8 +646,8 @@ class UpaPastaOrchestrator:
     def cleanup(self) -> None:
         self._do_cleanup(on_error=False)
 
-    def _cleanup_on_error(self) -> None:
-        self._do_cleanup(on_error=True)
+    def _cleanup_on_error(self, preserve_rar: bool = False) -> None:
+        self._do_cleanup(on_error=True, preserve_rar=preserve_rar)
 
     def check_nzb_conflict_early(self) -> bool:
         """Verifica conflito de NZB antecipadamente, antes de qualquer processamento."""
@@ -683,7 +756,8 @@ class UpaPastaOrchestrator:
             bar.start("PAR2")
             if not self.run_makepar():
                 bar.error("PAR2")
-                self._cleanup_on_error()
+                # Preserva RARs: o _handle_par_failure já tentou retry e orientou o usuário
+                self._cleanup_on_error(preserve_rar=True)
                 return 2
             bar.done("PAR2")
         else:
