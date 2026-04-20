@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.8.12 - 2026-04-20
+- Feat: questionário inicial reformulado — exibe cabeçalho, duas seções (Servidor / Upload), valida porta e campos obrigatórios, aceita Enter para confirmar defaults e exibe resumo antes de salvar
+- Feat: `.env` gerado automaticamente na primeira execução contém todas as variáveis configuráveis com comentários explicativos (igual ao `.env.example`)
+- Docs: `.env.example` atualizado — comentários mais descritivos, grupo padrão alterado para `alt.binaries.boneless`, `DUMP_FAILED_POSTS` vazio por padrão
+- Docs: README — seção Configuração reescrita com exemplo do questionário e tabela de variáveis principais
+
 ## 0.8.1 - 2026-04-19
 - Fix: nome do NZB preserva tags completas (ex: `.DUAL-EcK`) — `splitext()` era aplicado duplamente sobre o basename já sem extensão no `obfuscated_map`
 

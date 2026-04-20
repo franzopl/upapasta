@@ -61,31 +61,57 @@ pip install -e .
 
 ## Configuração
 
-O UpaPasta armazena as configurações em `~/.config/upapasta/.env`. Na primeira execução as credenciais são solicitadas e salvas automaticamente.
+O UpaPasta armazena as configurações em `~/.config/upapasta/.env`.
 
-Para configurar manualmente:
+### Primeira execução
+
+Na primeira execução, um questionário interativo solicita as informações essenciais e gera o arquivo `.env` completo automaticamente:
+
+```
+╔══════════════════════════════════════════════════════╗
+║         Configuração inicial do UpaPasta             ║
+╚══════════════════════════════════════════════════════╝
+
+── Servidor NNTP ─────────────────────────────────────
+  Servidor NNTP (ex: news.eweka.nl): news.eweka.nl
+  Porta NNTP [563]:
+  Usar SSL/TLS? [true]:
+  Usuário NNTP: meu_usuario
+  Senha NNTP:
+
+── Upload ────────────────────────────────────────────
+  Grupo Usenet [alt.binaries.boneless]:
+  Conexões simultâneas [50]:
+  Tamanho do artigo [700K]:
+  Caminho de saída do .nzb [{filename}.nzb]:
+```
+
+O arquivo gerado contém **todas** as variáveis configuráveis com comentários explicativos — basta abri-lo para ajustar qualquer opção avançada.
+
+### Configuração manual
 
 ```bash
 mkdir -p ~/.config/upapasta
 cp .env.example ~/.config/upapasta/.env
+# edite o arquivo com seus dados
 ```
 
-Edite o arquivo `.env` com seus dados:
+### Variáveis principais
 
-```ini
-NNTP_HOST=news.seu-provedor.com
-NNTP_PORT=563
-NNTP_USER=seu-usuario
-NNTP_PASS=sua-senha
-NNTP_SSL=true
-USENET_GROUP=alt.binaries.test
+| Variável | Descrição | Padrão |
+|---|---|---|
+| `NNTP_HOST` | Servidor NNTP do provedor | — |
+| `NNTP_PORT` | Porta (563 = TLS) | `563` |
+| `NNTP_SSL` | Usar SSL/TLS | `true` |
+| `NNTP_USER` | Usuário NNTP | — |
+| `NNTP_PASS` | Senha NNTP | — |
+| `NNTP_CONNECTIONS` | Conexões simultâneas | `50` |
+| `USENET_GROUP` | Grupo de upload | `alt.binaries.boneless` |
+| `ARTICLE_SIZE` | Tamanho máximo de artigo | `700K` |
+| `NZB_OUT` | Caminho do `.nzb` gerado | `{filename}.nzb` |
+| `SKIP_ERRORS` | Comportamento em erros (`all`/`none`) | `all` |
 
-# Comportamento padrão para conflitos de NZB (rename | overwrite | fail)
-NZB_CONFLICT=rename
-
-# Banner ASCII art personalizado para arquivos .nfo (use \n para quebras de linha)
-# NFO_BANNER=MINHA CENA\nLINHA 2
-```
+Consulte `.env.example` para a lista completa com descrições detalhadas.
 
 ## Como usar
 
