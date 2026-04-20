@@ -356,30 +356,41 @@ def upload_to_usenet(
             total_size_bytes += os.path.getsize(os.path.join(working_dir, f))
         except OSError:
             pass
-    
+
     def format_size(size_bytes):
-        if size_bytes < 1024: return f"{size_bytes} B"
-        elif size_bytes < 1024**2: return f"{size_bytes/1024:.2f} KB"
+        if size_bytes < 1024**2: return f"{size_bytes/1024:.1f} KB"
         elif size_bytes < 1024**3: return f"{size_bytes/1024**2:.2f} MB"
         else: return f"{size_bytes/1024**3:.2f} GB"
 
-    print("┌" + "─" * 60)
-    print(f"│ 🚀 Iniciando upload para Usenet")
-    print("├" + "─" * 60)
-    print(f"│ 🌐 Host:    {nntp_host}:{nntp_port}")
-    print(f"│ 📢 Grupo:   {usenet_group}")
-    print(f"│ 📝 Subject: {subject}")
-    print(f"│ 📦 Total:   {format_size(total_size_bytes)} ({len(all_files)} arquivos)")
+    try:
+        term_columns = shutil.get_terminal_size().columns
+    except Exception:
+        term_columns = 80
+    sep = "─" * min(term_columns - 1, 60)
+
+    rows = [
+        ("Host",    f"{nntp_host}:{nntp_port}"),
+        ("Grupo",   usenet_group),
+        ("Subject", subject),
+        ("Total",   f"{format_size(total_size_bytes)}  ({len(all_files)} arquivos)"),
+    ]
     if nzb_out:
-        print(f"│ 📄 NZB:     {nzb_out}")
-    print("└" + "─" * 60)
+        rows.append(("NZB", nzb_out))
+
+    label_w = max(len(r[0]) for r in rows)
+    print(sep)
+    print("  Upload para Usenet")
+    print(sep)
+    for label, value in rows:
+        print(f"  {label:<{label_w}}  {value}")
+    print(sep)
     print()
 
     max_attempts = 1 + max(0, upload_retries)
     last_rc = 5
     for attempt in range(1, max_attempts + 1):
         if attempt > 1:
-            print(f"\n🔄 Tentativa {attempt}/{max_attempts} de upload...")
+            print(f"\nTentativa {attempt}/{max_attempts} de upload...")
         try:
             # Executar nyuu e deixar que ele controle o output diretamente
             # Isso permite que a barra de progresso nativa do nyuu funcione
@@ -411,14 +422,14 @@ def upload_to_usenet(
     # Injetar senha no NZB para extração automática pelos clientes
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password:
         inject_nzb_password(nzb_out_abs, password)
-        print(f"🔑 Senha injetada no NZB.")
+        print(f"Senha injetada no NZB.")
 
     # Verificar integridade do NZB gerado
     if nzb_out_abs:
         if not _verify_nzb(nzb_out_abs):
-            print(f"⚠️  Aviso: NZB gerado em '{nzb_out_abs}' está ausente, vazio ou não contém elementos <file>.")
+            print(f"Aviso: NZB gerado em '{nzb_out_abs}' está ausente, vazio ou não contém elementos <file>.")
         else:
-            print(f"✅ NZB verificado: {os.path.basename(nzb_out_abs)}")
+            print(f"NZB verificado: {os.path.basename(nzb_out_abs)}")
 
     # Limpar diretório temporário se foi criado
     if temp_dir and os.path.exists(temp_dir):

@@ -95,27 +95,32 @@ def _process_output(queue: Queue) -> tuple[int, bool]:
 		sys.stdout.write("\r" + " " * (term_columns - 1) + "\r")
 
 		m = re.search(r"(\d{1,3})%", line)
+		pct = None
 		if m:
 			try:
 				pct = int(m.group(1))
 			except ValueError:
-				pct = None
-			if pct is not None:
-				last_percent = pct
-				teve_percentual = True
-				filled = int((pct / 100.0) * bar_width)
-				bar = "#" * filled + "-" * (bar_width - filled)
-				prefix = f"[{bar}] {pct:3d}%"
-				# O que vem após o % é o nome do arquivo sendo processado
-				detail = line[m.end():].strip().lstrip(".")
-				if detail:
-					available = term_columns - 1 - len(prefix) - 3
-					msg = f"{prefix} | {detail[:available]}" if available > 0 else prefix
-				else:
-					msg = prefix
-				sys.stdout.write(msg)
-				sys.stdout.flush()
-				continue
+				pass
+		elif line.strip().isdigit():
+			val = int(line.strip())
+			if 0 <= val <= 100:
+				pct = val
+
+		if pct is not None:
+			last_percent = pct
+			teve_percentual = True
+			filled = int((pct / 100.0) * bar_width)
+			bar = "#" * filled + "-" * (bar_width - filled)
+
+			# Limpa o texto da linha para mostrar detalhes
+			clean_line = re.sub(r"\d{1,3}%?", "", line).strip().strip("...").strip(":")
+			if clean_line.isdigit(): clean_line = ""
+
+			msg = f"[{bar}] {pct:3d}% {clean_line}"
+			sys.stdout.write(msg[:term_columns - 1])
+			sys.stdout.flush()
+			continue
+
 
 		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
 		sys.stdout.write(msg[:term_columns - 1])
