@@ -2,27 +2,32 @@
 """
 makepar.py
 
-Cria arquivos de paridade (.par2) para um arquivo .rar fornecido.
+Cria arquivos de paridade (.par2) para um arquivo/pasta fornecido.
 
 Uso:
   python3 makepar.py arquivo.rar
 
 Opções:
-  -r, --redundancy PERCENT   Percentual de redundância (ex: 10 para 10%). Default: varia por perfil
+  -r, --redundancy PERCENT   Percentual de redundância (padrão: 10%). Fixo para Usenet.
   -f, --force                Sobrescrever arquivos .par2 existentes
   --profile PROFILE          Perfil de otimização: fast, balanced (padrão), safe
 
 Perfis:
-  fast                       Máxima velocidade: slice 20M, redundância 5%, post 100M
-  balanced                   Equilibrado (PADRÃO): slice 10M, redundância 10%, post 50M
-  safe                       Alta proteção: slice 5M, redundância 20%, post 30M
+  fast                       Máxima velocidade: redundância 5%
+  balanced                   Equilibrado (PADRÃO): redundância 10%, slice dinâmico automático
+  safe                       Alta proteção: redundância 20%
+
+Slice size (parpar):
+  Calculado automaticamente a partir de ARTICLE_SIZE no ~/.config/upapasta/.env.
+  Fórmula base: ARTICLE_SIZE * 2. Escalonado conforme o tamanho total do set.
+  O flag -S (auto-scaling) é sempre ativado para garantir blocos PAR2 adequados.
 
 Retornos:
   0: sucesso
   2: arquivo de entrada inválido
   3: arquivo .par2 já existe (use --force)
-  4: utilitário 'par2' não encontrado
-  5: erro ao executar 'par2'
+  4: utilitário 'parpar' ou 'par2' não encontrado
+  5: erro ao executar o utilitário
 """
 
 import argparse
@@ -38,20 +43,103 @@ import threading
 from queue import Queue
 
 
+# ── Helpers de tamanho ────────────────────────────────────────────────────────
+
+def _parse_size(s: str) -> int:
+    """Converte string de tamanho (ex: '700K', '1M', '768000') para bytes."""
+    s = str(s).strip()
+    if not s:
+        raise ValueError("string de tamanho vazia")
+    unit = s[-1].upper()
+    if unit == 'K':
+        return int(float(s[:-1]) * 1024)
+    if unit == 'M':
+        return int(float(s[:-1]) * 1024 * 1024)
+    if unit == 'G':
+        return int(float(s[:-1]) * 1024 * 1024 * 1024)
+    return int(float(s))
+
+
+def _fmt_size(b: int) -> str:
+    """Formata bytes para string compacta (ex: 1572864 → '1536K' ou '1M')."""
+    if b % (1024 * 1024) == 0:
+        return f"{b // (1024 * 1024)}M"
+    if b % 1024 == 0:
+        return f"{b // 1024}K"
+    return str(b)
+
+
+# ── Leitura de ARTICLE_SIZE do .env ──────────────────────────────────────────
+
+def _get_article_size_bytes() -> int:
+    """
+    Lê ARTICLE_SIZE do ~/.config/upapasta/.env.
+    Retorna o valor em bytes. Fallback: 786432 (768K).
+    """
+    try:
+        from .config import load_env_file, DEFAULT_ENV_FILE
+        env = load_env_file(DEFAULT_ENV_FILE)
+        raw = env.get("ARTICLE_SIZE", "").strip()
+        if raw:
+            return _parse_size(raw)
+    except Exception:
+        pass
+    return 786432  # 768K
+
+
+# ── Cálculo dinâmico de slice size ────────────────────────────────────────────
+
+def _compute_dynamic_slice(total_bytes: int, article_size: int) -> tuple[str, int, int]:
+    """
+    Calcula slice size, min-input-slices e max-input-slices para parpar.
+
+    Regras:
+      base_slice = article_size * 2
+      ≤ 50 GB  → base_slice           (min_slices=60)
+      ≤ 100 GB → base_slice * 1.5     (min_slices=80)
+      ≤ 200 GB → base_slice * 2       (min_slices=100)
+      > 200 GB → base_slice * 2.5     (min_slices=120)
+
+    Clamp final: mínimo 1 MiB, máximo 4 MiB.
+    max_input_slices fixo em 12000 (limite seguro para NZBGet/SABnzbd).
+
+    Retorna (slice_str, min_slices, max_slices).
+    """
+    GB = 1024 ** 3
+    base = article_size * 2  # ex: 768K → 1.536M
+
+    if total_bytes <= 50 * GB:
+        slice_bytes = base
+        min_slices = 60
+    elif total_bytes <= 100 * GB:
+        slice_bytes = int(base * 1.5)
+        min_slices = 80
+    elif total_bytes <= 200 * GB:
+        slice_bytes = base * 2
+        min_slices = 100
+    else:
+        slice_bytes = int(base * 2.5)
+        min_slices = 120
+
+    # Clamp: 1 MiB ≤ slice ≤ 4 MiB
+    slice_bytes = max(1024 * 1024, min(slice_bytes, 4 * 1024 * 1024))
+
+    return _fmt_size(slice_bytes), min_slices, 12000
+
+
+# ── Memória disponível ────────────────────────────────────────────────────────
+
 def get_parpar_memory_limit() -> str | None:
     """
-    Retorna um limite de memória seguro para o parpar baseado na RAM disponível.
-    Usa 75% da RAM livre (MemAvailable no Linux), com mínimo de 256M e máximo de 3G.
-    Retorna None se não conseguir detectar.
+    Retorna limite de memória seguro para parpar (75% da RAM livre).
+    Mínimo 256M, máximo 3G. Retorna None se não conseguir detectar.
     """
     try:
         with open("/proc/meminfo") as f:
             for line in f:
                 if line.startswith("MemAvailable:"):
                     kb = int(line.split()[1])
-                    available_mb = kb // 1024
-                    safe_mb = int(available_mb * 0.75)
-                    safe_mb = max(256, min(safe_mb, 3 * 1024))
+                    safe_mb = max(256, min(int((kb // 1024) * 0.75), 3 * 1024))
                     if safe_mb >= 1024 and safe_mb % 1024 == 0:
                         return f"{safe_mb // 1024}G"
                     return f"{safe_mb}M"
@@ -59,8 +147,11 @@ def get_parpar_memory_limit() -> str | None:
         pass
     return None
 
+
 from .config import PROFILES, DEFAULT_PROFILE
 
+
+# ── Obfuscação ────────────────────────────────────────────────────────────────
 
 def generate_random_name(length: int = 12) -> str:
     """Gera um nome de arquivo aleatório com letras e dígitos."""
@@ -127,7 +218,7 @@ def obfuscate_and_par(
             renamed: list[tuple[str, str]] = []
             for vol in volumes:
                 vol_b = os.path.basename(vol)
-                suffix = vol_b[len(original_base):]   # ex: ".part001.rar"
+                suffix = vol_b[len(original_base):]
                 new_path = os.path.join(parent_dir, random_base + suffix)
                 try:
                     os.rename(vol, new_path)
@@ -181,7 +272,6 @@ def obfuscate_and_par(
     if rc == 0:
         return 0, obfuscated_path, obfuscated_map
 
-    # Tentar reverter renomeação
     print("Erro ao gerar paridade. Revertendo ofuscação...")
     if is_folder:
         try:
@@ -204,6 +294,8 @@ def obfuscate_and_par(
     return rc, None, {}
 
 
+# ── Detecção de backends ──────────────────────────────────────────────────────
+
 def find_par2():
     for cmd in ("par2", "par2create", "par2.exe", "par2create.exe"):
         path = shutil.which(cmd)
@@ -220,77 +312,67 @@ def find_parpar():
     return None
 
 
+# ── CLI ───────────────────────────────────────────────────────────────────────
+
 def parse_args():
-    p = argparse.ArgumentParser(description="Cria arquivos de paridade para um arquivo .rar (par2/parpar)")
-    p.add_argument("rarfile", help="Caminho para o arquivo .rar")
+    p = argparse.ArgumentParser(
+        description="Cria arquivos de paridade para um arquivo/pasta (par2/parpar). "
+                    "O slice size é calculado automaticamente com base no ARTICLE_SIZE do seu .env."
+    )
+    p.add_argument("rarfile", help="Caminho para o arquivo .rar ou pasta")
     p.add_argument(
         "--profile",
         choices=tuple(PROFILES.keys()),
         default=DEFAULT_PROFILE,
         help=f"Perfil de otimização (padrão: {DEFAULT_PROFILE})",
     )
-    p.add_argument("-r", "--redundancy", type=int, default=None, help="Redundância em porcentagem (sobrescreve perfil)")
+    p.add_argument(
+        "-r", "--redundancy",
+        type=int, default=None,
+        help="Redundância em porcentagem (padrão: 10%% para Usenet)",
+    )
     p.add_argument("-f", "--force", action="store_true", help="Sobrescrever .par2 existente")
     p.add_argument(
         "--backend",
         choices=("auto", "par2", "parpar"),
         default="auto",
-        help="Escolher backend: par2, parpar ou auto (detecta automaticamente)",
-    )
-    p.add_argument(
-        "--cmd-template",
-        default=None,
-        help=(
-            "Template do comando a executar. Use placeholders: {exe} {out} {rar} {redundancy}. "
-            "Se não informado, será usado um template padrão para o backend detectado."
-        ),
+        help="Backend: par2, parpar ou auto (detecta automaticamente, prefere parpar)",
     )
     p.add_argument(
         "--slice-size",
         default=None,
         help=(
-            "Tamanho de slice para ferramentas que suportam (ex: 1M, 512K, 2000). "
-            "Se omitido, o template padrão será usado (parpar: 1M)."
+            "Sobrescreve o slice size automático (ex: 1M, 1536K). "
+            "Se omitido, o script calcula dinamicamente a partir do ARTICLE_SIZE no .env."
         ),
     )
     p.add_argument(
         "--usenet",
         action="store_true",
-        help=(
-            "Ativa otimização para upload em Usenet: escolhe um slice-size adequado (padrão 1M). "
-            "Você pode sobrescrever com --slice-size."
-        ),
+        help="Flag legada — o comportamento Usenet já é o padrão. Mantida para compatibilidade.",
     )
     p.add_argument(
         "--auto-slice-size",
         action="store_true",
-        help=(
-            "Quando usado com --backend parpar, ativa o parâmetro -S (auto-slice-size) do parpar "
-            "em vez de usar um slice fixo. Se --slice-size for fornecido, este último tem prioridade."
-        ),
+        help="Flag legada — -S do parpar já é sempre ativado. Mantida para compatibilidade.",
     )
     p.add_argument(
         "--post-size",
-        default="10M",
-        help=(
-            "Tamanho alvo de post para Usenet (ex: 20M). Usado para calcular um slice-size otimizado. "
-            "Padrão: 10M (assumido como padrão do nyuu)."
-        ),
+        default=None,
+        help="Flag legada. O slice size agora é derivado de ARTICLE_SIZE, não de post-size.",
     )
     p.add_argument(
         "-t", "--threads",
-        type=int,
-        default=None,
-        help=(
-            "Número de threads a usar (parpar). Padrão: número de CPUs disponíveis. "
-            "Use 0 ou omita para deixar o parpar decidir automaticamente."
-        ),
+        type=int, default=None,
+        help="Número de threads (parpar). Padrão: CPUs disponíveis.",
     )
     return p.parse_args()
 
 
+# ── Output do subprocess ──────────────────────────────────────────────────────
+
 def _read_output(pipe, queue: Queue):
-	"""Thread worker para ler output do subprocess tratando \r e \n."""
+	"""Thread worker para ler output do subprocess tratando \\r e \\n."""
 	if pipe is None:
 		return
 	try:
@@ -307,10 +389,10 @@ def _read_output(pipe, queue: Queue):
 				buffer += char
 		if buffer:
 			queue.put(buffer)
-	except:
+	except Exception:
 		pass
 	finally:
-		queue.put(None)  # Sinal de fim
+		queue.put(None)
 
 
 def _process_output(queue: Queue):
@@ -336,10 +418,8 @@ def _process_output(queue: Queue):
 
 		sys.stdout.write("\r" + " " * (term_columns - 1) + "\r")
 
-		# parpar emite "Label: X.X%" — captura label e porcentagem separados
 		m = re.match(r"^(.+?):\s*(\d+(?:\.\d+)?)%", line)
 		if not m:
-			# fallback: qualquer número seguido de %
 			m = re.search(r"(\d+(?:\.\d+)?)%", line)
 			if m:
 				label_part = line[:m.start()].strip().rstrip(":").strip()
@@ -361,7 +441,6 @@ def _process_output(queue: Queue):
 				filled = int((pct_val / 100.0) * bar_width)
 				bar = "#" * filled + "-" * (bar_width - filled)
 				prefix = f"[{bar}] {pct_val:5.1f}%"
-				# Label vai à direita do prefixo — trunca só o label, nunca a barra
 				if last_label:
 					available = term_columns - 1 - len(prefix) - 3
 					label_trunc = last_label[:available] if available > 0 else ""
@@ -383,26 +462,54 @@ def _process_output(queue: Queue):
 	sys.stdout.flush()
 
 
-def make_parity(rar_path: str, redundancy: int | None = None, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None, threads: int | None = None, profile: str = DEFAULT_PROFILE, memory_mb: int | None = None) -> int:
-    # Aplicar configurações do perfil se redundancy ou post_size não foram fornecidos
+# ── make_parity ───────────────────────────────────────────────────────────────
+
+def make_parity(
+    rar_path: str,
+    redundancy: int | None = None,
+    force: bool = False,
+    backend: str = "auto",
+    cmd_template: str | None = None,
+    slice_size: str | None = None,
+    usenet: bool = False,
+    auto_slice_size: bool = False,
+    post_size: str | None = None,
+    threads: int | None = None,
+    profile: str = DEFAULT_PROFILE,
+    memory_mb: int | None = None,
+) -> int:
+    """
+    Gera arquivos .par2 para rar_path (arquivo único, volume set ou pasta).
+
+    Para parpar, o slice size é calculado automaticamente:
+      - Lê ARTICLE_SIZE de ~/.config/upapasta/.env (fallback 768K)
+      - base_slice = ARTICLE_SIZE * 2
+      - Escala conforme o tamanho total: ≤50GB→base, ≤100GB→1.5x, ≤200GB→2x, >200GB→2.5x
+      - Clamp: 1M–4M
+      - -S (auto-scaling do parpar) sempre ativo
+      - --min-input-slices e --max-input-slices ajustados dinamicamente
+
+    Parâmetros:
+      rar_path     : arquivo .rar, primeira parte de um volume set, ou pasta
+      redundancy   : percentual de redundância (padrão: 10%)
+      force        : sobrescrever .par2 existente
+      backend      : 'auto' | 'par2' | 'parpar'
+      slice_size   : sobrescreve o cálculo automático (ex: '2M')
+      threads      : threads para parpar (None = nº de CPUs)
+      profile      : perfil de configuração (fast / balanced / safe)
+      memory_mb    : limite de RAM para parpar em MB (None = auto)
+
+    Retorna: 0=ok, 2=entrada inválida, 3=par2 existe, 4=binário não encontrado, 5=erro
+    """
     if profile not in PROFILES:
         print(f"Erro: perfil '{profile}' inválido. Opções: {', '.join(PROFILES.keys())}")
         return 2
-    
+
     profile_config = PROFILES[profile]
-    
-    # Se redundância não foi especificada, usar do perfil
+
     if redundancy is None:
         redundancy = profile_config["redundancy"]
-    
-    # Se post_size não foi especificado, usar do perfil
-    if post_size is None:
-        post_size = profile_config["post_size"]
-    
-    # Se slice_size não foi especificado, usar do perfil
-    if slice_size is None:
-        slice_size = profile_config["slice_size"]
-    
+
     rar_path = os.path.abspath(rar_path)
     if not os.path.exists(rar_path):
         print(f"Erro: '{rar_path}' não existe.")
@@ -415,18 +522,11 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
 
     parent = os.path.dirname(rar_path)
     base = os.path.basename(rar_path)
-    if is_folder:
-        name_no_ext = base
-    else:
-        name_no_ext = os.path.splitext(base)[0]
+    name_no_ext = base if is_folder else os.path.splitext(base)[0]
 
-    # Quando o arquivo é part01.rar de um conjunto de volumes, usar o nome
-    # base do conjunto para o PAR2 e processar todas as partes.
     is_rar_volume_set = (not is_folder) and base.endswith(".rar") and ".part" in name_no_ext
     if is_rar_volume_set:
-        # ex: "nome.part01" → "nome"
-        set_base_name = name_no_ext.rsplit(".part", 1)[0]
-        name_no_ext = set_base_name
+        name_no_ext = name_no_ext.rsplit(".part", 1)[0]
 
     out_par2 = os.path.join(parent, name_no_ext + ".par2")
 
@@ -434,160 +534,105 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
         print(f"Erro: '{out_par2}' já existe. Use --force para sobrescrever.")
         return 3
 
-    # Collect files to process
+    # ── Coleta de arquivos de entrada ─────────────────────────────────────────
     if is_folder:
         files_to_process = []
-        for root, dirs, files in os.walk(rar_path):
-            for file in files:
-                files_to_process.append(os.path.join(root, file))
+        for root, _, files in os.walk(rar_path):
+            for f in files:
+                files_to_process.append(os.path.join(root, f))
         if not files_to_process:
             print(f"Erro: pasta '{rar_path}' está vazia.")
             return 2
     elif is_rar_volume_set:
-        # Inclui todos os volumes do conjunto ordenados
         pattern = os.path.join(parent, glob.escape(name_no_ext) + ".part*.rar")
-        files_to_process = sorted(glob.glob(pattern))
-        if not files_to_process:
-            files_to_process = [rar_path]
+        files_to_process = sorted(glob.glob(pattern)) or [rar_path]
     else:
         files_to_process = [rar_path]
 
-    # Detect backends
+    # ── Detecção de backend ───────────────────────────────────────────────────
     parpar_found = find_parpar()
     par2_found = find_par2()
 
-    chosen = None
-    exe_path = None
-
-    if backend == 'parpar':
+    if backend == "parpar":
         if not parpar_found:
             print("Erro: 'parpar' não encontrado no PATH.")
             return 4
         chosen, exe_path = parpar_found
-    elif backend == 'par2':
+    elif backend == "par2":
         if not par2_found:
             print("Erro: 'par2' não encontrado no PATH.")
             return 4
         chosen, exe_path = par2_found
-    else:  # auto
+    else:
         if parpar_found:
             chosen, exe_path = parpar_found
         elif par2_found:
             chosen, exe_path = par2_found
         else:
-            print("Erro: nenhum utilitário de paridade ('parpar' ou 'par2') encontrado. Instale um deles.")
+            print("Erro: nenhum utilitário de paridade ('parpar' ou 'par2') encontrado.")
             return 4
 
-    # Decide slice size: explicit --slice-size > --usenet -> default '1M' > template default
-    def parse_size(s: str) -> int:
-        """Parse human size like 512K, 1M into bytes (int)."""
-        s = str(s).strip()
-        if not s:
-            raise ValueError("empty size")
-        unit = s[-1].upper()
-        if unit in ('K', 'M', 'G'):
-            try:
-                val = float(s[:-1])
-            except Exception:
-                val = float(s)
-            if unit == 'K':
-                return int(val * 1024)
-            if unit == 'M':
-                return int(val * 1024 * 1024)
-            if unit == 'G':
-                return int(val * 1024 * 1024 * 1024)
-        else:
-            try:
-                return int(s)
-            except Exception:
-                return int(float(s))
-        # fallback
-        return int(float(s))
+    # ── Cálculo dinâmico de slice (apenas parpar) ─────────────────────────────
+    used_slice = slice_size
+    min_input_slices = None
+    max_input_slices = None
+    use_auto_scale = False
+    total_bytes = 0
 
-    def fmt_size(b: int) -> str:
-        # prefer MiB if divisible, else KiB
-        if b % (1024 * 1024) == 0:
-            return f"{b // (1024 * 1024)}M"
-        if b % 1024 == 0:
-            return f"{b // 1024}K"
-        return str(b)
+    if chosen == "parpar":
+        total_bytes = sum(
+            os.path.getsize(f) for f in files_to_process if os.path.isfile(f)
+        )
+        if used_slice is None:
+            article_size = _get_article_size_bytes()
+            used_slice, min_input_slices, max_input_slices = _compute_dynamic_slice(
+                total_bytes, article_size
+            )
+            total_gb = total_bytes / (1024 ** 3)
+            print(
+                f"  [parpar] ARTICLE_SIZE={_fmt_size(article_size)} | "
+                f"total={total_gb:.1f} GB → slice={used_slice} "
+                f"min-slices={min_input_slices} max-slices={max_input_slices}"
+            )
+        # -S sempre ativo para parpar (auto-scaling garante blocos adequados)
+        use_auto_scale = True
 
-    if slice_size:
-        used_slice = slice_size
-    else:
-        # if user provided a post_size or usenet flag, compute slice from post_size
-        used_slice = None
-        # read post_size from env or default param via parse_args in caller
-        # We will attempt to read a global variable POST_SIZE_STR if present, else default '10M'
-        post_size_str = post_size or os.environ.get('MAKEPAR_POST_SIZE')
-        if not post_size_str:
-            post_size_str = '10M'
-        try:
-            post_size_bytes = parse_size(post_size_str)
-        except Exception:
-            post_size_bytes = parse_size('10M')
-
-        if usenet or post_size_bytes:
-            # Heurística: 4 slices por post garante granularidade razoável para
-            # recuperação parcial sem gerar arquivos .par2 excessivamente pequenos.
-            # Com post_size=20M → slice=5M; post_size=50M → slice=4M (clamped).
-            # Use --par-slice-size para override manual em arquivos muito grandes (50+ GB).
-            target_slices = 4
-            calc = max(64 * 1024, post_size_bytes // target_slices)
-            # clamp: mínimo 64K (par2 exige blocos alinhados), máximo 4M
-            calc = min(calc, 4 * 1024 * 1024)
-            used_slice = fmt_size(calc)
-
-    # If user supplied a custom cmd_template, use it. Otherwise pick template based on chosen backend
-    cmd_t = cmd_template
-    if cmd_t is None:
-        if chosen == 'parpar':
-            if auto_slice_size:
-                # If user provided an explicit slice_size, include it and -S to allow autoscaling.
-                if used_slice:
-                    cmd_t = '{exe} -s{slice_size} -S -r{redundancy}% -o {out} {rar}'
-                else:
-                    # parpar requires -s; use a reasonable default slice size (1M) together with -S
-                    cmd_t = '{exe} -s1M -S -r{redundancy}% -o {out} {rar}'
-            else:
-                # will build command list directly below
-                pass
-        else:
-            # will build command list directly below
-            pass
-
-    # Build command list directly (safer with spaces in paths)
-    if chosen == 'parpar':
-        cmd = [exe_path]
-        if used_slice:
-            cmd.extend([f'-s{used_slice}'])
-        else:
-            cmd.append('-s1M')
-        if auto_slice_size:
-            cmd.append('-S')
-        if memory_mb is not None:
-            mem_limit = f"{memory_mb}M"
-        else:
-            mem_limit = get_parpar_memory_limit()
-        if mem_limit:
-            cmd.append(f'-m{mem_limit}')
-        # Adicionar suporte a multithreading
-        num_threads = threads if threads is not None else (os.cpu_count() or 4)
-        cmd.extend([f'-t{num_threads}', f'-r{redundancy}%', '-o', out_par2] + files_to_process)
-    else:  # par2
-        cmd = [exe_path, 'create', f'-r{redundancy}', out_par2] + files_to_process
-
-    # If force requested, remove existing .par2 files matching the base name to allow overwrite
+    # ── Montagem do comando ───────────────────────────────────────────────────
     if force:
-        pattern = os.path.join(parent, name_no_ext + '*.par2')
-        for f in glob.glob(pattern):
+        for f in glob.glob(os.path.join(parent, name_no_ext + "*.par2")):
             try:
                 os.remove(f)
             except Exception:
                 pass
 
-    # Mostrar informação sobre threads se for parpar
-    input_desc = f"pasta '{rar_path}' ({len(files_to_process)} arquivos)" if is_folder else f"'{rar_path}'"
+    if chosen == "parpar":
+        cmd = [exe_path]
+        cmd.append(f"-s{used_slice or '1M'}")
+        if use_auto_scale:
+            cmd.append("-S")
+        # min/max-input-slices apenas para releases grandes o suficiente para satisfazer a restrição
+        # (parpar rejeita min-input-slices se o arquivo for menor que slice*min_slices)
+        if min_input_slices is not None and total_bytes >= _parse_size(used_slice or "1M") * min_input_slices:
+            cmd.append(f"--min-input-slices={min_input_slices}")
+        if max_input_slices is not None:
+            cmd.append(f"--max-input-slices={max_input_slices}")
+
+        mem_limit = f"{memory_mb}M" if memory_mb is not None else get_parpar_memory_limit()
+        if mem_limit:
+            cmd.append(f"-m{mem_limit}")
+
+        num_threads = threads if threads is not None else (os.cpu_count() or 4)
+        cmd.extend([f"-t{num_threads}", f"-r{redundancy}%", "-o", out_par2])
+        cmd.extend(files_to_process)
+    else:
+        cmd = [exe_path, "create", f"-r{redundancy}", out_par2] + files_to_process
+
+    # ── Execução ──────────────────────────────────────────────────────────────
+    input_desc = (
+        f"pasta '{rar_path}' ({len(files_to_process)} arquivo(s))"
+        if is_folder
+        else f"'{rar_path}'"
+    )
     print(f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}...")
 
     try:
@@ -595,23 +640,14 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
         )
 
-        # Fila para comunicação entre threads
         output_queue: Queue = Queue()
-
-        # Thread para ler output do subprocess
         reader_thread = threading.Thread(
-            target=_read_output,
-            args=(proc.stdout, output_queue),
-            daemon=True
+            target=_read_output, args=(proc.stdout, output_queue), daemon=True
         )
         reader_thread.start()
-
-        # Processa output na thread principal
         _process_output(output_queue)
 
-        # Aguarda o fim do processo
         rc = proc.wait()
-        
         if rc == 0:
             print("Arquivos de paridade criados com sucesso.")
             return 0
@@ -627,6 +663,3 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
     except OSError as e:
         print(f"Erro de I/O ao executar '{chosen}': {e}")
         return 5
-
-
-

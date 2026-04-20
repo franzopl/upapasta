@@ -124,8 +124,9 @@ PROFILES = {
         "post_size": "100M",
     },
     "balanced": {
-        "description": "Equilibrado (RECOMENDADO para Usenet)",
-        "slice_size": "10M",
+        # slice_size=None → makepar.py calcula dinamicamente via ARTICLE_SIZE do .env
+        "description": "Equilibrado (RECOMENDADO para Usenet) — slice dinâmico automático",
+        "slice_size": None,
         "redundancy": 10,
         "post_size": "50M",
     },
