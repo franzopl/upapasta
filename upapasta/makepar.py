@@ -36,6 +36,28 @@ import sys
 import threading
 from queue import Queue
 
+
+def get_parpar_memory_limit() -> str | None:
+    """
+    Retorna um limite de memória seguro para o parpar baseado na RAM disponível.
+    Usa 75% da RAM livre (MemAvailable no Linux), com mínimo de 256M e máximo de 3G.
+    Retorna None se não conseguir detectar.
+    """
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    kb = int(line.split()[1])
+                    available_mb = kb // 1024
+                    safe_mb = int(available_mb * 0.75)
+                    safe_mb = max(256, min(safe_mb, 3 * 1024))
+                    if safe_mb >= 1024 and safe_mb % 1024 == 0:
+                        return f"{safe_mb // 1024}G"
+                    return f"{safe_mb}M"
+    except Exception:
+        pass
+    return None
+
 from .config import PROFILES, DEFAULT_PROFILE
 
 
@@ -469,6 +491,10 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
             cmd.append('-s1M')
         if auto_slice_size:
             cmd.append('-S')
+        mem_limit = get_parpar_memory_limit()
+        if mem_limit:
+            cmd.append(f'-m{mem_limit}')
+            print(f"Limite de memória parpar: {mem_limit} (detectado da RAM disponível)")
         # Adicionar suporte a multithreading
         num_threads = threads if threads is not None else (os.cpu_count() or 4)
         cmd.extend([f'-t{num_threads}', f'-r{redundancy}%', '-o', out_par2] + files_to_process)
