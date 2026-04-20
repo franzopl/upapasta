@@ -77,6 +77,7 @@ def obfuscate_and_par(
     threads: int | None = None,
     profile: str = DEFAULT_PROFILE,
     slice_size: str | None = None,
+    memory_mb: int | None = None,
 ) -> tuple[int, str | None, dict[str, str]]:
     """
     Renomeia fisicamente o arquivo/pasta para nome aleatório e gera paridade.
@@ -173,6 +174,7 @@ def obfuscate_and_par(
         threads=threads,
         profile=profile,
         slice_size=slice_size,
+        memory_mb=memory_mb,
     )
 
     if rc == 0:
@@ -309,7 +311,7 @@ def _process_output(queue: Queue):
 		sys.stdout.flush()
 
 
-def make_parity(rar_path: str, redundancy: int | None = None, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None, threads: int | None = None, profile: str = DEFAULT_PROFILE) -> int:
+def make_parity(rar_path: str, redundancy: int | None = None, force: bool = False, backend: str = 'auto', cmd_template: str | None = None, slice_size: str | None = None, usenet: bool = False, auto_slice_size: bool = False, post_size: str | None = None, threads: int | None = None, profile: str = DEFAULT_PROFILE, memory_mb: int | None = None) -> int:
     # Aplicar configurações do perfil se redundancy ou post_size não foram fornecidos
     if profile not in PROFILES:
         print(f"Erro: perfil '{profile}' inválido. Opções: {', '.join(PROFILES.keys())}")
@@ -491,10 +493,14 @@ def make_parity(rar_path: str, redundancy: int | None = None, force: bool = Fals
             cmd.append('-s1M')
         if auto_slice_size:
             cmd.append('-S')
-        mem_limit = get_parpar_memory_limit()
+        if memory_mb is not None:
+            mem_limit = f"{memory_mb}M"
+        else:
+            mem_limit = get_parpar_memory_limit()
         if mem_limit:
             cmd.append(f'-m{mem_limit}')
-            print(f"Limite de memória parpar: {mem_limit} (detectado da RAM disponível)")
+            source = "calculado dinamicamente" if memory_mb is not None else "detectado da RAM disponível"
+            print(f"Limite de memória parpar: {mem_limit} ({source})")
         # Adicionar suporte a multithreading
         num_threads = threads if threads is not None else (os.cpu_count() or 4)
         cmd.extend([f'-t{num_threads}', f'-r{redundancy}%', '-o', out_par2] + files_to_process)

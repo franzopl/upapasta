@@ -54,6 +54,7 @@ from .makerar import make_rar
 from .makepar import make_parity, obfuscate_and_par, generate_random_name
 from .nzb import resolve_nzb_out, handle_nzb_conflict
 from .upfolder import upload_to_usenet
+from .resources import calculate_optimal_resources, get_total_size
 
 logger = logging.getLogger("upapasta")
 
@@ -163,6 +164,7 @@ class UpaPastaOrchestrator:
         upload_timeout: int | None = None,
         upload_retries: int = 0,
         verbose: bool = False,
+        max_memory_mb: int | None = None,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -177,8 +179,13 @@ class UpaPastaOrchestrator:
         self.env_file = env_file
         self.keep_files = keep_files
         self.backend = backend
+        self._user_rar_threads = rar_threads
+        self._user_par_threads = par_threads
+        self._user_memory_mb = max_memory_mb
+        # Valores iniciais: serão recalculados em run() após medir tamanho da fonte
         self.rar_threads = rar_threads if rar_threads is not None else (os.cpu_count() or 4)
         self.par_threads = par_threads if par_threads is not None else (os.cpu_count() or 4)
+        self.par_memory_mb: int | None = None
         self.par_profile = par_profile
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
@@ -390,6 +397,7 @@ class UpaPastaOrchestrator:
                     threads=self.par_threads,
                     profile=self.par_profile,
                     slice_size=self.par_slice_size,
+                    memory_mb=self.par_memory_mb,
                 )
             except FileNotFoundError:
                 print("❌ Erro: binário de paridade não encontrado no PATH.")
@@ -442,6 +450,7 @@ class UpaPastaOrchestrator:
                     threads=self.par_threads,
                     profile=self.par_profile,
                     slice_size=self.par_slice_size,
+                    memory_mb=self.par_memory_mb,
                 )
             except FileNotFoundError:
                 print("❌ Erro: binário de paridade não encontrado no PATH.")
@@ -625,6 +634,27 @@ class UpaPastaOrchestrator:
 
         if not self.validate():
             return 1
+
+        # Cálculo dinâmico de recursos (threads + memória) baseado no tamanho real da fonte
+        total_bytes = get_total_size(str(self.input_path))
+        res = calculate_optimal_resources(
+            total_bytes,
+            user_threads=self._user_rar_threads if self._user_rar_threads == self._user_par_threads else None,
+            user_memory_mb=self._user_memory_mb,
+        )
+        # Aplicar apenas se o usuário não sobrescreveu manualmente cada um
+        if self._user_rar_threads is None:
+            self.rar_threads = res["threads"]
+        if self._user_par_threads is None:
+            self.par_threads = res["threads"]
+        self.par_memory_mb = res["max_memory_mb"]
+
+        conservative_tag = " [modo conservador]" if res["conservative_mode"] else ""
+        logger.info(
+            f"Recursos calculados: {res['threads']} threads, "
+            f"{res['max_memory_mb']} MB RAM para PAR2"
+            f"{conservative_tag} ({res['total_gb']} GB de entrada)"
+        )
 
         # Etapa 0: NFO
         if not self.skip_upload and not self.dry_run:
@@ -871,6 +901,16 @@ def parse_args():
         help="Número de tentativas extras de upload em caso de falha transitória (padrão: 0).",
     )
     p.add_argument(
+        "--max-memory",
+        type=int,
+        default=None,
+        metavar="MB",
+        help=(
+            "Limite máximo de memória para PAR2 em MB (ex: 4096). "
+            "Padrão: calculado automaticamente baseado na RAM disponível."
+        ),
+    )
+    p.add_argument(
         "--verbose",
         action="store_true",
         help="Ativa saída de debug detalhada (logging nível DEBUG).",
@@ -951,6 +991,7 @@ def main():
         upload_timeout=args.upload_timeout,
         upload_retries=args.upload_retries,
         verbose=args.verbose,
+        max_memory_mb=args.max_memory,
     )
 
     rc = orchestrator.run()
