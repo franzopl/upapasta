@@ -290,12 +290,23 @@ def parse_args():
 
 
 def _read_output(pipe, queue: Queue):
-	"""Thread worker para ler linhas do subprocess stdout."""
+	"""Thread worker para ler output do subprocess tratando \r e \n."""
 	if pipe is None:
 		return
 	try:
-		for line in pipe:
-			queue.put(line)
+		buffer = ""
+		while True:
+			char = pipe.read(1)
+			if not char:
+				break
+			if char in ("\r", "\n"):
+				if buffer:
+					queue.put(buffer)
+					buffer = ""
+			else:
+				buffer += char
+		if buffer:
+			queue.put(buffer)
 	except:
 		pass
 	finally:
@@ -304,52 +315,70 @@ def _read_output(pipe, queue: Queue):
 
 def _process_output(queue: Queue):
 	"""Processa linhas de output da fila na thread principal."""
-	bar_width = 30
+	bar_width = 25
 	spinner = "|/-\\"
 	spin_idx = 0
-	
-	# Pega o tamanho do terminal
+	last_label = ""
+
 	try:
 		term_columns = shutil.get_terminal_size().columns
-	except:
+	except Exception:
 		term_columns = 80
 
 	while True:
 		line = queue.get()
-		if line is None:  # Fim da leitura
+		if line is None:
 			break
-		
+
 		line = line.strip()
 		if not line:
 			continue
 
-		# Limpa a linha atual
 		sys.stdout.write("\r" + " " * (term_columns - 1) + "\r")
 
-		# Tenta encontrar porcentagem (ex: "10.5%" ou "10%")
-		m = re.search(r"(\d{1,3}(?:\.\d+)?)%", line)
-		if m:
+		# parpar emite "Label: X.X%" — captura label e porcentagem separados
+		m = re.match(r"^(.+?):\s*(\d+(?:\.\d+)?)%", line)
+		if not m:
+			# fallback: qualquer número seguido de %
+			m = re.search(r"(\d+(?:\.\d+)?)%", line)
+			if m:
+				label_part = line[:m.start()].strip().rstrip(":").strip()
+				if label_part:
+					last_label = label_part
+				pct_str = m.group(1)
+			else:
+				pct_str = None
+			label = last_label
+		else:
+			label = m.group(1).strip()
+			pct_str = m.group(2)
+			if label:
+				last_label = label
+
+		if pct_str is not None:
 			try:
-				pct_val = float(m.group(1))
+				pct_val = float(pct_str)
 				filled = int((pct_val / 100.0) * bar_width)
 				bar = "#" * filled + "-" * (bar_width - filled)
-				
-				# Remove a porcentagem do texto para exibição limpa
-				clean_line = re.sub(r"\d{1,3}(?:\.\d+)?%", "", line).strip().strip("...").strip(":")
-				msg = f"[{bar}] {pct_val:5.1f}% {clean_line}"
-				sys.stdout.write(msg[:term_columns - 1])
+				prefix = f"[{bar}] {pct_val:5.1f}%"
+				# Label vai à direita do prefixo — trunca só o label, nunca a barra
+				if last_label:
+					available = term_columns - 1 - len(prefix) - 3
+					label_trunc = last_label[:available] if available > 0 else ""
+					msg = f"{prefix}  {label_trunc}" if label_trunc else prefix
+				else:
+					msg = prefix
+				sys.stdout.write(msg)
 				sys.stdout.flush()
 				continue
 			except ValueError:
 				pass
 
-		# Fallback para linhas sem porcentagem
 		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
 		sys.stdout.write(msg[:term_columns - 1])
 		sys.stdout.flush()
 		spin_idx += 1
 
-	# Garante que a última linha seja finalizada
 	sys.stdout.write("\n")
 	sys.stdout.flush()
 

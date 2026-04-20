@@ -44,12 +44,23 @@ def find_rar():
 
 
 def _read_output(pipe, queue: Queue):
-	"""Thread worker para ler linhas do subprocess stdout."""
+	"""Thread worker para ler output do subprocess tratando \r e \n."""
 	if pipe is None:
 		return
 	try:
-		for line in pipe:
-			queue.put(line.rstrip("\n"))
+		buffer = ""
+		while True:
+			char = pipe.read(1)
+			if not char:
+				break
+			if char in ("\r", "\n"):
+				if buffer:
+					queue.put(buffer)
+					buffer = ""
+			else:
+				buffer += char
+		if buffer:
+			queue.put(buffer)
 	except:
 		pass
 	finally:
@@ -65,54 +76,52 @@ def _process_output(queue: Queue) -> tuple[int, bool]:
 	teve_percentual = False
 	spinner = "|/-\\"
 	spin_idx = 0
-	bar_width = 30
+	bar_width = 25
 
-	# Pega o tamanho do terminal para evitar quebra de linha
 	try:
 		term_columns = shutil.get_terminal_size().columns
-	except:
+	except Exception:
 		term_columns = 80
 
 	while True:
 		line = queue.get()
-		if line is None:  # Fim da leitura
+		if line is None:
 			break
 
 		line = line.strip()
 		if not line:
 			continue
 
-		# Limpa a linha atual completamente antes de escrever a nova
 		sys.stdout.write("\r" + " " * (term_columns - 1) + "\r")
 
-		# Tenta encontrar porcentagem no formato 'xx%'
 		m = re.search(r"(\d{1,3})%", line)
 		if m:
-			pct = None
 			try:
 				pct = int(m.group(1))
 			except ValueError:
-				pass
+				pct = None
 			if pct is not None:
 				last_percent = pct
 				teve_percentual = True
 				filled = int((pct / 100.0) * bar_width)
 				bar = "#" * filled + "-" * (bar_width - filled)
-				
-				# Remove a porcentagem do texto para não duplicar na exibição
-				clean_line = re.sub(r"\d{1,3}%", "", line).strip().strip("...")
-				msg = f"[{bar}] {pct:3d}% {clean_line}"
-				sys.stdout.write(msg[:term_columns - 1])
+				prefix = f"[{bar}] {pct:3d}%"
+				# O que vem após o % é o nome do arquivo sendo processado
+				detail = line[m.end():].strip().lstrip(".")
+				if detail:
+					available = term_columns - 1 - len(prefix) - 3
+					msg = f"{prefix} | {detail[:available]}" if available > 0 else prefix
+				else:
+					msg = prefix
+				sys.stdout.write(msg)
 				sys.stdout.flush()
 				continue
 
-		# Se não houver porcentagem, mostra linha compacta com spinner
 		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
 		sys.stdout.write(msg[:term_columns - 1])
 		sys.stdout.flush()
 		spin_idx += 1
 
-	# Garante newline limpo após o loop de progresso
 	sys.stdout.write("\n")
 	sys.stdout.flush()
 
