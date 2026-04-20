@@ -38,6 +38,7 @@ Retornos:
 
 import argparse
 import glob
+import io
 import logging
 import os
 import re
@@ -47,6 +48,7 @@ import string
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 from .config import load_env_file, check_or_prompt_credentials, DEFAULT_ENV_FILE
@@ -57,6 +59,40 @@ from .upfolder import upload_to_usenet
 from .resources import calculate_optimal_resources, get_total_size
 
 logger = logging.getLogger("upapasta")
+
+
+DEFAULT_LOG_DIR = os.path.join(os.path.dirname(os.path.expanduser("~/.config/upapasta/.env")), "logs")
+
+
+class _TeeStream(io.TextIOBase):
+    """Duplica escrita para stream original + arquivo de log."""
+
+    def __init__(self, original: io.TextIOBase, log_fh: io.TextIOBase) -> None:
+        self._original = original
+        self._log = log_fh
+
+    def write(self, s: str) -> int:
+        self._original.write(s)
+        self._original.flush()
+        # Remove sequências ANSI antes de gravar no log
+        clean = re.sub(r'\x1b\[[0-9;]*[mABCDEFGHJKSTfhilmns]', '', s)
+        self._log.write(clean)
+        self._log.flush()
+        return len(s)
+
+    def flush(self) -> None:
+        self._original.flush()
+        self._log.flush()
+
+    @property
+    def encoding(self):
+        return getattr(self._original, 'encoding', 'utf-8')
+
+    def fileno(self):
+        return self._original.fileno()
+
+    def isatty(self):
+        return self._original.isatty()
 
 
 def setup_logging(verbose: bool = False, log_file: str | None = None) -> None:
@@ -72,6 +108,36 @@ def setup_logging(verbose: bool = False, log_file: str | None = None) -> None:
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         root.addHandler(fh)
+
+
+def setup_session_log(input_name: str, env_file: str = None) -> tuple[str, io.TextIOBase | None]:
+    """
+    Cria arquivo de log da sessão em ~/.config/upapasta/logs/.
+    Redireciona stdout para TeeStream que grava simultaneamente no terminal e no log.
+    Retorna (caminho_do_log, file_handle) para fechar ao final.
+    """
+    log_dir = os.path.join(os.path.dirname(env_file or os.path.expanduser("~/.config/upapasta/.env")), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    # Sanitiza nome para uso em arquivo
+    safe_name = re.sub(r'[^\w.\-]', '_', input_name)[:80]
+    log_path = os.path.join(log_dir, f"{ts}_{safe_name}.log")
+
+    log_fh = open(log_path, "w", encoding="utf-8", buffering=1)
+    log_fh.write(f"# UpaPasta — log de sessão\n# Início: {datetime.now().isoformat()}\n# Entrada: {input_name}\n\n")
+
+    sys.stdout = _TeeStream(sys.__stdout__, log_fh)
+    return log_path, log_fh
+
+
+def teardown_session_log(log_fh: io.TextIOBase | None, log_path: str) -> None:
+    """Restaura stdout e fecha o arquivo de log."""
+    sys.stdout = sys.__stdout__
+    if log_fh:
+        log_fh.write(f"\n# Fim: {datetime.now().isoformat()}\n")
+        log_fh.close()
+    print(f"📄 Log salvo em: {log_path}")
 
 
 def format_time(seconds: int) -> str:
@@ -1028,12 +1094,8 @@ def main():
     args = parse_args()
     setup_logging(verbose=getattr(args, "verbose", False), log_file=getattr(args, "log_file", None))
 
-    # Determine whether rar is needed: rar not needed for single-file uploads
-    # when skip_rar is expected. If input is a file and user didn't explicitly
-    # disable skip-rar, then rar is not required.
     needs_rar = True
     try:
-        from pathlib import Path
         p = Path(args.input)
         if p.exists() and p.is_file():
             needs_rar = False
@@ -1043,34 +1105,45 @@ def main():
     if not check_dependencies(needs_rar):
         sys.exit(1)
 
-    orchestrator = UpaPastaOrchestrator(
-        input_path=args.input,
-        dry_run=args.dry_run,
-        redundancy=args.redundancy,
-        backend=args.backend,
-        post_size=args.post_size,
-        subject=args.subject,
-        group=args.group,
-        skip_rar=args.skip_rar,
-        skip_par=args.skip_par,
-        skip_upload=args.skip_upload,
-        force=args.force,
-        env_file=args.env_file,
-        keep_files=args.keep_files,
-        rar_threads=args.rar_threads,
-        par_threads=args.par_threads,
-        par_profile=args.par_profile,
-        nzb_conflict=args.nzb_conflict,
-        obfuscate=args.obfuscate,
-        rar_password=args.password,
-        par_slice_size=args.par_slice_size,
-        upload_timeout=args.upload_timeout,
-        upload_retries=args.upload_retries,
-        verbose=args.verbose,
-        max_memory_mb=args.max_memory,
-    )
+    input_name = Path(args.input).name
+    log_path, log_fh = setup_session_log(input_name, env_file=args.env_file)
 
-    rc = orchestrator.run()
+    try:
+        orchestrator = UpaPastaOrchestrator(
+            input_path=args.input,
+            dry_run=args.dry_run,
+            redundancy=args.redundancy,
+            backend=args.backend,
+            post_size=args.post_size,
+            subject=args.subject,
+            group=args.group,
+            skip_rar=args.skip_rar,
+            skip_par=args.skip_par,
+            skip_upload=args.skip_upload,
+            force=args.force,
+            env_file=args.env_file,
+            keep_files=args.keep_files,
+            rar_threads=args.rar_threads,
+            par_threads=args.par_threads,
+            par_profile=args.par_profile,
+            nzb_conflict=args.nzb_conflict,
+            obfuscate=args.obfuscate,
+            rar_password=args.password,
+            par_slice_size=args.par_slice_size,
+            upload_timeout=args.upload_timeout,
+            upload_retries=args.upload_retries,
+            verbose=args.verbose,
+            max_memory_mb=args.max_memory,
+        )
+
+        rc = orchestrator.run()
+    except Exception:
+        rc = 1
+        import traceback
+        traceback.print_exc()
+    finally:
+        teardown_session_log(log_fh, log_path)
+
     sys.exit(rc)
 
 
