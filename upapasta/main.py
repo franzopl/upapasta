@@ -527,18 +527,21 @@ class UpaPastaOrchestrator:
 
         if self.rar_file:
             rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
-            rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
+            rar_volumes = sorted(glob.glob(glob.escape(rar_base) + ".part*.rar"))
             count = len(rar_volumes)
             print(f"\n📦 Arquivos RAR preservados ({count} parte(s)) em:")
             print(f"   {os.path.dirname(self.rar_file)}")
-            print(f"\n💡 Para retomar quando o problema for resolvido:")
-            input_arg = str(self.input_path)
+            # Aponta para o primeiro volume RAR — passar o .rar como entrada faz
+            # o upapasta detectar automaticamente o conjunto de volumes e gerar
+            # PAR2 para eles, sem recriar o RAR.
+            first_rar = rar_volumes[0] if rar_volumes else self.rar_file
             extra = ""
             if self.par_profile != "safe":
                 extra += " --par-profile safe"
             if self.par_threads != retry_threads:
                 extra += f" --par-threads {retry_threads}"
-            print(f"   upapasta {input_arg} --skip-rar --force{extra}")
+            print(f"\n💡 Para retomar quando o problema for resolvido:")
+            print(f"   upapasta {first_rar} --force{extra}")
 
         return False
 
