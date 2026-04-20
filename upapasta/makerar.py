@@ -211,7 +211,7 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None, 
 	total_bytes = _folder_size(folder_path)
 	vol_bytes = _volume_size_bytes(total_bytes)
 
-	num_threads = threads if threads is not None else (os.cpu_count() or 4)
+	num_threads = min(threads if threads is not None else (os.cpu_count() or 4), 64)
 
 	# -m0 → store, -ma5 → RAR5, -mt → threads, -v → volumes
 	# -hp cifra conteúdo E nomes de arquivo internos (mais forte que -p)
