@@ -20,6 +20,8 @@ Saídas:
   Código 5  -> erro ao executar o comando rar
 """
 
+from __future__ import annotations
+
 import argparse
 import glob
 import math
@@ -31,7 +33,9 @@ import sys
 import time
 import threading
 from queue import Queue
-from typing import Optional
+from typing import Optional, Tuple
+
+from ._process import managed_popen
 
 
 def find_rar():
@@ -67,7 +71,7 @@ def _read_output(pipe, queue: Queue):
 		queue.put(None)  # Sinal de fim
 
 
-def _process_output(queue: Queue) -> tuple[int, bool]:
+def _process_output(queue: Queue) -> Tuple[int, bool]:
 	"""
 	Processa linhas de output da fila em thread principal.
 	Retorna (último_percent, teve_percentual).
@@ -149,7 +153,7 @@ def _folder_size(path: str) -> int:
 	return total
 
 
-def _volume_size_bytes(total_bytes: int) -> int | None:
+def _volume_size_bytes(total_bytes: int) -> Optional[int]:
 	"""
 	Calcula o tamanho ideal de cada volume RAR em bytes.
 	Retorna None quando o conteúdo é pequeno o suficiente para um RAR único.
@@ -170,7 +174,7 @@ def _volume_size_bytes(total_bytes: int) -> int | None:
 	return vol
 
 
-def make_rar(folder_path: str, force: bool = False, threads: int | None = None, password: str | None = None) -> tuple[int, str | None]:
+def make_rar(folder_path: str, force: bool = False, threads: Optional[int] = None, password: Optional[str] = None) -> Tuple[int, Optional[str]]:
 	"""Cria um arquivo RAR para a pasta fornecida.
 
 	Retorna (código_de_retorno, primeiro_arquivo_gerado).
@@ -233,32 +237,33 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None, 
 	cmd += [out_rar, base]
 
 	try:
-		# Executa o rar e captura stdout/stderr para parsear progresso
-		proc = subprocess.Popen(
+		# Executa o rar e captura stdout/stderr para parsear progresso.
+		# managed_popen garante SIGTERM → SIGKILL no filho se o Python receber
+		# KeyboardInterrupt (Ctrl+C) ou qualquer outra exceção.
+		with managed_popen(
 			cmd,
 			cwd=parent,
 			stdout=subprocess.PIPE,
 			stderr=subprocess.STDOUT,
 			text=True,
 			bufsize=1,
-		)
+		) as proc:
+			# Fila para comunicação entre threads
+			output_queue: Queue = Queue()
 
-		# Fila para comunicação entre threads
-		output_queue: Queue = Queue()
+			# Thread daemon: morrerá automaticamente quando o processo filho morrer
+			reader_thread = threading.Thread(
+				target=_read_output,
+				args=(proc.stdout, output_queue),
+				daemon=True,
+			)
+			reader_thread.start()
 
-		# Thread para ler output do subprocess
-		reader_thread = threading.Thread(
-			target=_read_output,
-			args=(proc.stdout, output_queue),
-			daemon=True
-		)
-		reader_thread.start()
+			# Processa output na thread principal
+			last_percent, teve_percentual = _process_output(output_queue)
 
-		# Processa output na thread principal
-		last_percent, teve_percentual = _process_output(output_queue)
-
-		# Aguarda o fim do processo
-		rc = proc.wait()
+			# Aguarda o fim do processo
+			rc = proc.wait()
 
 		if rc == 0:
 			print("Arquivo .rar criado com sucesso.")
@@ -273,6 +278,9 @@ def make_rar(folder_path: str, force: bool = False, threads: int | None = None, 
 		else:
 			print(f"Erro: 'rar' retornou código {rc}.")
 			return 5, None
+	except KeyboardInterrupt:
+		# managed_popen já terminou o filho; propaga para o orquestrador
+		raise
 	except FileNotFoundError:
 		print("Erro: binário 'rar' não encontrado no PATH.")
 		return 4, None

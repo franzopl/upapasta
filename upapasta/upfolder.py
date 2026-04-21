@@ -24,6 +24,8 @@ Retornos:
   5: erro ao executar nyuu
 """
 
+from __future__ import annotations
+
 import argparse
 import glob
 import os
@@ -34,8 +36,10 @@ import random
 import string
 import re
 import xml.etree.ElementTree as ET
+from typing import Optional
 
 from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects, inject_nzb_password
+from ._process import managed_popen
 
 
 def _verify_nzb(nzb_path: str) -> bool:
@@ -54,7 +58,7 @@ def _verify_nzb(nzb_path: str) -> bool:
         return False
 
 
-def find_nyuu() -> str | None:
+def find_nyuu() -> Optional[str]:
     """Procura executável 'nyuu' no PATH."""
     for cmd in ("nyuu", "nyuu.exe"):
         path = shutil.which(cmd)
@@ -98,22 +102,14 @@ def parse_args():
 
 def generate_anonymous_uploader() -> str:
     """Gera um nome de uploader aleatório e anônimo para proteger privacidade."""
-    # Lista de nomes comuns para anonimato
     first_names = [
         "Anonymous", "User", "Poster", "Uploader", "Contributor", "Member",
         "Guest", "Visitor", "Participant", "Sender", "Provider", "Supplier"
     ]
-    
-    # Adiciona um sufixo aleatório de 4 dígitos
     suffix = ''.join(random.choices(string.digits, k=4))
-    
-    # Escolhe um nome aleatório
     name = random.choice(first_names)
-    
-    # Gera um domínio aleatório
     domains = ["anonymous.net", "upload.net", "poster.com", "user.org", "generic.mail"]
     domain = random.choice(domains)
-    
     return f"{name}{suffix} <{name}{suffix}@{domain}>"
 
 
@@ -121,19 +117,25 @@ def upload_to_usenet(
     input_path: str,
     env_vars: dict,
     dry_run: bool = False,
-    nyuu_path: str | None = None,
-    subject: str | None = None,
-    group: str | None = None,
+    nyuu_path: Optional[str] = None,
+    subject: Optional[str] = None,
+    group: Optional[str] = None,
     skip_rar: bool = False,
-    obfuscated_map: dict[str, str] | None = None,
-    upload_timeout: int | None = None,
+    obfuscated_map: Optional[dict] = None,
+    upload_timeout: Optional[int] = None,
     upload_retries: int = 0,
-    password: str | None = None,
+    password: Optional[str] = None,
 ) -> int:
-    """Upload de arquivos para Usenet usando nyuu."""
+    """
+    Upload de arquivos para Usenet usando nyuu.
+
+    Para pastas (skip_rar=True ou entrada é diretório), o nyuu é invocado com
+    cwd=input_path e caminhos de arquivo relativos, evitando completamente a cópia
+    dos dados para /tmp. Os arquivos PAR2 ficam no diretório pai e são passados
+    com caminhos absolutos (nyuu aceita mistura de relativos e absolutos).
+    """
 
     input_path = os.path.abspath(input_path)
-
 
     # Validar entrada
     if not os.path.exists(input_path):
@@ -145,44 +147,41 @@ def upload_to_usenet(
         print(f"Erro: '{input_path}' não é um arquivo nem pasta.")
         return 1
 
-    # Preparar arquivos para upload
-    import tempfile
-    import shutil
+    # ── Construir lista de arquivos e working_dir ────────────────────────────
+    #
+    # CASO 1 — pasta (skip_rar ou input direto de pasta):
+    #   working_dir = input_path
+    #   files_to_upload = caminhos relativos de TODOS os arquivos dentro da pasta
+    #   par2_files = caminhos ABSOLUTOS (ficam no diretório pai da pasta)
+    #
+    # CASO 2 — arquivo único ou conjunto de volumes RAR:
+    #   working_dir = diretório pai do arquivo
+    #   files_to_upload = basename(s) do(s) arquivo(s)
+    #   par2_files = basenames dos .par2 (mesmo diretório)
+    #
+    # Nenhuma cópia é feita em nenhum dos dois casos.
 
     if is_folder:
-        # Para pastas, criar diretório temporário e copiar CONTEÚDO
-        temp_dir = tempfile.mkdtemp(prefix="upapasta_")
-        
-        # Copiar o conteúdo da pasta de origem para a raiz do temp_dir
-        for item in os.listdir(input_path):
-            s = os.path.join(input_path, item)
-            d = os.path.join(temp_dir, item)
-            if os.path.isdir(s):
-                shutil.copytree(s, d, symlinks=False, ignore=None)
-            else:
-                shutil.copy2(s, d)
+        working_dir = input_path
+        parent_dir = os.path.dirname(input_path)
 
-        # Coletar arquivos relativos à temp
-        files_to_upload = []
-        for root, _, files in os.walk(temp_dir):
-            for file in files:
-                rel_path = os.path.relpath(os.path.join(root, file), temp_dir)
+        # Caminhos relativos de todos os arquivos dentro da pasta
+        files_to_upload: list = []
+        for root, _, files in os.walk(input_path):
+            for file in sorted(files):
+                abs_file = os.path.join(root, file)
+                rel_path = os.path.relpath(abs_file, input_path)
                 files_to_upload.append(rel_path)
-        
-        # Copiar arquivos PAR2 para temp
+
+        # PAR2 fica no diretório pai — passamos caminhos absolutos
         base_name = input_path
         par2_pattern = glob.escape(base_name) + "*par2*"
-        par2_files_abs = sorted(glob.glob(par2_pattern))
-        par2_files = []
-        for par2 in par2_files_abs:
-            temp_par2 = os.path.join(temp_dir, os.path.basename(par2))
-            shutil.copy2(par2, temp_par2)
-            par2_files.append(os.path.basename(par2))
-        
-        working_dir = temp_dir
+        par2_files: list = sorted(glob.glob(par2_pattern))
+        # par2_files já são absolutos (resultado de glob com caminho absoluto)
+
     else:
         working_dir = os.path.dirname(input_path)
-        temp_dir = None
+        parent_dir = working_dir
 
         base_no_ext = os.path.splitext(os.path.basename(input_path))[0]
         is_rar_volume = input_path.endswith(".rar") and ".part" in base_no_ext
@@ -199,18 +198,17 @@ def upload_to_usenet(
             base_name = os.path.splitext(input_path)[0]
 
         par2_pattern = glob.escape(base_name) + "*par2*"
-        par2_files = [os.path.basename(f) for f in sorted(glob.glob(par2_pattern))]
+        par2_files = sorted(glob.glob(par2_pattern))
+        # Para arquivos, par2_files contêm caminhos absolutos também (resultado de glob)
+        # Convertemos para basename pois o working_dir é o mesmo diretório
+        par2_files = [os.path.basename(f) for f in par2_files]
 
     if not par2_files:
         print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")
         print("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2")
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir, ignore_errors=True)
         return 3
 
-    # Carrega credenciais do .env
-    # env_vars = load_env_file(env_file)
-
+    # Carrega credenciais
     nntp_host = env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST")
     nntp_port = env_vars.get("NNTP_PORT") or os.environ.get("NNTP_PORT", "119")
     nntp_ssl = env_vars.get("NNTP_SSL", "false").lower() in ("true", "1", "yes")
@@ -238,8 +236,6 @@ def upload_to_usenet(
         nzb_out, nzb_out_abs, env_vars, nzb_overwrite_env, working_dir
     )
     if not ok:
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
         return 6
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
@@ -249,23 +245,17 @@ def upload_to_usenet(
         print("  NNTP_USER=<seu_usuario>")
         print("  NNTP_PASS=<sua_senha>")
         print("  USENET_GROUP=<seu_grupo>")
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir, ignore_errors=True)
         return 2
 
     # Encontra nyuu
     if nyuu_path:
         if not os.path.exists(nyuu_path):
             print(f"Erro: nyuu não encontrado em '{nyuu_path}'")
-            if temp_dir and os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir, ignore_errors=True)
             return 4
     else:
         nyuu_path = find_nyuu()
         if not nyuu_path:
             print("Erro: nyuu não encontrado. Instale-o (https://github.com/Piorosen/nyuu)")
-            if temp_dir and os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir, ignore_errors=True)
             return 4
 
     # Define subject
@@ -275,8 +265,7 @@ def upload_to_usenet(
         else:
             subject = os.path.basename(os.path.splitext(input_path)[0])
 
-    # Constrói comando nyuu com todas as opções
-    # nyuu -h <host> [-P <port>] [-S] [-i] -u <user> -p <pass> -c <connections> -g <group> -a <article-size> -s <subject> <files>
+    # Constrói comando nyuu
     cmd = [
         nyuu_path,
         "-h", nntp_host,
@@ -295,72 +284,59 @@ def upload_to_usenet(
         "-n", str(nntp_connections),
         "-g", usenet_group,
         "-a", article_size,
-        "-f", generate_anonymous_uploader(),  # Nome anônimo para proteger privacidade
-        "--date", "now",  # Fixar timestamp para proteger privacidade
+        "-f", generate_anonymous_uploader(),
+        "--date", "now",
         "-s", subject,
     ])
-    
-    # Adicionar opção -o para arquivo NZB se configurado
+
     if nzb_out:
         cmd.extend(["-o", nzb_out])
-    
-    # Adicionar opção -O para sobrescrever NZB se configurado
+
     if nzb_overwrite:
         cmd.append("-O")
 
-    # Timeout de conexão (nyuu usa --timeout em segundos)
     if upload_timeout is not None:
         cmd.extend(["--timeout", str(upload_timeout)])
-    
-    # Adicionar arquivos a fazer upload, aplicando renomeação se necessário
-    if obfuscated_map:
-        if is_folder:
-            # Para pastas, o mapa contém a relação nome_ofuscado -> nome_original da pasta
-            obfuscated_folder_name = os.path.basename(input_path)
-            original_folder_name = obfuscated_map.get(obfuscated_folder_name)
 
-            if original_folder_name:
-                for file_path in files_to_upload:
-                    # O 'file_path' aqui é relativo ao temp_dir, ex: 'sub/file.txt'
-                    # O nome da pasta ofuscada não faz parte do caminho relativo
-                    original_file_path = f"{original_folder_name}/{file_path}"
-                    cmd.extend([f"{file_path}"])  # Sem renomeação, usar o arquivo físico
-            else:
-                 cmd.extend(files_to_upload) # Fallback se o mapa estiver errado
-        else:
-            # Para arquivos únicos
-            file_to_upload = files_to_upload[0]
-            original_name = obfuscated_map.get(file_to_upload)
-            if original_name:
-                cmd.extend([f"{file_to_upload}"])  # Sem renomeação
-            else:
-                cmd.append(file_to_upload)
-    else:
-        cmd.extend(files_to_upload)
+    # ── Adicionar arquivos ao comando ────────────────────────────────────────
+    #
+    # Para pastas: files_to_upload são relativos a working_dir (=input_path)
+    #              par2_files são absolutos (diretório pai)
+    # Para arquivos: tudo relativo a working_dir (mesmo diretório)
+    #
+    # O obfuscated_map controla o subject/NZB mas NÃO altera os caminhos físicos
+    # passados ao nyuu — o nyuu usa o caminho físico real, o NZB é corrigido
+    # depois pela função fix_nzb_subjects.
 
-    # Adicionar todos os arquivos .par2
+    cmd.extend(files_to_upload)
     cmd.extend(par2_files)
 
-    if dry_run:
-        print("Comando nyuu (dry-run):")
-        print(" ".join(str(x) for x in cmd))
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir, ignore_errors=True)
-        return 0
-
-    # Calcular tamanho total
-    all_files = files_to_upload + par2_files
+    # ── Calcular tamanho total para exibição ─────────────────────────────────
     total_size_bytes = 0
-    for f in all_files:
+    for f in files_to_upload:
         try:
             total_size_bytes += os.path.getsize(os.path.join(working_dir, f))
         except OSError:
             pass
+    for f in par2_files:
+        try:
+            # par2_files para pastas são absolutos; para arquivos são basenames
+            if os.path.isabs(f):
+                total_size_bytes += os.path.getsize(f)
+            else:
+                total_size_bytes += os.path.getsize(os.path.join(working_dir, f))
+        except OSError:
+            pass
 
-    def format_size(size_bytes):
-        if size_bytes < 1024**2: return f"{size_bytes/1024:.1f} KB"
-        elif size_bytes < 1024**3: return f"{size_bytes/1024**2:.2f} MB"
-        else: return f"{size_bytes/1024**3:.2f} GB"
+    all_file_count = len(files_to_upload) + len(par2_files)
+
+    def format_size(size_bytes: int) -> str:
+        if size_bytes < 1024**2:
+            return f"{size_bytes/1024:.1f} KB"
+        elif size_bytes < 1024**3:
+            return f"{size_bytes/1024**2:.2f} MB"
+        else:
+            return f"{size_bytes/1024**3:.2f} GB"
 
     try:
         term_columns = shutil.get_terminal_size().columns
@@ -372,7 +348,7 @@ def upload_to_usenet(
         ("Host",    f"{nntp_host}:{nntp_port}"),
         ("Grupo",   usenet_group),
         ("Subject", subject),
-        ("Total",   f"{format_size(total_size_bytes)}  ({len(all_files)} arquivos)"),
+        ("Total",   f"{format_size(total_size_bytes)}  ({all_file_count} arquivos)"),
     ]
     if nzb_out:
         rows.append(("NZB", nzb_out))
@@ -386,43 +362,56 @@ def upload_to_usenet(
     print(sep)
     print()
 
+    if dry_run:
+        print("Comando nyuu (dry-run):")
+        print(" ".join(str(x) for x in cmd))
+        return 0
+
+    # ── Executar nyuu ────────────────────────────────────────────────────────
+    # managed_popen garante SIGTERM → SIGKILL no nyuu se receber Ctrl+C.
+    # Usamos Popen em vez de subprocess.run para ter controle do processo.
     max_attempts = 1 + max(0, upload_retries)
     last_rc = 5
     for attempt in range(1, max_attempts + 1):
         if attempt > 1:
             print(f"\nTentativa {attempt}/{max_attempts} de upload...")
         try:
-            # Executar nyuu e deixar que ele controle o output diretamente
-            # Isso permite que a barra de progresso nativa do nyuu funcione
-            subprocess.run(cmd, check=True, cwd=working_dir)
-            last_rc = 0
-            break
-        except subprocess.CalledProcessError as e:
-            print(f"\nErro: nyuu retornou código {e.returncode}.")
-            last_rc = 5
+            with managed_popen(cmd, cwd=working_dir) as proc:
+                last_rc = proc.wait()
+            if last_rc == 0:
+                break
+            print(f"\nErro: nyuu retornou código {last_rc}.")
+        except KeyboardInterrupt:
+            # managed_popen já matou o nyuu; propaga para o orquestrador
+            raise
         except FileNotFoundError:
             print(f"\nErro: nyuu não encontrado em '{nyuu_path}'.")
-            if temp_dir and os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir, ignore_errors=True)
             return 4
         except OSError as e:
             print(f"\nErro de I/O ao executar nyuu: {e}")
             last_rc = 5
 
     if last_rc != 0:
-        if temp_dir and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir, ignore_errors=True)
         return last_rc
 
-    # Corrigir NZB para preservar estrutura de pastas
+    # ── Pós-processamento do NZB ─────────────────────────────────────────────
+
+    # Para pastas: corrigir subjects no NZB para preservar estrutura de pastas.
+    # files_to_upload contém os caminhos relativos usados pelo nyuu; o NZB
+    # terá esses mesmos nomes como subjects — fix_nzb_subjects os remapeia
+    # para incluir o nome da pasta original.
     if nzb_out_abs and os.path.exists(nzb_out_abs) and is_folder:
         folder_name = os.path.basename(input_path)
-        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_files, folder_name)
+        # Para fix_nzb_subjects, passamos os paths relativos (sem o working_dir).
+        # Os par2 passados ao nyuu eram absolutos; para o NZB só seus basenames
+        # interessam.
+        par2_basenames = [os.path.basename(f) for f in par2_files]
+        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name)
 
     # Injetar senha no NZB para extração automática pelos clientes
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password:
         inject_nzb_password(nzb_out_abs, password)
-        print(f"Senha injetada no NZB.")
+        print("Senha injetada no NZB.")
 
     # Verificar integridade do NZB gerado
     if nzb_out_abs:
@@ -431,11 +420,4 @@ def upload_to_usenet(
         else:
             print(f"NZB verificado: {os.path.basename(nzb_out_abs)}")
 
-    # Limpar diretório temporário se foi criado
-    if temp_dir and os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-
     return 0
-
-
-

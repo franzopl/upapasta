@@ -30,6 +30,8 @@ Retornos:
   5: erro ao executar o utilitário
 """
 
+from __future__ import annotations
+
 import argparse
 import glob
 import os
@@ -41,6 +43,9 @@ import subprocess
 import sys
 import threading
 from queue import Queue
+from typing import Optional, Tuple
+
+from ._process import managed_popen
 
 
 # ── Helpers de tamanho ────────────────────────────────────────────────────────
@@ -89,7 +94,7 @@ def _get_article_size_bytes() -> int:
 
 # ── Cálculo dinâmico de slice size ────────────────────────────────────────────
 
-def _compute_dynamic_slice(total_bytes: int, article_size: int) -> tuple[str, int, int]:
+def _compute_dynamic_slice(total_bytes: int, article_size: int) -> Tuple[str, int, int]:
     """
     Calcula slice size, min-input-slices e max-input-slices para parpar.
 
@@ -129,7 +134,7 @@ def _compute_dynamic_slice(total_bytes: int, article_size: int) -> tuple[str, in
 
 # ── Memória disponível ────────────────────────────────────────────────────────
 
-def get_parpar_memory_limit() -> str | None:
+def get_parpar_memory_limit() -> Optional[str]:
     """
     Retorna limite de memória seguro para parpar (75% da RAM livre).
     Mínimo 256M, máximo 3G. Retorna None se não conseguir detectar.
@@ -159,20 +164,76 @@ def generate_random_name(length: int = 12) -> str:
     return "".join(random.choice(chars) for _ in range(length))
 
 
+
+def _revert_obfuscation(
+    is_folder: bool,
+    is_rar_vol_set: bool,
+    obfuscated_path: str,
+    input_path: str,
+    parent_dir: str,
+    random_base: str,
+    obfuscated_map: dict,
+) -> None:
+    """
+    Reverte a ofuscação (renomeação) dos arquivos do usuário.
+
+    Chamada em qualquer saída anormal de obfuscate_and_par — erro de paridade,
+    exceção Python, ou KeyboardInterrupt. Tenta os renames de forma best-effort:
+    falhas individuais são logadas mas não interrompem as demais reversões.
+    """
+    print("  Revertendo ofuscação para restaurar nomes originais...")
+    if is_folder:
+        try:
+            os.rename(obfuscated_path, input_path)
+            print(f"  ✓ Pasta restaurada: {os.path.basename(input_path)}")
+        except OSError as e:
+            print(f"  ✗ Falha ao reverter pasta '{obfuscated_path}' → '{input_path}': {e}")
+            print(f"    AÇÃO MANUAL: renomeie '{obfuscated_path}' de volta para '{input_path}'")
+
+    elif is_rar_vol_set and obfuscated_map:
+        orig_base = list(obfuscated_map.values())[0]
+        vols = sorted(glob.glob(os.path.join(parent_dir, glob.escape(random_base) + ".part*.rar")))
+        ok = 0
+        for vol in vols:
+            suffix = os.path.basename(vol)[len(random_base):]
+            original = os.path.join(parent_dir, orig_base + suffix)
+            try:
+                os.rename(vol, original)
+                ok += 1
+            except OSError as e:
+                print(f"  ✗ Falha ao reverter '{os.path.basename(vol)}' → '{orig_base + suffix}': {e}")
+                print(f"    AÇÃO MANUAL: renomeie o arquivo manualmente.")
+        if ok:
+            print(f"  ✓ {ok} volume(s) RAR restaurado(s): {orig_base}.part*.rar")
+
+    else:
+        try:
+            os.rename(obfuscated_path, input_path)
+            print(f"  ✓ Arquivo restaurado: {os.path.basename(input_path)}")
+        except OSError as e:
+            print(f"  ✗ Falha ao reverter '{obfuscated_path}' → '{input_path}': {e}")
+            print(f"    AÇÃO MANUAL: renomeie '{os.path.basename(obfuscated_path)}' de volta para '{os.path.basename(input_path)}'")
+
+
 def obfuscate_and_par(
     input_path: str,
-    redundancy: int | None = None,
+    redundancy: Optional[int] = None,
     force: bool = False,
     backend: str = "auto",
     usenet: bool = False,
-    post_size: str | None = None,
-    threads: int | None = None,
+    post_size: Optional[str] = None,
+    threads: Optional[int] = None,
     profile: str = DEFAULT_PROFILE,
-    slice_size: str | None = None,
-    memory_mb: int | None = None,
-) -> tuple[int, str | None, dict[str, str]]:
+    slice_size: Optional[str] = None,
+    memory_mb: Optional[int] = None,
+) -> Tuple[int, Optional[str], dict]:
     """
     Renomeia fisicamente o arquivo/pasta para nome aleatório e gera paridade.
+
+    Proteção de dados: se qualquer erro ocorrer após a renomeação — inclusive
+    KeyboardInterrupt (Ctrl+C) durante a geração de PAR2 — a função garante a
+    reversão dos nomes originais via bloco finally. O mapeamento dos renames é
+    construído progressivamente e usado pela função _revert_obfuscation.
 
     Retorna (rc, novo_caminho, obfuscated_map) onde obfuscated_map é
     {base_ofuscada: base_original} — usado para nomear o NZB corretamente.
@@ -186,12 +247,21 @@ def obfuscate_and_par(
     is_folder = os.path.isdir(input_path)
     base = os.path.basename(input_path)
     random_base = generate_random_name()
-    obfuscated_map: dict[str, str] = {}
+    obfuscated_map: dict = {}
+
+    # ── Fase 1: Renomear (antes do PAR2) ─────────────────────────────────────
+    #
+    # Construímos obfuscated_path e obfuscated_map ANTES de iniciar o PAR2.
+    # O bloco finally usa essas variáveis para reverter se algo der errado.
+
+    obfuscated_path: Optional[str] = None
+    is_rar_vol_set = False
+    par_input: Optional[str] = None
 
     # ── Pasta ────────────────────────────────────────────────────────────────
     if is_folder:
         obfuscated_path = os.path.join(parent_dir, random_base)
-        print(f"Ofuscando pasta: {base} -> {random_base}")
+        print(f"Ofuscando pasta: {base} → {random_base}")
         try:
             os.rename(input_path, obfuscated_path)
         except OSError:
@@ -214,8 +284,8 @@ def obfuscate_and_par(
             vol_pattern = os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar")
             volumes = sorted(glob.glob(vol_pattern)) or [input_path]
 
-            print(f"Ofuscando {len(volumes)} volumes RAR: {original_base}.part*.rar -> {random_base}.part*.rar")
-            renamed: list[tuple[str, str]] = []
+            print(f"Ofuscando {len(volumes)} volumes RAR: {original_base}.part*.rar → {random_base}.part*.rar")
+            renamed: list = []
             for vol in volumes:
                 vol_b = os.path.basename(vol)
                 suffix = vol_b[len(original_base):]
@@ -225,6 +295,7 @@ def obfuscate_and_par(
                     renamed.append((vol, new_path))
                 except OSError as e:
                     print(f"Erro ao renomear {vol_b}: {e}")
+                    # Reverte os que já foram renomeados neste loop
                     for orig, new in renamed:
                         try:
                             os.rename(new, orig)
@@ -242,7 +313,7 @@ def obfuscate_and_par(
             _, ext = os.path.splitext(base)
             obfuscated_name = random_base + ext
             obfuscated_path = os.path.join(parent_dir, obfuscated_name)
-            print(f"Ofuscando: {base} -> {obfuscated_name}")
+            print(f"Ofuscando: {base} → {obfuscated_name}")
             try:
                 os.rename(input_path, obfuscated_path)
             except OSError:
@@ -252,46 +323,60 @@ def obfuscate_and_par(
                 except OSError as e:
                     print(f"Erro ao ofuscar arquivo: {e}")
                     return 1, None, {}
-            obfuscated_map[random_base] = name_no_ext
+            obfuscated_map[name_no_ext.rsplit(".part", 1)[0] if ".part" in name_no_ext else name_no_ext] = name_no_ext
+            # Para arquivo único, o mapa correto é random_base → name_no_ext
+            obfuscated_map = {random_base: name_no_ext}
             par_input = obfuscated_path
 
-    # ── Gerar paridade nos arquivos já renomeados ─────────────────────────────
-    rc = make_parity(
-        par_input,
-        redundancy=redundancy,
-        force=force,
-        backend=backend,
-        usenet=usenet,
-        post_size=post_size,
-        threads=threads,
-        profile=profile,
-        slice_size=slice_size,
-        memory_mb=memory_mb,
-    )
+    # ── Fase 2: Gerar paridade — protegida por finally ────────────────────────
+    #
+    # A partir daqui os arquivos do usuário já foram renomeados. Qualquer saída
+    # anormal (exceção, Ctrl+C) deve reverter os renames. O bloco finally é a
+    # única garantia confiável para isso — try/except sozinho perde o
+    # KeyboardInterrupt se não houver um except explícito para ele.
 
-    if rc == 0:
-        return 0, obfuscated_path, obfuscated_map
+    _par_succeeded = False
+    rc = 5
 
-    print("Erro ao gerar paridade. Revertendo ofuscação...")
-    if is_folder:
-        try:
-            os.rename(obfuscated_path, input_path)
-        except OSError:
-            pass
-    elif is_rar_vol_set:
-        orig_base_name = list(obfuscated_map.values())[0]
-        for vol in sorted(glob.glob(os.path.join(parent_dir, glob.escape(random_base) + ".part*.rar"))):
-            suffix = os.path.basename(vol)[len(random_base):]
-            try:
-                os.rename(vol, os.path.join(parent_dir, orig_base_name + suffix))
-            except OSError:
-                pass
-    else:
-        try:
-            os.rename(obfuscated_path, input_path)
-        except OSError:
-            pass
-    return rc, None, {}
+    try:
+        rc = make_parity(
+            par_input,
+            redundancy=redundancy,
+            force=force,
+            backend=backend,
+            usenet=usenet,
+            post_size=post_size,
+            threads=threads,
+            profile=profile,
+            slice_size=slice_size,
+            memory_mb=memory_mb,
+        )
+        if rc == 0:
+            _par_succeeded = True
+
+    except KeyboardInterrupt:
+        # Não logamos aqui — o managed_popen já imprimiu a mensagem de interrupção.
+        # Deixamos o finally reverter e re-levantamos para o orquestrador.
+        raise
+
+    finally:
+        # Este bloco SEMPRE roda: em rc!=0, em exceção, em KeyboardInterrupt.
+        # Só não revertemos se o PAR2 foi bem-sucedido.
+        if not _par_succeeded and obfuscated_path and obfuscated_map:
+            print("\nErro ao gerar paridade. Revertendo ofuscação...")
+            _revert_obfuscation(
+                is_folder=is_folder,
+                is_rar_vol_set=is_rar_vol_set,
+                obfuscated_path=obfuscated_path,
+                input_path=input_path,
+                parent_dir=parent_dir,
+                random_base=random_base,
+                obfuscated_map=obfuscated_map,
+            )
+
+    # Se chegou aqui sem exceção e rc != 0, retorna falha
+    return (0, obfuscated_path, obfuscated_map) if rc == 0 else (rc, None, {})
+
 
 
 # ── Detecção de backends ──────────────────────────────────────────────────────
@@ -466,17 +551,17 @@ def _process_output(queue: Queue):
 
 def make_parity(
     rar_path: str,
-    redundancy: int | None = None,
+    redundancy: Optional[int] = None,
     force: bool = False,
     backend: str = "auto",
-    cmd_template: str | None = None,
-    slice_size: str | None = None,
+    cmd_template: Optional[str] = None,
+    slice_size: Optional[str] = None,
     usenet: bool = False,
     auto_slice_size: bool = False,
-    post_size: str | None = None,
-    threads: int | None = None,
+    post_size: Optional[str] = None,
+    threads: Optional[int] = None,
     profile: str = DEFAULT_PROFILE,
-    memory_mb: int | None = None,
+    memory_mb: Optional[int] = None,
 ) -> int:
     """
     Gera arquivos .par2 para rar_path (arquivo único, volume set ou pasta).
@@ -636,24 +721,28 @@ def make_parity(
     print(f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}...")
 
     try:
-        proc = subprocess.Popen(
+        # managed_popen garante SIGTERM → SIGKILL no filho se receber Ctrl+C
+        with managed_popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
-        )
+        ) as proc:
+            output_queue: Queue = Queue()
+            reader_thread = threading.Thread(
+                target=_read_output, args=(proc.stdout, output_queue), daemon=True
+            )
+            reader_thread.start()
+            _process_output(output_queue)
+            rc = proc.wait()
 
-        output_queue: Queue = Queue()
-        reader_thread = threading.Thread(
-            target=_read_output, args=(proc.stdout, output_queue), daemon=True
-        )
-        reader_thread.start()
-        _process_output(output_queue)
-
-        rc = proc.wait()
         if rc == 0:
             print("Arquivos de paridade criados com sucesso.")
             return 0
         else:
             print(f"Erro: '{chosen}' retornou código {rc}.")
             return 5
+    except KeyboardInterrupt:
+        # managed_popen já terminou o filho; propaga para obfuscate_and_par
+        # poder reverter a ofuscação antes de sair.
+        raise
     except FileNotFoundError:
         print(f"Erro: binário '{chosen}' não encontrado no PATH.")
         return 4

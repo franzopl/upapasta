@@ -36,6 +36,8 @@ Retornos:
   3: erro ao fazer upload
 """
 
+from __future__ import annotations
+
 import argparse
 import glob
 import io
@@ -50,6 +52,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from .config import load_env_file, check_or_prompt_credentials, DEFAULT_ENV_FILE
 from .makerar import make_rar
@@ -95,7 +98,7 @@ class _TeeStream(io.TextIOBase):
         return self._original.isatty()
 
 
-def setup_logging(verbose: bool = False, log_file: str | None = None) -> None:
+def setup_logging(verbose: bool = False, log_file: Optional[str] = None) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     handler = logging.StreamHandler()
     handler.setLevel(level)
@@ -110,7 +113,7 @@ def setup_logging(verbose: bool = False, log_file: str | None = None) -> None:
         root.addHandler(fh)
 
 
-def setup_session_log(input_name: str, env_file: str = None) -> tuple[str, io.TextIOBase | None]:
+def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple:
     """
     Cria arquivo de log da sessão em ~/.config/upapasta/logs/.
     Redireciona stdout para TeeStream que grava simultaneamente no terminal e no log.
@@ -131,7 +134,7 @@ def setup_session_log(input_name: str, env_file: str = None) -> tuple[str, io.Te
     return log_path, log_fh
 
 
-def teardown_session_log(log_fh: io.TextIOBase | None, log_path: str) -> None:
+def teardown_session_log(log_fh: Optional[io.TextIOBase], log_path: str) -> None:
     """Restaura stdout e fecha o arquivo de log."""
     sys.stdout = sys.__stdout__
     if log_fh:
@@ -209,10 +212,10 @@ class UpaPastaOrchestrator:
         self,
         input_path: str,
         dry_run: bool = False,
-        redundancy: int | None = None,
-        post_size: str | None = None,
-        subject: str | None = None,
-        group: str | None = None,
+        redundancy: Optional[int] = None,
+        post_size: Optional[str] = None,
+        subject: Optional[str] = None,
+        group: Optional[str] = None,
         skip_rar: bool = False,
         skip_par: bool = False,
         skip_upload: bool = False,
@@ -220,17 +223,17 @@ class UpaPastaOrchestrator:
         env_file: str = ".env",
         keep_files: bool = False,
         backend: str = "parpar",
-        rar_threads: int | None = None,
-        par_threads: int | None = None,
+        rar_threads: Optional[int] = None,
+        par_threads: Optional[int] = None,
         par_profile: str = "balanced",
-        nzb_conflict: str | None = None,
+        nzb_conflict: Optional[str] = None,
         obfuscate: bool = False,
-        rar_password: str | None = None,
-        par_slice_size: str | None = None,
-        upload_timeout: int | None = None,
+        rar_password: Optional[str] = None,
+        par_slice_size: Optional[str] = None,
+        upload_timeout: Optional[int] = None,
         upload_retries: int = 0,
         verbose: bool = False,
-        max_memory_mb: int | None = None,
+        max_memory_mb: Optional[int] = None,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -265,11 +268,11 @@ class UpaPastaOrchestrator:
         self.upload_timeout = upload_timeout
         self.upload_retries = upload_retries
         self.verbose = verbose
-        self.rar_file: str | None = None
-        self.par_file: str | None = None
+        self.rar_file: Optional[str] = None
+        self.par_file: Optional[str] = None
         # input_target is the path used for subsequent steps (string): either
         # the original folder/file or the rar file created for upload.
-        self.input_target: str | None = None
+        self.input_target: Optional[str] = None
         self.env_vars: dict = {}
 
     @staticmethod
@@ -665,7 +668,8 @@ class UpaPastaOrchestrator:
                 return
             print("\n🧹 Limpando arquivos temporários...")
 
-        candidates: list[str] = []
+        candidates: list = []
+        base_name: Optional[str] = None
 
         if self.rar_file and not preserve_rar:
             # Strip .partNNN suffix to get the base name for glob
@@ -675,12 +679,10 @@ class UpaPastaOrchestrator:
                 candidates.extend(rar_volumes)
             elif os.path.exists(self.rar_file):
                 candidates.append(self.rar_file)
-            base_name: str | None = rar_base
+            base_name = rar_base
         elif self.rar_file and preserve_rar:
             rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
             base_name = rar_base
-        else:
-            base_name = None
 
         if base_name is None and self.par_file:
             base_name = os.path.splitext(self.par_file)[0]
@@ -822,7 +824,16 @@ class UpaPastaOrchestrator:
         # ── Etapa 2: PAR2 ───────────────────────────────────────────────────
         if not self.skip_par:
             bar.start("PAR2")
-            if not self.run_makepar():
+            try:
+                par_ok = self.run_makepar()
+            except KeyboardInterrupt:
+                bar.error("PAR2")
+                print("\n⚠️  PAR2 interrompido pelo usuário (Ctrl+C).")
+                # A ofuscação já foi revertida dentro de obfuscate_and_par/finally.
+                # Aqui apenas limpamos arquivos .par2 parciais (preserve_rar=True).
+                self._cleanup_on_error(preserve_rar=True)
+                return 130
+            if not par_ok:
                 bar.error("PAR2")
                 # Preserva RARs: o _handle_par_failure já tentou retry e orientou o usuário
                 self._cleanup_on_error(preserve_rar=True)
@@ -832,6 +843,7 @@ class UpaPastaOrchestrator:
             if not self.run_makepar():
                 self._cleanup_on_error()
                 return 2
+
 
         # Coletar tamanhos ANTES do upload/cleanup
         if self.input_target and os.path.exists(self.input_target):
@@ -866,10 +878,17 @@ class UpaPastaOrchestrator:
                 os.path.getsize(f) for f in par_volumes if os.path.exists(f)
             ) / (1024 * 1024)
 
-        # ── Etapa 3: Upload ──────────────────────────────────────────────────
+        # ── Etapa 3: Upload ──────────────────────────────────────────────────────
         if not self.skip_upload:
             bar.start("UPLOAD")
-            if not self.run_upload():
+            try:
+                upload_ok = self.run_upload()
+            except KeyboardInterrupt:
+                bar.error("UPLOAD")
+                print("\n⚠️  Upload interrompido pelo usuário (Ctrl+C).")
+                self._cleanup_on_error()
+                return 130  # convenção POSIX para SIGINT
+            if not upload_ok:
                 bar.error("UPLOAD")
                 self._cleanup_on_error()
                 return 3
@@ -881,7 +900,7 @@ class UpaPastaOrchestrator:
         total_elapsed = time.time() - total_start
         bar.done("DONE")
 
-        # ── Sumário final ────────────────────────────────────────────────────
+        # ── Sumário final ──────────────────────────────────────────────────────
         print("=" * 60)
         print("🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉")
         print("=" * 60)
@@ -1137,6 +1156,14 @@ def main():
         )
 
         rc = orchestrator.run()
+    except KeyboardInterrupt:
+        # Ctrl+C durante RAR ou PAR2 (não durante upload, que já trata acima)
+        print("\n⚠️  Interrompido pelo usuário (Ctrl+C).")
+        try:
+            orchestrator._cleanup_on_error()
+        except Exception:
+            pass
+        rc = 130
     except Exception:
         rc = 1
         import traceback

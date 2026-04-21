@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.8.12 - 2026-04-20
+## 0.9.0 - 2026-04-21
+
+### Segurança / Correções Críticas
+
+- **Fix [CRÍTICO]**: `upfolder.py` — eliminada a cópia de dados para `/tmp` com `shutil.copytree` antes do upload de pastas. O nyuu agora é invocado com `cwd=input_path` e caminhos relativos construídos via `os.path.relpath`, zerando o I/O extra (era fatal para pastas de dezenas de GB)
+- **Fix [ALTO]**: Graceful shutdown em todos os subprocessos (`rar`, `parpar`, `par2`, `nyuu`) — novo módulo `_process.py` com `managed_popen` context manager que garante `SIGTERM → SIGKILL` no processo filho em qualquer saída, incluindo `KeyboardInterrupt` (Ctrl+C). Elimina processos zumbi
+- **Fix [ALTO]**: Proteção de dados na ofuscação — `obfuscate_and_par` reescrito com `try/finally` blindado. Novo helper `_revert_obfuscation` com mensagens explícitas de progresso e instruções manuais de fallback. A reversão dos renames do usuário agora é garantida mesmo em Ctrl+C durante a geração do PAR2
+- **Fix [MÉDIO]**: Compatibilidade real com Python 3.8 — `from __future__ import annotations` adicionado a todos os módulos; sintaxe `X | Y` em anotações de função substituída por `Optional[X]` / `Tuple[X, Y]` de `typing`. A sintaxe `X | Y` só é válida em runtime no Python 3.10+
+
+### Novas Features Internas
+
+- `upapasta/_process.py`: novo módulo com `managed_popen()` e `_terminate_process()` compartilhados por makerar, makepar e upfolder
+- `makepar._revert_obfuscation()`: função centralizada de reversão da ofuscação com feedback detalhado e instruções de recuperação manual
+
+
 - Feat: questionário inicial reformulado — exibe cabeçalho, duas seções (Servidor / Upload), valida porta e campos obrigatórios, aceita Enter para confirmar defaults e exibe resumo antes de salvar
 - Feat: `.env` gerado automaticamente na primeira execução contém todas as variáveis configuráveis com comentários explicativos (igual ao `.env.example`)
 - Docs: `.env.example` atualizado — comentários mais descritivos, grupo padrão alterado para `alt.binaries.boneless`, `DUMP_FAILED_POSTS` vazio por padrão
