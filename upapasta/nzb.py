@@ -6,6 +6,8 @@ Utilitários compartilhados para resolução de caminho, tratamento de conflitos
 e correção de subjects em arquivos NZB.
 """
 
+from __future__ import annotations
+
 import os
 import xml.etree.ElementTree as ET
 

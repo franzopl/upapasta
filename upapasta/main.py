@@ -56,7 +56,7 @@ from typing import Optional
 
 from .config import load_env_file, check_or_prompt_credentials, DEFAULT_ENV_FILE
 from .makerar import make_rar
-from .makepar import make_parity, obfuscate_and_par, generate_random_name
+from .makepar import make_parity, obfuscate_and_par, generate_random_name, handle_par_failure
 from .nzb import resolve_nzb_out, handle_nzb_conflict
 from .upfolder import upload_to_usenet
 from .resources import calculate_optimal_resources, get_total_size
@@ -203,6 +203,26 @@ class PhaseBar:
     def _render(self) -> None:
         bar = "  ".join(self._fmt(p) for p in self.PHASES)
         print(f"\n{bar}")
+
+
+class UpaPastaSession:
+    """Context manager para garantir cleanup de recursos do UpaPastaOrchestrator."""
+    
+    def __init__(self, orchestrator: "UpaPastaOrchestrator"):
+        self.orch = orchestrator
+
+    def __enter__(self) -> "UpaPastaOrchestrator":
+        return self.orch
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            if exc_type is KeyboardInterrupt:
+                print("\n⚠️  Interrompido pelo usuário (Ctrl+C).")
+            try:
+                self.orch._cleanup_on_error(preserve_rar=(exc_type is KeyboardInterrupt))
+            except Exception:
+                pass
+        return False  # Propaga a exceção original
 
 
 class UpaPastaOrchestrator:
@@ -534,85 +554,25 @@ class UpaPastaOrchestrator:
             if rc != 0:
                 print("-" * 60)
                 print(f"\n❌ Erro ao gerar paridade (código {rc}).")
-                return self._handle_par_failure(rc)
+                return handle_par_failure(
+                    input_target=self.input_target,
+                    original_rc=rc,
+                    redundancy=self.redundancy,
+                    backend=self.backend,
+                    post_size=self.post_size,
+                    threads=self.par_threads,
+                    memory_mb=self.par_memory_mb,
+                    slice_size=self.par_slice_size,
+                    rar_file=self.rar_file,
+                    par_profile=self.par_profile,
+                )
 
             print("-" * 60)
             # O nome do arquivo par2 é baseado no nome original
             self.par_file = self._par_file_path()
             return True
 
-    def _handle_par_failure(self, rc: int) -> bool:
-        """
-        Chamado quando o PAR2 falha. Tenta retry automático com perfil safe
-        e threads reduzidas. Se o retry também falhar, preserva os RARs e
-        orienta o usuário sobre como retomar.
-        """
-        # Limpa arquivos .par2 parciais (mas NÃO os RARs)
-        if self.input_target:
-            stem = os.path.splitext(self.input_target)[0]
-            if self.input_target.endswith(".rar") and ".part" in stem:
-                stem = stem.rsplit(".part", 1)[0]
-            for f in glob.glob(glob.escape(stem) + "*.par2"):
-                try:
-                    os.remove(f)
-                except OSError:
-                    pass
 
-        # Calcula configurações conservadoras para retry
-        retry_threads = max(1, min(4, self.par_threads // 2))
-        retry_profile = "safe"
-        retry_memory_mb = max(512, (self.par_memory_mb or 2048) // 2)
-
-        print(f"\n⚠️  Tentando novamente com configurações conservadoras...")
-        print(f"   Perfil: {retry_profile} | Threads: {retry_threads} | Memória: {retry_memory_mb} MB")
-        print("-" * 60)
-
-        try:
-            rc2 = make_parity(
-                self.input_target,
-                redundancy=self.redundancy,
-                force=True,
-                backend=self.backend,
-                usenet=True,
-                post_size=self.post_size,
-                threads=retry_threads,
-                profile=retry_profile,
-                slice_size=self.par_slice_size,
-                memory_mb=retry_memory_mb,
-            )
-        except Exception as e:
-            print(f"❌ Erro no retry: {e}")
-            rc2 = 5
-
-        if rc2 == 0:
-            print("-" * 60)
-            self.par_file = self._par_file_path()
-            print(f"✅ Paridade gerada com sucesso no retry (perfil {retry_profile}).")
-            return True
-
-        # Retry também falhou — preservar RARs e orientar o usuário
-        print("-" * 60)
-        print(f"\n❌ Falha persistente ao gerar paridade (código original {rc}, retry {rc2}).")
-
-        if self.rar_file:
-            rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(self.rar_file)[0])
-            rar_volumes = sorted(glob.glob(glob.escape(rar_base) + ".part*.rar"))
-            count = len(rar_volumes)
-            print(f"\n📦 Arquivos RAR preservados ({count} parte(s)) em:")
-            print(f"   {os.path.dirname(self.rar_file)}")
-            # Aponta para o primeiro volume RAR — passar o .rar como entrada faz
-            # o upapasta detectar automaticamente o conjunto de volumes e gerar
-            # PAR2 para eles, sem recriar o RAR.
-            first_rar = rar_volumes[0] if rar_volumes else self.rar_file
-            extra = ""
-            if self.par_profile != "safe":
-                extra += " --par-profile safe"
-            if self.par_threads != retry_threads:
-                extra += f" --par-threads {retry_threads}"
-            print(f"\n💡 Para retomar quando o problema for resolvido:")
-            print(f"   upapasta {first_rar} --force{extra}")
-
-        return False
 
     def run_upload(self) -> bool:
         """Executa upfolder.py, permitindo que a barra de progresso nativa apareça."""
@@ -824,18 +784,9 @@ class UpaPastaOrchestrator:
         # ── Etapa 2: PAR2 ───────────────────────────────────────────────────
         if not self.skip_par:
             bar.start("PAR2")
-            try:
-                par_ok = self.run_makepar()
-            except KeyboardInterrupt:
+            if not self.run_makepar():
                 bar.error("PAR2")
-                print("\n⚠️  PAR2 interrompido pelo usuário (Ctrl+C).")
-                # A ofuscação já foi revertida dentro de obfuscate_and_par/finally.
-                # Aqui apenas limpamos arquivos .par2 parciais (preserve_rar=True).
-                self._cleanup_on_error(preserve_rar=True)
-                return 130
-            if not par_ok:
-                bar.error("PAR2")
-                # Preserva RARs: o _handle_par_failure já tentou retry e orientou o usuário
+                # Preserva RARs: o handle_par_failure já tentou retry e orientou o usuário
                 self._cleanup_on_error(preserve_rar=True)
                 return 2
             bar.done("PAR2")
@@ -881,13 +832,7 @@ class UpaPastaOrchestrator:
         # ── Etapa 3: Upload ──────────────────────────────────────────────────────
         if not self.skip_upload:
             bar.start("UPLOAD")
-            try:
-                upload_ok = self.run_upload()
-            except KeyboardInterrupt:
-                bar.error("UPLOAD")
-                print("\n⚠️  Upload interrompido pelo usuário (Ctrl+C).")
-                self._cleanup_on_error()
-                return 130  # convenção POSIX para SIGINT
+            upload_ok = self.run_upload()
             if not upload_ok:
                 bar.error("UPLOAD")
                 self._cleanup_on_error()
@@ -1155,14 +1100,10 @@ def main():
             max_memory_mb=args.max_memory,
         )
 
-        rc = orchestrator.run()
+        with UpaPastaSession(orchestrator) as orch:
+            rc = orch.run()
+            
     except KeyboardInterrupt:
-        # Ctrl+C durante RAR ou PAR2 (não durante upload, que já trata acima)
-        print("\n⚠️  Interrompido pelo usuário (Ctrl+C).")
-        try:
-            orchestrator._cleanup_on_error()
-        except Exception:
-            pass
         rc = 130
     except Exception:
         rc = 1

@@ -8,6 +8,8 @@ Geração de arquivos .nfo para uploads na Usenet.
 - Pasta: gera árvore de diretórios + estatísticas + metadados de vídeo (ffprobe).
 """
 
+from __future__ import annotations
+
 import os
 import re
 import subprocess

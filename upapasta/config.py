@@ -4,6 +4,8 @@ config.py
 Configurações centralizadas: perfis PAR2, credenciais e defaults.
 """
 
+from __future__ import annotations
+
 import getpass
 import os
 

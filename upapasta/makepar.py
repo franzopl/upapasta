@@ -456,32 +456,58 @@ def parse_args():
 
 # ── Output do subprocess ──────────────────────────────────────────────────────
 
-def _read_output(pipe, queue: Queue):
-	"""Thread worker para ler output do subprocess tratando \\r e \\n."""
+# Regex para capturar porcentagem de progresso.
+# Tolerante: aceita "label: 50%", "50%", "[50.0%]", etc.
+_PCT_RE = re.compile(r"(?:^(.+?)[:\s]+)?(\d{1,3}(?:\.\d+)?)\s*%")
+
+_CHUNK_SIZE = 4096  # bytes por read() — reduz syscalls vs. read(1)
+
+
+def _read_output(pipe, queue: Queue) -> None:
+	"""
+	Thread worker que lê o pipe do subprocess em chunks de 4 KB e envia
+	linhas individuais para a fila, tratando tanto \\r quanto \\n como
+	separadores (necessário para barras de progresso que usam \\r sem \\n).
+	"""
 	if pipe is None:
-		return
-	try:
-		buffer = ""
-		while True:
-			char = pipe.read(1)
-			if not char:
-				break
-			if char in ("\r", "\n"):
-				if buffer:
-					queue.put(buffer)
-					buffer = ""
-			else:
-				buffer += char
-		if buffer:
-			queue.put(buffer)
-	except Exception:
-		pass
-	finally:
 		queue.put(None)
+		return
+	buf = ""
+	try:
+		while True:
+			chunk = pipe.read(_CHUNK_SIZE)
+			if not chunk:
+				break
+			buf += chunk
+			# Emite cada "linha" separada por \r ou \n
+			while True:
+				for sep in ("\r\n", "\r", "\n"):
+					idx = buf.find(sep)
+					if idx != -1:
+						token = buf[:idx]
+						buf = buf[idx + len(sep):]
+						if token:  # ignora tokens vazios
+							queue.put(token)
+						break
+				else:
+					# Nenhum separador no buffer — aguarda mais dados
+					break
+	finally:
+		if buf:  # flush do que sobrou (sem newline final)
+			queue.put(buf)
+		queue.put(None)  # Sinal de fim de stream
 
+def _process_output(queue: Queue) -> None:
+	"""
+	Consome linhas da fila e exibe progresso no terminal.
 
-def _process_output(queue: Queue):
-	"""Processa linhas de output da fila na thread principal."""
+	Lógica de exibição:
+	  1. Se a linha contém "XX%" → barra de progresso animada.
+	  2. Caso contrário → spinner + texto truncado (fallback robusto).
+
+	O fallback para spinner garante que versões futuras do parpar/rar que
+	mudem o formato da string de progresso não causem tela em branco.
+	"""
 	bar_width = 25
 	spinner = "|/-\\"
 	spin_idx = 0
@@ -492,6 +518,9 @@ def _process_output(queue: Queue):
 	except Exception:
 		term_columns = 80
 
+	# Linha em branco de limpeza (reutilizada a cada iteração)
+	clear = "\r" + " " * (term_columns - 1) + "\r"
+
 	while True:
 		line = queue.get()
 		if line is None:
@@ -501,43 +530,33 @@ def _process_output(queue: Queue):
 		if not line:
 			continue
 
-		sys.stdout.write("\r" + " " * (term_columns - 1) + "\r")
+		sys.stdout.write(clear)
 
-		m = re.match(r"^(.+?):\s*(\d+(?:\.\d+)?)%", line)
-		if not m:
-			m = re.search(r"(\d+(?:\.\d+)?)%", line)
-			if m:
-				label_part = line[:m.start()].strip().rstrip(":").strip()
-				if label_part:
-					last_label = label_part
-				pct_str = m.group(1)
-			else:
-				pct_str = None
-			label = last_label
-		else:
-			label = m.group(1).strip()
-			pct_str = m.group(2)
-			if label:
-				last_label = label
-
-		if pct_str is not None:
+		# ── Tenta parsear porcentagem ──────────────────────────────────────
+		m = _PCT_RE.search(line)
+		if m:
+			label_raw = (m.group(1) or "").strip().rstrip(":").strip()
+			if label_raw:
+				last_label = label_raw
 			try:
-				pct_val = float(pct_str)
-				filled = int((pct_val / 100.0) * bar_width)
-				bar = "#" * filled + "-" * (bar_width - filled)
-				prefix = f"[{bar}] {pct_val:5.1f}%"
-				if last_label:
-					available = term_columns - 1 - len(prefix) - 3
-					label_trunc = last_label[:available] if available > 0 else ""
-					msg = f"{prefix}  {label_trunc}" if label_trunc else prefix
-				else:
-					msg = prefix
-				sys.stdout.write(msg)
-				sys.stdout.flush()
-				continue
-			except ValueError:
-				pass
+				pct_val = float(m.group(2))
+				if 0.0 <= pct_val <= 100.0:
+					filled = int((pct_val / 100.0) * bar_width)
+					bar = "#" * filled + "-" * (bar_width - filled)
+					prefix = f"[{bar}] {pct_val:5.1f}%"
+					if last_label:
+						available = term_columns - 1 - len(prefix) - 2
+						label_trunc = last_label[:available] if available > 0 else ""
+						msg = f"{prefix}  {label_trunc}" if label_trunc else prefix
+					else:
+						msg = prefix
+					sys.stdout.write(msg[:term_columns - 1])
+					sys.stdout.flush()
+					continue
+			except (ValueError, TypeError):
+				pass  # cai para spinner abaixo
 
+		# ── Fallback: spinner + texto (formato desconhecido ou mensagem info) ──
 		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
 		sys.stdout.write(msg[:term_columns - 1])
 		sys.stdout.flush()
@@ -752,3 +771,81 @@ def make_parity(
     except OSError as e:
         print(f"Erro de I/O ao executar '{chosen}': {e}")
         return 5
+
+
+def handle_par_failure(
+    input_target: str,
+    original_rc: int,
+    redundancy: Optional[int] = None,
+    backend: str = "auto",
+    post_size: Optional[str] = None,
+    threads: int = 4,
+    memory_mb: Optional[int] = None,
+    slice_size: Optional[str] = None,
+    rar_file: Optional[str] = None,
+    par_profile: str = "balanced",
+) -> bool:
+    """
+    Chamado quando o PAR2 falha. Tenta retry automático com perfil safe
+    e threads reduzidas. Se o retry também falhar, preserva os RARs e
+    orienta o usuário sobre como retomar.
+    """
+    if input_target:
+        stem = os.path.splitext(input_target)[0]
+        if input_target.endswith(".rar") and ".part" in stem:
+            stem = stem.rsplit(".part", 1)[0]
+        for f in glob.glob(glob.escape(stem) + "*.par2"):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+    retry_threads = max(1, min(4, threads // 2))
+    retry_profile = "safe"
+    retry_memory_mb = max(512, (memory_mb or 2048) // 2)
+
+    print(f"\n⚠️  Tentando novamente com configurações conservadoras...")
+    print(f"   Perfil: {retry_profile} | Threads: {retry_threads} | Memória: {retry_memory_mb} MB")
+    print("-" * 60)
+
+    try:
+        rc2 = make_parity(
+            input_target,
+            redundancy=redundancy,
+            force=True,
+            backend=backend,
+            usenet=True,
+            post_size=post_size,
+            threads=retry_threads,
+            profile=retry_profile,
+            slice_size=slice_size,
+            memory_mb=retry_memory_mb,
+        )
+    except Exception as e:
+        print(f"❌ Erro no retry: {e}")
+        rc2 = 5
+
+    if rc2 == 0:
+        print("-" * 60)
+        print(f"✅ Paridade gerada com sucesso no retry (perfil {retry_profile}).")
+        return True
+
+    print("-" * 60)
+    print(f"\n❌ Falha persistente ao gerar paridade (código original {original_rc}, retry {rc2}).")
+
+    if rar_file:
+        rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(rar_file)[0])
+        rar_volumes = sorted(glob.glob(glob.escape(rar_base) + ".part*.rar"))
+        count = len(rar_volumes)
+        print(f"\n📦 Arquivos RAR preservados ({count} parte(s)) em:")
+        print(f"   {os.path.dirname(rar_file)}")
+        first_rar = rar_volumes[0] if rar_volumes else rar_file
+        extra = ""
+        if par_profile != "safe":
+            extra += " --par-profile safe"
+        if threads != retry_threads:
+            extra += f" --par-threads {retry_threads}"
+        print(f"\n💡 Para retomar quando o problema for resolvido:")
+        print(f"   upapasta {first_rar} --force{extra}")
+
+    return False

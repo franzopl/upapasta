@@ -5,6 +5,8 @@ Cálculo dinâmico de threads e memória para jobs do UpaPasta.
 Usa apenas stdlib + /proc/meminfo (Linux). Sem dependências externas.
 """
 
+from __future__ import annotations
+
 import os
 import logging
 
