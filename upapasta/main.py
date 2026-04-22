@@ -279,15 +279,14 @@ class UpaPastaOrchestrator:
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
         self.obfuscated_map: dict[str, str] = {}
-        # Gera senha aleatória quando obfuscate=True e nenhuma senha foi fornecida
-        if obfuscate and rar_password is None:
-            self.rar_password: str | None = self._generate_password()
-        else:
-            self.rar_password = rar_password
+        # --obfuscate e --password são independentes: obfuscate renomeia arquivos,
+        # password protege o conteúdo RAR. Podem ser usados juntos ou separados.
+        self.rar_password = rar_password
         self.par_slice_size = par_slice_size
         self.upload_timeout = upload_timeout
         self.upload_retries = upload_retries
         self.verbose = verbose
+        self.each = False  # controlado externamente via main()
         self.rar_file: Optional[str] = None
         self.par_file: Optional[str] = None
         # input_target is the path used for subsequent steps (string): either
@@ -369,14 +368,26 @@ class UpaPastaOrchestrator:
 
     def run_makerar(self) -> bool:
         """Executa makerar.py."""
-        # If the input is a file, default to skip RAR (do not create a RAR). The
-        # caller can override via --skip-rar but the default is convenient for
-        # single-file uploads that should not be repackaged into a RAR.
         if self.input_path.is_file():
-            self.skip_rar = True
-            print(f"✅ Single-file upload detected: {self.input_path.name} (skip RAR by default)")
+            if self.obfuscate or self.rar_password:
+                # Ofuscação real e senha exigem container RAR — cria automaticamente
+                reason = "ofuscação" if self.obfuscate else "senha"
+                print(f"📦 Arquivo único com {reason}: criando RAR automaticamente.")
+                # Não define skip_rar — deixa cair no bloco de criação abaixo
+            else:
+                self.skip_rar = True
+                print(f"✅ Arquivo único: {self.input_path.name} (upload direto, sem RAR)")
 
         if self.skip_rar:
+            # Avisa quando a pasta tem subpastas (PAR2 de pastas com subpastas é problemático)
+            if self.input_path.is_dir():
+                has_subdirs = any(e.is_dir() for e in self.input_path.iterdir())
+                if has_subdirs:
+                    print(
+                        "⚠️  A pasta contém subpastas. --skip-rar pode causar problemas de\n"
+                        "    estrutura após o download (PAR2 não preserva hierarquia de diretórios).\n"
+                        "    Recomendado: remova --skip-rar para usar RAR e preservar a estrutura."
+                    )
             # Modo upload sem RAR: use the path directly
             self.rar_file = None
             self.input_target = str(self.input_path)
@@ -883,149 +894,223 @@ class UpaPastaOrchestrator:
         return 0
 
 
+_USAGE_SHORT = """\
+UpaPasta — uploader automatizado para Usenet
+
+  Uso:  upapasta <caminho>  [opções]
+
+  Exemplos rápidos:
+    upapasta Filme.2024/              pasta inteira como um release (RAR + PAR2)
+    upapasta Episodio.S01E01.mkv      arquivo único sem RAR
+    upapasta Temporada.1/ --each      cada arquivo da pasta vira um release separado
+    upapasta Pasta/ --obfuscate       release com nomes ofuscados
+    upapasta Pasta/ --password abc    release com senha no RAR
+    upapasta Pasta/ --dry-run         simula sem enviar nada
+
+  Para ajuda completa:  upapasta --help
+"""
+
+_DESCRIPTION = "UpaPasta — uploader automatizado para Usenet"
+
+_EPILOG = """\
+COMPORTAMENTO PADRÃO
+  Pasta   → RAR (store) + PAR2 (balanced) + upload → NZB + NFO
+  Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
+
+  --obfuscate em arquivo único: cria RAR automaticamente (ofuscação real).
+  --password  em arquivo único: cria RAR automaticamente (necessário para senha).
+  --skip-rar  é incompatível com --password.
+
+EXEMPLOS
+  upapasta Filme.2024/                        pasta como release único
+  upapasta Episodio.S01E01.mkv               arquivo único, sem RAR
+  upapasta Temporada.1/ --each               cada arquivo da pasta separado
+  upapasta Pasta/ --obfuscate                nomes aleatórios no NZB/upload
+  upapasta Pasta/ --password "abc123"        RAR com senha injetada no NZB
+  upapasta Pasta/ --obfuscate --password x   ofuscado + senha (independentes)
+  upapasta Pasta/ --skip-rar --redundancy safe  sem RAR, mais paridade
+  upapasta Pasta/ --dry-run                  simula sem enviar nada
+
+CONFIGURAÇÃO
+  Credenciais ficam em ~/.config/upapasta/.env
+  Na primeira execução, um assistente interativo configura tudo automaticamente.
+"""
+
+
 def parse_args():
     p = argparse.ArgumentParser(
-        description="UpaPasta — Upload de pasta para Usenet com RAR + PAR2",
-        epilog="Exemplo: python3 main.py /caminho/para/pasta",
+        description=_DESCRIPTION,
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("input", help="Arquivo ou pasta a fazer upload")
     p.add_argument(
-        "--dry-run",
+        "input",
+        nargs="?",
+        default=None,
+        help="Arquivo ou pasta a fazer upload",
+    )
+
+    # ── Opções essenciais ────────────────────────────────────────────────────
+    essential = p.add_argument_group("opções essenciais")
+    essential.add_argument(
+        "--each",
         action="store_true",
-        help="Mostra o que seria feito sem executar",
+        help=(
+            "Processa cada arquivo da pasta individualmente. "
+            "Ideal para temporadas: cada episódio vira um release separado com seu próprio NZB."
+        ),
     )
-    p.add_argument(
-        "--par-profile",
-        choices=("fast", "balanced", "safe"),
-        default="balanced",
-        help="Perfil de otimização PAR2 (padrão: balanced)",
-    )
-    p.add_argument(
-        "-r", "--redundancy",
-        type=int,
-        default=None,
-        help="Redundância PAR2 em porcentagem (sobrescreve perfil)",
-    )
-    p.add_argument(
-        "--backend",
-        choices=("parpar", "par2"),
-        default="parpar",
-        help="Backend para geração PAR2 (padrão: parpar)",
-    )
-    p.add_argument(
-        "--post-size",
-        default=None,
-        help="Tamanho alvo de post Usenet (sobrescreve perfil)",
-    )
-    p.add_argument(
-        "-s", "--subject",
-        default=None,
-        help="Subject da postagem (padrão: nome da pasta)",
-    )
-    p.add_argument(
-        "-g", "--group",
-        default=None,
-        help="Newsgroup (padrão: do .env)",
-    )
-    p.add_argument(
-        "--skip-rar",
-        action="store_true",
-        help="Pula criação de RAR (assume arquivo existe)",
-    )
-    p.add_argument(
-        "--skip-par",
-        action="store_true",
-        help="Pula geração de paridade",
-    )
-    p.add_argument(
-        "--skip-upload",
-        action="store_true",
-        help="Pula upload para Usenet",
-    )
-    p.add_argument(
-        "-f", "--force",
-        action="store_true",
-        help="Força sobrescrita de arquivos existentes",
-    )
-    p.add_argument(
-        "--env-file",
-        default=DEFAULT_ENV_FILE,
-        help="Arquivo .env para credenciais (padrão: ~/.config/upapasta/.env)",
-    )
-    p.add_argument(
-        "--keep-files",
-        action="store_true",
-        help="Mantém arquivos RAR e PAR2 após upload",
-    )
-    p.add_argument(
-        "--rar-threads",
-        type=int,
-        default=None,
-        help="Número de threads para criação de RAR (padrão: número de CPUs disponíveis)",
-    )
-    p.add_argument(
-        "--par-threads",
-        type=int,
-        default=None,
-        help="Número de threads para geração de PAR2 (padrão: número de CPUs disponíveis)",
-    )
-    p.add_argument(
-        "--nzb-conflict",
-        choices=("rename", "overwrite", "fail"),
-        default=None,
-        help="Como tratar conflitos quando o .nzb já existe na pasta de destino (default: Env or 'rename')",
-    )
-    p.add_argument(
+    essential.add_argument(
         "--obfuscate",
         action="store_true",
-        help="Ofusca o nome do arquivo antes de gerar o PAR2 e fazer o upload.",
+        help=(
+            "Renomeia RAR/PAR2 com nomes aleatórios antes do upload (privacidade). "
+            "Em arquivo único, cria RAR automaticamente para ofuscação real."
+        ),
     )
-    p.add_argument(
+    essential.add_argument(
         "--password",
         default=None,
         metavar="SENHA",
         help=(
-            "Senha para o arquivo RAR. Com --obfuscate, uma senha aleatória é gerada "
-            "automaticamente se esta opção for omitida. A senha é salva no NZB."
+            "Protege o RAR com senha (injetada no NZB para extração automática). "
+            "Em arquivo único, cria RAR automaticamente. Incompatível com --skip-rar."
         ),
     )
-    p.add_argument(
-        "--par-slice-size",
-        default=None,
-        help="Tamanho de slice PAR2 manual (ex: 512K, 1M, 2M). Sobrescreve o cálculo automático.",
+    essential.add_argument(
+        "--skip-rar",
+        action="store_true",
+        help="Não cria RAR — envia os arquivos como estão. Incompatível com --password.",
     )
-    p.add_argument(
-        "--upload-timeout",
+    essential.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simula todo o processo sem criar ou enviar arquivos.",
+    )
+
+    # ── Opções de ajuste ─────────────────────────────────────────────────────
+    tuning = p.add_argument_group("opções de ajuste")
+    tuning.add_argument(
+        "--par-profile",
+        choices=("fast", "balanced", "safe"),
+        default="balanced",
+        help="Perfil PAR2: fast=5%%, balanced=10%% (padrão), safe=20%%",
+    )
+    tuning.add_argument(
+        "-r", "--redundancy",
         type=int,
         default=None,
-        help="Timeout de conexão para nyuu em segundos (ex: 30).",
+        metavar="PERCENT",
+        help="Redundância PAR2 em %% (sobrescreve --par-profile)",
     )
-    p.add_argument(
+    tuning.add_argument(
+        "--keep-files",
+        action="store_true",
+        help="Mantém RAR e PAR2 após o upload",
+    )
+    tuning.add_argument(
+        "--log-file",
+        default=None,
+        metavar="PATH",
+        help="Grava log completo da sessão em arquivo",
+    )
+    tuning.add_argument(
         "--upload-retries",
         type=int,
         default=0,
-        help="Número de tentativas extras de upload em caso de falha transitória (padrão: 0).",
+        metavar="N",
+        help="Tentativas extras de upload em caso de falha (padrão: 0)",
     )
-    p.add_argument(
+    tuning.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Ativa log de debug detalhado",
+    )
+
+    # ── Opções avançadas ─────────────────────────────────────────────────────
+    advanced = p.add_argument_group("opções avançadas")
+    advanced.add_argument(
+        "--backend",
+        choices=("parpar", "par2"),
+        default="parpar",
+        help="Backend PAR2: parpar (padrão) ou par2",
+    )
+    advanced.add_argument(
+        "--post-size",
+        default=None,
+        metavar="SIZE",
+        help="Tamanho alvo de post (ex: 20M, 700K — sobrescreve perfil)",
+    )
+    advanced.add_argument(
+        "--par-slice-size",
+        default=None,
+        metavar="SIZE",
+        help="Override manual do slice PAR2 (ex: 512K, 1M, 2M)",
+    )
+    advanced.add_argument(
+        "--rar-threads",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Threads para RAR (padrão: CPUs disponíveis)",
+    )
+    advanced.add_argument(
+        "--par-threads",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Threads para PAR2 (padrão: CPUs disponíveis)",
+    )
+    advanced.add_argument(
         "--max-memory",
         type=int,
         default=None,
         metavar="MB",
-        help=(
-            "Limite máximo de memória para PAR2 em MB (ex: 4096). "
-            "Padrão: calculado automaticamente baseado na RAM disponível."
-        ),
+        help="Limite de memória para PAR2 em MB (padrão: automático)",
     )
-    p.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Ativa saída de debug detalhada (logging nível DEBUG).",
-    )
-    p.add_argument(
-        "--log-file",
+    advanced.add_argument(
+        "-s", "--subject",
         default=None,
+        help="Assunto da postagem (padrão: nome do arquivo/pasta)",
+    )
+    advanced.add_argument(
+        "-g", "--group",
+        default=None,
+        help="Newsgroup (padrão: do .env)",
+    )
+    advanced.add_argument(
+        "--nzb-conflict",
+        choices=("rename", "overwrite", "fail"),
+        default=None,
+        help="Comportamento quando .nzb já existe: rename (padrão), overwrite, fail",
+    )
+    advanced.add_argument(
+        "--env-file",
+        default=DEFAULT_ENV_FILE,
         metavar="PATH",
-        help="Grava log completo (nível DEBUG) em arquivo (ex: upapasta.log).",
+        help="Caminho alternativo para o .env (padrão: ~/.config/upapasta/.env)",
+    )
+    advanced.add_argument(
+        "--upload-timeout",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Timeout de conexão para nyuu em segundos",
+    )
+    advanced.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Sobrescreve RAR/PAR2 existentes",
+    )
+    advanced.add_argument(
+        "--skip-par",
+        action="store_true",
+        help="Pula geração de paridade",
+    )
+    advanced.add_argument(
+        "--skip-upload",
+        action="store_true",
+        help="Pula o upload (útil para gerar apenas RAR/PAR2)",
     )
     return p.parse_args()
 
@@ -1054,14 +1139,81 @@ def check_dependencies(needs_rar: bool = True):
     return True
 
 
+def _validate_flags(args) -> bool:
+    """Valida combinações de flags incompatíveis. Retorna False se há erro fatal."""
+    if args.skip_rar and args.password:
+        print(
+            "❌  --skip-rar e --password são incompatíveis.\n"
+            "    Sem RAR não é possível proteger o conteúdo com senha.\n"
+            "    Remova --skip-rar ou remova --password."
+        )
+        return False
+
+    if args.each:
+        p = Path(args.input)
+        if not p.is_dir():
+            print("❌  --each requer uma pasta como entrada.")
+            return False
+
+    if args.skip_rar and args.obfuscate:
+        print(
+            "⚠️   Ofuscação parcial: sem RAR, o nome real dos arquivos fica exposto\n"
+            "    nos headers NNTP mesmo com --obfuscate.\n"
+            "    Para ofuscação completa, remova --skip-rar.\n"
+            "    Continuando em 3s... (Ctrl+C para cancelar)"
+        )
+        import time as _time
+        _time.sleep(3)
+
+    return True
+
+
+def _make_orchestrator(args, input_path: str) -> "UpaPastaOrchestrator":
+    return UpaPastaOrchestrator(
+        input_path=input_path,
+        dry_run=args.dry_run,
+        redundancy=args.redundancy,
+        backend=args.backend,
+        post_size=args.post_size,
+        subject=args.subject,
+        group=args.group,
+        skip_rar=args.skip_rar,
+        skip_par=args.skip_par,
+        skip_upload=args.skip_upload,
+        force=args.force,
+        env_file=args.env_file,
+        keep_files=args.keep_files,
+        rar_threads=args.rar_threads,
+        par_threads=args.par_threads,
+        par_profile=args.par_profile,
+        nzb_conflict=args.nzb_conflict,
+        obfuscate=args.obfuscate,
+        rar_password=args.password,
+        par_slice_size=args.par_slice_size,
+        upload_timeout=args.upload_timeout,
+        upload_retries=args.upload_retries,
+        verbose=args.verbose,
+        max_memory_mb=args.max_memory,
+    )
+
+
 def main():
     args = parse_args()
+
+    # Sem argumentos: exibe uso amigável e sai
+    if args.input is None:
+        print(_USAGE_SHORT)
+        sys.exit(0)
+
     setup_logging(verbose=getattr(args, "verbose", False), log_file=getattr(args, "log_file", None))
+
+    if not _validate_flags(args):
+        sys.exit(1)
 
     needs_rar = True
     try:
         p = Path(args.input)
-        if p.exists() and p.is_file():
+        if p.exists() and p.is_file() and not args.obfuscate and not args.password:
             needs_rar = False
     except Exception:
         pass
@@ -1069,40 +1221,59 @@ def main():
     if not check_dependencies(needs_rar):
         sys.exit(1)
 
+    # ── Modo --each: processa cada arquivo da pasta individualmente ──────────
+    if args.each:
+        folder = Path(args.input)
+        files = sorted(f for f in folder.iterdir() if f.is_file())
+        if not files:
+            print(f"❌  Nenhum arquivo encontrado em: {folder}")
+            sys.exit(1)
+
+        print(f"📂 Modo --each: {len(files)} arquivo(s) em {folder.name}")
+        failed: list[str] = []
+
+        for i, file_path in enumerate(files, 1):
+            print(f"\n{'='*60}")
+            print(f"[{i}/{len(files)}] {file_path.name}")
+            print("=" * 60)
+
+            input_name = file_path.name
+            log_path, log_fh = setup_session_log(input_name, env_file=args.env_file)
+            rc = 1
+            try:
+                orchestrator = _make_orchestrator(args, str(file_path))
+                with UpaPastaSession(orchestrator) as orch:
+                    rc = orch.run()
+            except KeyboardInterrupt:
+                rc = 130
+                teardown_session_log(log_fh, log_path)
+                print("\n⚠️  Interrompido pelo usuário.")
+                sys.exit(rc)
+            except Exception:
+                import traceback
+                traceback.print_exc()
+            finally:
+                teardown_session_log(log_fh, log_path)
+
+            if rc != 0:
+                failed.append(file_path.name)
+
+        if failed:
+            print(f"\n❌  {len(failed)} arquivo(s) com falha:")
+            for name in failed:
+                print(f"    • {name}")
+            sys.exit(1)
+        sys.exit(0)
+
+    # ── Modo normal: um único input ──────────────────────────────────────────
     input_name = Path(args.input).name
     log_path, log_fh = setup_session_log(input_name, env_file=args.env_file)
 
+    rc = 1
     try:
-        orchestrator = UpaPastaOrchestrator(
-            input_path=args.input,
-            dry_run=args.dry_run,
-            redundancy=args.redundancy,
-            backend=args.backend,
-            post_size=args.post_size,
-            subject=args.subject,
-            group=args.group,
-            skip_rar=args.skip_rar,
-            skip_par=args.skip_par,
-            skip_upload=args.skip_upload,
-            force=args.force,
-            env_file=args.env_file,
-            keep_files=args.keep_files,
-            rar_threads=args.rar_threads,
-            par_threads=args.par_threads,
-            par_profile=args.par_profile,
-            nzb_conflict=args.nzb_conflict,
-            obfuscate=args.obfuscate,
-            rar_password=args.password,
-            par_slice_size=args.par_slice_size,
-            upload_timeout=args.upload_timeout,
-            upload_retries=args.upload_retries,
-            verbose=args.verbose,
-            max_memory_mb=args.max_memory,
-        )
-
+        orchestrator = _make_orchestrator(args, args.input)
         with UpaPastaSession(orchestrator) as orch:
             rc = orch.run()
-            
     except KeyboardInterrupt:
         rc = 130
     except Exception:

@@ -190,20 +190,35 @@ def _volume_size_bytes(total_bytes: int) -> Optional[int]:
 	return vol
 
 
-def make_rar(folder_path: str, force: bool = False, threads: Optional[int] = None, password: Optional[str] = None) -> Tuple[int, Optional[str]]:
-	"""Cria um arquivo RAR para a pasta fornecida.
+def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None, password: Optional[str] = None) -> Tuple[int, Optional[str]]:
+	"""Cria um arquivo RAR para a pasta ou arquivo fornecido.
+
+	Aceita tanto diretórios quanto arquivos únicos.
+	Para diretórios: inclui conteúdo recursivamente, divide em volumes se > 10 GB.
+	Para arquivos: cria RAR sem volume splitting (útil para obfuscação ou senha).
 
 	Retorna (código_de_retorno, primeiro_arquivo_gerado).
 	Sem volumes: ("nome.rar",). Com volumes: primeiro é "nome.part001.rar".
 	Em caso de erro o segundo elemento é sempre None.
 	"""
-	folder_path = os.path.abspath(folder_path)
-	if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
-		print(f"Erro: '{folder_path}' não existe ou não é um diretório.")
+	input_path = os.path.abspath(input_path)
+	is_file = os.path.isfile(input_path)
+	is_dir = os.path.isdir(input_path)
+
+	if not is_file and not is_dir:
+		print(f"Erro: '{input_path}' não existe ou não é um arquivo/diretório.")
 		return 2, None
 
-	parent = os.path.dirname(folder_path)
-	base = os.path.basename(os.path.normpath(folder_path))
+	parent = os.path.dirname(input_path)
+
+	if is_dir:
+		base = os.path.basename(os.path.normpath(input_path))
+		archive_target = base  # argumento para o rar (relativo ao cwd=parent)
+	else:
+		# Arquivo único: usa o stem (sem extensão) como nome do RAR
+		base = os.path.splitext(os.path.basename(input_path))[0]
+		archive_target = os.path.basename(input_path)
+
 	out_rar = os.path.join(parent, base + ".rar")
 	existing_parts = glob.glob(os.path.join(parent, glob.escape(base) + ".part*.rar"))
 	if (os.path.exists(out_rar) or existing_parts) and not force:
@@ -228,29 +243,40 @@ def make_rar(folder_path: str, force: bool = False, threads: Optional[int] = Non
 		)
 		return 4, None
 
-	total_bytes = _folder_size(folder_path)
-	vol_bytes = _volume_size_bytes(total_bytes)
-
 	num_threads = min(threads if threads is not None else (os.cpu_count() or 4), 64)
 
-	# -m0 → store, -ma5 → RAR5, -mt → threads, -v → volumes
+	# -m0 → store (sem compressão, mais rápido e vídeos já são comprimidos)
+	# -ma5 → RAR5, -mt → threads
 	# -hp cifra conteúdo E nomes de arquivo internos (mais forte que -p)
-	cmd = [rar_exec, "a", "-r", "-m0", f"-mt{num_threads}", "-ma5"]
-	if password:
-		cmd.append(f"-hp{password}")
-	if force:
-		cmd.append("-o+")
-	if vol_bytes is not None:
-		cmd.append(f"-v{vol_bytes}b")
-		num_vols = max(1, -(-total_bytes // vol_bytes))  # ceil division
-		print(
-			f"Criando '{out_rar}' em volumes de {vol_bytes // (1024*1024)} MB"
-			f" (~{num_vols} partes, {total_bytes // (1024*1024)} MB total)..."
-		)
+	if is_dir:
+		total_bytes = _folder_size(input_path)
+		vol_bytes = _volume_size_bytes(total_bytes)
+		cmd = [rar_exec, "a", "-r", "-m0", f"-mt{num_threads}", "-ma5"]
+		if password:
+			cmd.append(f"-hp{password}")
+		if force:
+			cmd.append("-o+")
+		if vol_bytes is not None:
+			cmd.append(f"-v{vol_bytes}b")
+			num_vols = max(1, -(-total_bytes // vol_bytes))  # ceil division
+			print(
+				f"Criando '{out_rar}' em volumes de {vol_bytes // (1024*1024)} MB"
+				f" (~{num_vols} partes, {total_bytes // (1024*1024)} MB total)..."
+			)
+		else:
+			print(f"Criando '{out_rar}' a partir de '{input_path}' (usando {num_threads} threads)...")
 	else:
-		print(f"Criando '{out_rar}' a partir de '{folder_path}' (usando {num_threads} threads)...")
+		# Arquivo único: sem volume splitting, sem flag -r
+		total_bytes = os.path.getsize(input_path)
+		vol_bytes = None
+		cmd = [rar_exec, "a", "-m0", f"-mt{num_threads}", "-ma5"]
+		if password:
+			cmd.append(f"-hp{password}")
+		if force:
+			cmd.append("-o+")
+		print(f"Criando '{out_rar}' a partir de '{archive_target}' (usando {num_threads} threads)...")
 
-	cmd += [out_rar, base]
+	cmd += [out_rar, archive_target]
 
 	try:
 		# Executa o rar e captura stdout/stderr para parsear progresso.

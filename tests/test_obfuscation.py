@@ -18,6 +18,7 @@ class TestObfuscation(unittest.TestCase):
             shutil.rmtree(self.test_dir)
 
     def test_obfuscation_workflow(self):
+        """Arquivo único com --obfuscate: cria RAR com nome aleatório, original intacto."""
         orchestrator = UpaPastaOrchestrator(
             input_path=str(self.test_file),
             dry_run=False,
@@ -26,25 +27,24 @@ class TestObfuscation(unittest.TestCase):
             obfuscate=True,
             keep_files=True,
         )
-        
+
         result = orchestrator.run()
         self.assertEqual(result, 0, "O orquestrador deve retornar 0 em caso de sucesso.")
 
-        # Verificar se o arquivo original foi renomeado
-        self.assertFalse(self.test_file.exists(), "O arquivo original não deve mais existir.")
+        # Arquivo original permanece intacto (está dentro do RAR)
+        self.assertTrue(self.test_file.exists(), "O arquivo original deve continuar existindo.")
 
-        # Encontrar o arquivo ofuscado
-        obfuscated_file = None
-        for item in self.test_dir.iterdir():
-            if item.is_file() and item.suffix == ".txt":
-                obfuscated_file = item
-                break
-        
-        self.assertIsNotNone(obfuscated_file, "Deve haver um arquivo ofuscado com a extensão .txt.")
-        self.assertNotEqual(obfuscated_file.name, self.test_file.name, "O nome do arquivo ofuscado deve ser diferente do original.")
+        # Deve existir um RAR com nome aleatório (diferente do original)
+        rar_files = list(self.test_dir.glob("*.rar"))
+        self.assertTrue(len(rar_files) > 0, "Deve haver um arquivo RAR ofuscado.")
+        obfuscated_rar = rar_files[0]
+        self.assertNotEqual(
+            obfuscated_rar.stem, self.test_file.stem,
+            "O nome do RAR ofuscado deve ser diferente do arquivo original."
+        )
 
-        # Verificar se os arquivos de paridade foram criados para o arquivo ofuscado
-        par2_file = obfuscated_file.with_suffix(".par2")
+        # Arquivo de paridade criado para o RAR ofuscado
+        par2_file = obfuscated_rar.with_suffix(".par2")
         self.assertTrue(par2_file.exists(), f"O arquivo de paridade {par2_file} deve existir.")
 
 if __name__ == "__main__":

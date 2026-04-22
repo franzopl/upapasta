@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.10.0 - 2026-04-22
+
+### Novas Features
+
+- **`--each`**: processa cada arquivo de uma pasta individualmente — cada arquivo vira um release separado com seu próprio NZB. Ideal para temporadas de séries.
+- **RAR automático para arquivo único**: ao usar `--obfuscate` ou `--password` com um arquivo único, o UpaPasta agora cria o RAR automaticamente (ofuscação real requer container; senha requer container).
+- **`make_rar` aceita arquivo único**: `makerar.py` suporta arquivo único além de pastas, sem volume splitting.
+- **Sem argumentos**: `upapasta` sem argumentos exibe mensagem de uso amigável em vez do erro do argparse.
+
+### Mudanças de Comportamento
+
+- **`--obfuscate` e `--password` são independentes**: removida a geração automática de senha ao usar `--obfuscate`. Cada flag tem efeito exclusivo — obfuscate renomeia arquivos, password protege o conteúdo.
+- **Aviso de subpastas com `--skip-rar`**: ao usar `--skip-rar` em pasta com subpastas, exibe aviso sobre risco de estrutura quebrada após download.
+- **`--skip-rar + --password` é erro fatal**: combinação incompatível encerra com mensagem clara.
+- **`--skip-rar + --obfuscate`**: exibe aviso de ofuscação parcial e aguarda 3s antes de continuar.
+
+### CLI
+
+- `--help` reescrito com grupos de argumentos (essenciais / ajuste / avançadas), exemplos e seção de comportamento padrão no epilog.
+- Grupos de argumentos no help: opções essenciais, opções de ajuste, opções avançadas.
+
+### Docs
+
+- README reescrito com foco na simplicidade: tabela de comportamento padrão, exemplos por caso de uso, regras de auto-RAR, explicação do modo store `-m0`.
+- CLAUDE.md atualizado: `_process.py` documentado, regras OBRIGATÓRIO para `managed_popen` e `UpaPastaSession`, seção de Logging.
+- TODO.md revisado: itens implementados removidos, novos desafios adicionados, meta v1.0.0 definida.
+
 ## 0.9.0 - 2026-04-21
 
 ### Segurança / Correções Críticas
