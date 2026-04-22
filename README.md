@@ -15,11 +15,26 @@ upapasta /caminho/para/pasta
 | Pasta | RAR5 + PAR2 + upload → NZB + NFO |
 | Arquivo único | PAR2 + upload direto (sem RAR) → NZB + NFO |
 | `--each` | Cada arquivo da pasta vira um release separado |
-| `--obfuscate` | Nomes aleatórios nos RAR/PAR2; NZB com nome original |
-| `--password` | Senha RAR injetada automaticamente no NZB |
+| `--obfuscate` | RAR/PAR2 com nomes aleatórios no disco + senha automática; NZB salvo com nome original |
 | `--watch` | Daemon que monitora uma pasta e processa o que chegar |
 
+> `--obfuscate` renomeia RAR/PAR2 com nomes aleatórios e gera senha automaticamente.
+> Use `--password SENHA` para definir a senha você mesmo — com ou sem `--obfuscate`.
+
 Todos os uploads ficam registrados em `~/.config/upapasta/history.db` com senha, NZB e metadados — tudo recuperável mesmo que os arquivos sejam movidos.
+
+## Uso rápido
+
+```bash
+# Upload comum de uma pasta
+upapasta /filmes/Dune.2021/
+
+# Upload ofuscado com senha automática
+upapasta /filmes/Dune.2021/ --obfuscate
+
+# Monitorar pasta e processar automaticamente o que chegar
+upapasta /filmes/ --watch
+```
 
 ## Pré-requisitos
 
