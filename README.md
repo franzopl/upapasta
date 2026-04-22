@@ -27,15 +27,23 @@ Todos os uploads ficam registrados em `~/.config/upapasta/history.db` com senha,
 
 ```bash
 # Upload comum — temporada completa ou filme único
-upapasta /series/Night.of.the.Living.Dead.S01/
-upapasta /filmes/Nosferatu.1922.mkv
+upapasta /tv/Night.of.the.Living.Dead.S01/
+upapasta /movies/Nosferatu.1922.mkv
+upapasta /courses/'Learn Python in 24 hours'
 
 # Upload ofuscado com senha automática
-upapasta /series/Night.of.the.Living.Dead.S01/ --obfuscate
-upapasta /filmes/Nosferatu.1922.mkv --obfuscate
+upapasta /tv/Night.of.the.Living.Dead.S01/ --obfuscate
+upapasta /movies/Nosferatu.1922.mkv --obfuscate
+upapasta /courses/'Learn Python in 24 hours' --obfuscate
 
 # Monitorar pasta e processar automaticamente o que chegar
-upapasta /series/ --watch
+upapasta /downloads/ --watch
+upapasta /files/ --watch --obfuscate
+
+# Upload de todos os arquivos de uma pasta separadamente
+upapasta /movies/ --each
+upapasta /tv/Night.of.the.Living.Dead.S01/ --each --obfuscate
+
 ```
 
 ## Pré-requisitos
