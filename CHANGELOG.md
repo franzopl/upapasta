@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.11.0 - 2026-04-22
+
+### Novas Features
+
+- **Pool de Grupos Usenet**: Suporte a listas de grupos de notícias (pool) com seleção aleatória por upload. Isso aumenta a obfuscação e redundância, evitando que todos os posts fiquem concentrados em um único grupo. O assistente de configuração agora sugere uma pool padrão de 10 grupos populares.
+- **Melhoria no NFO**: O módulo de upload (`upfolder.py`) agora é capaz de gerar arquivos NFO tecnicamente descritivos de forma independente para uploads de arquivos únicos.
+
+### Refatoração
+
+- **Arquitetura Modular**: Grande desmembramento do `main.py` (anteriormente com >1400 linhas) em módulos especializados:
+  - `cli.py`: Gerenciamento de argumentos e dependências.
+  - `orchestrator.py`: Lógica central do workflow.
+  - `ui.py`: Interface de usuário, barras de progresso e logging.
+  - `watch.py`: Lógica do modo daemon/monitoramento.
+  - `main.py`: Ponto de entrada simplificado.
+
 ## 0.10.5 - 2026-04-22
 
 ### Melhorias

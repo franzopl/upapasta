@@ -39,6 +39,7 @@ import xml.etree.ElementTree as ET
 from typing import Optional
 
 from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects, inject_nzb_password
+from upapasta import nfo
 from ._process import managed_popen
 
 
@@ -217,6 +218,12 @@ def upload_to_usenet(
     nntp_pass = env_vars.get("NNTP_PASS") or os.environ.get("NNTP_PASS")
     nntp_connections = env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "50")
     usenet_group = group or env_vars.get("USENET_GROUP") or os.environ.get("USENET_GROUP")
+    
+    # Lógica de Pool: Se houver vírgula, escolhe um grupo aleatório da lista
+    if usenet_group and "," in usenet_group:
+        groups = [g.strip() for g in usenet_group.split(",") if g.strip()]
+        if groups:
+            usenet_group = random.choice(groups)
     article_size = env_vars.get("ARTICLE_SIZE") or os.environ.get("ARTICLE_SIZE", "700K")
     check_connections = env_vars.get("CHECK_CONNECTIONS") or os.environ.get("CHECK_CONNECTIONS", "5")
     check_tries = env_vars.get("CHECK_TRIES") or os.environ.get("CHECK_TRIES", "2")
@@ -264,6 +271,20 @@ def upload_to_usenet(
             subject = os.path.basename(input_path)
         else:
             subject = os.path.basename(os.path.splitext(input_path)[0])
+
+    # Geração de NFO para arquivo único (se não for pasta e tivermos caminho de NZB)
+    # Isso garante que mesmo o upload direto via upfolder.py gere metadados.
+    if not is_folder and nzb_out_abs:
+        nfo_path = os.path.abspath(os.path.splitext(nzb_out_abs)[0] + ".nfo")
+        if not os.path.exists(nfo_path):
+            mediainfo_path = nfo.find_mediainfo()
+            if mediainfo_path:
+                try:
+                    proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+                    with open(nfo_path, "w", encoding="utf-8") as f:
+                        f.write(proc.stdout)
+                except Exception:
+                    pass
 
     # Constrói comando nyuu
     cmd = [

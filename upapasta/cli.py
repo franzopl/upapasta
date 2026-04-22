@@ -1,0 +1,315 @@
+"""
+cli.py
+
+Definição de interface de linha de comando (CLI) e verificação de dependências.
+"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import sys
+from pathlib import Path
+
+from .config import DEFAULT_ENV_FILE
+
+
+_USAGE_SHORT = """\
+UpaPasta — uploader automatizado para Usenet
+
+  Uso:  upapasta <caminho>  [opções]
+
+  Exemplos rápidos:
+    upapasta Filme.2024/              pasta inteira como um release (RAR + PAR2)
+    upapasta Episodio.S01E01.mkv      arquivo único sem RAR
+    upapasta Temporada.1/ --each      cada arquivo da pasta vira um release separado
+    upapasta Pasta/ --obfuscate       release com nomes ofuscados
+    upapasta Pasta/ --password abc    release com senha no RAR
+    upapasta Pasta/ --dry-run         simula sem enviar nada
+
+  Para ajuda completa:  upapasta --help
+"""
+
+_DESCRIPTION = "UpaPasta — uploader automatizado para Usenet"
+
+_EPILOG = """\
+COMPORTAMENTO PADRÃO
+  Pasta   → RAR (store) + PAR2 (balanced) + upload → NZB + NFO
+  Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
+
+  --obfuscate: nomes aleatórios + senha gerada automaticamente (proteção completa).
+  --obfuscate --password abc: nomes aleatórios + senha definida pelo usuário.
+  --obfuscate em arquivo único: cria RAR automaticamente.
+  --password  em arquivo único: cria RAR automaticamente.
+  --skip-rar  é incompatível com --password.
+
+EXEMPLOS
+  upapasta Filme.2024/                        pasta como release único
+  upapasta Episodio.S01E01.mkv               arquivo único, sem RAR
+  upapasta Temporada.1/ --each               cada arquivo da pasta separado
+  upapasta Pasta/ --obfuscate                nomes aleatórios no NZB/upload
+  upapasta Pasta/ --password "abc123"        RAR com senha injetada no NZB
+  upapasta Pasta/ --obfuscate --password x   ofuscado + senha (independentes)
+"""
+
+
+def parse_args():
+    p = argparse.ArgumentParser(
+        description=_DESCRIPTION,
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "input",
+        nargs="?",
+        default=None,
+        help="Arquivo ou pasta a fazer upload",
+    )
+
+    # ── Opções essenciais ────────────────────────────────────────────────────
+    essential = p.add_argument_group("opções essenciais")
+    essential.add_argument(
+        "--watch",
+        action="store_true",
+        help=(
+            "Modo daemon: monitora <input> continuamente e processa novos itens automaticamente. "
+            "Incompatível com --each. Ctrl+C encerra."
+        ),
+    )
+    essential.add_argument(
+        "--each",
+        action="store_true",
+        help=(
+            "Processa cada arquivo da pasta individualmente. "
+            "Ideal para temporadas: cada episódio vira um release separado com seu próprio NZB."
+        ),
+    )
+    essential.add_argument(
+        "--obfuscate",
+        action="store_true",
+        help=(
+            "Release privado: nomes aleatórios no RAR/PAR2 + senha gerada automaticamente. "
+            "Em arquivo único, cria RAR automaticamente. "
+            "Use --password junto para definir a senha manualmente."
+        ),
+    )
+    essential.add_argument(
+        "--password",
+        default=None,
+        metavar="SENHA",
+        help=(
+            "Senha para o RAR (injetada no NZB para extração automática por SABnzbd/NZBGet). "
+            "Em arquivo único, cria RAR automaticamente. Incompatível com --skip-rar."
+        ),
+    )
+    essential.add_argument(
+        "--skip-rar",
+        action="store_true",
+        help="Não cria RAR — envia os arquivos como estão. Incompatível com --password.",
+    )
+    essential.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simula todo o processo sem criar ou enviar arquivos.",
+    )
+
+    # ── Opções de ajuste ─────────────────────────────────────────────────────
+    tuning = p.add_argument_group("opções de ajuste")
+    tuning.add_argument(
+        "--par-profile",
+        choices=("fast", "balanced", "safe"),
+        default="balanced",
+        help="Perfil PAR2: fast=5%%, balanced=10%% (padrão), safe=20%%",
+    )
+    tuning.add_argument(
+        "-r", "--redundancy",
+        type=int,
+        default=None,
+        metavar="PERCENT",
+        help="Redundância PAR2 em %% (sobrescreve --par-profile)",
+    )
+    tuning.add_argument(
+        "--keep-files",
+        action="store_true",
+        help="Mantém RAR e PAR2 após o upload",
+    )
+    tuning.add_argument(
+        "--log-file",
+        default=None,
+        metavar="PATH",
+        help="Grava log completo da sessão em arquivo",
+    )
+    tuning.add_argument(
+        "--upload-retries",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Tentativas extras de upload em caso de falha (padrão: 0)",
+    )
+    tuning.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Ativa log de debug detalhado",
+    )
+    tuning.add_argument(
+        "--watch-interval",
+        type=int,
+        default=30,
+        metavar="N",
+        help="Intervalo de varredura do --watch em segundos (padrão: 30)",
+    )
+    tuning.add_argument(
+        "--watch-stable",
+        type=int,
+        default=60,
+        metavar="N",
+        help="Segundos que o tamanho deve ser estável antes de processar (padrão: 60)",
+    )
+
+    # ── Opções avançadas ─────────────────────────────────────────────────────
+    advanced = p.add_argument_group("opções avançadas")
+    advanced.add_argument(
+        "--backend",
+        choices=("parpar", "par2"),
+        default="parpar",
+        help="Backend PAR2: parpar (padrão) ou par2",
+    )
+    advanced.add_argument(
+        "--post-size",
+        default=None,
+        metavar="SIZE",
+        help="Tamanho alvo de post (ex: 20M, 700K — sobrescreve perfil)",
+    )
+    advanced.add_argument(
+        "--par-slice-size",
+        default=None,
+        metavar="SIZE",
+        help="Override manual do slice PAR2 (ex: 512K, 1M, 2M)",
+    )
+    advanced.add_argument(
+        "--rar-threads",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Threads para RAR (padrão: CPUs disponíveis)",
+    )
+    advanced.add_argument(
+        "--par-threads",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Threads para PAR2 (padrão: CPUs disponíveis)",
+    )
+    advanced.add_argument(
+        "--max-memory",
+        type=int,
+        default=None,
+        metavar="MB",
+        help="Limite de memória para PAR2 em MB (padrão: automático)",
+    )
+    advanced.add_argument(
+        "-s", "--subject",
+        default=None,
+        help="Assunto da postagem (padrão: nome do arquivo/pasta)",
+    )
+    advanced.add_argument(
+        "-g", "--group",
+        default=None,
+        help="Newsgroup (padrão: do .env)",
+    )
+    advanced.add_argument(
+        "--nzb-conflict",
+        choices=("rename", "overwrite", "fail"),
+        default=None,
+        help="Comportamento quando .nzb já existe: rename (padrão), overwrite, fail",
+    )
+    advanced.add_argument(
+        "--env-file",
+        default=DEFAULT_ENV_FILE,
+        metavar="PATH",
+        help="Caminho alternativo para o .env (padrão: ~/.config/upapasta/.env)",
+    )
+    advanced.add_argument(
+        "--upload-timeout",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Timeout de conexão para nyuu em segundos",
+    )
+    advanced.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Sobrescreve RAR/PAR2 existentes",
+    )
+    advanced.add_argument(
+        "--skip-par",
+        action="store_true",
+        help="Pula geração de paridade",
+    )
+    advanced.add_argument(
+        "--skip-upload",
+        action="store_true",
+        help="Pula upload para Usenet",
+    )
+
+    return p.parse_args()
+
+
+def check_dependencies(rar_needed: bool = True) -> bool:
+    """Verifica se os binários necessários estão no PATH."""
+    required_commands = ["nyuu", "parpar"]
+    if rar_needed:
+        required_commands.append("rar")
+
+    missing_commands = []
+    for cmd in required_commands:
+        if not shutil.which(cmd):
+            missing_commands.append(cmd)
+
+    if missing_commands:
+        print("❌ Dependências não encontradas:")
+        for cmd in missing_commands:
+            print(f"  - '{cmd}' não está instalado ou não está no PATH.")
+        print("\n   Por favor, instale as dependências e tente novamente.")
+        print("   Você pode encontrar instruções de instalação em INSTALL.md")
+        return False
+
+    print("✅ Todas as dependências foram encontradas.")
+    return True
+
+
+def _validate_flags(args) -> bool:
+    """Valida combinações de flags incompatíveis. Retorna False se há erro fatal."""
+    if args.skip_rar and args.password:
+        print(
+            "❌  --skip-rar e --password são incompatíveis.\n"
+            "    Sem RAR não é possível proteger o conteúdo com senha.\n"
+            "    Remova --skip-rar ou remova --password."
+        )
+        return False
+
+    if args.each:
+        p = Path(args.input)
+        if not p.is_dir():
+            print("❌  --each requer uma pasta como entrada.")
+            return False
+
+    if args.watch:
+        if not args.input or not Path(args.input).is_dir():
+            print("❌  --watch requer uma pasta como entrada.")
+            return False
+        if args.each:
+            print("❌  --watch e --each são incompatíveis.")
+            return False
+
+    if args.skip_rar and args.obfuscate:
+        print(
+            "⚠️   Ofuscação parcial: sem RAR, o nome real dos arquivos fica exposto\n"
+            "    nos headers NNTP mesmo com --obfuscate.\n"
+            "    Para ofuscação completa, remova --skip-rar.\n"
+            "    Continuando em 3s... (Ctrl+C para cancelar)"
+        )
+        import time as _time
+        _time.sleep(3)
+
+    return True

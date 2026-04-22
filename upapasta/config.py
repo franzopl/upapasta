@@ -13,6 +13,20 @@ DEFAULT_ENV_FILE = os.path.expanduser("~/.config/upapasta/.env")
 
 REQUIRED_CRED_KEYS = ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS", "USENET_GROUP"]
 
+# Pool de grupos populares para aumentar obfuscação e redundância
+DEFAULT_GROUP_POOL = (
+    "alt.binaries.boneless,"
+    "alt.binaries.mom,"
+    "alt.binaries.etc,"
+    "alt.binaries.u4e,"
+    "alt.binaries.moovee,"
+    "alt.binaries.teevee,"
+    "alt.binaries.hdtv,"
+    "alt.binaries.misc,"
+    "alt.binaries.inner-earth,"
+    "alt.binaries.multimedia"
+)
+
 
 def _ask(prompt: str, default: str = None, validator=None, secret: bool = False) -> str:
     hint = f" [{default}]" if default is not None else ""
@@ -177,7 +191,9 @@ def prompt_for_credentials(env_file: str) -> dict:
 
     print()
     print("── Upload ────────────────────────────────────────────")
-    group       = _ask("Grupo Usenet", default="alt.binaries.boneless")
+    print("  Dica: Você pode fornecer um único grupo ou uma lista separada por vírgulas.")
+    print("  Se fornecer uma lista, o UpaPasta sorteará um grupo aleatório por upload.")
+    group       = _ask("Grupo Usenet (ou Pool)", default=DEFAULT_GROUP_POOL)
     connections = _ask("Conexões simultâneas (verifique o limite do seu plano)", default="50")
     article_sz  = _ask("Tamanho do artigo", default="700K")
     nzb_out     = _ask("Caminho de saída do .nzb ({filename} = nome do upload)", default="{filename}.nzb")
