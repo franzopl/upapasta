@@ -27,12 +27,12 @@ Todos os uploads ficam registrados em `~/.config/upapasta/history.db` com senha,
 
 ```bash
 # Upload comum — pasta inteira ou arquivo único
-upapasta /filmes/Dune.2021/
-upapasta /filmes/Dune.2021.mkv
+upapasta /filmes/Nosferatu.1922/
+upapasta /series/Night.of.the.Living.Dead.S01E01.mkv
 
 # Upload ofuscado com senha automática
-upapasta /filmes/Dune.2021/ --obfuscate
-upapasta /filmes/Dune.2021.mkv --obfuscate
+upapasta /filmes/Nosferatu.1922/ --obfuscate
+upapasta /series/Night.of.the.Living.Dead.S01E01.mkv --obfuscate
 
 # Monitorar pasta e processar automaticamente o que chegar
 upapasta /filmes/ --watch
