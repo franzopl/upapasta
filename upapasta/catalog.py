@@ -1,16 +1,17 @@
 """
 catalog.py
 
-Catálogo local de uploads em SQLite (~/.config/upapasta/history.db).
+Catálogo local de uploads em JSONL (~/.config/upapasta/history.jsonl).
+Cada linha é um objeto JSON independente — append-only, sem dependências externas.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import re
-import sqlite3
+import shutil
 import subprocess
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -18,7 +19,6 @@ from typing import Optional
 
 # ── Detecção de categoria ────────────────────────────────────────────────────
 
-# Padrões ordenados do mais específico para o mais genérico
 _ANIME_RE = re.compile(
     r"""
     (?:
@@ -60,10 +60,6 @@ _MOVIE_RE = re.compile(
 
 
 def detect_category(name: str) -> str:
-    """Detecta categoria a partir do nome do arquivo ou pasta.
-
-    Retorna: "Anime", "TV", "Movie" ou "Generic".
-    """
     stem = Path(name).stem
     if _ANIME_RE.search(stem):
         return "Anime"
@@ -74,42 +70,28 @@ def detect_category(name: str) -> str:
     return "Generic"
 
 
-# ── Banco de dados ───────────────────────────────────────────────────────────
+# ── Arquivo de histórico ─────────────────────────────────────────────────────
 
-def _db_path() -> Path:
+def _cfg_dir() -> Path:
     cfg = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "upapasta"
     cfg.mkdir(parents=True, exist_ok=True)
-    return cfg / "history.db"
+    return cfg
 
 
-def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_db_path()))
-    conn.row_factory = sqlite3.Row
-    return conn
+def _history_path() -> Path:
+    return _cfg_dir() / "history.jsonl"
 
 
-def _migrate(conn: sqlite3.Connection) -> None:
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS uploads (
-            id               INTEGER PRIMARY KEY AUTOINCREMENT,
-            data_upload      TEXT NOT NULL,           -- ISO-8601 UTC
-            nome_original    TEXT NOT NULL,
-            nome_ofuscado    TEXT,
-            senha_rar        TEXT,
-            tamanho_bytes    INTEGER,
-            categoria        TEXT,
-            tmdb_id          TEXT,
-            grupo_usenet     TEXT,
-            servidor_nntp    TEXT,
-            redundancia_par2 TEXT,
-            duracao_upload_s REAL,
-            num_arquivos_rar INTEGER,
-            caminho_nzb      TEXT,
-            nzb_blob         BLOB,
-            subject          TEXT
-        );
-    """)
-    conn.commit()
+def _archive_nzb(src: str, stamp: str, nome: str) -> Optional[str]:
+    nzb_dir = _cfg_dir() / "nzb"
+    nzb_dir.mkdir(exist_ok=True)
+    safe_nome = re.sub(r"[^\w\-. ]", "_", nome)[:80]
+    dest = nzb_dir / f"{stamp}_{safe_nome}.nzb"
+    try:
+        os.link(src, dest)
+    except OSError:
+        shutil.copy2(src, dest)
+    return str(dest)
 
 
 def record_upload(
@@ -126,41 +108,35 @@ def record_upload(
     num_arquivos_rar: Optional[int] = None,
     caminho_nzb: Optional[str] = None,
     subject: Optional[str] = None,
-) -> int:
-    """Registra um upload bem-sucedido. Retorna o id inserido."""
-    categoria = detect_category(nome_original)
+) -> None:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
-    nzb_blob: Optional[bytes] = None
+    nzb_arquivado: Optional[str] = None
     if caminho_nzb and os.path.exists(caminho_nzb):
         try:
-            with open(caminho_nzb, "rb") as f:
-                nzb_blob = f.read()
+            nzb_arquivado = _archive_nzb(caminho_nzb, stamp, nome_original)
         except OSError:
             pass
 
-    data_upload = datetime.now(timezone.utc).isoformat()
+    record = {
+        "data_upload":      datetime.now(timezone.utc).isoformat(),
+        "nome_original":    nome_original,
+        "categoria":        detect_category(nome_original),
+        "nome_ofuscado":    nome_ofuscado,
+        "senha_rar":        senha_rar,
+        "tamanho_bytes":    tamanho_bytes,
+        "tmdb_id":          tmdb_id,
+        "grupo_usenet":     grupo_usenet,
+        "servidor_nntp":    servidor_nntp,
+        "redundancia_par2": redundancia_par2,
+        "duracao_upload_s": duracao_upload_s,
+        "num_arquivos_rar": num_arquivos_rar,
+        "caminho_nzb":      nzb_arquivado,
+        "subject":          subject,
+    }
 
-    conn = _connect()
-    _migrate(conn)
-    cur = conn.execute(
-        """
-        INSERT INTO uploads (
-            data_upload, nome_original, nome_ofuscado, senha_rar,
-            tamanho_bytes, categoria, tmdb_id, grupo_usenet,
-            servidor_nntp, redundancia_par2, duracao_upload_s,
-            num_arquivos_rar, caminho_nzb, nzb_blob, subject
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        """,
-        (
-            data_upload, nome_original, nome_ofuscado, senha_rar,
-            tamanho_bytes, categoria, tmdb_id, grupo_usenet,
-            servidor_nntp, redundancia_par2, duracao_upload_s,
-            num_arquivos_rar, caminho_nzb, nzb_blob, subject,
-        ),
-    )
-    conn.commit()
-    conn.close()
-    return cur.lastrowid
+    with open(_history_path(), "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 # ── Hook pós-upload ──────────────────────────────────────────────────────────
@@ -176,12 +152,7 @@ def run_post_upload_hook(
     tamanho_bytes: Optional[int] = None,
     grupo_usenet: Optional[str] = None,
 ) -> None:
-    """Executa POST_UPLOAD_SCRIPT do .env, se configurado.
-
-    O script recebe as informações do upload via variáveis de ambiente
-    prefixadas com UPAPASTA_, sem argumentos posicionais — assim scripts
-    existentes não quebram quando novos campos forem adicionados.
-    """
+    """Executa POST_UPLOAD_SCRIPT do .env, se configurado."""
     script = env_vars.get("POST_UPLOAD_SCRIPT") or os.environ.get("POST_UPLOAD_SCRIPT")
     if not script:
         return
