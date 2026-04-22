@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.12.1 - 2026-04-22
+
+### Melhorias
+
+- **Resolução de caminhos NZB**: Melhoria na inteligência de caminhos de saída. Agora o UpaPasta aceita apenas uma pasta no `NZB_OUT` e anexa automaticamente o template `{filename}.nzb`, facilitando a configuração para integração com outras ferramentas.
+
 ## 0.12.0 - 2026-04-22
 
 ### Novas Features
