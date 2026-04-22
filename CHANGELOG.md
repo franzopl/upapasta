@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.10.5 - 2026-04-22
+
+### Melhorias
+
+- **UX em `--watch`**: Adição de um cabeçalho estruturado ao iniciar o modo monitoramento.
+- **Spinner Interativo**: Substituição de mensagens ociosas repetitivas por um spinner animado (`|`, `/`, `-`, `\`) em uma única linha, mantendo o terminal limpo e indicando atividade sem poluir arquivos de log.
+- **Feedback de Processamento**: Mensagens mais claras ao detectar novos itens, verificar estabilidade de tamanho e concluir o processamento de cada tarefa.
+
 ## 0.10.4 - 2026-04-22
 
 ### Novas Features

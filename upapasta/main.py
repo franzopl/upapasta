@@ -1195,46 +1195,103 @@ def _item_size(path: Path) -> int:
 
 def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
     """Monitora folder via polling e processa novos itens automaticamente."""
-    processed: set[Path] = set(folder.iterdir())  # baseline: ignora o que já existe
-    print(f"👁  Monitorando: {folder}")
-    print(f"   Intervalo: {interval}s | Estabilidade: {stable_secs}s | Ctrl+C para encerrar\n")
+    try:
+        processed: set[Path] = set(folder.iterdir())  # baseline: ignora o que já existe
+    except OSError:
+        processed = set()
+
+    print("\n" + "═" * 60)
+    print(f"👁️  MODO WATCH ATIVADO")
+    print("═" * 60)
+    print(f"📁 Pasta:       {folder}")
+    print(f"⏱️  Intervalo:   {interval}s")
+    print(f"⚖️  Estabilidade: {stable_secs}s")
+    print(f"🚫 Ignorados:   {len(processed)} item(ns) já existentes")
+    print(f"💡 Dica:        Mova arquivos para a pasta para iniciar o upload")
+    print(f"🛑 Atalho:      Pressione Ctrl+C para encerrar")
+    print("═" * 60 + "\n")
+
+    spinner = ["|", "/", "-", "\\"]
+    spinner_idx = 0
 
     while True:
-        time.sleep(interval)
         try:
             current = set(folder.iterdir())
         except OSError:
+            time.sleep(interval)
             continue
 
         new_items = sorted(current - processed)
+        
         if not new_items:
+            # Mostra spinner apenas no terminal (não polui log nem gera nova linha)
+            if sys.stdout.isatty():
+                ts = datetime.now().strftime("%H:%M:%S")
+                char = spinner[spinner_idx % len(spinner)]
+                # Use sys.__stdout__ para garantir que o spinner não vá para o arquivo de log
+                sys.__stdout__.write(f"\r[{ts}] {char} Ocioso: aguardando novos arquivos...   ")
+                sys.__stdout__.flush()
+                spinner_idx += 1
+            
+            # Divide o intervalo em pequenos passos para o spinner ser fluido
+            for _ in range(max(1, interval * 2)):
+                if list(folder.iterdir()) != list(current): # Pequena otimização: checa se algo mudou antes do sleep total
+                    break
+                time.sleep(0.5)
             continue
 
+        # Limpa a linha do spinner antes de mostrar novos itens
+        if sys.stdout.isatty():
+            sys.__stdout__.write("\r" + " " * 60 + "\r")
+            sys.__stdout__.flush()
+        
+        print(f"\n{'🔔' if len(new_items) == 1 else '🔔🔔'} {len(new_items)} novo(s) item(ns) detectado(s)!")
+        for item in new_items:
+            print(f"  • {item.name}")
+
         # Mede tamanho de todos os candidatos ANTES do sleep de estabilidade
+        print(f"\n⚖️  Verificando estabilidade dos arquivos ({stable_secs}s)...")
         sizes_before: dict[Path, int] = {item: _item_size(item) for item in new_items}
         time.sleep(stable_secs)
 
         for item in new_items:
             size_after = _item_size(item)
             if sizes_before[item] == size_after and size_after > 0:
-                print(f"\n📥 Novo item detectado: {item.name}")
+                print(f"\n🚀 Iniciando processamento: {item.name}")
+                print("─" * 40)
+                
                 log_path, log_fh = setup_session_log(item.name, env_file=args.env_file)
                 try:
                     orch = _make_orchestrator(args, str(item))
                     with UpaPastaSession(orch) as o:
-                        o.run()
+                        rc = o.run()
+                        if rc == 0:
+                            print(f"\n✅ Concluído com sucesso: {item.name}")
+                        else:
+                            print(f"\n❌ Falha no processamento (rc={rc}): {item.name}")
                 except KeyboardInterrupt:
                     teardown_session_log(log_fh, log_path)
                     raise
                 except Exception:
+                    print(f"\n💥 Erro inesperado ao processar {item.name}:")
                     import traceback
                     traceback.print_exc()
                 finally:
                     teardown_session_log(log_fh, log_path)
+                
+                print("\n" + "─" * 40)
+                print(f"🔄 Retornando ao modo watch...")
                 # Marca como processado independente de sucesso (evita retry infinito)
                 processed.add(item)
             else:
-                print(f"⏳ {item.name}: tamanho instável, aguardando próximo ciclo.")
+                if size_after <= 0:
+                    print(f"⚠️  {item.name}: arquivo vazio ou inacessível, ignorando.")
+                    processed.add(item)
+                else:
+                    print(f"⏳ {item.name}: tamanho ainda mudando, aguardando estabilidade...")
+
+        # Força um pequeno delay antes da próxima varredura para não saturar I/O
+        time.sleep(2)
 
 
 def _validate_flags(args) -> bool:
