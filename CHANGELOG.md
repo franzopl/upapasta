@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.10.1 - 2026-04-22
+
+### Correções
+
+- Fix: PhaseBar mostrava RAR como `⏭ skipped` em arquivo único com `--obfuscate`/`--password`, mesmo quando o RAR era criado automaticamente
+- Fix: Sumário final mostrava "Arquivo: ...mkv" em vez de "RAR: nome_ofuscado.rar" porque checava `os.path.exists` após o cleanup já ter removido o arquivo
+
 ## 0.10.0 - 2026-04-22
 
 ### Novas Features

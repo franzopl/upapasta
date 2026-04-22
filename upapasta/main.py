@@ -716,7 +716,9 @@ class UpaPastaOrchestrator:
 
         bar = PhaseBar()
         # Fases puladas não exibem temporizador — marca antes de renderizar
-        if self.skip_rar or self.input_path.is_file():
+        # Arquivo único com --obfuscate ou --password cria RAR automaticamente
+        single_file_no_rar = self.input_path.is_file() and not self.obfuscate and not self.rar_password
+        if self.skip_rar or single_file_no_rar:
             bar.skip("RAR")
         if self.skip_par:
             bar.skip("PAR2")
@@ -840,6 +842,9 @@ class UpaPastaOrchestrator:
                 os.path.getsize(f) for f in par_volumes if os.path.exists(f)
             ) / (1024 * 1024)
 
+        # Guarda nome do RAR antes do cleanup (o arquivo será deletado)
+        rar_display_name = os.path.basename(self.rar_file) if self.rar_file else None
+
         # ── Etapa 3: Upload ──────────────────────────────────────────────────────
         if not self.skip_upload:
             bar.start("UPLOAD")
@@ -877,8 +882,8 @@ class UpaPastaOrchestrator:
         print("\n📦 ARQUIVOS GERADOS:")
         print("-" * 25)
         if stats["rar_size_mb"] > 0:
-            if self.rar_file and os.path.exists(self.rar_file):
-                print(f"  » RAR: {os.path.basename(self.rar_file)} ({stats['rar_size_mb']:.2f} MB)")
+            if rar_display_name:
+                print(f"  » RAR: {rar_display_name} ({stats['rar_size_mb']:.2f} MB)")
             elif os.path.isdir(self.input_path):
                 print(f"  » Pasta: {self.input_path.name} ({stats['rar_size_mb']:.2f} MB)")
             else:
