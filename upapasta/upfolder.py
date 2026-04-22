@@ -219,7 +219,8 @@ def upload_to_usenet(
     nntp_connections = env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "50")
     usenet_group = group or env_vars.get("USENET_GROUP") or os.environ.get("USENET_GROUP")
     
-    # Lógica de Pool: Se houver vírgula, escolhe um grupo aleatório da lista
+    # Pool de grupos: seleciona um grupo aleatório por upload para distribuir
+    # o histórico entre múltiplos grupos e dificultar remoção seletiva.
     if usenet_group and "," in usenet_group:
         groups = [g.strip() for g in usenet_group.split(",") if g.strip()]
         if groups:

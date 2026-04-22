@@ -32,35 +32,6 @@ def _item_size(path: Path) -> int:
     return total
 
 
-def _make_orchestrator(args, input_path: str) -> UpaPastaOrchestrator:
-    """Helper para criar instância do orquestrador a partir dos args."""
-    return UpaPastaOrchestrator(
-        input_path=input_path,
-        dry_run=args.dry_run,
-        redundancy=args.redundancy,
-        backend=args.backend,
-        post_size=args.post_size,
-        subject=args.subject,
-        group=args.group,
-        skip_rar=args.skip_rar,
-        skip_par=args.skip_par,
-        skip_upload=args.skip_upload,
-        force=args.force,
-        env_file=args.env_file,
-        keep_files=args.keep_files,
-        rar_threads=args.rar_threads,
-        par_threads=args.par_threads,
-        par_profile=args.par_profile,
-        nzb_conflict=args.nzb_conflict,
-        obfuscate=args.obfuscate,
-        rar_password=args.password,
-        par_slice_size=args.par_slice_size,
-        upload_timeout=args.upload_timeout,
-        upload_retries=args.upload_retries,
-        verbose=args.verbose,
-        max_memory_mb=args.max_memory,
-    )
-
 
 def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
     """Monitora folder via polling e processa novos itens automaticamente."""
@@ -131,7 +102,7 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
                 
                 log_path, log_fh = setup_session_log(item.name, env_file=args.env_file)
                 try:
-                    orch = _make_orchestrator(args, str(item))
+                    orch = UpaPastaOrchestrator.from_args(args, str(item))
                     with UpaPastaSession(orch) as o:
                         rc = o.run()
                         if rc == 0:

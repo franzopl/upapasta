@@ -237,26 +237,129 @@ Sem RAR não há container para proteger com senha. O UpaPasta encerra com mensa
 
 O RAR usa modo **store (`-m0`)** — sem compressão. Vídeos e áudios já são comprimidos; tentar comprimí-los novamente não reduz o tamanho e apenas consome CPU e tempo. O modo store é significativamente mais rápido e preserva os hashes dos arquivos originais após extração.
 
+## Catálogo de uploads
+
+O UpaPasta mantém um histórico local de todos os uploads bem-sucedidos em `~/.config/upapasta/history.db` (SQLite). Nenhuma configuração é necessária — o banco é criado automaticamente.
+
+### O que é salvo a cada upload
+
+| Campo | Descrição |
+|-------|-----------|
+| `data_upload` | Timestamp ISO-8601 UTC |
+| `nome_original` | Nome do arquivo ou pasta enviada |
+| `nome_ofuscado` | Subject usado quando `--obfuscate` está ativo |
+| `senha_rar` | Senha do RAR — crítica se você perder o `.nzb` |
+| `tamanho_bytes` | Tamanho total dos dados enviados |
+| `categoria` | Detectada automaticamente: `Movie`, `TV`, `Anime` ou `Generic` |
+| `grupo_usenet` | Grupo efetivamente usado (pós-seleção do pool) |
+| `servidor_nntp` | Host NNTP utilizado |
+| `redundancia_par2` | Percentual de paridade aplicado |
+| `duracao_upload_s` | Duração total em segundos |
+| `num_arquivos_rar` | Quantidade de volumes RAR gerados |
+| `caminho_nzb` | Caminho do `.nzb` no disco |
+| `nzb_blob` | Conteúdo binário do `.nzb` — recuperável mesmo que o arquivo seja movido ou apagado |
+| `subject` | Subject da postagem |
+
+### Detecção automática de categoria
+
+O UpaPasta analisa o nome do arquivo para inferir a categoria sem precisar de flags manuais:
+
+| Padrão detectado | Categoria |
+|-----------------|-----------|
+| `[SubGroup] Título - 01` · `EP01` | `Anime` |
+| `S01E01` · `1x01` · `Season 2` · `MINISERIES` | `TV` |
+| `Título.2024.qualidade` (ano isolado no nome) | `Movie` |
+| Nenhum padrão acima | `Generic` |
+
+Para consultar o histórico diretamente:
+
+```bash
+sqlite3 ~/.config/upapasta/history.db \
+  "SELECT data_upload, nome_original, categoria, tamanho_bytes FROM uploads ORDER BY id DESC LIMIT 20;"
+```
+
+Para recuperar um NZB perdido:
+
+```bash
+sqlite3 ~/.config/upapasta/history.db \
+  "SELECT nzb_blob FROM uploads WHERE nome_original LIKE '%Dune%';" | xxd -r -p > recuperado.nzb
+```
+
+## Hook pós-upload
+
+Você pode configurar um script externo para ser executado após cada upload bem-sucedido. Adicione ao seu `.env`:
+
+```env
+POST_UPLOAD_SCRIPT=/home/user/meu_script.sh
+```
+
+O UpaPasta executa o script e passa as informações via variáveis de ambiente — sem argumentos posicionais, para que novos campos possam ser adicionados no futuro sem quebrar scripts existentes:
+
+| Variável | Conteúdo |
+|----------|----------|
+| `UPAPASTA_NZB` | Caminho do `.nzb` gerado |
+| `UPAPASTA_NFO` | Caminho do `.nfo` gerado |
+| `UPAPASTA_SENHA` | Senha do RAR (vazia se não houver) |
+| `UPAPASTA_NOME_ORIGINAL` | Nome original do arquivo/pasta |
+| `UPAPASTA_NOME_OFUSCADO` | Nome ofuscado (vazio se não houver) |
+| `UPAPASTA_TAMANHO` | Tamanho em bytes |
+| `UPAPASTA_GRUPO` | Grupo Usenet usado |
+
+**Exemplos de uso:**
+
+```bash
+#!/bin/sh
+# Enviar NZB por FTP após upload
+curl -T "$UPAPASTA_NZB" "ftp://usuario:senha@servidor/nzbs/"
+
+# Notificação via Telegram
+curl -s "https://api.telegram.org/bot$TOKEN/sendMessage" \
+  -d "chat_id=$CHAT_ID" \
+  -d "text=Upload concluído: $UPAPASTA_NOME_ORIGINAL ($UPAPASTA_GRUPO)"
+
+# POST em fórum (ex: FileSharingTalk)
+curl -s -X POST "$FORUM_URL/api/post" \
+  -F "subject=$UPAPASTA_NOME_ORIGINAL" \
+  -F "nzb=@$UPAPASTA_NZB"
+```
+
+O script tem timeout de 60 segundos. Se falhar ou exceder o tempo, o UpaPasta exibe um aviso mas **não** considera o upload com falha — o resultado do hook não afeta o código de saída principal.
+
+## Pool de grupos Usenet
+
+Em vez de um único grupo, você pode configurar uma lista separada por vírgulas no `.env`. O UpaPasta seleciona um grupo aleatoriamente a cada upload, distribuindo os posts e dificultando remoções seletivas:
+
+```env
+USENET_GROUP=alt.binaries.movies,alt.binaries.hdtv,alt.binaries.multimedia,alt.binaries.boneless
+```
+
+O grupo efetivamente utilizado em cada upload fica registrado no catálogo (`grupo_usenet`).
+
 ## Estrutura do projeto
 
 ```
 upapasta/
 ├── upapasta/
-│   ├── __init__.py    # Inicialização do pacote
-│   ├── _process.py    # managed_popen: gerenciamento seguro de subprocessos
-│   ├── config.py      # Configuração, perfis PAR2, wizard de primeiro uso
-│   ├── main.py        # Orquestrador, CLI, PhaseBar, UpaPastaSession
-│   ├── makerar.py     # Criação de arquivos RAR5 (pasta ou arquivo único)
-│   ├── makepar.py     # Geração de PAR2 (parpar/par2), obfuscação
-│   ├── nfo.py         # Geração de arquivos NFO
-│   ├── nzb.py         # Geração e manipulação de NZB
-│   ├── resources.py   # Cálculo automático de threads e memória
-│   └── upfolder.py    # Upload via nyuu (sem cópia temporária)
-├── tests/             # Testes unitários
-├── .env.example       # Exemplo de configuração
-├── pyproject.toml     # Metadados e dependências
-├── CHANGELOG.md       # Histórico de versões
-└── README.md          # Este arquivo
+│   ├── __init__.py      # Inicialização do pacote
+│   ├── _process.py      # managed_popen: gerenciamento seguro de subprocessos
+│   ├── catalog.py       # Catálogo SQLite de uploads + hook pós-upload
+│   ├── cli.py           # Parsing de argumentos e validação de flags
+│   ├── config.py        # Configuração, perfis PAR2, wizard de primeiro uso
+│   ├── main.py          # Ponto de entrada
+│   ├── makerar.py       # Criação de arquivos RAR5
+│   ├── makepar.py       # Geração de PAR2 (parpar/par2), obfuscação
+│   ├── nfo.py           # Geração de arquivos NFO
+│   ├── nzb.py           # Geração e manipulação de NZB
+│   ├── orchestrator.py  # Orquestração do workflow completo
+│   ├── resources.py     # Cálculo automático de threads e memória
+│   ├── ui.py            # PhaseBar, logging dual (console + arquivo)
+│   ├── upfolder.py      # Upload via nyuu (sem cópia temporária)
+│   └── watch.py         # Modo daemon --watch
+├── tests/               # Testes unitários
+├── .env.example         # Exemplo de configuração
+├── pyproject.toml       # Metadados e dependências
+├── CHANGELOG.md         # Histórico de versões
+└── README.md            # Este arquivo
 ```
 
 ## Licença

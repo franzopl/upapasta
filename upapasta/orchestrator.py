@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from .catalog import record_upload, run_post_upload_hook
 from .config import check_or_prompt_credentials
 from .makerar import make_rar
 from .makepar import make_parity, obfuscate_and_par, generate_random_name, handle_par_failure
@@ -120,6 +121,36 @@ class UpaPastaOrchestrator:
         # the original folder/file or the rar file created for upload.
         self.input_target: Optional[str] = None
         self.env_vars: dict = {}
+
+    @classmethod
+    def from_args(cls, args, input_path: str) -> "UpaPastaOrchestrator":
+        """Cria instância a partir do namespace retornado por parse_args()."""
+        return cls(
+            input_path=input_path,
+            dry_run=args.dry_run,
+            redundancy=args.redundancy,
+            backend=args.backend,
+            post_size=args.post_size,
+            subject=args.subject,
+            group=args.group,
+            skip_rar=args.skip_rar,
+            skip_par=args.skip_par,
+            skip_upload=args.skip_upload,
+            force=args.force,
+            env_file=args.env_file,
+            keep_files=args.keep_files,
+            rar_threads=args.rar_threads,
+            par_threads=args.par_threads,
+            par_profile=args.par_profile,
+            nzb_conflict=args.nzb_conflict,
+            obfuscate=args.obfuscate,
+            rar_password=args.password,
+            par_slice_size=args.par_slice_size,
+            upload_timeout=args.upload_timeout,
+            upload_retries=args.upload_retries,
+            verbose=args.verbose,
+            max_memory_mb=args.max_memory,
+        )
 
     @staticmethod
     def _generate_password(length: int = 16) -> str:
@@ -746,5 +777,53 @@ class UpaPastaOrchestrator:
 
         print(f"\n  » Tempo total: {format_time(int(total_elapsed))}")
         print("\n" + "=" * 60 + "\n")
+
+        # ── Catálogo e hook pós-upload ────────────────────────────────────────
+        # Resolve o caminho do NZB gerado (mesmo template usado pelo upfolder)
+        _nzb_template = self.env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
+        _nzb_basename = os.path.splitext(self.subject)[0] if self.subject else self.input_path.stem
+        _nzb_filename = _nzb_template.replace("{filename}", _nzb_basename)
+        if os.path.isabs(_nzb_filename):
+            _nzb_abs = _nzb_filename
+        else:
+            _nzb_dir = self.env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+            _nzb_abs = os.path.join(_nzb_dir, _nzb_filename)
+        _nzb_abs = _nzb_abs if os.path.exists(_nzb_abs) else None
+
+        # Grupo efetivo: pode ter sido selecionado do pool dentro do upfolder
+        _raw_group = self.group or self.env_vars.get("USENET_GROUP") or ""
+        _effective_group = _raw_group.split(",")[0].strip() if "," in _raw_group else _raw_group
+
+        _tamanho = int(stats["rar_size_mb"] * 1024 * 1024) if stats["rar_size_mb"] else None
+        _nome_ofuscado = self.subject if self.obfuscate else None
+
+        try:
+            record_upload(
+                nome_original=self.input_path.name,
+                nome_ofuscado=_nome_ofuscado,
+                senha_rar=self.rar_password,
+                tamanho_bytes=_tamanho,
+                grupo_usenet=_effective_group or None,
+                servidor_nntp=self.env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST"),
+                redundancia_par2=f"{self.redundancy}%" if self.redundancy else None,
+                duracao_upload_s=round(total_elapsed, 1),
+                num_arquivos_rar=stats.get("par2_file_count"),
+                caminho_nzb=_nzb_abs,
+                subject=self.subject,
+            )
+        except Exception as e:
+            print(f"⚠️  Falha ao registrar no catálogo: {e}")
+
+        if not self.skip_upload:
+            run_post_upload_hook(
+                self.env_vars,
+                nzb_path=_nzb_abs,
+                nfo_path=self.nfo_file,
+                senha_rar=self.rar_password,
+                nome_original=self.input_path.name,
+                nome_ofuscado=_nome_ofuscado,
+                tamanho_bytes=_tamanho,
+                grupo_usenet=_effective_group or None,
+            )
 
         return 0

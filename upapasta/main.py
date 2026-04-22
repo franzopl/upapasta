@@ -13,7 +13,7 @@ from pathlib import Path
 from .cli import parse_args, check_dependencies, _validate_flags, _USAGE_SHORT
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
-from .watch import _watch_loop, _make_orchestrator
+from .watch import _watch_loop
 
 
 def main():
@@ -60,7 +60,7 @@ def main():
             log_path, log_fh = setup_session_log(input_name, env_file=args.env_file)
             rc = 1
             try:
-                orchestrator = _make_orchestrator(args, str(file_path))
+                orchestrator = UpaPastaOrchestrator.from_args(args,str(file_path))
                 with UpaPastaSession(orchestrator) as orch:
                     rc = orch.run()
             except KeyboardInterrupt:
@@ -98,7 +98,7 @@ def main():
 
     rc = 1
     try:
-        orchestrator = _make_orchestrator(args, args.input)
+        orchestrator = UpaPastaOrchestrator.from_args(args,args.input)
         with UpaPastaSession(orchestrator) as orch:
             rc = orch.run()
     except KeyboardInterrupt:
