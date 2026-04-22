@@ -274,7 +274,15 @@ def check_dependencies(rar_needed: bool = True) -> bool:
         print("   Você pode encontrar instruções de instalação em INSTALL.md")
         return False
 
-    print("✅ Todas as dependências foram encontradas.")
+    # Verificação de dependências opcionais (para NFO)
+    optional_commands = ["mediainfo", "ffprobe"]
+    missing_optional = [cmd for cmd in optional_commands if not shutil.which(cmd)]
+    if missing_optional:
+        print(f"⚠️  Dependências opcionais ausentes: {', '.join(missing_optional)}")
+        print("   A geração de arquivos .nfo será limitada ou ignorada.")
+    else:
+        print("✅ Todas as dependências (incluindo opcionais) foram encontradas.")
+
     return True
 
 

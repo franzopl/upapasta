@@ -115,6 +115,7 @@ class UpaPastaOrchestrator:
         self.each = False  # controlado externamente via main()
         self.rar_file: Optional[str] = None
         self.par_file: Optional[str] = None
+        self.nfo_file: Optional[str] = None
         # input_target is the path used for subsequent steps (string): either
         # the original folder/file or the rar file created for upload.
         self.input_target: Optional[str] = None
@@ -140,17 +141,19 @@ class UpaPastaOrchestrator:
 
     def _resolve_nfo_path(self) -> tuple[str, str]:
         """Retorna (nfo_path_absoluto, nfo_dir) onde o .nfo deve ser salvo."""
-        is_folder = self.input_path.is_dir()
-
         env_vars = self.env_vars.copy()
         if self.nzb_conflict:
             env_vars["NZB_CONFLICT"] = self.nzb_conflict
 
         nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
 
-        basename = self.input_path.name
-        if not is_folder:
-            basename = self.input_path.stem
+        # Usa o subject definido (que pode ser o nome original ou personalizado)
+        basename = self.subject
+        # Remove extensão se o subject terminar com uma extensão comum de vídeo
+        video_exts = (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm")
+        if basename.lower().endswith(video_exts):
+            basename = os.path.splitext(basename)[0]
+            
         nzb_filename = nzb_out_template.replace("{filename}", basename)
 
         if os.path.isabs(nzb_filename):
@@ -183,12 +186,14 @@ class UpaPastaOrchestrator:
         if not is_folder:
             ok = generate_nfo_single_file(str(self.input_path), nfo_path)
             if ok:
+                self.nfo_file = nfo_path
                 print(f"  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nzb_dir})")
             return ok
         else:
             banner = env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
             ok = generate_nfo_folder(str(self.input_path), nfo_path, banner=banner)
             if ok:
+                self.nfo_file = nfo_path
                 print(f"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nzb_dir})")
             return ok
 
@@ -549,7 +554,11 @@ class UpaPastaOrchestrator:
         if self.skip_upload:
             bar.skip("UPLOAD")
 
-        # Carrega credenciais antes de exibir o cabeçalho
+        # Carrega variáveis de ambiente (necessário para NFO e NZB paths mesmo sem upload)
+        from .config import load_env_file
+        self.env_vars = load_env_file(self.env_file)
+
+        # Carrega credenciais e garante .env completo apenas se for fazer upload
         if not self.skip_upload:
             self.env_vars = check_or_prompt_credentials(self.env_file)
             if not self.env_vars:
@@ -558,7 +567,7 @@ class UpaPastaOrchestrator:
         if not self.validate():
             return 1
 
-        # Cálculo dinâmico de recursos ANTES do header para exibir valores reais
+        # ... (recalculando recursos)
         total_bytes = get_total_size(str(self.input_path))
         res = calculate_optimal_resources(
             total_bytes,
@@ -597,9 +606,16 @@ class UpaPastaOrchestrator:
         bar._render()
 
         # Etapa 0: NFO
-        if not self.skip_upload and not self.dry_run:
+        if not self.dry_run:
+            bar.start("NFO")
             if not self.run_generate_nfo():
+                # bar.error("NFO")  # Omitido para não alarmar o usuário se for apenas mediainfo ausente
+                bar.skip("NFO")
                 print("Atenção: falha ao gerar .nfo, mas continuando...")
+            else:
+                bar.done("NFO")
+        else:
+            bar.skip("NFO")
 
         if not self.check_nzb_conflict_early():
             return 3
@@ -714,6 +730,8 @@ class UpaPastaOrchestrator:
 
         print("\n📦 ARQUIVOS GERADOS:")
         print("-" * 25)
+        if self.nfo_file and os.path.exists(self.nfo_file):
+            print(f"  » NFO: {os.path.basename(self.nfo_file)}")
         if stats["rar_size_mb"] > 0:
             if rar_display_name:
                 print(f"  » RAR: {rar_display_name} ({stats['rar_size_mb']:.2f} MB)")

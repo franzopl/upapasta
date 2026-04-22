@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from upapasta.main import UpaPastaOrchestrator
+from upapasta.orchestrator import UpaPastaOrchestrator
 
 class TestFolderObfuscation(unittest.TestCase):
     def setUp(self):
@@ -27,10 +27,13 @@ class TestFolderObfuscation(unittest.TestCase):
             if item.is_file() and item.suffix == ".par2" and len(item.stem) >= 12:
                 item.unlink(missing_ok=True)
 
-    @patch('upapasta.main.check_or_prompt_credentials')
-    @patch('upapasta.upfolder.subprocess.run')
-    def test_folder_obfuscation_workflow(self, mock_subprocess_run: MagicMock, mock_check_creds: MagicMock):
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
+    @patch('upapasta.orchestrator.check_or_prompt_credentials')
+    @patch('upapasta.upfolder.managed_popen')
+    def test_folder_obfuscation_workflow(self, mock_managed_popen: MagicMock, mock_check_creds: MagicMock):
+        mock_proc = MagicMock()
+        mock_proc.wait.return_value = 0
+        mock_managed_popen.return_value.__enter__.return_value = mock_proc
+        
         mock_check_creds.return_value = {
             "NNTP_HOST": "dummy", "NNTP_USER": "dummy", "NNTP_PASS": "dummy", "USENET_GROUP": "dummy"
         }
@@ -67,7 +70,7 @@ class TestFolderObfuscation(unittest.TestCase):
         self.assertEqual(orchestrator.subject, obf_base)
 
         # nyuu deve ter sido chamado
-        self.assertTrue(mock_subprocess_run.called, "nyuu deveria ter sido chamado.")
+        self.assertTrue(mock_managed_popen.called, "nyuu deveria ter sido chamado.")
 
         # --obfuscate gera senha aleatória automaticamente
         self.assertIsNotNone(orchestrator.rar_password, "Senha RAR deve ser gerada automaticamente com --obfuscate.")

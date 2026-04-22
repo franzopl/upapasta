@@ -68,15 +68,18 @@ def test_upload_retry_on_failure(tmp_path, monkeypatch):
     }
 
     import upapasta.upfolder as upfolder
-    monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/fake_nyuu")
+    monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
     call_count = {"n": 0}
 
-    def fake_run(cmd, check=False, cwd=None):
-        call_count["n"] += 1
-        raise subprocess.CalledProcessError(1, cmd)
+    class MockProc:
+        def wait(self):
+            call_count["n"] += 1
+            return 5
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
 
-    monkeypatch.setattr(upfolder.subprocess, "run", fake_run)
+    monkeypatch.setattr(upfolder, "managed_popen", lambda *a, **kw: MockProc())
 
     rc = upload_to_usenet(str(input_file), env_vars=env_vars, upload_retries=2)
 
@@ -100,20 +103,20 @@ def test_upload_retry_succeeds_on_second_try(tmp_path, monkeypatch):
     }
 
     import upapasta.upfolder as upfolder
-    monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/fake_nyuu")
+    monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
     call_count = {"n": 0}
 
-    class DummyResult:
-        returncode = 0
+    class MockProc:
+        def wait(self):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return 5
+            return 0
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
 
-    def fake_run(cmd, check=False, cwd=None):
-        call_count["n"] += 1
-        if call_count["n"] == 1:
-            raise subprocess.CalledProcessError(1, cmd)
-        return DummyResult()
-
-    monkeypatch.setattr(upfolder.subprocess, "run", fake_run)
+    monkeypatch.setattr(upfolder, "managed_popen", lambda *a, **kw: MockProc())
 
     rc = upload_to_usenet(str(input_file), env_vars=env_vars, upload_retries=1)
 

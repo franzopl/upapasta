@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from upapasta.main import UpaPastaOrchestrator
+from upapasta.orchestrator import UpaPastaOrchestrator
 
 
 def _make_orchestrator(tmp_path, **kwargs):
@@ -107,7 +107,7 @@ def test_run_makerar_rar_failure_returns_false(tmp_path, monkeypatch):
     def fake_make_rar(path, force, threads=None, **kwargs):
         return 5, None  # código de erro
 
-    monkeypatch.setattr("upapasta.main.make_rar", fake_make_rar)
+    monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
     o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
     result = o.run_makerar()
@@ -121,7 +121,7 @@ def test_run_makerar_file_not_found_returns_false(tmp_path, monkeypatch):
     def fake_make_rar(path, force, threads=None, **kwargs):
         raise FileNotFoundError("rar not found")
 
-    monkeypatch.setattr("upapasta.main.make_rar", fake_make_rar)
+    monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
     o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
     result = o.run_makerar()
@@ -139,7 +139,8 @@ def test_run_makepar_failure_returns_false(tmp_path, monkeypatch):
     def fake_make_parity(*args, **kwargs):
         return 5  # erro
 
-    monkeypatch.setattr("upapasta.main.make_parity", fake_make_parity)
+    monkeypatch.setattr("upapasta.orchestrator.make_parity", fake_make_parity)
+    monkeypatch.setattr("upapasta.makepar.make_parity", fake_make_parity)
 
     o = UpaPastaOrchestrator(input_path=str(tmp_path), dry_run=False)
     o.input_target = str(target)
@@ -154,7 +155,7 @@ def test_run_makepar_missing_binary_returns_false(tmp_path, monkeypatch):
     def fake_make_parity(*args, **kwargs):
         raise FileNotFoundError("parpar not found")
 
-    monkeypatch.setattr("upapasta.main.make_parity", fake_make_parity)
+    monkeypatch.setattr("upapasta.orchestrator.make_parity", fake_make_parity)
 
     o = UpaPastaOrchestrator(input_path=str(tmp_path), dry_run=False)
     o.input_target = str(target)
@@ -178,7 +179,7 @@ def test_par_slice_size_propagated(tmp_path, monkeypatch):
         captured["slice_size"] = kwargs.get("slice_size")
         return 0
 
-    monkeypatch.setattr("upapasta.main.make_parity", fake_make_parity)
+    monkeypatch.setattr("upapasta.orchestrator.make_parity", fake_make_parity)
 
     o = UpaPastaOrchestrator(input_path=str(tmp_path), dry_run=False, par_slice_size="2M")
     o.input_target = str(target)

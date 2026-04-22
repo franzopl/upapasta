@@ -105,13 +105,13 @@ def format_time(seconds: int) -> str:
 
 
 class PhaseBar:
-    """Barra de progresso compacta com 4 fases: RAR → PAR2 → UPLOAD → DONE.
+    """Barra de progresso compacta com 5 fases: NFO → RAR → PAR2 → UPLOAD → DONE.
 
     Imprime uma linha de status sempre que uma fase muda de estado.
     Compatível com saída de subprocessos — não usa posicionamento de cursor.
     """
 
-    PHASES = ("RAR", "PAR2", "UPLOAD", "DONE")
+    PHASES = ("NFO", "RAR", "PAR2", "UPLOAD", "DONE")
     _ICONS = {"pending": "⬜", "active": "▶ ", "done": "✅", "skipped": "⏭ ", "error": "❌"}
 
     def __init__(self) -> None:

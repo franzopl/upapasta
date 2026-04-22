@@ -12,7 +12,7 @@ class DummyPopen:
         # Simulate stdout iterator-like object
         self.stdout = io.StringIO("line1\nline2\n")
         self.args_passed = args_passed
-    def wait(self):
+    def wait(self, timeout=None):
         # Simulate the external tool creating the .par2 file referenced in the args
         try:
             # last argument(s) in args_passed are the input file(s); determine expected out_par2
@@ -26,6 +26,15 @@ class DummyPopen:
         except Exception:
             pass
         return 0
+
+    def poll(self):
+        return 0
+
+    def terminate(self):
+        pass
+
+    def kill(self):
+        pass
 
 
 def test_makepar_accepts_single_file_and_creates_par2(monkeypatch, tmp_path):

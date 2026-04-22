@@ -152,9 +152,17 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
         # If calling mediainfo, return test stdout
         if args and (args[0].endswith('mediainfo') or args[0] == '/usr/bin/mediainfo'):
             return DummyCompletedProcess(stdout="MediaInfo Test Content\nVideo: 1\n")
-        # Otherwise, it's the nyuu call; capture the args and return a dummy success
-        captured['args'] = args
+        # nyuu call is no longer via subprocess.run, it uses managed_popen
         return DummyCompletedProcess(returncode=0)
+
+    class MockProc:
+        def __init__(self, args):
+            self.args = args
+        def wait(self):
+            captured['args'] = self.args
+            return 0
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
 
     import upapasta.nfo as _nfo_mod
     monkeypatch.setattr(_nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
@@ -166,6 +174,7 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
 
     monkeypatch.setattr(_nfo_mod, "generate_nfo_single_file", mock_gen_nfo)
     monkeypatch.setattr(upfolder.subprocess, "run", fake_run)
+    monkeypatch.setattr(upfolder, "managed_popen", lambda args, **kw: MockProc(args))
 
 
     rc = upload_to_usenet(str(input_file), env_vars=env_vars, dry_run=False)

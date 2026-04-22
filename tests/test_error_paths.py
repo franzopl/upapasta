@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from upapasta.main import UpaPastaOrchestrator, setup_logging
+from upapasta.orchestrator import UpaPastaOrchestrator
+from upapasta.ui import setup_logging
 from upapasta.makepar import make_parity
 
 
@@ -32,7 +33,7 @@ def test_run_makepar_permission_error_returns_false(tmp_path, monkeypatch):
     def fake_make_parity(*args, **kwargs):
         raise PermissionError("sem acesso")
 
-    monkeypatch.setattr("upapasta.main.make_parity", fake_make_parity)
+    monkeypatch.setattr("upapasta.orchestrator.make_parity", fake_make_parity)
 
     o = _orch(tmp_path)
     o.input_target = str(target)
@@ -46,7 +47,7 @@ def test_run_makepar_oserror_returns_false(tmp_path, monkeypatch):
     def fake_make_parity(*args, **kwargs):
         raise OSError("disco cheio")
 
-    monkeypatch.setattr("upapasta.main.make_parity", fake_make_parity)
+    monkeypatch.setattr("upapasta.orchestrator.make_parity", fake_make_parity)
 
     o = _orch(tmp_path)
     o.input_target = str(target)
@@ -60,7 +61,7 @@ def test_run_makerar_permission_error_returns_false(tmp_path, monkeypatch):
     def fake_make_rar(path, force, threads=None, **kwargs):
         raise PermissionError("sem acesso")
 
-    monkeypatch.setattr("upapasta.main.make_rar", fake_make_rar)
+    monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
     o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
     assert o.run_makerar() is False
@@ -73,7 +74,7 @@ def test_run_makerar_oserror_returns_false(tmp_path, monkeypatch):
     def fake_make_rar(path, force, threads=None, **kwargs):
         raise OSError("disco cheio")
 
-    monkeypatch.setattr("upapasta.main.make_rar", fake_make_rar)
+    monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
     o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
     assert o.run_makerar() is False
@@ -126,13 +127,22 @@ class DummyPopenPar2:
         if args_passed and len(args_passed) > 3:
             self._out_par2 = args_passed[3]
 
-    def wait(self):
+    def wait(self, timeout=None):
         if self._out_par2:
             try:
                 open(self._out_par2, "w").close()
             except Exception:
                 pass
         return 0
+
+    def poll(self):
+        return 0
+
+    def terminate(self):
+        pass
+
+    def kill(self):
+        pass
 
 
 def test_make_parity_par2_backend(monkeypatch, tmp_path):
