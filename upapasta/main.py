@@ -967,6 +967,14 @@ def parse_args():
     # ── Opções essenciais ────────────────────────────────────────────────────
     essential = p.add_argument_group("opções essenciais")
     essential.add_argument(
+        "--watch",
+        action="store_true",
+        help=(
+            "Modo daemon: monitora <input> continuamente e processa novos itens automaticamente. "
+            "Incompatível com --each. Ctrl+C encerra."
+        ),
+    )
+    essential.add_argument(
         "--each",
         action="store_true",
         help=(
@@ -1040,6 +1048,20 @@ def parse_args():
         "--verbose",
         action="store_true",
         help="Ativa log de debug detalhado",
+    )
+    tuning.add_argument(
+        "--watch-interval",
+        type=int,
+        default=30,
+        metavar="N",
+        help="Intervalo de varredura do --watch em segundos (padrão: 30)",
+    )
+    tuning.add_argument(
+        "--watch-stable",
+        type=int,
+        default=60,
+        metavar="N",
+        help="Segundos que o tamanho deve ser estável antes de processar (padrão: 60)",
     )
 
     # ── Opções avançadas ─────────────────────────────────────────────────────
@@ -1154,6 +1176,67 @@ def check_dependencies(needs_rar: bool = True):
     return True
 
 
+def _item_size(path: Path) -> int:
+    """Tamanho total em bytes de arquivo ou pasta (recursivo)."""
+    if path.is_file():
+        try:
+            return path.stat().st_size
+        except OSError:
+            return -1
+    total = 0
+    for p in path.rglob("*"):
+        try:
+            if p.is_file():
+                total += p.stat().st_size
+        except OSError:
+            pass
+    return total
+
+
+def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
+    """Monitora folder via polling e processa novos itens automaticamente."""
+    processed: set[Path] = set(folder.iterdir())  # baseline: ignora o que já existe
+    print(f"👁  Monitorando: {folder}")
+    print(f"   Intervalo: {interval}s | Estabilidade: {stable_secs}s | Ctrl+C para encerrar\n")
+
+    while True:
+        time.sleep(interval)
+        try:
+            current = set(folder.iterdir())
+        except OSError:
+            continue
+
+        new_items = sorted(current - processed)
+        if not new_items:
+            continue
+
+        # Mede tamanho de todos os candidatos ANTES do sleep de estabilidade
+        sizes_before: dict[Path, int] = {item: _item_size(item) for item in new_items}
+        time.sleep(stable_secs)
+
+        for item in new_items:
+            size_after = _item_size(item)
+            if sizes_before[item] == size_after and size_after > 0:
+                print(f"\n📥 Novo item detectado: {item.name}")
+                log_path, log_fh = setup_session_log(item.name, env_file=args.env_file)
+                try:
+                    orch = _make_orchestrator(args, str(item))
+                    with UpaPastaSession(orch) as o:
+                        o.run()
+                except KeyboardInterrupt:
+                    teardown_session_log(log_fh, log_path)
+                    raise
+                except Exception:
+                    import traceback
+                    traceback.print_exc()
+                finally:
+                    teardown_session_log(log_fh, log_path)
+                # Marca como processado independente de sucesso (evita retry infinito)
+                processed.add(item)
+            else:
+                print(f"⏳ {item.name}: tamanho instável, aguardando próximo ciclo.")
+
+
 def _validate_flags(args) -> bool:
     """Valida combinações de flags incompatíveis. Retorna False se há erro fatal."""
     if args.skip_rar and args.password:
@@ -1168,6 +1251,14 @@ def _validate_flags(args) -> bool:
         p = Path(args.input)
         if not p.is_dir():
             print("❌  --each requer uma pasta como entrada.")
+            return False
+
+    if args.watch:
+        if not args.input or not Path(args.input).is_dir():
+            print("❌  --watch requer uma pasta como entrada.")
+            return False
+        if args.each:
+            print("❌  --watch e --each são incompatíveis.")
             return False
 
     if args.skip_rar and args.obfuscate:
@@ -1278,6 +1369,14 @@ def main():
             for name in failed:
                 print(f"    • {name}")
             sys.exit(1)
+        sys.exit(0)
+
+    # ── Modo --watch: daemon de monitoramento ────────────────────────────────
+    if args.watch:
+        try:
+            _watch_loop(args, Path(args.input), args.watch_interval, args.watch_stable)
+        except KeyboardInterrupt:
+            print("\n👁  --watch encerrado pelo usuário.")
         sys.exit(0)
 
     # ── Modo normal: um único input ──────────────────────────────────────────

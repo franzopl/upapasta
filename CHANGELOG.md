@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.10.4 - 2026-04-22
+
+### Novas Features
+
+- **`--watch`**: modo daemon que monitora um diretório e processa automaticamente cada novo item (arquivo ou pasta) que aparecer. Usa polling via stdlib (sem dependências externas). Cada item detectado passa pelo pipeline completo (RAR → PAR2 → upload → NZB). Compatível com `--obfuscate`, `--password`, `--dry-run`. Ctrl+C encerra graciosamente.
+- **`--watch-interval N`**: intervalo de varredura em segundos (padrão: 30).
+- **`--watch-stable N`**: segundos que o tamanho do item deve permanecer estável antes de processar — evita processar arquivos ainda sendo copiados (padrão: 60).
+
 ## 0.10.3 - 2026-04-22
 
 ### Correções
