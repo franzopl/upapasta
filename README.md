@@ -1,41 +1,34 @@
 # UpaPasta
 
-**UpaPasta** é uma ferramenta de linha de comando (CLI) em Python para automatizar o processo completo de upload de arquivos e pastas para a Usenet. O fluxo cobre:
+**UpaPasta** é uma ferramenta de linha de comando (CLI) em Python para automatizar o processo completo de upload de arquivos e pastas para a Usenet. Na maioria dos casos, um único comando é suficiente:
 
-1. **Compactação em volumes RAR**: Cria arquivos `.rar` em múltiplas partes quando necessário (prática recomendada na Usenet).
-2. **Geração de paridade PAR2**: Garante a integridade e permite recuperação mesmo com artigos faltando.
-3. **Upload via nyuu**: Envia os arquivos ao newsgroup configurado.
-4. **Geração de NZB e NFO**: Cria automaticamente o `.nzb` e um `.nfo` detalhado.
-5. **Limpeza automática**: Remove arquivos temporários após o upload.
+```bash
+upapasta /caminho/para/pasta
+```
 
-## Funcionalidades
+O fluxo completo cobre:
 
-- **Workflow automatizado**: Um único comando orquestra todas as etapas.
-- **Volumes RAR inteligentes**: Arquivos até 10 GB geram um RAR único; acima disso são divididos em volumes de no mínimo 1 GB — no máximo 100 partes.
-- **Arquivo único nativo**: Envio de arquivos `.mkv`, `.mp4` etc. sem criar RAR.
-- **Perfis PAR2**: Três perfis pré-configurados (`fast`, `balanced`, `safe`) com opção de redundância manual e override de slice size (`--par-slice-size`).
-- **Ofuscação real**: Renomeia fisicamente os arquivos RAR/PAR2 no disco com nomes aleatórios (`--obfuscate`). O NZB é salvo com o nome original. Sets de volumes (`nome.part*.rar`) são renomeados atomicamente.
-- **Senha RAR automática**: Com `--obfuscate`, uma senha segura de 16 caracteres é gerada via `secrets` e injetada no `.nzb` como `<meta type="password">` para extração automática por SABnzbd, NZBGet e outros clientes. Personalizável com `--password`.
-- **Retry automático de upload**: `--upload-retries N` reexecuta o nyuu em caso de falha transitória.
-- **Timeout de conexão**: `--upload-timeout N` passa o timeout ao nyuu.
-- **Verificação pós-upload do NZB**: Valida existência, tamanho e estrutura XML do `.nzb` gerado após o upload.
-- **Logging estruturado**: Flag `--verbose` ativa nível DEBUG para diagnóstico detalhado.
-- **Geração de NFO automática**:
-  - Para arquivos únicos: saída do `mediainfo`.
-  - Para pastas de séries (padrão `SXX`/`SXXEXX`): `mediainfo` do primeiro episódio.
-  - Para pastas genéricas: estrutura em árvore, estatísticas e metadados de vídeo (duração, resolução, codec, bitrate).
-  - Banner ASCII art customizável via variável `NFO_BANNER` no `.env`.
-- **Dry Run**: Simula toda a execução sem criar ou enviar nada (`--dry-run`).
-- **Limpeza automática**: Remove `.rar` e `.par2` após upload (desative com `--keep-files`).
-- **Controle de conflitos NZB**: Define o comportamento quando um `.nzb` já existe (`rename`, `overwrite`, `fail`).
+1. **Compactação em RAR5** (store, sem compressão) para preservar estrutura e hashes
+2. **Geração de paridade PAR2** para recuperação de artigos faltando
+3. **Upload via nyuu** para o newsgroup configurado
+4. **Geração de NZB e NFO** automaticamente
+5. **Limpeza automática** de RAR e PAR2 após upload
+
+## Comportamento padrão
+
+| Entrada | Comportamento |
+|---------|---------------|
+| Pasta | RAR (store) + PAR2 + upload → NZB + NFO |
+| Arquivo único | PAR2 + upload direto (sem RAR) → NZB + NFO |
+| Pasta com `--each` | Cada arquivo vira um release separado com seu próprio NZB |
+
+**Quando `--obfuscate` ou `--password` é usado com arquivo único**, o UpaPasta cria o RAR automaticamente — sem a necessidade de flags adicionais.
 
 ## Pré-requisitos
 
-Antes de instalar, certifique-se de ter os seguintes binários externos disponíveis no `PATH`:
-
 | Binário | Obrigatório | Função |
-|---|---|---|
-| `rar` | Sim | Compactação em formato RAR5 |
+|---------|-------------|--------|
+| `rar` | Sim | Compactação RAR5 (store) |
 | `nyuu` | Sim | Upload para Usenet |
 | `parpar` ou `par2` | Sim | Geração de arquivos de paridade |
 | `ffmpeg` / `ffprobe` | Recomendado | Metadados de vídeo no NFO de pastas |
@@ -43,7 +36,7 @@ Antes de instalar, certifique-se de ter os seguintes binários externos disponí
 
 ## Instalação
 
-### Via PyPI (recomendado)
+### Via PyPI
 
 ```bash
 pip install upapasta
@@ -61,11 +54,7 @@ pip install -e .
 
 ## Configuração
 
-O UpaPasta armazena as configurações em `~/.config/upapasta/.env`.
-
-### Primeira execução
-
-Na primeira execução, um questionário interativo solicita as informações essenciais e gera o arquivo `.env` completo automaticamente:
+Na primeira execução, um assistente interativo solicita as informações essenciais e gera o arquivo `~/.config/upapasta/.env` automaticamente:
 
 ```
 ╔══════════════════════════════════════════════════════╗
@@ -86,21 +75,13 @@ Na primeira execução, um questionário interativo solicita as informações es
   Caminho de saída do .nzb [{filename}.nzb]:
 ```
 
-O arquivo gerado contém **todas** as variáveis configuráveis com comentários explicativos — basta abri-lo para ajustar qualquer opção avançada.
+O arquivo gerado contém todas as variáveis configuráveis com comentários. Para reconfigurar, delete o `.env` e execute o UpaPasta novamente.
 
-### Configuração manual
-
-```bash
-mkdir -p ~/.config/upapasta
-cp .env.example ~/.config/upapasta/.env
-# edite o arquivo com seus dados
-```
-
-### Variáveis principais
+### Variáveis principais do `.env`
 
 | Variável | Descrição | Padrão |
-|---|---|---|
-| `NNTP_HOST` | Servidor NNTP do provedor | — |
+|----------|-----------|--------|
+| `NNTP_HOST` | Servidor NNTP | — |
 | `NNTP_PORT` | Porta (563 = TLS) | `563` |
 | `NNTP_SSL` | Usar SSL/TLS | `true` |
 | `NNTP_USER` | Usuário NNTP | — |
@@ -109,111 +90,152 @@ cp .env.example ~/.config/upapasta/.env
 | `USENET_GROUP` | Grupo de upload | `alt.binaries.boneless` |
 | `ARTICLE_SIZE` | Tamanho máximo de artigo | `700K` |
 | `NZB_OUT` | Caminho do `.nzb` gerado | `{filename}.nzb` |
-| `SKIP_ERRORS` | Comportamento em erros (`all`/`none`) | `all` |
 
 Consulte `.env.example` para a lista completa com descrições detalhadas.
 
 ## Como usar
 
+### Uso básico
+
 ```bash
-upapasta /caminho/para/pasta [OPÇÕES]
+upapasta <caminho> [opções]
 ```
+
+Sem argumentos, o UpaPasta exibe um guia rápido de uso.
 
 ### Exemplos
 
-**Upload básico de uma pasta:**
+**Pasta inteira como release único:**
 ```bash
-upapasta /home/user/Series/Show.S01E01
+upapasta Curso.Python.2024/
 ```
 
 **Arquivo único (sem RAR):**
 ```bash
-upapasta /home/user/Videos/filme.mkv
+upapasta Episodio.S01E01.mkv
 ```
 
-**Simular sem enviar nada:**
+**Temporada completa — cada episódio como release separado:**
 ```bash
-upapasta /home/user/pasta --dry-run
+upapasta Temporada.1/ --each
+```
+> Itera todos os arquivos da pasta. Cada `.mkv` vira um NZB independente.
+
+**Release com nomes ofuscados:**
+```bash
+upapasta Pasta/ --obfuscate
+```
+> Renomeia RAR e PAR2 com nomes aleatórios antes do upload. O NZB é salvo com o nome original.
+
+**Release com senha RAR:**
+```bash
+upapasta Pasta/ --password "MinhaSenh@"
+```
+> A senha é injetada no NZB como `<meta type="password">` para extração automática por SABnzbd/NZBGet.
+
+**Ofuscado com senha (independentes, podem ser combinados):**
+```bash
+upapasta Pasta/ --obfuscate --password "abc123"
 ```
 
-**Redundância PAR2 maior e manter arquivos gerados:**
+**Arquivo único ofuscado (RAR criado automaticamente):**
 ```bash
-upapasta /home/user/pasta --par-profile safe --keep-files
+upapasta Episodio.mkv --obfuscate
 ```
 
-**Upload ofuscado com senha RAR aleatória:**
+**Mais paridade, mantendo os arquivos gerados:**
 ```bash
-upapasta /home/user/pasta --obfuscate
-# Gera senha aleatória, renomeia RAR/PAR2, injeta senha no .nzb
+upapasta Pasta/ --par-profile safe --keep-files
 ```
 
-**Upload ofuscado com senha customizada:**
+**Simular sem enviar:**
 ```bash
-upapasta /home/user/pasta --obfuscate --password "MinhaSenh@Segura"
+upapasta Pasta/ --dry-run
 ```
 
-**Upload com retry automático e timeout:**
+**Upload com retry e timeout:**
 ```bash
-upapasta /home/user/pasta --upload-retries 3 --upload-timeout 60
+upapasta Pasta/ --upload-retries 3 --upload-timeout 60
 ```
 
-**Diagnóstico com log detalhado:**
+**Processar vários itens em sequência:**
 ```bash
-upapasta /home/user/pasta --verbose
-```
-
-**Envio em lote — aborta se NZB já existe:**
-```bash
-for video in /home/user/Videos/*.mkv; do
-    upapasta "$video" --nzb-conflict fail
-done
-```
-
-**Envio em lote de pastas:**
-```bash
-for pasta in /home/user/Pastas/*/; do
+for pasta in /home/user/Uploads/*/; do
     upapasta "$pasta" --nzb-conflict fail
 done
 ```
 
 ### Opções de linha de comando
 
+#### Opções essenciais
+
+| Opção | Descrição |
+|-------|-----------|
+| `--each` | Processa cada arquivo da pasta individualmente (ideal para temporadas) |
+| `--obfuscate` | Nomes aleatórios nos arquivos RAR/PAR2 antes do upload |
+| `--password SENHA` | Protege o RAR com senha; injetada no NZB automaticamente |
+| `--skip-rar` | Não cria RAR — envia arquivos como estão. Incompatível com `--password` |
+| `--dry-run` | Simula tudo sem criar ou enviar arquivos |
+
+#### Opções de ajuste
+
 | Opção | Descrição | Padrão |
-|---|---|---|
-| `input` | **(Obrigatório)** Arquivo ou pasta a enviar | — |
-| `--dry-run` | Simula a execução sem criar ou enviar arquivos | desativado |
-| `--par-profile` | Perfil PAR2: `fast`, `balanced`, `safe` | `balanced` |
-| `-r`, `--redundancy` | Redundância PAR2 em % (sobrescreve `--par-profile`) | conforme perfil |
+|-------|-----------|--------|
+| `--par-profile` | Perfil PAR2: `fast` (5%), `balanced` (10%), `safe` (20%) | `balanced` |
+| `-r`, `--redundancy N` | Redundância PAR2 em % (sobrescreve `--par-profile`) | conforme perfil |
+| `--keep-files` | Mantém RAR e PAR2 após o upload | desativado |
+| `--log-file PATH` | Grava log completo da sessão em arquivo | — |
+| `--upload-retries N` | Tentativas extras em caso de falha de upload | `0` |
+| `--verbose` | Ativa log de debug detalhado | desativado |
+
+#### Opções avançadas
+
+| Opção | Descrição | Padrão |
+|-------|-----------|--------|
 | `--backend` | Backend PAR2: `parpar` ou `par2` | `parpar` |
-| `--post-size` | Tamanho alvo de cada post (ex: `20M`, `700k`) | conforme perfil |
-| `--par-slice-size` | Override manual do tamanho de slice PAR2 (ex: `5M`) | automático |
-| `-s`, `--subject` | Assunto da postagem | nome da pasta/arquivo |
-| `-g`, `--group` | Newsgroup de destino | valor do `.env` |
-| `--skip-rar` | Pula a criação do `.rar` | desativado |
-| `--skip-par` | Pula a geração de paridade | desativado |
-| `--skip-upload` | Pula o upload | desativado |
-| `-f`, `--force` | Sobrescreve `.rar` e `.par2` existentes | desativado |
-| `--obfuscate` | Renomeia fisicamente RAR/PAR2 para nomes aleatórios; gera senha RAR automática | desativado |
-| `--password` | Senha para o RAR (com `--obfuscate`, gerada automaticamente se omitida) | automática |
-| `--keep-files` | Mantém `.rar` e `.par2` após o upload | desativado |
-| `--rar-threads` | Threads para criação do RAR | número de CPUs |
-| `--par-threads` | Threads para geração do PAR2 | número de CPUs |
-| `--upload-retries` | Número de tentativas extras em caso de falha de upload | `0` |
-| `--upload-timeout` | Timeout de conexão para o nyuu (segundos) | sem timeout |
+| `--post-size SIZE` | Tamanho alvo de post (ex: `20M`, `700K`) | conforme perfil |
+| `--par-slice-size SIZE` | Override manual do slice PAR2 | automático |
+| `--rar-threads N` | Threads para criação do RAR | CPUs disponíveis |
+| `--par-threads N` | Threads para geração do PAR2 | CPUs disponíveis |
+| `--max-memory MB` | Limite de memória para PAR2 | automático |
+| `-s`, `--subject` | Assunto da postagem | nome do arquivo/pasta |
+| `-g`, `--group` | Newsgroup de destino | do `.env` |
 | `--nzb-conflict` | Conflito de NZB: `rename`, `overwrite`, `fail` | `rename` |
-| `--env-file` | Caminho alternativo para o arquivo `.env` | `~/.config/upapasta/.env` |
-| `--verbose` | Ativa logging em nível DEBUG | desativado |
+| `--env-file PATH` | Caminho alternativo para o `.env` | `~/.config/upapasta/.env` |
+| `--upload-timeout N` | Timeout de conexão para nyuu (segundos) | sem timeout |
+| `-f`, `--force` | Sobrescreve RAR/PAR2 existentes | desativado |
+| `--skip-par` | Pula geração de paridade | desativado |
+| `--skip-upload` | Pula o upload (gera apenas RAR/PAR2) | desativado |
+
+## Regras de comportamento
+
+### RAR automático para arquivos únicos
+
+Por padrão, arquivos únicos são enviados sem RAR. Mas nas situações abaixo o RAR é criado automaticamente:
+
+| Situação | Comportamento |
+|----------|---------------|
+| `arquivo.mkv` | Upload direto, sem RAR |
+| `arquivo.mkv --obfuscate` | Cria RAR → renomeia → upload |
+| `arquivo.mkv --password abc` | Cria RAR com senha → upload |
+| `arquivo.mkv --obfuscate --password abc` | Cria RAR com senha → renomeia → upload |
+
+### Aviso de subpastas com `--skip-rar`
+
+Quando `--skip-rar` é usado em uma pasta que contém subpastas, o UpaPasta exibe um aviso: PAR2 não preserva hierarquia de diretórios de forma confiável entre diferentes clientes Usenet. Para pastas com subpastas, o RAR é sempre recomendado.
+
+### `--skip-rar` + `--password` é erro
+
+Sem RAR não há container para proteger com senha. O UpaPasta encerra com mensagem clara de erro.
 
 ## Lógica de volumes RAR
 
-O UpaPasta decide automaticamente se divide o arquivo em partes:
-
 | Tamanho total | Comportamento |
-|---|---|
+|---------------|---------------|
 | ≤ 10 GB | RAR único (sem volumes) |
 | > 10 GB | Volumes calculados para não ultrapassar 100 partes (mínimo 1 GB por volume) |
 
-Isso garante compatibilidade máxima com newsreaders, facilita repair parcial via PAR2 e evita downloads interrompidos sem recuperação.
+O RAR usa modo **store (`-m0`)** — sem compressão. Vídeos e áudios já são comprimidos; tentar comprimí-los novamente não reduz o tamanho e apenas consome CPU e tempo. O modo store é significativamente mais rápido e preserva os hashes dos arquivos originais após extração.
 
 ## Estrutura do projeto
 
@@ -221,16 +243,18 @@ Isso garante compatibilidade máxima com newsreaders, facilita repair parcial vi
 upapasta/
 ├── upapasta/
 │   ├── __init__.py    # Inicialização do pacote
-│   ├── config.py      # Carregamento e validação de configuração
-│   ├── main.py        # Orquestrador principal e CLI
-│   ├── makerar.py     # Criação de arquivos RAR em volumes
-│   ├── makepar.py     # Geração de arquivos PAR2
+│   ├── _process.py    # managed_popen: gerenciamento seguro de subprocessos
+│   ├── config.py      # Configuração, perfis PAR2, wizard de primeiro uso
+│   ├── main.py        # Orquestrador, CLI, PhaseBar, UpaPastaSession
+│   ├── makerar.py     # Criação de arquivos RAR5 (pasta ou arquivo único)
+│   ├── makepar.py     # Geração de PAR2 (parpar/par2), obfuscação
 │   ├── nfo.py         # Geração de arquivos NFO
-│   ├── nzb.py         # Geração de arquivos NZB
-│   └── upfolder.py    # Upload via nyuu
+│   ├── nzb.py         # Geração e manipulação de NZB
+│   ├── resources.py   # Cálculo automático de threads e memória
+│   └── upfolder.py    # Upload via nyuu (sem cópia temporária)
 ├── tests/             # Testes unitários
 ├── .env.example       # Exemplo de configuração
-├── pyproject.toml     # Metadados e dependências do pacote
+├── pyproject.toml     # Metadados e dependências
 ├── CHANGELOG.md       # Histórico de versões
 └── README.md          # Este arquivo
 ```
@@ -241,4 +265,4 @@ Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICEN
 
 ## Contribuição
 
-Contribuições são bem-vindas! Se você encontrar um bug ou tiver uma sugestão de melhoria, abra uma *issue* ou envie um *pull request*.
+Contribuições são bem-vindas! Se você encontrar um bug ou tiver uma sugestão, abra uma *issue* ou envie um *pull request*.
