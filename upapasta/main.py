@@ -279,9 +279,12 @@ class UpaPastaOrchestrator:
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
         self.obfuscated_map: dict[str, str] = {}
-        # --obfuscate e --password são independentes: obfuscate renomeia arquivos,
-        # password protege o conteúdo RAR. Podem ser usados juntos ou separados.
-        self.rar_password = rar_password
+        # --obfuscate implica senha: ocultar o nome sem proteger o conteúdo é
+        # proteção pela metade. Senha aleatória gerada via secrets se não fornecida.
+        if obfuscate and rar_password is None:
+            self.rar_password: str | None = self._generate_password()
+        else:
+            self.rar_password = rar_password
         self.par_slice_size = par_slice_size
         self.upload_timeout = upload_timeout
         self.upload_retries = upload_retries
@@ -922,8 +925,10 @@ COMPORTAMENTO PADRÃO
   Pasta   → RAR (store) + PAR2 (balanced) + upload → NZB + NFO
   Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
 
-  --obfuscate em arquivo único: cria RAR automaticamente (ofuscação real).
-  --password  em arquivo único: cria RAR automaticamente (necessário para senha).
+  --obfuscate: nomes aleatórios + senha gerada automaticamente (proteção completa).
+  --obfuscate --password abc: nomes aleatórios + senha definida pelo usuário.
+  --obfuscate em arquivo único: cria RAR automaticamente.
+  --password  em arquivo único: cria RAR automaticamente.
   --skip-rar  é incompatível com --password.
 
 EXEMPLOS
@@ -969,8 +974,9 @@ def parse_args():
         "--obfuscate",
         action="store_true",
         help=(
-            "Renomeia RAR/PAR2 com nomes aleatórios antes do upload (privacidade). "
-            "Em arquivo único, cria RAR automaticamente para ofuscação real."
+            "Release privado: nomes aleatórios no RAR/PAR2 + senha gerada automaticamente. "
+            "Em arquivo único, cria RAR automaticamente. "
+            "Use --password junto para definir a senha manualmente."
         ),
     )
     essential.add_argument(
@@ -978,7 +984,7 @@ def parse_args():
         default=None,
         metavar="SENHA",
         help=(
-            "Protege o RAR com senha (injetada no NZB para extração automática). "
+            "Senha para o RAR (injetada no NZB para extração automática por SABnzbd/NZBGet). "
             "Em arquivo único, cria RAR automaticamente. Incompatível com --skip-rar."
         ),
     )

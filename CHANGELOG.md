@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.10.2 - 2026-04-22
+
+### Correções
+
+- Fix: `--obfuscate` volta a gerar senha aleatória automaticamente quando `--password` não é fornecida. Ofuscar nome sem proteger conteúdo é proteção pela metade — a senha é injetada no NZB e extraída automaticamente por SABnzbd/NZBGet.
+
 ## 0.10.1 - 2026-04-22
 
 ### Correções

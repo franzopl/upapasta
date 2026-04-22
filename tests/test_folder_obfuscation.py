@@ -69,8 +69,9 @@ class TestFolderObfuscation(unittest.TestCase):
         # nyuu deve ter sido chamado
         self.assertTrue(mock_subprocess_run.called, "nyuu deveria ter sido chamado.")
 
-        # --obfuscate e --password são independentes: sem --password, rar_password é None
-        self.assertIsNone(orchestrator.rar_password, "--obfuscate sem --password não deve gerar senha automática.")
+        # --obfuscate gera senha aleatória automaticamente
+        self.assertIsNotNone(orchestrator.rar_password, "Senha RAR deve ser gerada automaticamente com --obfuscate.")
+        self.assertGreater(len(orchestrator.rar_password), 8)
 
 if __name__ == "__main__":
     unittest.main()
