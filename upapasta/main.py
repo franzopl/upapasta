@@ -784,7 +784,11 @@ class UpaPastaOrchestrator:
             return 3
 
         # ── Etapa 1: RAR ────────────────────────────────────────────────────
-        if not self.skip_rar and not self.input_path.is_file():
+        # RAR é criado quando: pasta sem --skip-rar, OU arquivo único com --obfuscate/--password
+        will_create_rar = not self.skip_rar and (
+            self.input_path.is_dir() or self.obfuscate or self.rar_password
+        )
+        if will_create_rar:
             bar.start("RAR")
             if not self.run_makerar():
                 bar.error("RAR")
@@ -792,7 +796,7 @@ class UpaPastaOrchestrator:
                 return 1
             bar.done("RAR")
         else:
-            # skip ou single-file: apenas valida
+            # skip ou arquivo único sem RAR: apenas valida e define input_target
             if not self.run_makerar():
                 self._cleanup_on_error()
                 return 1

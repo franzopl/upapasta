@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.10.3 - 2026-04-22
+
+### Correções
+
+- Fix: PhaseBar da fase RAR permanecia em `⬜` (pending) em arquivo único com `--obfuscate`/`--password`, mesmo com o RAR sendo criado. A condição de ativação da barra agora considera corretamente os casos onde RAR é gerado automaticamente.
+
 ## 0.10.2 - 2026-04-22
 
 ### Correções
