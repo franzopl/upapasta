@@ -26,11 +26,13 @@ Todos os uploads ficam registrados em `~/.config/upapasta/history.db` com senha,
 ## Uso rápido
 
 ```bash
-# Upload comum de uma pasta
+# Upload comum — pasta inteira ou arquivo único
 upapasta /filmes/Dune.2021/
+upapasta /filmes/Dune.2021.mkv
 
 # Upload ofuscado com senha automática
 upapasta /filmes/Dune.2021/ --obfuscate
+upapasta /filmes/Dune.2021.mkv --obfuscate
 
 # Monitorar pasta e processar automaticamente o que chegar
 upapasta /filmes/ --watch
