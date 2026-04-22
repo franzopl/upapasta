@@ -197,6 +197,9 @@ def prompt_for_credentials(env_file: str) -> dict:
     connections = _ask("Conexões simultâneas (verifique o limite do seu plano)", default="50")
     article_sz  = _ask("Tamanho do artigo", default="700K")
     nzb_out     = _ask("Caminho de saída do .nzb ({filename} = nome do upload)", default="{filename}.nzb")
+    # Se o usuário indicou apenas uma pasta (não contém {filename} e não termina em .nzb)
+    if "{filename}" not in nzb_out and not nzb_out.lower().endswith(".nzb"):
+        nzb_out = os.path.join(nzb_out, "{filename}.nzb")
 
     values = {
         "NNTP_HOST":           host,

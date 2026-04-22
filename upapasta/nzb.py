@@ -17,6 +17,13 @@ def resolve_nzb_template(env_vars: dict, is_folder: bool, skip_rar: bool) -> str
     template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
     if not template:
         return "{filename}.nzb"
+    
+    # Se o template aponta para um diretório existente, termina com barra
+    # ou não contém o template/extensão esperada, anexar automaticamente {filename}.nzb
+    if "{filename}" not in template:
+        if os.path.isdir(template) or template.endswith("/") or template.endswith("\\") or not template.lower().endswith(".nzb"):
+            return os.path.join(template, "{filename}.nzb")
+        
     return template
 
 

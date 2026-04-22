@@ -21,7 +21,7 @@ from .catalog import record_upload, run_post_upload_hook
 from .config import check_or_prompt_credentials
 from .makerar import make_rar
 from .makepar import make_parity, obfuscate_and_par, generate_random_name, handle_par_failure
-from .nzb import resolve_nzb_out, handle_nzb_conflict
+from .nzb import resolve_nzb_out, handle_nzb_conflict, resolve_nzb_template
 from .upfolder import upload_to_usenet
 from .resources import calculate_optimal_resources, get_total_size
 from .ui import PhaseBar, format_time
@@ -176,7 +176,7 @@ class UpaPastaOrchestrator:
         if self.nzb_conflict:
             env_vars["NZB_CONFLICT"] = self.nzb_conflict
 
-        nzb_out_template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
+        nzb_out_template = resolve_nzb_template(env_vars, self.input_path.is_dir(), self.skip_rar)
 
         # Usa o subject definido (que pode ser o nome original ou personalizado)
         basename = self.subject
@@ -780,15 +780,16 @@ class UpaPastaOrchestrator:
 
         # ── Catálogo e hook pós-upload ────────────────────────────────────────
         # Resolve o caminho do NZB gerado (mesmo template usado pelo upfolder)
-        _nzb_template = self.env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT") or "{filename}.nzb"
-        _nzb_basename = os.path.splitext(self.subject)[0] if self.subject else self.input_path.stem
-        _nzb_filename = _nzb_template.replace("{filename}", _nzb_basename)
-        if os.path.isabs(_nzb_filename):
-            _nzb_abs = _nzb_filename
-        else:
-            _nzb_dir = self.env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
-            _nzb_abs = os.path.join(_nzb_dir, _nzb_filename)
-        _nzb_abs = _nzb_abs if os.path.exists(_nzb_abs) else None
+        working_dir = self.env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+        nzb_out, _nzb_abs_resolved = resolve_nzb_out(
+            str(self.input_path), self.env_vars, self.input_path.is_dir(), self.skip_rar, working_dir, self.obfuscated_map
+        )
+        
+        # Se houve conflito e renomeio, o arquivo real pode ter um sufixo.
+        # Mas resolve_nzb_out retorna o nome base esperado. 
+        # O upfolder.py gera o NZB; handle_nzb_conflict cuida do renomeio se necessário.
+        # Aqui tentamos encontrar o arquivo real que foi gerado.
+        _nzb_abs = _nzb_abs_resolved if os.path.exists(_nzb_abs_resolved) else None
 
         # Grupo efetivo: pode ter sido selecionado do pool dentro do upfolder
         _raw_group = self.group or self.env_vars.get("USENET_GROUP") or ""
