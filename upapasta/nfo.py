@@ -16,13 +16,20 @@ import subprocess
 
 
 def find_mediainfo() -> str | None:
-    """Procura executável 'mediainfo' no PATH."""
     import shutil
     for cmd in ("mediainfo", "mediainfo.exe"):
         path = shutil.which(cmd)
         if path:
             return path
     return None
+
+
+def _format_size(size_bytes: int) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size_bytes < 1024 or unit == "TB":
+            return f"{size_bytes:.2f} {unit}" if unit != "B" else f"{size_bytes} {unit}"
+        size_bytes /= 1024
+    return f"{size_bytes:.2f} TB"
 
 
 def _get_video_duration(file_path: str) -> float:
@@ -42,19 +49,31 @@ def _get_video_duration(file_path: str) -> float:
 def _get_video_metadata(file_path: str) -> dict:
     metadata = {"codec": "N/A", "resolution": "N/A", "bitrate": "N/A"}
     try:
-        cmd = [
+        # codec e resolução do stream de vídeo
+        cmd_stream = [
             "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=codec_name,width,height,bit_rate",
+            "-show_entries", "stream=codec_name,width,height",
             "-of", "default=noprint_wrappers=1:nokey=1",
             file_path,
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True)
+        result = subprocess.run(cmd_stream, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True)
         data = result.stdout.strip().split("\n")
-        if len(data) >= 3:
-            metadata["codec"] = data[0] if data[0] != "N/A" else "N/A"
-            metadata["resolution"] = f"{int(data[1])}x{int(data[2])}"
-        if len(data) >= 4 and data[3].isdigit() and int(data[3]) > 0:
-            metadata["bitrate"] = f"{int(data[3]) / 1000:.0f} kbps"
+        if len(data) >= 1 and data[0]:
+            metadata["codec"] = data[0]
+        if len(data) >= 3 and data[1].isdigit() and data[2].isdigit():
+            metadata["resolution"] = f"{data[1]}x{data[2]}"
+
+        # bitrate do formato (muito mais confiável que stream-level)
+        cmd_fmt = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=bit_rate",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            file_path,
+        ]
+        result_fmt = subprocess.run(cmd_fmt, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True)
+        br = result_fmt.stdout.strip()
+        if br and br.isdigit() and int(br) > 0:
+            metadata["bitrate"] = f"{int(br) / 1000:.0f} kbps"
     except Exception:
         pass
     return metadata
@@ -73,7 +92,10 @@ def _normalize_text(text: str) -> str:
     return text.translate(table)
 
 
-def _generate_tree(start_path: str, video_metadata_map: dict) -> tuple[list[str], int, int]:
+_MAX_FILENAME_LEN = 42
+
+
+def _generate_tree(start_path: str, video_metadata_map: dict, file_sizes: dict) -> tuple[list[str], int, int]:
     if not os.path.isdir(start_path):
         return [], 0, 0
 
@@ -96,12 +118,14 @@ def _generate_tree(start_path: str, video_metadata_map: dict) -> tuple[list[str]
                 _walk(path, new_prefix)
             else:
                 file_count += 1
-                meta_line = ""
+                display_name = (normalized[:_MAX_FILENAME_LEN] + "...") if len(normalized) > _MAX_FILENAME_LEN else normalized
                 key = os.path.abspath(path)
+                size_str = _format_size(file_sizes.get(key, 0))
+                meta_line = f" [{size_str}]"
                 if key in video_metadata_map:
                     m = video_metadata_map[key]
-                    meta_line = f" | {m.get('duration_str', '00:00:00')} | {m.get('resolution', 'N/A'):<10} | {m.get('codec', 'N/A'):<10} | {m.get('bitrate', 'N/A'):<10}"
-                lines.append(f"{prefix}{pointer}{normalized}{meta_line}")
+                    meta_line += f" | {m.get('duration_str', '00:00:00')} | {m.get('resolution', 'N/A'):<10} | {m.get('codec', 'N/A'):<6} | {m.get('bitrate', 'N/A')}"
+                lines.append(f"{prefix}{pointer}{display_name}{meta_line}")
 
     lines.append(_normalize_text(os.path.basename(start_path)))
     _walk(start_path)
@@ -156,12 +180,10 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
 
 
 def _is_series_folder(folder_name: str) -> bool:
-    """Retorna True se o nome da pasta contém padrão de temporada (S01, S02E03, etc.)."""
     return bool(re.search(r'(?<![A-Za-z])S\d{2}(?:E\d{2})?(?![0-9])', folder_name, re.IGNORECASE))
 
 
 def _find_first_episode(folder_path: str) -> str | None:
-    """Retorna o caminho do primeiro episódio de vídeo encontrado na pasta, ordenado."""
     video_exts = {".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".ts", ".webm"}
     candidates = []
     for root, _, files in os.walk(folder_path):
@@ -192,7 +214,8 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         title_temp = folder_name
 
         year = "N/A"
-        year_match = re.search(r"\[(\d{4})\]", title_temp)
+        # suporta [2024] e (2024)
+        year_match = re.search(r"[\[(](\d{4})[\])]", title_temp)
         if year_match:
             year = year_match.group(1)
             title_temp = (title_temp[: year_match.start()] + title_temp[year_match.end():]).strip()
@@ -207,6 +230,9 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         video_exts = {".mp4", ".mkv", ".mov", ".avi", ".flv", ".ts", ".webm", ".wmv"}
         video_files = [f for f in all_files if f.suffix.lower() in video_exts]
 
+        file_sizes: dict[str, int] = {os.path.abspath(f): f.stat().st_size for f in all_files}
+        total_size = sum(file_sizes.values())
+
         video_metadata_map = {}
         total_duration_seconds = 0.0
         for video in video_files:
@@ -216,7 +242,7 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
             total_duration_seconds += duration_sec
             video_metadata_map[os.path.abspath(video)] = meta
 
-        tree_lines, total_dirs, total_files_in_tree = _generate_tree(input_path, video_metadata_map)
+        tree_lines, total_dirs, total_files_in_tree = _generate_tree(input_path, video_metadata_map, file_sizes)
 
         extension_counts: dict[str, int] = {}
         for f in all_files:
@@ -229,7 +255,7 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         lines: list[str] = []
 
         if banner:
-            lines.extend(banner.replace("\\n", "\n").split("\n"))
+            lines.extend(banner.split("\n"))
         else:
             lines.extend(_default_banner().split("\n"))
         lines.append("")
@@ -245,12 +271,13 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
             "|" + center("*** ESTATISTICAS GERAIS ***") + "|",
             "+" + "-" * 78 + "+",
             "",
-            f"  > Diretorios: {total_dirs}",
-            f"  > Total de Arquivos: {len(all_files)}",
+            f"  > Tamanho Total:      {_format_size(total_size)}",
+            f"  > Diretorios:         {total_dirs}",
+            f"  > Total de Arquivos:  {len(all_files)}",
         ]
 
         if total_duration_seconds > 0:
-            lines.append(f"  > Duracao Total de Video: {_format_duration(total_duration_seconds)} ({total_duration_seconds / 3600:.2f} horas)")
+            lines.append(f"  > Duracao Total:      {_format_duration(total_duration_seconds)} ({total_duration_seconds / 3600:.2f} horas)")
 
         lines.append("  > Arquivos por Tipo:")
         for ext, count in sorted(extension_counts.items(), key=lambda x: x[1], reverse=True):
@@ -265,9 +292,9 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
             "",
         ]
         lines.extend(tree_lines)
-        lines.append(f"\n{total_dirs} diretorios, {total_files_in_tree} arquivos")
+        lines.append(f"\n{total_dirs} diretorios, {total_files_in_tree} arquivos, {_format_size(total_size)}")
 
-        with open(nfo_path, "w", encoding="cp1252", errors="replace") as f:
+        with open(nfo_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
         return True
     except Exception as e:
