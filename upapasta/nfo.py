@@ -197,19 +197,10 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
             year = year_match.group(1)
             title_temp = (title_temp[: year_match.start()] + title_temp[year_match.end():]).strip()
 
-        producer_match = re.search(r"\[([^\]]+)\]$", title_temp)
-        if producer_match:
-            producer = producer_match.group(1).strip()
-            title_temp = title_temp[: producer_match.start()].strip()
-        else:
-            producer = "Desconhecido"
-
         title = title_temp
         if year != "N/A":
             title += f" [{year}]"
-        title += f" [{producer}]"
         title = _normalize_text(title)
-        producer = _normalize_text(producer)
 
         root_path = Path(input_path)
         all_files = [p for p in root_path.rglob("*") if p.is_file() and p.name != f"{folder_name}.nfo"]
