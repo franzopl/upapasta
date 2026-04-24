@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from .cli import parse_args, check_dependencies, _validate_flags, _USAGE_SHORT
+from .config import check_or_prompt_credentials, DEFAULT_ENV_FILE
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
 from .watch import _watch_loop
@@ -18,6 +19,11 @@ from .watch import _watch_loop
 
 def main():
     args = parse_args()
+
+    if getattr(args, "config", False):
+        env_file = getattr(args, "env_file", DEFAULT_ENV_FILE)
+        check_or_prompt_credentials(env_file, force=True)
+        sys.exit(0)
 
     # Sem argumentos: exibe uso amigável e sai
     if args.input is None:

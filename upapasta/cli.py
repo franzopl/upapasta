@@ -65,6 +65,11 @@ def parse_args():
         default=None,
         help="Arquivo ou pasta a fazer upload",
     )
+    p.add_argument(
+        "--config",
+        action="store_true",
+        help="Abre o wizard de configuração (permite reconfigurar credenciais e opções)",
+    )
 
     # ── Opções essenciais ────────────────────────────────────────────────────
     essential = p.add_argument_group("opções essenciais")

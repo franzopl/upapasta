@@ -53,8 +53,12 @@ def _is_numeric_port(val: str) -> bool:
 
 
 def _write_full_env(env_file: str, values: dict) -> None:
+    # Preserva valores que já existem no .env mas não foram respondidos no wizard
+    existing = load_env_file(env_file) if os.path.exists(env_file) else {}
+    merged = {**existing, **values}
+
     def v(key: str) -> str:
-        return values.get(key, "")
+        return merged.get(key, "")
 
     lines = [
         "# Configuração para upload em Usenet com nyuu",
@@ -171,32 +175,54 @@ def load_env_file(env_path: str = DEFAULT_ENV_FILE) -> dict:
     return env_vars
 
 
-def prompt_for_credentials(env_file: str) -> dict:
+def prompt_for_credentials(env_file: str, force: bool = False) -> dict:
     """Solicita credenciais ao usuário e salva um .env completo com todos os campos."""
+    existing = load_env_file(env_file) if (force and os.path.exists(env_file)) else {}
+
+    def ex(key: str, fallback: str) -> str:
+        return existing.get(key) or fallback
+
+    def ex_secret(key: str) -> str:
+        """Retorna '****' se já existe valor, senão None (obriga preenchimento)."""
+        return "****" if existing.get(key) else None
+
     print()
-    print("╔══════════════════════════════════════════════════════╗")
-    print("║         Configuração inicial do UpaPasta             ║")
-    print("╚══════════════════════════════════════════════════════╝")
-    print()
-    print("Credenciais do servidor NNTP não encontradas.")
-    print(f"Um arquivo de configuração será criado em:\n  {env_file}")
+    if force and existing:
+        print("╔══════════════════════════════════════════════════════╗")
+        print("║         Reconfiguração do UpaPasta                   ║")
+        print("║  Pressione Enter para manter o valor atual           ║")
+        print("╚══════════════════════════════════════════════════════╝")
+    else:
+        print("╔══════════════════════════════════════════════════════╗")
+        print("║         Configuração inicial do UpaPasta             ║")
+        print("╚══════════════════════════════════════════════════════╝")
+        print()
+        print("Credenciais do servidor NNTP não encontradas.")
+    print(f"Arquivo de configuração: {env_file}")
     print()
 
     print("── Servidor NNTP ─────────────────────────────────────")
-    host = _ask("Servidor NNTP (ex: news.eweka.nl)", validator=lambda v: (True if v and " " not in v else (print("    Endereço inválido.") or False)))
-    port = _ask("Porta NNTP", default="563", validator=_is_numeric_port)
-    ssl  = _ask("Usar SSL/TLS?", default="true", validator=lambda v: (True if v.lower() in ("true", "false") else (print("    Digite true ou false.") or False)))
-    user = _ask("Usuário NNTP")
-    passwd = _ask("Senha NNTP", secret=True)
+    host = _ask("Servidor NNTP (ex: news.eweka.nl)", default=ex("NNTP_HOST", None), validator=lambda v: (True if v and " " not in v else (print("    Endereço inválido.") or False)))
+    port = _ask("Porta NNTP", default=ex("NNTP_PORT", "563"), validator=_is_numeric_port)
+    ssl  = _ask("Usar SSL/TLS?", default=ex("NNTP_SSL", "true"), validator=lambda v: (True if v.lower() in ("true", "false") else (print("    Digite true ou false.") or False)))
+    user = _ask("Usuário NNTP", default=ex("NNTP_USER", None))
+
+    # Senha: se já existe, permite manter com Enter
+    passwd_hint = ex_secret("NNTP_PASS")
+    if passwd_hint:
+        raw = getpass.getpass(f"  Senha NNTP [****]: ")
+        passwd = raw if raw.strip() else existing["NNTP_PASS"]
+    else:
+        passwd = _ask("Senha NNTP", secret=True)
 
     print()
     print("── Upload ────────────────────────────────────────────")
     print("  Dica: Você pode fornecer um único grupo ou uma lista separada por vírgulas.")
     print("  Se fornecer uma lista, o UpaPasta sorteará um grupo aleatório por upload.")
-    group       = _ask("Grupo Usenet (ou Pool)", default=DEFAULT_GROUP_POOL)
-    connections = _ask("Conexões simultâneas (verifique o limite do seu plano)", default="50")
-    article_sz  = _ask("Tamanho do artigo", default="700K")
-    nzb_out     = _ask("Caminho de saída do .nzb ({filename} = nome do upload)", default="{filename}.nzb")
+    group       = _ask("Grupo Usenet (ou Pool)", default=ex("USENET_GROUP", DEFAULT_GROUP_POOL))
+    connections = _ask("Conexões simultâneas (verifique o limite do seu plano)", default=ex("NNTP_CONNECTIONS", "50"))
+    article_sz  = _ask("Tamanho do artigo", default=ex("ARTICLE_SIZE", "700K"))
+    nzb_out     = _ask("Caminho de saída do .nzb ({filename} = nome do upload)", default=ex("NZB_OUT", "{filename}.nzb"))
     # Se o usuário indicou apenas uma pasta (não contém {filename} e não termina em .nzb)
     if "{filename}" not in nzb_out and not nzb_out.lower().endswith(".nzb"):
         nzb_out = os.path.join(nzb_out, "{filename}.nzb")
@@ -240,8 +266,11 @@ def prompt_for_credentials(env_file: str) -> dict:
     return values
 
 
-def check_or_prompt_credentials(env_file: str) -> dict:
+def check_or_prompt_credentials(env_file: str, force: bool = False) -> dict:
     """Verifica se as credenciais existem e estão preenchidas, senão, solicita."""
+    if force:
+        return prompt_for_credentials(env_file, force=True)
+
     env_vars = load_env_file(env_file)
 
     missing_or_empty = [k for k in REQUIRED_CRED_KEYS if not env_vars.get(k)]
