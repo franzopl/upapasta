@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 
 from .cli import parse_args, check_dependencies, _validate_flags, _USAGE_SHORT
-from .config import check_or_prompt_credentials, DEFAULT_ENV_FILE
+from .config import check_or_prompt_credentials, DEFAULT_ENV_FILE, load_env_file
+from .nntp_test import test_nntp_connection
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
 from .watch import _watch_loop
@@ -24,6 +25,22 @@ def main():
         env_file = getattr(args, "env_file", DEFAULT_ENV_FILE)
         check_or_prompt_credentials(env_file, force=True)
         sys.exit(0)
+
+    if getattr(args, "test_connection", False):
+        env_file = getattr(args, "env_file", DEFAULT_ENV_FILE)
+        env_vars = load_env_file(env_file)
+        if not all(env_vars.get(k) for k in ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS"]):
+            print("❌ Credenciais incompletas. Execute 'upapasta --config' primeiro.")
+            sys.exit(1)
+        success, message = test_nntp_connection(
+            host=env_vars["NNTP_HOST"],
+            port=int(env_vars["NNTP_PORT"]),
+            use_ssl=env_vars.get("NNTP_SSL", "true").lower() in ("true", "1", "yes"),
+            user=env_vars["NNTP_USER"],
+            password=env_vars["NNTP_PASS"],
+        )
+        print(message)
+        sys.exit(0 if success else 1)
 
     # Sem argumentos: exibe uso amigável e sai
     if args.input is None:

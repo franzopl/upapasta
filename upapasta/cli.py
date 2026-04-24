@@ -70,6 +70,11 @@ def parse_args():
         action="store_true",
         help="Abre o wizard de configuração (permite reconfigurar credenciais e opções)",
     )
+    p.add_argument(
+        "--test-connection",
+        action="store_true",
+        help="Testa conectividade com o servidor NNTP (valida host, porta e credenciais)",
+    )
 
     # ── Opções essenciais ────────────────────────────────────────────────────
     essential = p.add_argument_group("opções essenciais")
