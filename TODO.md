@@ -3,11 +3,13 @@
 > Guia de trabalho futuro. Itens ordenados por prioridade dentro de cada categoria.
 > Última revisão: 2026-04-23
 
-## ✅ Implementado Recentemente
+## ✅ Implementado Recentemente (2026-04-23)
 
-- **--config flag** (2026-04-23): Flag para reconfiguração de credenciais com preservação de valores existentes
+- **--profile flag**: Suporte a múltiplos perfis de configuração (~/.config/upapasta/<profile>.env)
+- **--test-connection flag**: Validação de conectividade NNTP com handshake (CONNECT, LOGIN, QUIT)
+- **render_template centralizado**: Eliminada duplicação de template rendering entre nzb.py e orchestrator.py
+- **--config flag**: Reconfiguração de credenciais com preservação de valores existentes
 - **Melhorias de NFO** (2026-04-22): Geração aprimorada de NFOs de pastas, remoção de lógica de produtor
-- **Refactor NFO** (2026-04-21): Removida lógica duplicada de produtor e [DESCONHECIDO] do título
 
 ---
 
@@ -24,9 +26,10 @@
 - Geração de NFO para pastas com vídeos multi-track e legendas embutidas (requer ffprobe mock).
 - Testes de integração para os 5 falhos pré-existentes em `test_upfolder.py` / obfuscation (NFO single-file).
 
-### 2. Dívida técnica: template parsing duplicado
-- `main.py` e `upfolder.py` resolvem `{filename}`, `{title}` etc. de forma independente.
-- **Fix:** centralizar em `render_template(template: str, **vars) -> str` em `config.py` ou novo `nzb.py`.
+### 2. ~~Dívida técnica: template parsing duplicado~~ ✅ FEITO
+- ~~`main.py` e `upfolder.py` resolvem `{filename}`, `{title}` etc. de forma independente.~~
+- ✅ Centralizado em `render_template(template: str, filename: str)` em `config.py`
+- ✅ Usado em `nzb.py` e `orchestrator.py`
 
 ### 3. Sem verificação de tipo estática
 - Nenhum uso de `mypy` ou `pyright`.
@@ -50,9 +53,11 @@
 - **Melhoria:** detectar áudio multi-track, legendas embutidas e incluir no NFO.
 - **Melhoria:** suporte a template de NFO customizável via `NFO_TEMPLATE` no `.env` (abordagem de templates externos).
 
-### 7. Perfis de configuração nomeados ⭐ PRÓXIMO
-- **Proposta:** `--profile <nome>` carrega `~/.config/upapasta/<nome>.env` para quem usa múltiplos provedores.
-- **Nota:** `--config` permite reconfiguração, mas perfis distintos ainda não existem.
+### 7. ✅ Perfis de configuração nomeados — IMPLEMENTADO
+- ✅ `--profile <nome>` carrega `~/.config/upapasta/<nome>.env` para múltiplos provedores
+- ✅ Integrado com `--config --profile <nome>` para configurar perfil específico
+- ✅ Compatível com `--test-connection --profile <nome>`
+- Exemplo: `upapasta /path --profile myserver` ou `upapasta /path --config --profile myserver`
 
 ### 8. NZB com `<meta>` enriquecido
 - **Proposta:** injetar `<meta type="title">`, `<meta type="poster">`, `<meta type="category">` baseado em heurísticas do nome / NFO.
@@ -110,18 +115,18 @@ Para considerar o projeto estável e pronto para uso geral:
 
 ---
 
-## 📋 Referência Rápida — Por onde começar
+## 📋 Próximos Passos Recomendados
 
-| Prioridade | Item | Esforço |
-|------------|------|---------|
-| 1 | #2 render_template centralizado | Baixo |
-| 2 | #1 Testes para managed_popen | Médio |
-| 3 | #3 Type checking com mypy | Médio |
-| 4 | #7 Perfis de configuração nomeados | Baixo |
-| 5 | #16 CI/CD GitHub Actions (pytest + mypy + ruff) | Médio |
-| 6 | #13 Refatorar main.py em módulos | Alto |
-| 7 | #4 --resume / upload parcial | Alto |
-| 8 | #6 NFO com ffprobe único + multi-track | Médio |
+| Prioridade | Item | Status | Esforço |
+|------------|------|--------|---------|
+| ✅ 1 | #2 render_template centralizado | Feito | - |
+| ✅ 2 | #7 Perfis de configuração nomeados | Feito | - |
+| 🆕 3 | #1 Testes para managed_popen | Pendente | Médio |
+| 4 | #3 Type checking com mypy | Pendente | Médio |
+| 5 | #16 CI/CD GitHub Actions | Pendente | Médio |
+| 6 | #4 --resume / upload parcial | Pendente | Alto |
+| 7 | #13 Refatorar main.py | Pendente | Alto |
+| 8 | #6 NFO avançado (ffprobe único + multi-track) | Pendente | Médio |
 
 ---
 
