@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from .cli import parse_args, check_dependencies, _validate_flags, _USAGE_SHORT
-from .config import check_or_prompt_credentials, DEFAULT_ENV_FILE, load_env_file
+from .config import check_or_prompt_credentials, resolve_env_file, load_env_file
 from .nntp_test import test_nntp_connection
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
@@ -21,13 +21,20 @@ from .watch import _watch_loop
 def main():
     args = parse_args()
 
+    # Resolver arquivo de env: --profile > --env-file > padrão
+    profile = getattr(args, "profile", None)
+    if profile:
+        env_file = resolve_env_file(profile)
+    else:
+        env_file = getattr(args, "env_file", None)
+        if not env_file:
+            env_file = resolve_env_file()
+
     if getattr(args, "config", False):
-        env_file = getattr(args, "env_file", DEFAULT_ENV_FILE)
         check_or_prompt_credentials(env_file, force=True)
         sys.exit(0)
 
     if getattr(args, "test_connection", False):
-        env_file = getattr(args, "env_file", DEFAULT_ENV_FILE)
         env_vars = load_env_file(env_file)
         if not all(env_vars.get(k) for k in ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS"]):
             print("❌ Credenciais incompletas. Execute 'upapasta --config' primeiro.")
@@ -80,7 +87,7 @@ def main():
             print("=" * 60)
 
             input_name = file_path.name
-            log_path, log_fh = setup_session_log(input_name, env_file=args.env_file)
+            log_path, log_fh = setup_session_log(input_name, env_file=env_file)
             rc = 1
             try:
                 orchestrator = UpaPastaOrchestrator.from_args(args,str(file_path))
@@ -117,7 +124,7 @@ def main():
 
     # ── Modo normal: um único input ──────────────────────────────────────────
     input_name = Path(args.input).name
-    log_path, log_fh = setup_session_log(input_name, env_file=args.env_file)
+    log_path, log_fh = setup_session_log(input_name, env_file=env_file)
 
     rc = 1
     try:

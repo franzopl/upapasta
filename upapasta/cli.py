@@ -75,6 +75,12 @@ def parse_args():
         action="store_true",
         help="Testa conectividade com o servidor NNTP (valida host, porta e credenciais)",
     )
+    p.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="Usa um perfil de configuração nomeado (~/.config/upapasta/<profile>.env)",
+    )
 
     # ── Opções essenciais ────────────────────────────────────────────────────
     essential = p.add_argument_group("opções essenciais")

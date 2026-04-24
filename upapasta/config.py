@@ -9,9 +9,21 @@ from __future__ import annotations
 import getpass
 import os
 
-DEFAULT_ENV_FILE = os.path.expanduser("~/.config/upapasta/.env")
+CONFIG_DIR = os.path.expanduser("~/.config/upapasta")
+DEFAULT_ENV_FILE = os.path.join(CONFIG_DIR, ".env")
 
 REQUIRED_CRED_KEYS = ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS", "USENET_GROUP"]
+
+
+def resolve_env_file(profile: str | None = None) -> str:
+    """Resolve o caminho do arquivo .env baseado no perfil.
+
+    Se profile for None, retorna o arquivo .env padrão.
+    Se profile for especificado, retorna ~/.config/upapasta/<profile>.env
+    """
+    if profile is None:
+        return DEFAULT_ENV_FILE
+    return os.path.join(CONFIG_DIR, f"{profile}.env")
 
 # Pool de grupos populares para aumentar obfuscação e redundância
 DEFAULT_GROUP_POOL = (
