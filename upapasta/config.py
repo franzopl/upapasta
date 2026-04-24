@@ -52,6 +52,11 @@ def _is_numeric_port(val: str) -> bool:
     return True
 
 
+def render_template(template: str, filename: str) -> str:
+    """Renderiza um template substituindo {filename} pelo valor fornecido."""
+    return template.replace("{filename}", filename)
+
+
 def _write_full_env(env_file: str, values: dict) -> None:
     # Preserva valores que já existem no .env mas não foram respondidos no wizard
     existing = load_env_file(env_file) if os.path.exists(env_file) else {}

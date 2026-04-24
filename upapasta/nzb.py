@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 import xml.etree.ElementTree as ET
 
+from .config import render_template
+
 
 def resolve_nzb_template(env_vars: dict, is_folder: bool, skip_rar: bool) -> str:
     """Retorna o template NZB_OUT a ser usado."""
@@ -67,7 +69,7 @@ def resolve_nzb_out(
     """
     template = resolve_nzb_template(env_vars, is_folder, skip_rar)
     basename = resolve_nzb_basename(input_path, is_folder, obfuscated_map)
-    nzb_out = template.replace("{filename}", basename)
+    nzb_out = render_template(template, basename)
 
     if os.path.isabs(nzb_out):
         nzb_out_abs = nzb_out

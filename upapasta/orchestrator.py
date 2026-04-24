@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 from .catalog import record_upload, run_post_upload_hook
-from .config import check_or_prompt_credentials
+from .config import check_or_prompt_credentials, render_template
 from .makerar import make_rar
 from .makepar import make_parity, obfuscate_and_par, generate_random_name, handle_par_failure
 from .nzb import resolve_nzb_out, handle_nzb_conflict, resolve_nzb_template
@@ -184,8 +184,8 @@ class UpaPastaOrchestrator:
         video_exts = (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm")
         if basename.lower().endswith(video_exts):
             basename = os.path.splitext(basename)[0]
-            
-        nzb_filename = nzb_out_template.replace("{filename}", basename)
+
+        nzb_filename = render_template(nzb_out_template, basename)
 
         if os.path.isabs(nzb_filename):
             nzb_dir = os.path.dirname(nzb_filename)
