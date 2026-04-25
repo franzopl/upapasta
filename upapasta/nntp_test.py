@@ -6,8 +6,13 @@ Utilitário para testar conectividade com servidor NNTP.
 
 from __future__ import annotations
 
-import nntplib
 import ssl
+import sys
+
+try:
+    import nntplib
+except ImportError:
+    nntplib = None
 
 
 def test_nntp_connection(
@@ -22,6 +27,15 @@ def test_nntp_connection(
 
     Retorna (sucesso: bool, mensagem: str).
     """
+    if nntplib is None:
+        if sys.version_info >= (3, 14):
+            return False, (
+                f"❌ nntplib não disponível em Python 3.14+. "
+                f"O módulo foi removido da stdlib. "
+                f"Use Python 3.13 ou inferior para --test-connection."
+            )
+        return False, f"❌ nntplib não disponível no seu ambiente."
+
     try:
         if use_ssl:
             context = ssl.create_default_context()
