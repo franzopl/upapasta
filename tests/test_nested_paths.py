@@ -302,7 +302,7 @@ def test_obfuscate_then_upload_preserves_inner_structure(recording_popen, monkey
     root.mkdir()
     _build_deep_tree(root)
 
-    rc, new_path, mapping = obfuscate_and_par(
+    rc, new_path, mapping, _linked = obfuscate_and_par(
         str(root), redundancy=5, force=True, backend="parpar", threads=1,
     )
     assert rc == 0 and new_path is not None

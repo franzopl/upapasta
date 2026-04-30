@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.14.2 - 2026-04-29
+
+### Melhorias (Improvements)
+
+- **Ofuscação via Hardlinks**: agora o UpaPasta utiliza hardlinks para ofuscação in-place (fluxo `--skip-rar`). Isso evita que o cliente de torrent perca o acesso aos arquivos originais durante o upload, permitindo continuar o seeding sem interrupções.
+- **Fallback de Ofuscação**: caso o sistema de arquivos não suporte hardlinks (ex: cross-device), o sistema reverte automaticamente para a renomeação física (com aviso ao usuário).
+
 ## 0.14.1 - 2026-04-29
 
 ### Correções (Fixes)

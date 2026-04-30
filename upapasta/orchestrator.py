@@ -151,6 +151,7 @@ class UpaPastaOrchestrator:
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
         self.obfuscated_map: dict[str, str] = {}
+        self.obfuscate_was_linked = False
         # --obfuscate implica senha: ocultar o nome sem proteger o conteúdo é
         # proteção pela metade. Senha aleatória gerada via secrets se não fornecida.
         if obfuscate and rar_password is None:
@@ -451,7 +452,7 @@ class UpaPastaOrchestrator:
                 return True
 
             try:
-                rc, obfuscated_path, obf_map = obfuscate_and_par(
+                rc, obfuscated_path, obf_map, was_linked = obfuscate_and_par(
                     self.input_target,
                     redundancy=self.redundancy,
                     force=True,
@@ -484,6 +485,7 @@ class UpaPastaOrchestrator:
 
             # Atualiza caminhos para os nomes ofuscados
             self.obfuscated_map = obf_map
+            self.obfuscate_was_linked = was_linked
             self.input_target = obfuscated_path
             if self.rar_file:
                 self.rar_file = obfuscated_path
@@ -668,17 +670,37 @@ class UpaPastaOrchestrator:
             self._extensionless_map = {}
 
     def _revert_obfuscation(self) -> None:
-        """Restaura o nome original da entrada quando ela foi renomeada in-place
-        pela ofuscação (fluxo --skip-rar com pasta ou arquivo único sem RAR).
-        No fluxo com RAR, o caminho ofuscado é o próprio .rar temporário, que já
-        foi removido pelo cleanup — nada a fazer."""
+        """Restaura o nome original da entrada ou remove links temporários.
+        
+        No fluxo --skip-rar com ofuscação:
+        - Se foi usado hardlink: apenas remove o link (input_target).
+        - Se foi usado rename (fallback): renomeia de volta para o original.
+        """
         if not self.obfuscate or not self.input_target:
             return
+
         original = str(self.input_path)
         if self.input_target == original:
             return
-        # Só reverte se a entrada ainda está renomeada no disco. No fluxo com
-        # RAR, input_target aponta para um .rar que já foi deletado.
+
+        # Se foi hardlink, apenas deletamos a "visão" ofuscada (a menos que keep_files seja True)
+        if self.obfuscate_was_linked:
+            if self.keep_files:
+                print(f"⚡ [--keep-files] Mantendo links de ofuscação: {os.path.basename(self.input_target)}")
+                return
+            if not os.path.exists(self.input_target):
+                return
+            print(f"🧹 Removendo links temporários de ofuscação: {os.path.basename(self.input_target)}")
+            try:
+                if os.path.isdir(self.input_target):
+                    shutil.rmtree(self.input_target)
+                else:
+                    os.remove(self.input_target)
+            except OSError as e:
+                print(f"⚠️  Falha ao remover links de ofuscação: {e}")
+            return
+
+        # Fallback: se foi rename, reverte o rename
         if not os.path.exists(self.input_target):
             return
         if os.path.exists(original):

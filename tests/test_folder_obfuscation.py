@@ -48,23 +48,25 @@ class TestFolderObfuscation(unittest.TestCase):
             keep_files=True,
             env_file="/dev/null"
         )
+        # Com o fix de hardlinks, a pasta original DEVE continuar existindo durante todo o processo
+        # e os arquivos internos devem ter o mesmo inode (hardlink).
+        self.assertTrue(self.test_dir.exists(), "A pasta original deve continuar existindo (hardlinks).")
+        original_inode = self.test_file.stat().st_ino
 
         result = orchestrator.run()
         self.assertEqual(result, 0, f"O orquestrador deve retornar 0. rc={result}")
 
-        # Com o fix, a pasta original deve ser restaurada após o workflow
-        self.assertTrue(self.test_dir.exists(), "A pasta original deve ser restaurada após o upload.")
-
+        # Após o workflow, a pasta original continua lá
+        self.assertTrue(self.test_dir.exists(), "A pasta original deve permanecer após o upload.")
+        self.assertEqual(self.test_file.stat().st_ino, original_inode, "O inode do arquivo original não deve mudar.")
+        
         # O mapeamento deve ter a relação ofuscado → original
         self.assertTrue(orchestrator.obfuscated_map, "obfuscated_map deve ser preenchido.")
         obf_base = list(orchestrator.obfuscated_map.keys())[0]
-        original_base = list(orchestrator.obfuscated_map.values())[0]
-        self.assertEqual(original_base, self.test_dir.name)
-        self.assertNotEqual(obf_base, self.test_dir.name)
-
-        # A pasta ofuscada não deve mais existir (foi revertida)
+        
+        # A "visão" ofuscada (links) deve ter sido mantida pelo cleanup (devido ao keep_files=True)
         obf_path = self.test_dir.parent / obf_base
-        self.assertFalse(obf_path.exists(), f"Pasta ofuscada '{obf_base}' não deve mais existir (foi revertida).")
+        self.assertTrue(obf_path.exists(), f"Links de ofuscação '{obf_base}' devem ter sido mantidos (keep_files=True).")
 
         # O subject deve ser o nome ofuscado (não o original)
         self.assertEqual(orchestrator.subject, obf_base)

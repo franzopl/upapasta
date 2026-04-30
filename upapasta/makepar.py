@@ -165,6 +165,24 @@ def generate_random_name(length: int = 12) -> str:
 
 
 
+def link_tree(src: str, dst: str) -> None:
+    """Cria uma árvore de hardlinks espelhando a estrutura de src em dst."""
+    os.makedirs(dst, exist_ok=True)
+    for root, dirs, files in os.walk(src):
+        rel_path = os.path.relpath(root, src)
+        dest_root = os.path.join(dst, rel_path)
+        for d in dirs:
+            os.makedirs(os.path.join(dest_root, d), exist_ok=True)
+        for f in files:
+            src_file = os.path.join(root, f)
+            dst_file = os.path.join(dest_root, f)
+            try:
+                os.link(src_file, dst_file)
+            except OSError as e:
+                # Se falhar hardlink (ex: cross-device), deixa subir para o fallback no obfuscate_and_par
+                raise e
+
+
 def _revert_obfuscation(
     is_folder: bool,
     is_rar_vol_set: bool,
@@ -173,14 +191,31 @@ def _revert_obfuscation(
     parent_dir: str,
     random_base: str,
     obfuscated_map: dict,
+    was_linked: bool = False,
 ) -> None:
     """
-    Reverte a ofuscação (renomeação) dos arquivos do usuário.
+    Reverte a ofuscação (renomeação ou hardlink) dos arquivos do usuário.
 
     Chamada em qualquer saída anormal de obfuscate_and_par — erro de paridade,
-    exceção Python, ou KeyboardInterrupt. Tenta os renames de forma best-effort:
-    falhas individuais são logadas mas não interrompem as demais reversões.
+    exceção Python, ou KeyboardInterrupt.
     """
+    if was_linked:
+        print("  Removendo hardlinks temporários de ofuscação...")
+        try:
+            if is_folder:
+                shutil.rmtree(obfuscated_path)
+            elif is_rar_vol_set:
+                # Remove volumes ofuscados
+                vols = glob.glob(os.path.join(parent_dir, glob.escape(random_base) + ".part*.rar"))
+                for v in vols:
+                    os.remove(v)
+            else:
+                os.remove(obfuscated_path)
+            print("  ✓ Hardlinks removidos.")
+        except OSError as e:
+            print(f"  ✗ Falha ao remover hardlinks: {e}")
+        return
+
     print("  Revertendo ofuscação para restaurar nomes originais...")
     if is_folder:
         try:
@@ -228,114 +263,117 @@ def obfuscate_and_par(
     memory_mb: Optional[int] = None,
     filepath_format: str = "common",
     parpar_extra_args: Optional[list] = None,
-) -> Tuple[int, Optional[str], dict]:
+) -> Tuple[int, Optional[str], dict, bool]:
     """
-    Renomeia fisicamente o arquivo/pasta para nome aleatório e gera paridade.
+    Cria uma "visão" ofuscada da entrada via hardlinks (ou renomeação se
+    hardlink falhar) e gera paridade.
 
-    Proteção de dados: se qualquer erro ocorrer após a renomeação — inclusive
-    KeyboardInterrupt (Ctrl+C) durante a geração de PAR2 — a função garante a
-    reversão dos nomes originais via bloco finally. O mapeamento dos renames é
-    construído progressivamente e usado pela função _revert_obfuscation.
+    Proteção de dados: se qualquer erro ocorrer após a criação dos links/rename
+    — inclusive KeyboardInterrupt (Ctrl+C) — a função garante a reversão.
 
-    Retorna (rc, novo_caminho, obfuscated_map) onde obfuscated_map é
-    {base_ofuscada: base_original} — usado para nomear o NZB corretamente.
+    Retorna (rc, novo_caminho, obfuscated_map, was_linked).
     """
     input_path = os.path.abspath(input_path)
     if not os.path.exists(input_path):
         print(f"Erro: '{input_path}' não existe.")
-        return 2, None, {}
+        return 2, None, {}, False
 
     parent_dir = os.path.dirname(input_path)
     is_folder = os.path.isdir(input_path)
     base = os.path.basename(input_path)
     random_base = generate_random_name()
     obfuscated_map: dict = {}
+    was_linked = False
 
-    # ── Fase 1: Renomear (antes do PAR2) ─────────────────────────────────────
-    #
-    # Construímos obfuscated_path e obfuscated_map ANTES de iniciar o PAR2.
-    # O bloco finally usa essas variáveis para reverter se algo der errado.
+    # ── Fase 1: Ofuscar (links ou rename) ────────────────────────────────────
 
     obfuscated_path: Optional[str] = None
     is_rar_vol_set = False
     par_input: Optional[str] = None
 
-    # ── Pasta ────────────────────────────────────────────────────────────────
-    if is_folder:
-        obfuscated_path = os.path.join(parent_dir, random_base)
-        print(f"Ofuscando pasta: {base} → {random_base}")
-        try:
-            os.rename(input_path, obfuscated_path)
-        except OSError:
+    try:
+        # ── Pasta ────────────────────────────────────────────────────────────
+        if is_folder:
+            obfuscated_path = os.path.join(parent_dir, random_base)
+            print(f"Ofuscando pasta (hardlink): {base} → {random_base}")
             try:
-                shutil.copytree(input_path, obfuscated_path)
-                shutil.rmtree(input_path)
-            except OSError as e:
-                print(f"Erro ao ofuscar pasta: {e}")
-                return 1, None, {}
-        obfuscated_map[random_base] = base
-        par_input = obfuscated_path
-
-    else:
-        name_no_ext = os.path.splitext(base)[0]
-        is_rar_vol_set = base.endswith(".rar") and ".part" in name_no_ext
-
-        # ── Conjunto de volumes RAR ───────────────────────────────────────────
-        if is_rar_vol_set:
-            original_base = name_no_ext.rsplit(".part", 1)[0]
-            vol_pattern = os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar")
-            volumes = sorted(glob.glob(vol_pattern)) or [input_path]
-
-            print(f"Ofuscando {len(volumes)} volumes RAR: {original_base}.part*.rar → {random_base}.part*.rar")
-            renamed: list = []
-            for vol in volumes:
-                vol_b = os.path.basename(vol)
-                suffix = vol_b[len(original_base):]
-                new_path = os.path.join(parent_dir, random_base + suffix)
-                try:
-                    os.rename(vol, new_path)
-                    renamed.append((vol, new_path))
-                except OSError as e:
-                    print(f"Erro ao renomear {vol_b}: {e}")
-                    # Reverte os que já foram renomeados neste loop
-                    for orig, new in renamed:
-                        try:
-                            os.rename(new, orig)
-                        except OSError:
-                            pass
-                    return 1, None, {}
-
-            obfuscated_map[random_base] = original_base
-            first_suffix = os.path.basename(volumes[0])[len(original_base):]
-            obfuscated_path = os.path.join(parent_dir, random_base + first_suffix)
-            par_input = obfuscated_path
-
-        # ── Arquivo único ─────────────────────────────────────────────────────
-        else:
-            _, ext = os.path.splitext(base)
-            obfuscated_name = random_base + ext
-            obfuscated_path = os.path.join(parent_dir, obfuscated_name)
-            print(f"Ofuscando: {base} → {obfuscated_name}")
-            try:
-                os.rename(input_path, obfuscated_path)
+                link_tree(input_path, obfuscated_path)
+                was_linked = True
             except OSError:
-                try:
-                    shutil.copy2(input_path, obfuscated_path)
-                    os.remove(input_path)
-                except OSError as e:
-                    print(f"Erro ao ofuscar arquivo: {e}")
-                    return 1, None, {}
-            obfuscated_map[name_no_ext.rsplit(".part", 1)[0] if ".part" in name_no_ext else name_no_ext] = name_no_ext
-            # Para arquivo único, o mapa correto é random_base → name_no_ext
-            obfuscated_map = {random_base: name_no_ext}
+                print("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar).")
+                os.rename(input_path, obfuscated_path)
+                was_linked = False
+
+            obfuscated_map[random_base] = base
             par_input = obfuscated_path
+
+        else:
+            name_no_ext = os.path.splitext(base)[0]
+            is_rar_vol_set = base.endswith(".rar") and ".part" in name_no_ext
+
+            # ── Conjunto de volumes RAR ──────────────────────────────────────
+            if is_rar_vol_set:
+                original_base = name_no_ext.rsplit(".part", 1)[0]
+                vol_pattern = os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar")
+                volumes = sorted(glob.glob(vol_pattern)) or [input_path]
+
+                print(f"Ofuscando volumes RAR (hardlink): {original_base}.part*.rar → {random_base}.part*.rar")
+                
+                try:
+                    for vol in volumes:
+                        vol_b = os.path.basename(vol)
+                        suffix = vol_b[len(original_base):]
+                        new_path = os.path.join(parent_dir, random_base + suffix)
+                        os.link(vol, new_path)
+                    was_linked = True
+                except OSError:
+                    print("  ⚠️ Hardlink falhou. Usando rename.")
+                    # Reverte links parciais se houver
+                    vols_to_clean = glob.glob(os.path.join(parent_dir, random_base + ".part*.rar"))
+                    for v in vols_to_clean:
+                        try: os.remove(v)
+                        except: pass
+                    
+                    # Tenta rename
+                    renamed: list = []
+                    for vol in volumes:
+                        vol_b = os.path.basename(vol)
+                        suffix = vol_b[len(original_base):]
+                        new_path = os.path.join(parent_dir, random_base + suffix)
+                        os.rename(vol, new_path)
+                        renamed.append((vol, new_path))
+                    was_linked = False
+
+                obfuscated_map[random_base] = original_base
+                first_suffix = os.path.basename(volumes[0])[len(original_base):]
+                obfuscated_path = os.path.join(parent_dir, random_base + first_suffix)
+                par_input = obfuscated_path
+
+            # ── Arquivo único ─────────────────────────────────────────────────
+            else:
+                _, ext = os.path.splitext(base)
+                obfuscated_name = random_base + ext
+                obfuscated_path = os.path.join(parent_dir, obfuscated_name)
+                print(f"Ofuscando (hardlink): {base} → {obfuscated_name}")
+                
+                try:
+                    os.link(input_path, obfuscated_path)
+                    was_linked = True
+                except OSError:
+                    print("  ⚠️ Hardlink falhou. Usando rename.")
+                    os.rename(input_path, obfuscated_path)
+                    was_linked = False
+
+                obfuscated_map[random_base] = name_no_ext
+                # Para arquivo único, o mapa correto é random_base → name_no_ext
+                obfuscated_map = {random_base: name_no_ext}
+                par_input = obfuscated_path
+
+    except Exception as e:
+        print(f"❌ Erro crítico na ofuscação: {e}")
+        return 1, None, {}, False
 
     # ── Fase 2: Gerar paridade — protegida por finally ────────────────────────
-    #
-    # A partir daqui os arquivos do usuário já foram renomeados. Qualquer saída
-    # anormal (exceção, Ctrl+C) deve reverter os renames. O bloco finally é a
-    # única garantia confiável para isso — try/except sozinho perde o
-    # KeyboardInterrupt se não houver um except explícito para ele.
 
     _par_succeeded = False
     rc = 5
@@ -359,13 +397,10 @@ def obfuscate_and_par(
             _par_succeeded = True
 
     except KeyboardInterrupt:
-        # Não logamos aqui — o managed_popen já imprimiu a mensagem de interrupção.
-        # Deixamos o finally reverter e re-levantamos para o orquestrador.
         raise
 
     finally:
-        # Este bloco SEMPRE roda: em rc!=0, em exceção, em KeyboardInterrupt.
-        # Só não revertemos se o PAR2 foi bem-sucedido.
+        # Se falhar PAR2, reverte (remove links ou rename back)
         if not _par_succeeded and obfuscated_path and obfuscated_map:
             print("\nErro ao gerar paridade. Revertendo ofuscação...")
             _revert_obfuscation(
@@ -376,10 +411,10 @@ def obfuscate_and_par(
                 parent_dir=parent_dir,
                 random_base=random_base,
                 obfuscated_map=obfuscated_map,
+                was_linked=was_linked,
             )
 
-    # Se chegou aqui sem exceção e rc != 0, retorna falha
-    return (0, obfuscated_path, obfuscated_map) if rc == 0 else (rc, None, {})
+    return (0, obfuscated_path, obfuscated_map, was_linked) if rc == 0 else (rc, None, {}, False)
 
 
 

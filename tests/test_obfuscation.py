@@ -35,13 +35,9 @@ class TestObfuscation(unittest.TestCase):
         self.assertTrue(self.test_file.exists(), "O arquivo original deve continuar existindo.")
 
         # Deve existir um RAR com nome aleatório (diferente do original)
-        rar_files = list(self.test_dir.glob("*.rar"))
+        rar_files = [f for f in self.test_dir.glob("*.rar") if f.stem != self.test_file.stem]
         self.assertTrue(len(rar_files) > 0, "Deve haver um arquivo RAR ofuscado.")
         obfuscated_rar = rar_files[0]
-        self.assertNotEqual(
-            obfuscated_rar.stem, self.test_file.stem,
-            "O nome do RAR ofuscado deve ser diferente do arquivo original."
-        )
 
         # Arquivo de paridade criado para o RAR ofuscado
         par2_file = obfuscated_rar.with_suffix(".par2")

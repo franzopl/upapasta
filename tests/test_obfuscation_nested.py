@@ -61,7 +61,7 @@ def test_obfuscation_only_renames_root(fake_parpar, monkeypatch, tmp_path):
         lambda *a, **kw: _OkPopen(a[0] if a else None, **kw),
     )
 
-    rc, new_path, mapping = obfuscate_and_par(
+    rc, new_path, mapping, _linked = obfuscate_and_par(
         str(root), redundancy=5, force=True, backend="parpar", threads=1,
     )
     assert rc == 0
