@@ -423,12 +423,15 @@ def upload_to_usenet(
     # terá esses mesmos nomes como subjects — fix_nzb_subjects os remapeia
     # para incluir o nome da pasta original.
     if nzb_out_abs and os.path.exists(nzb_out_abs) and is_folder:
-        folder_name = os.path.basename(input_path)
-        # Para fix_nzb_subjects, passamos os paths relativos (sem o working_dir).
+        # No NZB, os subjects dos arquivos devem ser relativos à raiz do download.
+        # SABnzbd criará uma pasta com o nome do NZB (que é o nome original da pasta raiz).
+        # Portanto, não precisamos prefixar o folder_name aqui se os paths já forem relativos.
+        # Mas se quisermos garantir, usamos None ou o nome original (não o ofuscado).
+        
         # Os par2 passados ao nyuu eram absolutos; para o NZB só seus basenames
         # interessam.
         par2_basenames = [os.path.basename(f) for f in par2_files]
-        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name, obfuscated_map)
+        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, None, obfuscated_map)
 
     # Injetar senha no NZB para extração automática pelos clientes
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password:
