@@ -62,7 +62,15 @@ class TestFolderObfuscation(unittest.TestCase):
         
         # O mapeamento deve ter a relação ofuscado → original
         self.assertTrue(orchestrator.obfuscated_map, "obfuscated_map deve ser preenchido.")
-        obf_base = list(orchestrator.obfuscated_map.keys())[0]
+        # Com deep obfuscation, o map tem vários itens. O root é aquele cujo valor é o base original.
+        original_base = self.test_dir.name
+        obf_base = None
+        for k, v in orchestrator.obfuscated_map.items():
+            if v == original_base:
+                obf_base = k
+                break
+        
+        self.assertIsNotNone(obf_base, "Não foi possível encontrar o nome ofuscado da raiz no mapa.")
         
         # A "visão" ofuscada (links) deve ter sido mantida pelo cleanup (devido ao keep_files=True)
         obf_path = self.test_dir.parent / obf_base

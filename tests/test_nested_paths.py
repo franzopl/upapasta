@@ -214,10 +214,10 @@ def test_fix_nzb_subjects_preserves_nested_subjects(tmp_path):
 
     tree = ET.parse(str(nzb))
     subjects = [e.get("subject") for e in tree.getroot().findall(f".//{{{ns}}}file")]
-    # rootfile sem barra → prefixa folder; subpath com barra → mantém literal;
+    # Todos os arquivos (exceto par2) devem ter o folder_name prefixado
     # par2 → não modificado pela função (sai como placeholder)
     assert "MeuRelease/rootfile.bin" in subjects
-    assert os.path.join("a", "b", "c", "deep.bin") in subjects
+    assert "MeuRelease/" + os.path.join("a", "b", "c", "deep.bin") in subjects
 
 
 # ─────────────────── 3. Empty / hidden / symlink edge cases ─────────────────

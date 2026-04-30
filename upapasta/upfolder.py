@@ -428,7 +428,7 @@ def upload_to_usenet(
         # Os par2 passados ao nyuu eram absolutos; para o NZB só seus basenames
         # interessam.
         par2_basenames = [os.path.basename(f) for f in par2_files]
-        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name)
+        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name, obfuscated_map)
 
     # Injetar senha no NZB para extração automática pelos clientes
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password:

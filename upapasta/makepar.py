@@ -183,6 +183,51 @@ def link_tree(src: str, dst: str) -> None:
                 raise e
 
 
+def _deep_obfuscate_tree(path: str) -> dict[str, str]:
+    """
+    Percorre a árvore recursivamente e renomeia tudo.
+    Retorna mapeamento {novo_caminho_relativo: caminho_original_relativo}.
+    """
+    mapping = {}
+    
+    # Vamos usar um dicionário que mapeia o caminho RELATIVO ATUAL para o RELATIVO ORIGINAL.
+    # Inicialmente, a árvore está original.
+    current_to_original = {".": "."}
+
+    for root, dirs, files in os.walk(path, topdown=True):
+        rel_root = os.path.relpath(root, path)
+        orig_rel_root = current_to_original[rel_root]
+
+        # 1. Renomeia arquivos
+        for f in files:
+            name, ext = os.path.splitext(f)
+            new_name = generate_random_name() + ext
+            
+            os.rename(os.path.join(root, f), os.path.join(root, new_name))
+            
+            new_rel_f = os.path.normpath(os.path.join(rel_root, new_name))
+            orig_rel_f = os.path.normpath(os.path.join(orig_rel_root, f))
+            mapping[new_rel_f] = orig_rel_f
+
+        # 2. Renomeia diretórios
+        for i, d in enumerate(dirs):
+            new_name = generate_random_name()
+            
+            os.rename(os.path.join(root, d), os.path.join(root, new_name))
+            
+            new_rel_d = os.path.normpath(os.path.join(rel_root, new_name))
+            orig_rel_d = os.path.normpath(os.path.join(orig_rel_root, d))
+            
+            # Atualiza dirs para os.walk continuar
+            dirs[i] = new_name
+            
+            # Registra mapeamentos
+            current_to_original[new_rel_d] = orig_rel_d
+            mapping[new_rel_d] = orig_rel_d
+            
+    return mapping
+
+
 def _revert_obfuscation(
     is_folder: bool,
     is_rar_vol_set: bool,
@@ -303,6 +348,12 @@ def obfuscate_and_par(
                 print("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar).")
                 os.rename(input_path, obfuscated_path)
                 was_linked = False
+
+            if usenet:
+                # Ofuscação profunda: renomeia arquivos internos também
+                print("  🔒 Ofuscando estrutura interna (deep obfuscation)...")
+                deep_mapping = _deep_obfuscate_tree(obfuscated_path)
+                obfuscated_map.update(deep_mapping)
 
             obfuscated_map[random_base] = base
             par_input = obfuscated_path

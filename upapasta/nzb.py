@@ -156,8 +156,17 @@ def inject_nzb_password(nzb_path: str, password: str) -> None:
         print(f"Aviso: não foi possível injetar senha no NZB: {e}")
 
 
-def fix_nzb_subjects(nzb_path: str, file_list: list[str], folder_name: str | None = None) -> None:
-    """Corrige os subjects no NZB para incluir o caminho relativo do arquivo."""
+def fix_nzb_subjects(
+    nzb_path: str,
+    file_list: list[str],
+    folder_name: str | None = None,
+    obfuscated_map: dict | None = None,
+) -> None:
+    """Corrige os subjects no NZB para incluir o caminho relativo do arquivo.
+    
+    Se obfuscated_map for fornecido, tenta traduzir caminhos ofuscados de volta
+    para os nomes originais antes de aplicar o prefixo folder_name.
+    """
     try:
         tree = ET.parse(nzb_path)
         root = tree.getroot()
@@ -168,10 +177,22 @@ def fix_nzb_subjects(nzb_path: str, file_list: list[str], folder_name: str | Non
             for i, file_elem in enumerate(files):
                 filename = file_list[i]
                 if not filename.lower().endswith('.par2'):
-                    if folder_name and '/' not in filename:
-                        new_subject = f"{folder_name}/{filename}"
+                    # Tenta deofuscar o caminho individual se houver mapeamento profundo.
+                    # O mapeamento contém {novo_caminho_relativo: caminho_original_relativo}.
+                    
+                    # nyuu pode incluir o nome da pasta raiz no subject (dependendo do working_dir).
+                    # Mas fix_nzb_subjects é chamada com filename sendo o caminho RELATIVO ao working_dir.
+                    
+                    original_filename = filename
+                    if obfuscated_map and filename in obfuscated_map:
+                        original_filename = obfuscated_map[filename]
+
+                    if folder_name:
+                        # O folder_name aqui é o que queremos que apareça como raiz no NZB.
+                        # Se já houver um mapeamento profundo, original_filename é o path relativo original.
+                        new_subject = f"{folder_name}/{original_filename}"
                     else:
-                        new_subject = filename
+                        new_subject = original_filename
                     file_elem.set("subject", new_subject)
 
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
