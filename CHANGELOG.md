@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.16.1 - 2026-04-30
+
+### Correções (Fixes)
+
+- **Caminho de saída da Temporada**: corrigido erro onde o NZB e NFO consolidados de uma temporada eram salvos no diretório de instalação do script (ex: `~/.local/bin`) em vez do diretório atual de execução.
+
 ## 0.16.0 - 2026-04-30
 
 ### Novas Features (New Features)

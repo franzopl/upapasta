@@ -135,7 +135,7 @@ def main():
             
             # Resolve caminho do NZB da temporada
             env_vars = load_env_file(env_file)
-            working_dir = env_vars.get("NZB_OUT_DIR") or sys.path[0] or "."
+            working_dir = env_vars.get("NZB_OUT_DIR") or "."
             
             # O nome do NZB da temporada é o nome da pasta
             season_nzb_name = f"{folder.name}.nzb"
