@@ -126,6 +126,7 @@ def upload_to_usenet(
     upload_timeout: Optional[int] = None,
     upload_retries: int = 0,
     password: Optional[str] = None,
+    nyuu_extra_args: Optional[list] = None,
 ) -> int:
     """
     Upload de arquivos para Usenet usando nyuu.
@@ -237,6 +238,12 @@ def upload_to_usenet(
     quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
     log_time = env_vars.get("LOG_TIME", "true").lower() in ("true", "1", "yes")
 
+    # Args extras do .env
+    env_nyuu_args = env_vars.get("NYUU_EXTRA_ARGS")
+    if env_nyuu_args and nyuu_extra_args is None:
+        import shlex
+        nyuu_extra_args = shlex.split(env_nyuu_args)
+
     nzb_out, nzb_out_abs = resolve_nzb_out(
         input_path, env_vars, is_folder, skip_rar, working_dir, obfuscated_map
     )
@@ -313,12 +320,18 @@ def upload_to_usenet(
 
     if nzb_out:
         cmd.extend(["-o", nzb_out])
+        # Garantir que o diretório de saída do NZB existe
+        if nzb_out_abs:
+            os.makedirs(os.path.dirname(nzb_out_abs), exist_ok=True)
 
     if nzb_overwrite:
         cmd.append("-O")
 
     if upload_timeout is not None:
         cmd.extend(["--timeout", str(upload_timeout)])
+
+    if nyuu_extra_args:
+        cmd.extend(nyuu_extra_args)
 
     # ── Adicionar arquivos ao comando ────────────────────────────────────────
     #

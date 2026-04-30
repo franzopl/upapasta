@@ -300,6 +300,15 @@ def parse_args():
         ),
     )
     advanced.add_argument(
+        "--nyuu-args",
+        default=None,
+        metavar="STR",
+        help=(
+            "Args extras repassados ao nyuu, ex: --nyuu-args \"--article-threads=8 --queue=20\". "
+            "Tokenizado via shlex."
+        ),
+    )
+    advanced.add_argument(
         "--rename-extensionless",
         action="store_true",
         help=(

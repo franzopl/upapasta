@@ -125,6 +125,7 @@ class UpaPastaOrchestrator:
         max_memory_mb: Optional[int] = None,
         filepath_format: str = "common",
         parpar_extra_args: Optional[list] = None,
+        nyuu_extra_args: Optional[list] = None,
         rename_extensionless: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
@@ -164,6 +165,7 @@ class UpaPastaOrchestrator:
         self.verbose = verbose
         self.filepath_format = filepath_format
         self.parpar_extra_args = parpar_extra_args
+        self.nyuu_extra_args = nyuu_extra_args
         self.rename_extensionless = rename_extensionless
         self._extensionless_map: dict[str, str] = {}
         self.each = False  # controlado externamente via main()
@@ -207,6 +209,10 @@ class UpaPastaOrchestrator:
             parpar_extra_args=(
                 __import__("shlex").split(args.parpar_args)
                 if getattr(args, "parpar_args", None) else None
+            ),
+            nyuu_extra_args=(
+                __import__("shlex").split(args.nyuu_args)
+                if getattr(args, "nyuu_args", None) else None
             ),
             rename_extensionless=getattr(args, "rename_extensionless", False),
         )
@@ -585,6 +591,7 @@ class UpaPastaOrchestrator:
                 upload_timeout=self.upload_timeout,
                 upload_retries=self.upload_retries,
                 password=self.rar_password,
+                nyuu_extra_args=self.nyuu_extra_args,
             )
             return rc == 0
         except FileNotFoundError as e:
