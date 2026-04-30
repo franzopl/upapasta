@@ -101,7 +101,7 @@ def parse_args():
         action="store_true",
         help=(
             "Modo daemon: monitora <input> continuamente e processa novos itens automaticamente. "
-            "Incompatível com --each. Ctrl+C encerra."
+            "Incompatível com --each/--season. Ctrl+C encerra."
         ),
     )
     essential.add_argument(
@@ -110,6 +110,14 @@ def parse_args():
         help=(
             "Processa cada arquivo da pasta individualmente. "
             "Ideal para temporadas: cada episódio vira um release separado com seu próprio NZB."
+        ),
+    )
+    essential.add_argument(
+        "--season",
+        action="store_true",
+        help=(
+            "Similar ao --each: upload individual de cada episódio, mas ao final "
+            "gera um NZB único contendo toda a temporada, além dos NZBs individuais."
         ),
     )
     essential.add_argument(
@@ -361,18 +369,19 @@ def _validate_flags(args) -> bool:
         )
         return False
 
-    if args.each:
+    if args.each or args.season:
         p = Path(args.input)
         if not p.is_dir():
-            print("❌  --each requer uma pasta como entrada.")
+            mode = "--each" if args.each else "--season"
+            print(f"❌  {mode} requer uma pasta como entrada.")
             return False
 
     if args.watch:
         if not args.input or not Path(args.input).is_dir():
             print("❌  --watch requer uma pasta como entrada.")
             return False
-        if args.each:
-            print("❌  --watch e --each são incompatíveis.")
+        if args.each or args.season:
+            print("❌  --watch é incompatível com --each e --season.")
             return False
 
     if args.skip_rar and args.obfuscate:

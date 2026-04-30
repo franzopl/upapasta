@@ -16,6 +16,8 @@ from .nntp_test import test_nntp_connection
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
 from .watch import _watch_loop
+from .nzb import merge_nzbs, resolve_nzb_out
+from .nfo import generate_nfo_folder
 
 
 def main():
@@ -70,29 +72,38 @@ def main():
     if not check_dependencies(needs_rar):
         sys.exit(1)
 
-    # ── Modo --each: processa cada arquivo da pasta individualmente ──────────
-    if args.each:
+    # ── Modo --each ou --season: processa itens individualmente ──────────────
+    if args.each or args.season:
         folder = Path(args.input)
-        files = sorted(f for f in folder.iterdir() if f.is_file())
-        if not files:
-            print(f"❌  Nenhum arquivo encontrado em: {folder}")
+        # --each foca em arquivos; --season inclui pastas (episódios podem ser pastas)
+        if args.each:
+            items = sorted(f for f in folder.iterdir() if f.is_file())
+        else:
+            items = sorted(f for f in folder.iterdir() if not f.name.startswith('.'))
+
+        if not items:
+            print(f"❌  Nenhum item encontrado em: {folder}")
             sys.exit(1)
 
-        print(f"📂 Modo --each: {len(files)} arquivo(s) em {folder.name}")
+        mode_name = "--each" if args.each else "--season"
+        print(f"📂 Modo {mode_name}: {len(items)} item(ns) em {folder.name}")
         failed: list[str] = []
+        nzb_paths: list[str] = []
 
-        for i, file_path in enumerate(files, 1):
+        for i, item_path in enumerate(items, 1):
             print(f"\n{'='*60}")
-            print(f"[{i}/{len(files)}] {file_path.name}")
+            print(f"[{i}/{len(items)}] {item_path.name}")
             print("=" * 60)
 
-            input_name = file_path.name
+            input_name = item_path.name
             log_path, log_fh = setup_session_log(input_name, env_file=env_file)
             rc = 1
             try:
-                orchestrator = UpaPastaOrchestrator.from_args(args,str(file_path))
+                orchestrator = UpaPastaOrchestrator.from_args(args, str(item_path))
                 with UpaPastaSession(orchestrator) as orch:
                     rc = orch.run()
+                    if rc == 0 and orch.generated_nzb:
+                        nzb_paths.append(orch.generated_nzb)
             except KeyboardInterrupt:
                 rc = 130
                 teardown_session_log(log_fh, log_path)
@@ -105,13 +116,46 @@ def main():
                 teardown_session_log(log_fh, log_path)
 
             if rc != 0:
-                failed.append(file_path.name)
+                failed.append(item_path.name)
 
         if failed:
-            print(f"\n❌  {len(failed)} arquivo(s) com falha:")
+            print(f"\n❌  {len(failed)} item(s) com falha:")
             for name in failed:
                 print(f"    • {name}")
+            # Se --season falhou em algum episódio, não gera o NZB da temporada
+            if args.season:
+                print("⚠️  NZB da temporada não será gerado devido a falhas nos episódios.")
             sys.exit(1)
+
+        # ── Pós-processamento da Temporada ────────────────────────────────────
+        if args.season and nzb_paths:
+            print(f"\n{'='*60}")
+            print(f"🌟 Finalizando Temporada: {folder.name}")
+            print("=" * 60)
+            
+            # Resolve caminho do NZB da temporada
+            env_vars = load_env_file(env_file)
+            working_dir = env_vars.get("NZB_OUT_DIR") or sys.path[0] or "."
+            
+            # O nome do NZB da temporada é o nome da pasta
+            season_nzb_name = f"{folder.name}.nzb"
+            season_nzb_path = Path(working_dir) / season_nzb_name
+            
+            print(f"📦 Mesclando {len(nzb_paths)} NZBs em: {season_nzb_name}")
+            if merge_nzbs(nzb_paths, str(season_nzb_path)):
+                print(f"✅ NZB da temporada gerado com sucesso!")
+            else:
+                print(f"❌ Falha ao gerar NZB da temporada.")
+
+            # Geração do NFO da temporada
+            season_nfo_path = season_nzb_path.with_suffix(".nfo")
+            banner = env_vars.get("NFO_BANNER")
+            print(f"📄 Gerando NFO da temporada...")
+            if generate_nfo_folder(str(folder), str(season_nfo_path), banner=banner):
+                print(f"✅ NFO da temporada gerado: {season_nfo_path.name}")
+            else:
+                print(f"⚠️  Falha ao gerar NFO da temporada.")
+
         sys.exit(0)
 
     # ── Modo --watch: daemon de monitoramento ────────────────────────────────

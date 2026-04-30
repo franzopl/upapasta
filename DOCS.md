@@ -131,6 +131,7 @@ done
 | Opção | Descrição |
 |-------|-----------|
 | `--each` | Processa cada arquivo da pasta individualmente |
+| `--season` | Episódios individuais + NZB único da temporada |
 | `--obfuscate` | Nomes aleatórios nos arquivos RAR/PAR2 antes do upload |
 | `--password SENHA` | Protege o RAR com senha; injetada no NZB automaticamente |
 | `--skip-rar` | Não cria RAR — envia arquivos como estão (incompatível com `--password`) |

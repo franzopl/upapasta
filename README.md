@@ -15,6 +15,7 @@ upapasta /caminho/para/pasta
 | Pasta | RAR5 + PAR2 + upload → NZB + NFO |
 | Arquivo único | PAR2 + upload direto (sem RAR) → NZB + NFO |
 | `--each` | Cada arquivo da pasta vira um release separado |
+| `--season` | Episódios individuais + NZB único da temporada |
 | `--obfuscate` | RAR/PAR2 com nomes aleatórios no disco + senha automática; NZB salvo com nome original |
 | `--watch` | Daemon que monitora uma pasta e processa o que chegar |
 
@@ -43,6 +44,9 @@ upapasta /files/ --watch --obfuscate
 # Upload de todos os arquivos de uma pasta separadamente
 upapasta /movies/ --each
 upapasta /tv/Night.of.the.Living.Dead.S01/ --each --obfuscate
+
+# Modo Season: episódios individuais + NZB único da temporada
+upapasta /tv/The.Boys.S04/ --season --obfuscate
 
 ```
 

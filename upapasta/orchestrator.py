@@ -176,6 +176,7 @@ class UpaPastaOrchestrator:
         # the original folder/file or the rar file created for upload.
         self.input_target: Optional[str] = None
         self.env_vars: dict = {}
+        self.generated_nzb: Optional[str] = None
 
     @classmethod
     def from_args(cls, args, input_path: str) -> "UpaPastaOrchestrator":
@@ -980,6 +981,8 @@ class UpaPastaOrchestrator:
                     break
             else:
                 _nzb_abs = None
+
+        self.generated_nzb = _nzb_abs
 
         # Grupo efetivo: pode ter sido selecionado do pool dentro do upfolder
         _raw_group = self.group or self.env_vars.get("USENET_GROUP") or ""

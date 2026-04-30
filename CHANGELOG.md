@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.16.0 - 2026-04-30
+
+### Novas Features (New Features)
+
+- **Modo `--season`**: upload individual de cada episódio (como o `--each`), mas ao final gera um NZB e um NFO consolidados para a temporada inteira, sem realizar novos uploads. Ideal para organização de séries onde se deseja tanto os episódios avulsos quanto o pack completo.
+
 ## 0.14.2 - 2026-04-29
 
 ### Melhorias (Improvements)

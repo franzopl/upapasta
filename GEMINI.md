@@ -39,6 +39,7 @@ pip install -e .
 
 ### Key Commands
 - **Run Application:** `upapasta /path/to/folder_or_file`
+- **Season Upload:** `upapasta /path/to/season/ --season` (individual episodes + combined NZB)
 - **Configuration Setup:** Run `upapasta` for the first time to trigger the interactive setup.
 - **Testing:** `pytest` (Tests are located in the `tests/` directory).
 - **Cleanup (Manual):** `upapasta /path/to/input --skip-upload` (or use internal cleanup logic).

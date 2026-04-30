@@ -207,3 +207,34 @@ def fix_nzb_subjects(
         print("NZB corrigido: subjects dos arquivos de dados atualizados para preservar estrutura.")
     except Exception as e:
         print(f"Aviso: não foi possível corrigir o NZB: {e}")
+
+
+def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
+    """Mescla múltiplos arquivos NZB em um único, preservando o head do primeiro."""
+    if not nzb_paths:
+        return False
+
+    try:
+        ns = "http://www.newzbin.com/DTD/2003/nzb"
+        ET.register_namespace("", ns)
+        
+        # Usa o primeiro NZB como base para o <head>
+        first_tree = ET.parse(nzb_paths[0])
+        first_root = first_tree.getroot()
+        
+        # Coleta todos os elementos <file> dos outros NZBs
+        for other_path in nzb_paths[1:]:
+            other_tree = ET.parse(other_path)
+            other_root = other_tree.getroot()
+            
+            # Encontra todos os elementos <file> (com ou sem namespace)
+            files = other_root.findall(f"{{{ns}}}file") or other_root.findall("file")
+            for file_elem in files:
+                first_root.append(file_elem)
+        
+        # Escreve o resultado
+        first_tree.write(output_path, encoding="UTF-8", xml_declaration=True)
+        return True
+    except Exception as e:
+        print(f"Erro ao mesclar NZBs: {e}")
+        return False
