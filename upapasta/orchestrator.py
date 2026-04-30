@@ -127,6 +127,7 @@ class UpaPastaOrchestrator:
         parpar_extra_args: Optional[list] = None,
         nyuu_extra_args: Optional[list] = None,
         rename_extensionless: bool = False,
+        nzb_subject_prefix: Optional[str] = None,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -167,6 +168,7 @@ class UpaPastaOrchestrator:
         self.parpar_extra_args = parpar_extra_args
         self.nyuu_extra_args = nyuu_extra_args
         self.rename_extensionless = rename_extensionless
+        self.nzb_subject_prefix = nzb_subject_prefix
         self._extensionless_map: dict[str, str] = {}
         self.each = False  # controlado externamente via main()
         self.rar_file: Optional[str] = None
@@ -593,6 +595,7 @@ class UpaPastaOrchestrator:
                 upload_retries=self.upload_retries,
                 password=self.rar_password,
                 nyuu_extra_args=self.nyuu_extra_args,
+                folder_name=self.nzb_subject_prefix,
             )
             return rc == 0
         except FileNotFoundError as e:

@@ -127,6 +127,7 @@ def upload_to_usenet(
     upload_retries: int = 0,
     password: Optional[str] = None,
     nyuu_extra_args: Optional[list] = None,
+    folder_name: Optional[str] = None,
 ) -> int:
     """
     Upload de arquivos para Usenet usando nyuu.
@@ -244,11 +245,12 @@ def upload_to_usenet(
         import shlex
         nyuu_extra_args = shlex.split(env_nyuu_args)
 
+    nzb_out_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR")
     nzb_out, nzb_out_abs = resolve_nzb_out(
-        input_path, env_vars, is_folder, skip_rar, working_dir, obfuscated_map
+        input_path, env_vars, is_folder, skip_rar, nzb_out_dir or working_dir, obfuscated_map
     )
     nzb_out, nzb_out_abs, nzb_overwrite, ok = handle_nzb_conflict(
-        nzb_out, nzb_out_abs, env_vars, nzb_overwrite_env, working_dir
+        nzb_out, nzb_out_abs, env_vars, nzb_overwrite_env, nzb_out_dir or working_dir
     )
     if not ok:
         return 6
@@ -319,7 +321,7 @@ def upload_to_usenet(
     ])
 
     if nzb_out:
-        cmd.extend(["-o", nzb_out])
+        cmd.extend(["-o", nzb_out_abs])
         # Garantir que o diretório de saída do NZB existe
         if nzb_out_abs:
             os.makedirs(os.path.dirname(nzb_out_abs), exist_ok=True)
@@ -431,20 +433,14 @@ def upload_to_usenet(
 
     # ── Pós-processamento do NZB ─────────────────────────────────────────────
 
-    # Para pastas: corrigir subjects no NZB para preservar estrutura de pastas.
+    # Corrigir subjects no NZB para preservar estrutura de pastas e deofuscar.
     # files_to_upload contém os caminhos relativos usados pelo nyuu; o NZB
-    # terá esses mesmos nomes como subjects — fix_nzb_subjects os remapeia
-    # para incluir o nome da pasta original.
-    if nzb_out_abs and os.path.exists(nzb_out_abs) and is_folder:
-        # No NZB, os subjects dos arquivos devem ser relativos à raiz do download.
-        # SABnzbd criará uma pasta com o nome do NZB (que é o nome original da pasta raiz).
-        # Portanto, não precisamos prefixar o folder_name aqui se os paths já forem relativos.
-        # Mas se quisermos garantir, usamos None ou o nome original (não o ofuscado).
-        
+    # terá esses mesmos nomes como subjects — fix_nzb_subjects os remapeia.
+    if nzb_out_abs and os.path.exists(nzb_out_abs) and (is_folder or obfuscated_map or folder_name):
         # Os par2 passados ao nyuu eram absolutos; para o NZB só seus basenames
         # interessam.
         par2_basenames = [os.path.basename(f) for f in par2_files]
-        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, None, obfuscated_map)
+        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name, obfuscated_map)
 
     # Injetar senha no NZB para extração automática pelos clientes
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password and not skip_rar:

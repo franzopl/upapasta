@@ -16,7 +16,7 @@ from .nntp_test import test_nntp_connection
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
 from .watch import _watch_loop
-from .nzb import merge_nzbs, resolve_nzb_out
+from .nzb import merge_nzbs, resolve_nzb_out, fix_season_nzb_subjects
 from .nfo import generate_nfo_folder
 
 
@@ -88,7 +88,7 @@ def main():
         mode_name = "--each" if args.each else "--season"
         print(f"📂 Modo {mode_name}: {len(items)} item(ns) em {folder.name}")
         failed: list[str] = []
-        nzb_paths: list[str] = []
+        nzb_episode_data: list[tuple[str, str]] = []
 
         for i, item_path in enumerate(items, 1):
             print(f"\n{'='*60}")
@@ -100,10 +100,17 @@ def main():
             rc = 1
             try:
                 orchestrator = UpaPastaOrchestrator.from_args(args, str(item_path))
+                
+                # No modo --season, se o item for uma pasta, usamos o nome dela como 
+                # prefixo nos subjects do NZB. Isso evita colisões em NZBs mesclados
+                # e preserva a estrutura de subpastas no download.
+                if args.season and item_path.is_dir():
+                    orchestrator.nzb_subject_prefix = item_path.name
+                
                 with UpaPastaSession(orchestrator) as orch:
                     rc = orch.run()
                     if rc == 0 and orch.generated_nzb:
-                        nzb_paths.append(orch.generated_nzb)
+                        nzb_episode_data.append((orch.generated_nzb, item_path.name))
             except KeyboardInterrupt:
                 rc = 130
                 teardown_session_log(log_fh, log_path)
@@ -128,7 +135,7 @@ def main():
             sys.exit(1)
 
         # ── Pós-processamento da Temporada ────────────────────────────────────
-        if args.season and nzb_paths:
+        if args.season and nzb_episode_data:
             print(f"\n{'='*60}")
             print(f"🌟 Finalizando Temporada: {folder.name}")
             print("=" * 60)
@@ -141,8 +148,10 @@ def main():
             season_nzb_name = f"{folder.name}.nzb"
             season_nzb_path = Path(working_dir) / season_nzb_name
             
+            nzb_paths = [p for p, _ in nzb_episode_data]
             print(f"📦 Mesclando {len(nzb_paths)} NZBs em: {season_nzb_name}")
             if merge_nzbs(nzb_paths, str(season_nzb_path)):
+                fix_season_nzb_subjects(str(season_nzb_path), nzb_episode_data)
                 print(f"✅ NZB da temporada gerado com sucesso!")
             else:
                 print(f"❌ Falha ao gerar NZB da temporada.")

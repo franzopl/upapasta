@@ -160,7 +160,7 @@ import re
 
 def fix_nzb_subjects(
     nzb_path: str,
-    file_list: list[str],
+    file_list: list[str] | None = None,
     folder_name: str | None = None,
     obfuscated_map: dict | None = None,
 ) -> None:
@@ -173,40 +173,145 @@ def fix_nzb_subjects(
         tree = ET.parse(nzb_path)
         root = tree.getroot()
 
-        files = root.findall(".//{http://www.newzbin.com/DTD/2003/nzb}file")
+        ns_url = "http://www.newzbin.com/DTD/2003/nzb"
+        files = root.findall(f".//{{{ns_url}}}file")
+        if not files:
+            # Tenta sem namespace como fallback
+            files = root.findall(".//file")
+        
+        print(f"DEBUG fix_nzb_subjects: found {len(files)} files in {os.path.basename(nzb_path)}")
+        if obfuscated_map:
+            print(f"DEBUG fix_nzb_subjects: obfuscated_map={obfuscated_map}")
 
-        if len(files) == len(file_list):
-            for i, file_elem in enumerate(files):
-                filename = file_list[i]
-                if not filename.lower().endswith('.par2'):
-                    # Tenta deofuscar o caminho individual se houver mapeamento profundo.
-                    original_filename = filename
-                    if obfuscated_map and filename in obfuscated_map:
-                        original_filename = obfuscated_map[filename]
+        for i, file_elem in enumerate(files):
+            old_subject = file_elem.get("subject", "")
+            
+            # Determina qual nome de arquivo usar para este elemento.
+            # Se uma file_list foi fornecida e tem o mesmo tamanho, usamos ela.
+            # Caso contrário, tentamos extrair o nome do próprio subject atual.
+            current_filename = ""
+            if file_list and len(file_list) == len(files):
+                current_filename = file_list[i]
+            else:
+                # Tenta extrair entre aspas ou usa o subject inteiro se for simples
+                if '"' in old_subject:
+                    m = re.search(r'\"(.*?)\"', old_subject)
+                    if m:
+                        current_filename = m.group(1)
+                else:
+                    # Se não tem aspas, assume que o subject pode ser o próprio nome (comum em ofuscados)
+                    # mas remove tags típicas se houver
+                    current_filename = old_subject.split(' (')[0].split(' [')[0].strip()
 
-                    if folder_name:
-                        final_filename = f"{folder_name}/{original_filename}"
-                    else:
-                        final_filename = original_filename
+            if not current_filename:
+                continue
+
+            if current_filename.lower().endswith('.par2'):
+                continue
+
+            # Tenta deofuscar
+            original_filename = current_filename
+            if obfuscated_map:
+                if current_filename in obfuscated_map:
+                    original_filename = obfuscated_map[current_filename]
+                else:
+                    # Tenta match por base name (ex: 12345.part01.rar -> 12345)
+                    base = current_filename
+                    ext_part = ""
                     
-                    old_subject = file_elem.get("subject", "")
-                    # Padrão típico de subject: ... "nome_arquivo" ...
-                    # Vamos substituir o que estiver entre as últimas aspas duplas, 
-                    # ou as que parecem envolver o nome do arquivo.
-                    # nyuu gera: Subject [part/total] - "filename" yEnc (1/segments)
-                    if '"' in old_subject:
-                        # Substitui o conteúdo entre as aspas duplas
-                        new_subject = re.sub(r'\"(.*?)\"', f'"{final_filename}"', old_subject)
+                    # Trata .partNN.rar
+                    rar_match = re.search(r'(\.part\d+\.rar)$', current_filename, re.IGNORECASE)
+                    if rar_match:
+                        ext_part = rar_match.group(1)
+                        base = current_filename[:-len(ext_part)]
                     else:
-                        # Fallback se não houver aspas (não deveria acontecer com nyuu padrão)
-                        new_subject = final_filename
-                        
-                    file_elem.set("subject", new_subject)
+                        # Trata extensão simples
+                        base, ext_part = os.path.splitext(current_filename)
+                    
+                    if base in obfuscated_map:
+                        original_filename = obfuscated_map[base] + ext_part
+
+            if folder_name:
+                final_filename = f"{folder_name}/{original_filename}"
+            else:
+                final_filename = original_filename
+            
+            if '"' in old_subject:
+                # Substitui o conteúdo entre as aspas duplas
+                new_subject = re.sub(r'\"(.*?)\"', f'"{final_filename}"', old_subject)
+            else:
+                # Se o subject original era apenas o nome, substitui por completo
+                if old_subject.strip() == current_filename:
+                    new_subject = final_filename
+                else:
+                    # Tenta substituir a ocorrência do nome no subject
+                    new_subject = old_subject.replace(current_filename, final_filename)
+                
+            file_elem.set("subject", new_subject)
 
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
-        print("NZB corrigido: subjects dos arquivos de dados atualizados para preservar estrutura.")
+        print("NZB corrigido: subjects dos arquivos de dados atualizados.")
     except Exception as e:
         print(f"Aviso: não foi possível corrigir o NZB: {e}")
+
+
+def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, str]]) -> None:
+    """Garante que cada subject no NZB consolidado da temporada tem o prefixo ep_name/.
+
+    Lê os subjects dos NZBs individuais (já processados) e os mapeia para o nome
+    do episódio correspondente. No NZB consolidado, substitui ou adiciona o prefixo
+    correto (ex: S01E01/video.mkv) independente do que fix_nzb_subjects fez antes.
+    """
+    ns_url = "http://www.newzbin.com/DTD/2003/nzb"
+
+    # Mapeia subject → ep_name lendo cada NZB individual
+    subject_to_ep: dict[str, str] = {}
+    for ep_nzb_path, ep_name in episode_data:
+        try:
+            ep_root = ET.parse(ep_nzb_path).getroot()
+            files = ep_root.findall(f".//{{{ns_url}}}file") or ep_root.findall(".//file")
+            for f in files:
+                subj = f.get("subject", "")
+                if subj:
+                    subject_to_ep[subj] = ep_name
+        except Exception as e:
+            print(f"Aviso: não foi possível ler NZB do episódio '{ep_name}': {e}")
+
+    if not subject_to_ep:
+        return
+
+    ET.register_namespace("", ns_url)
+    try:
+        tree = ET.parse(season_nzb_path)
+        root = tree.getroot()
+        files = root.findall(f".//{{{ns_url}}}file") or root.findall(".//file")
+
+        for file_elem in files:
+            old_subj = file_elem.get("subject", "")
+            ep_name = subject_to_ep.get(old_subj)
+            if ep_name is None:
+                continue
+
+            m = re.search(r'"(.*?)"', old_subj)
+            if not m:
+                continue
+
+            fname = m.group(1)
+            # Remove prefixo de pasta existente (pode ser nome ofuscado ou errado)
+            if "/" in fname:
+                fname = fname.split("/", 1)[1]
+
+            if not fname or fname.lower().endswith(".par2"):
+                continue
+
+            new_fname = f"{ep_name}/{fname}"
+            new_subj = re.sub(r'".*?"', f'"{new_fname}"', old_subj, count=1)
+            file_elem.set("subject", new_subj)
+
+        tree.write(season_nzb_path, encoding="UTF-8", xml_declaration=True)
+        print("NZB da temporada corrigido: subjects atualizados com nomes dos episódios.")
+    except Exception as e:
+        print(f"Erro ao corrigir subjects do NZB da temporada: {e}")
 
 
 def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:

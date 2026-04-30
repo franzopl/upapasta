@@ -424,8 +424,14 @@ def obfuscate_and_par(
     rc = 5
 
     try:
+        # Se for arquivo único ou volume RAR, geramos a paridade usando o 
+        # caminho ORIGINAL para que os nomes originais fiquem gravados nos .par2.
+        # Caso contrário (pasta), o link_tree já garantiu que os nomes dentro 
+        # de obfuscated_path sejam os originais.
+        actual_par_input = input_path if not is_folder else par_input
+
         rc = make_parity(
-            par_input,
+            actual_par_input,
             redundancy=redundancy,
             force=force,
             backend=backend,
@@ -441,6 +447,22 @@ def obfuscate_and_par(
         if rc == 0:
             _par_succeeded = True
             
+            # Se for arquivo único ou volume RAR, os .par2 foram criados com o nome original.
+            # Precisamos renomeá-los para o nome ofuscado.
+            if not is_folder:
+                orig_stem = os.path.splitext(os.path.basename(actual_par_input))[0]
+                if is_rar_vol_set:
+                    orig_stem = orig_stem.rsplit(".part", 1)[0]
+                
+                par_pattern = os.path.join(parent_dir, glob.escape(orig_stem) + "*.par2")
+                for p_file in glob.glob(par_pattern):
+                    p_base = os.path.basename(p_file)
+                    p_suffix = p_base[len(orig_stem):]
+                    new_p_path = os.path.join(parent_dir, random_base + p_suffix)
+                    if os.path.exists(new_p_path):
+                        os.remove(new_p_path)
+                    os.rename(p_file, new_p_path)
+
             # Se for pasta e usenet (skip-rar), fazemos a ofuscação profunda AGORA.
             # Isso garante que o PAR2 gerado acima contenha os nomes ORIGINAIS,
             # mas os arquivos para upload terão nomes randômicos.
