@@ -80,3 +80,4 @@ INDEX.md
 
 # Local test venv
 .venv_test
+scripts/post_upload_nzbfelipe.sh
