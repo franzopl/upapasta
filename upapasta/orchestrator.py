@@ -313,6 +313,24 @@ class UpaPastaOrchestrator:
                         "   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip internos\n"
                         "   e revise 'Unwanted Extensions' (use --rename-extensionless se houver arquivos sem extensão)."
                     )
+                    # Pastas vazias não são preservadas: NNTP só carrega arquivos.
+                    # Se houver subdirs sem arquivos, avisa e sugere RAR.
+                    empty_dirs = []
+                    for dp, _, files in os.walk(self.input_path):
+                        if not files and dp != str(self.input_path):
+                            # Diretório intermediário sem arquivos diretos.
+                            # Ignora se contém subdirs com arquivos (folha vazia é o que importa).
+                            try:
+                                if not any(os.scandir(dp)):
+                                    empty_dirs.append(os.path.relpath(dp, self.input_path))
+                            except OSError:
+                                pass
+                    if empty_dirs:
+                        print(
+                            f"⚠️  {len(empty_dirs)} diretório(s) vazio(s) detectado(s) — não serão preservados no upload.\n"
+                            f"    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem no destino.\n"
+                            f"    Se a estrutura vazia for relevante, remova --skip-rar para empacotar em RAR."
+                        )
             elif self.input_path.is_dir() and self.backend == "par2":
                 # par2 clássico não grava paths — aí sim o flat acontece.
                 print(

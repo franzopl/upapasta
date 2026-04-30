@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.14.0 - 2026-04-29
+
+### Novas Features
+
+- **Aviso de pastas vazias em `--skip-rar`**: o orchestrator detecta diretórios vazios em runtime e imprime aviso explicando que NNTP/PAR2 não preservam diretórios sem arquivos, sugerindo remover `--skip-rar` (RAR preserva) ou usar arquivo sentinela.
+
+### Documentação
+
+- Nova seção em `DOCS.md` documentando a limitação de pastas vazias e o workaround com RAR.
+- Corrigida nota obsoleta sobre `--skip-rar` em pastas com subpastas (hoje é o fluxo recomendado com parpar `-f common`).
+
+### Testes
+
+- Nova suíte `tests/test_nested_paths.py` (8 testes) cobrindo: profundidade extrema (5+ níveis), unicode/espaços/caracteres especiais, pastas vazias, arquivos ocultos, symlinks, obfuscate combinado com nested upload, e round-trip de `--rename-extensionless` em subdiretórios profundos.
+
 ## 0.12.1 - 2026-04-22
 
 ### Melhorias

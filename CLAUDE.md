@@ -79,6 +79,7 @@ OBRIGATORIO: Toda sessao de orquestracao deve usar UpaPastaSession como context 
 - NFO usa mediainfo para arquivos unicos e tree + stats + metadados de video para pastas.
 - Configuracao fica em ~/.config/upapasta/.env (gerado automaticamente no primeiro uso).
 - Comportamentos importantes: --dry-run, --obfuscate, --skip-rar, --filepath-format, --parpar-args, --rename-extensionless.
+- Pastas vazias NAO sao preservadas em --skip-rar (NNTP so carrega arquivos; PAR2 idem). orchestrator.py detecta subdirs vazios em runtime e imprime aviso sugerindo remover --skip-rar (RAR preserva diretorios vazios). Alternativa: arquivo sentinela (.keep) nas pastas vazias.
 - Obfuscacao: obfuscate_and_par em makepar.py renomeia (so o root para pastas) e reverte em erro/Ctrl+C via bloco finally garantido.
 - Passthrough parpar: make_parity injeta -f <filepath_format> e tokens de parpar_extra_args no argv. Default filepath_format=common (preserva subpastas relativas). Backend par2 ignora -f.
 - Normalizacao de extensoes: normalize_extensionless renomeia arquivos sem extensao para .bin antes do upload (mapa de reversao em self._extensionless_map). revert_extensionless executa em _cleanup_on_error e ao final do run() bem-sucedido. Ativacao via --rename-extensionless e so com --skip-rar.

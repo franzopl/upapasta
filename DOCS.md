@@ -197,7 +197,26 @@ O RAR usa modo **store (`-m0`)** — sem compressão. Vídeos e áudios já são
 
 - `--skip-rar` + `--password`: sem container RAR não há como aplicar senha → erro fatal.
 - `--watch` + `--each`: modos incompatíveis → erro fatal.
-- `--skip-rar` em pasta com subpastas: exibe aviso (PAR2 não preserva hierarquia de diretórios de forma confiável).
+- `--skip-rar` + backend `par2` (clássico) em pasta com subpastas: aviso — par2 não grava paths, hierarquia é perdida. Use `--backend parpar` (default) ou remova `--skip-rar`.
+
+### Pastas vazias não são preservadas
+
+Usenet posta **artigos** (arquivos), não diretórios. Não existe representação de "diretório vazio" no protocolo NNTP nem nos pacotes PAR2. Consequência:
+
+- Em `--skip-rar`, qualquer subpasta sem arquivos somem no destino.
+- Subpastas com arquivos são reconstruídas naturalmente pelo downloader a partir dos paths gravados pelo parpar (`-f common`).
+
+**Workaround:** se a estrutura vazia importar (ex.: scaffolding de software, layout esperado por algum tooling), use o fluxo padrão com RAR — o RAR preserva diretórios vazios dentro do container:
+
+```bash
+# Pasta com subdirs vazios que precisam sobreviver ao round-trip
+upapasta MeuProjeto/                    # cria RAR (default) → preserva tudo
+upapasta MeuProjeto/ --skip-rar         # ⚠️ subdirs vazios serão perdidos
+```
+
+Alternativa leve: colocar um arquivo sentinela (`.keep`, `placeholder.bin`) em cada diretório vazio antes do upload com `--skip-rar`.
+
+O orchestrator detecta pastas vazias em runtime quando `--skip-rar` está ativo e imprime aviso sugerindo a remoção da flag.
 
 ---
 
