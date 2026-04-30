@@ -349,12 +349,6 @@ def obfuscate_and_par(
                 os.rename(input_path, obfuscated_path)
                 was_linked = False
 
-            if usenet:
-                # Ofuscação profunda: renomeia arquivos internos também
-                print("  🔒 Ofuscando estrutura interna (deep obfuscation)...")
-                deep_mapping = _deep_obfuscate_tree(obfuscated_path)
-                obfuscated_map.update(deep_mapping)
-
             obfuscated_map[random_base] = base
             par_input = obfuscated_path
 
@@ -446,6 +440,14 @@ def obfuscate_and_par(
         )
         if rc == 0:
             _par_succeeded = True
+            
+            # Se for pasta e usenet (skip-rar), fazemos a ofuscação profunda AGORA.
+            # Isso garante que o PAR2 gerado acima contenha os nomes ORIGINAIS,
+            # mas os arquivos para upload terão nomes randômicos.
+            if is_folder and usenet and obfuscated_path:
+                print("  🔒 Ofuscando estrutura interna (deep obfuscation)...")
+                deep_mapping = _deep_obfuscate_tree(obfuscated_path)
+                obfuscated_map.update(deep_mapping)
 
     except KeyboardInterrupt:
         raise

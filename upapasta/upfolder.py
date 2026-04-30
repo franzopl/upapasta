@@ -434,7 +434,7 @@ def upload_to_usenet(
         fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, None, obfuscated_map)
 
     # Injetar senha no NZB para extração automática pelos clientes
-    if nzb_out_abs and os.path.exists(nzb_out_abs) and password:
+    if nzb_out_abs and os.path.exists(nzb_out_abs) and password and not skip_rar:
         inject_nzb_password(nzb_out_abs, password)
         print("Senha injetada no NZB.")
 
