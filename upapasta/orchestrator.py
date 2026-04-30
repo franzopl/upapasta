@@ -29,6 +29,51 @@ from .ui import PhaseBar, format_time
 logger = logging.getLogger("upapasta")
 
 
+def normalize_extensionless(root: str, suffix: str = ".bin") -> dict[str, str]:
+    """Renomeia recursivamente arquivos sem extensão para `<nome>{suffix}`.
+
+    Mitigação para SABnzbd com "Unwanted Extensions": arquivos sem extensão
+    recebem .txt no destino, quebrando hashes e estrutura. Renomear no upload
+    (com reversão posterior) preserva os arquivos do remetente intactos e
+    garante que o downloader receba arquivos com extensão estável.
+
+    Retorna dict {novo_caminho_absoluto: caminho_original_absoluto}.
+    Arquivo único também é suportado (root pode ser arquivo).
+    """
+    mapping: dict[str, str] = {}
+
+    def _rename_one(path: str) -> None:
+        base = os.path.basename(path)
+        if "." in base and not base.startswith(".") and os.path.splitext(base)[1]:
+            return  # já tem extensão
+        if base.startswith("."):
+            return  # dotfile: deixar
+        new = path + suffix
+        if os.path.exists(new):
+            return  # colisão: pular para não sobrescrever
+        os.rename(path, new)
+        mapping[os.path.abspath(new)] = os.path.abspath(path)
+
+    if os.path.isfile(root):
+        _rename_one(root)
+        return mapping
+
+    for dirpath, _dirs, files in os.walk(root):
+        for f in files:
+            _rename_one(os.path.join(dirpath, f))
+    return mapping
+
+
+def revert_extensionless(mapping: dict[str, str]) -> None:
+    """Desfaz normalize_extensionless. Tolerante a entradas já revertidas."""
+    for new_path, original in mapping.items():
+        if os.path.exists(new_path) and not os.path.exists(original):
+            try:
+                os.rename(new_path, original)
+            except OSError:
+                pass
+
+
 class UpaPastaSession:
     """Context manager para garantir cleanup de recursos do UpaPastaOrchestrator."""
     
@@ -78,6 +123,9 @@ class UpaPastaOrchestrator:
         upload_retries: int = 0,
         verbose: bool = False,
         max_memory_mb: Optional[int] = None,
+        filepath_format: str = "common",
+        parpar_extra_args: Optional[list] = None,
+        rename_extensionless: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -113,6 +161,10 @@ class UpaPastaOrchestrator:
         self.upload_timeout = upload_timeout
         self.upload_retries = upload_retries
         self.verbose = verbose
+        self.filepath_format = filepath_format
+        self.parpar_extra_args = parpar_extra_args
+        self.rename_extensionless = rename_extensionless
+        self._extensionless_map: dict[str, str] = {}
         self.each = False  # controlado externamente via main()
         self.rar_file: Optional[str] = None
         self.par_file: Optional[str] = None
@@ -150,6 +202,12 @@ class UpaPastaOrchestrator:
             upload_retries=args.upload_retries,
             verbose=args.verbose,
             max_memory_mb=args.max_memory,
+            filepath_format=getattr(args, "filepath_format", "common"),
+            parpar_extra_args=(
+                __import__("shlex").split(args.parpar_args)
+                if getattr(args, "parpar_args", None) else None
+            ),
+            rename_extensionless=getattr(args, "rename_extensionless", False),
         )
 
     @staticmethod
@@ -241,15 +299,26 @@ class UpaPastaOrchestrator:
                 print(f"✅ Arquivo único: {self.input_path.name} (upload direto, sem RAR)")
 
         if self.skip_rar:
-            # Avisa quando a pasta tem subpastas (PAR2 de pastas com subpastas é problemático)
-            if self.input_path.is_dir():
+            # Pasta com subpastas + parpar é o fluxo recomendado: parpar grava
+            # a estrutura nos .par2 (filepath-format=common por padrão) e
+            # SABnzbd/NZBGet recentes reconstroem a árvore no download.
+            if self.input_path.is_dir() and self.backend == "parpar":
                 has_subdirs = any(e.is_dir() for e in self.input_path.iterdir())
                 if has_subdirs:
                     print(
-                        "⚠️  A pasta contém subpastas. --skip-rar pode causar problemas de\n"
-                        "    estrutura após o download (PAR2 não preserva hierarquia de diretórios).\n"
-                        "    Recomendado: remova --skip-rar para usar RAR e preservar a estrutura."
+                        f"✅ Pasta com subpastas + parpar (filepath-format={self.filepath_format}): "
+                        "estrutura será preservada via PAR2."
                     )
+                    print(
+                        "   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip internos\n"
+                        "   e revise 'Unwanted Extensions' (use --rename-extensionless se houver arquivos sem extensão)."
+                    )
+            elif self.input_path.is_dir() and self.backend == "par2":
+                # par2 clássico não grava paths — aí sim o flat acontece.
+                print(
+                    "⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva hierarquia.\n"
+                    "    Considere --backend parpar (recomendado) ou remova --skip-rar."
+                )
             # Modo upload sem RAR: use the path directly
             self.rar_file = None
             self.input_target = str(self.input_path)
@@ -263,6 +332,21 @@ class UpaPastaOrchestrator:
         print("\n" + "=" * 60)
         print("📦 ETAPA 1: Criar arquivo RAR")
         print("=" * 60)
+
+        # Dica: em 2026 o RAR não é mais necessário na maioria dos casos.
+        if (
+            self.input_path.is_dir()
+            and self.backend == "parpar"
+            and not self.rar_password
+            and not self.obfuscate
+        ):
+            has_subdirs = any(e.is_dir() for e in self.input_path.iterdir())
+            if has_subdirs:
+                print(
+                    "💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
+                    "   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
+                    "   downloaders modernos reconstroem a árvore. Menos overhead, mesmo resultado."
+                )
 
         if self.dry_run:
             print(f"[DRY-RUN] pularia a criação do RAR.")
@@ -360,6 +444,8 @@ class UpaPastaOrchestrator:
                     profile=self.par_profile,
                     slice_size=self.par_slice_size,
                     memory_mb=self.par_memory_mb,
+                    filepath_format=self.filepath_format,
+                    parpar_extra_args=self.parpar_extra_args,
                 )
             except FileNotFoundError:
                 print("❌ Erro: binário de paridade não encontrado no PATH.")
@@ -413,6 +499,8 @@ class UpaPastaOrchestrator:
                     profile=self.par_profile,
                     slice_size=self.par_slice_size,
                     memory_mb=self.par_memory_mb,
+                    filepath_format=self.filepath_format,
+                    parpar_extra_args=self.parpar_extra_args,
                 )
             except FileNotFoundError:
                 print("❌ Erro: binário de paridade não encontrado no PATH.")
@@ -549,7 +637,16 @@ class UpaPastaOrchestrator:
         self._do_cleanup(on_error=False)
 
     def _cleanup_on_error(self, preserve_rar: bool = False) -> None:
+        if self._extensionless_map:
+            revert_extensionless(self._extensionless_map)
+            self._extensionless_map = {}
         self._do_cleanup(on_error=True, preserve_rar=preserve_rar)
+
+    def _revert_extension_normalization(self) -> None:
+        if self._extensionless_map:
+            revert_extensionless(self._extensionless_map)
+            print(f"↩️  Restauradas {len(self._extensionless_map)} extensões originais")
+            self._extensionless_map = {}
 
     def check_nzb_conflict_early(self) -> bool:
         """Verifica conflito de NZB antecipadamente, antes de qualquer processamento."""
@@ -669,6 +766,16 @@ class UpaPastaOrchestrator:
                 self._cleanup_on_error()
                 return 1
 
+        # ── Normalização de extensões (opt-in, antes do PAR2) ────────────────
+        # Renomeia arquivos sem extensão para .bin para evitar que SABnzbd
+        # adicione .txt e quebre hashes. Aplica-se quando o conteúdo vai como
+        # está para o upload (skip-rar) e o usuário pediu explicitamente.
+        if self.rename_extensionless and self.skip_rar and not self.dry_run:
+            target = self.input_target or str(self.input_path)
+            self._extensionless_map = normalize_extensionless(target)
+            if self._extensionless_map:
+                print(f"🔧 Normalizadas {len(self._extensionless_map)} extensões → .bin")
+
         # ── Etapa 2: PAR2 ───────────────────────────────────────────────────
         if not self.skip_par:
             bar.start("PAR2")
@@ -730,8 +837,10 @@ class UpaPastaOrchestrator:
                 return 3
             bar.done("UPLOAD")
             self.cleanup()
+            self._revert_extension_normalization()
         else:
             print("\n⏭️  [--skip-upload] Upload foi pulado.")
+            self._revert_extension_normalization()
 
         total_elapsed = time.time() - total_start
         bar.done("DONE")
@@ -786,10 +895,17 @@ class UpaPastaOrchestrator:
         )
         
         # Se houve conflito e renomeio, o arquivo real pode ter um sufixo.
-        # Mas resolve_nzb_out retorna o nome base esperado. 
-        # O upfolder.py gera o NZB; handle_nzb_conflict cuida do renomeio se necessário.
-        # Aqui tentamos encontrar o arquivo real que foi gerado.
-        _nzb_abs = _nzb_abs_resolved if os.path.exists(_nzb_abs_resolved) else None
+        # Tentamos encontrar o arquivo real que foi gerado (até 10 tentativas de renomeio).
+        _nzb_abs = _nzb_abs_resolved
+        if not os.path.exists(_nzb_abs):
+            base, ext = os.path.splitext(_nzb_abs)
+            for i in range(1, 11):
+                test_path = f"{base}_{i}{ext}"
+                if os.path.exists(test_path):
+                    _nzb_abs = test_path
+                    break
+            else:
+                _nzb_abs = None
 
         # Grupo efetivo: pode ter sido selecionado do pool dentro do upfolder
         _raw_group = self.group or self.env_vars.get("USENET_GROUP") or ""

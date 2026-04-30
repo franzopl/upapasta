@@ -226,6 +226,8 @@ def obfuscate_and_par(
     profile: str = DEFAULT_PROFILE,
     slice_size: Optional[str] = None,
     memory_mb: Optional[int] = None,
+    filepath_format: str = "common",
+    parpar_extra_args: Optional[list] = None,
 ) -> Tuple[int, Optional[str], dict]:
     """
     Renomeia fisicamente o arquivo/pasta para nome aleatório e gera paridade.
@@ -350,6 +352,8 @@ def obfuscate_and_par(
             profile=profile,
             slice_size=slice_size,
             memory_mb=memory_mb,
+            filepath_format=filepath_format,
+            parpar_extra_args=parpar_extra_args,
         )
         if rc == 0:
             _par_succeeded = True
@@ -581,6 +585,8 @@ def make_parity(
     threads: Optional[int] = None,
     profile: str = DEFAULT_PROFILE,
     memory_mb: Optional[int] = None,
+    filepath_format: str = "common",
+    parpar_extra_args: Optional[list] = None,
 ) -> int:
     """
     Gera arquivos .par2 para rar_path (arquivo único, volume set ou pasta).
@@ -726,7 +732,11 @@ def make_parity(
             cmd.append(f"-m{mem_limit}")
 
         num_threads = threads if threads is not None else (os.cpu_count() or 4)
-        cmd.extend([f"-t{num_threads}", f"-r{redundancy}%", "-o", out_par2])
+        cmd.extend([f"-t{num_threads}", f"-r{redundancy}%"])
+        cmd.extend(["-f", filepath_format])
+        if parpar_extra_args:
+            cmd.extend(parpar_extra_args)
+        cmd.extend(["-o", out_par2])
         cmd.extend(files_to_process)
     else:
         cmd = [exe_path, "create", f"-r{redundancy}", out_par2] + files_to_process

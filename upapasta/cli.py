@@ -43,13 +43,25 @@ COMPORTAMENTO PADRÃO
   --password  em arquivo único: cria RAR automaticamente.
   --skip-rar  é incompatível com --password.
 
+FLUXO RECOMENDADO 2026 (pastas com subpastas)
+  upapasta Pasta/ --skip-rar --backend parpar --obfuscate \\
+      --filepath-format common --par-profile safe
+
+  Por quê: parpar grava a estrutura de pastas nos .par2; SABnzbd/NZBGet
+  recentes reconstroem a árvore no download. RAR-com-senha é overkill
+  na maioria dos casos — ofuscação forte + PAR2 já protege contra
+  scans automáticos de copyright.
+
+  No SABnzbd: desative "Recursive Unpacking" e revise "Unwanted Extensions".
+  Use --rename-extensionless se houver arquivos sem extensão (evita .txt do SAB).
+
 EXEMPLOS
-  upapasta Filme.2024/                        pasta como release único
+  upapasta Pasta/ --skip-rar --obfuscate     fluxo moderno (recomendado)
+  upapasta Filme.2024/                        pasta como release único (com RAR)
   upapasta Episodio.S01E01.mkv               arquivo único, sem RAR
   upapasta Temporada.1/ --each               cada arquivo da pasta separado
-  upapasta Pasta/ --obfuscate                nomes aleatórios no NZB/upload
   upapasta Pasta/ --password "abc123"        RAR com senha injetada no NZB
-  upapasta Pasta/ --obfuscate --password x   ofuscado + senha (independentes)
+  upapasta Pasta/ --filepath-format keep     preserva caminho completo
 """
 
 
@@ -267,6 +279,34 @@ def parse_args():
         action="store_true",
         help="Pula upload para Usenet",
     )
+    advanced.add_argument(
+        "--filepath-format",
+        choices=("common", "keep", "basename", "outrel"),
+        default="common",
+        help=(
+            "Como o parpar grava paths nos .par2 (default: common). "
+            "common=descarta prefixo comum (preserva subpastas relativas); "
+            "keep=preserva o caminho completo; basename=descarta paths (flat); "
+            "outrel=relativo à saída. Ignorado quando backend=par2."
+        ),
+    )
+    advanced.add_argument(
+        "--parpar-args",
+        default=None,
+        metavar="STR",
+        help=(
+            "Args extras repassados ao parpar, ex: --parpar-args \"--noindex --foo=bar\". "
+            "Tokenizado via shlex. Ignorado quando backend=par2."
+        ),
+    )
+    advanced.add_argument(
+        "--rename-extensionless",
+        action="store_true",
+        help=(
+            "Renomeia arquivos sem extensão para .bin antes do upload (reverte ao final). "
+            "Evita que o SABnzbd adicione .txt em arquivos sem extensão."
+        ),
+    )
 
     return p.parse_args()
 
@@ -327,13 +367,13 @@ def _validate_flags(args) -> bool:
             return False
 
     if args.skip_rar and args.obfuscate:
+        # Em 2026 esse fluxo é o recomendado: ofuscação externa nos nomes que
+        # vão para os headers NNTP + paths preservados dentro dos .par2 pelo
+        # parpar (filepath-format). Não há ofuscação "parcial" — a estrutura
+        # interna fica protegida pelo próprio mecanismo do parpar.
         print(
-            "⚠️   Ofuscação parcial: sem RAR, o nome real dos arquivos fica exposto\n"
-            "    nos headers NNTP mesmo com --obfuscate.\n"
-            "    Para ofuscação completa, remova --skip-rar.\n"
-            "    Continuando em 3s... (Ctrl+C para cancelar)"
+            "✅ Fluxo moderno: --skip-rar + --obfuscate.\n"
+            "   Nomes externos ofuscados; estrutura preservada via parpar."
         )
-        import time as _time
-        _time.sleep(3)
 
     return True
