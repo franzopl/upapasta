@@ -659,12 +659,37 @@ class UpaPastaOrchestrator:
             revert_extensionless(self._extensionless_map)
             self._extensionless_map = {}
         self._do_cleanup(on_error=True, preserve_rar=preserve_rar)
+        self._revert_obfuscation()
 
     def _revert_extension_normalization(self) -> None:
         if self._extensionless_map:
             revert_extensionless(self._extensionless_map)
             print(f"↩️  Restauradas {len(self._extensionless_map)} extensões originais")
             self._extensionless_map = {}
+
+    def _revert_obfuscation(self) -> None:
+        """Restaura o nome original da entrada quando ela foi renomeada in-place
+        pela ofuscação (fluxo --skip-rar com pasta ou arquivo único sem RAR).
+        No fluxo com RAR, o caminho ofuscado é o próprio .rar temporário, que já
+        foi removido pelo cleanup — nada a fazer."""
+        if not self.obfuscate or not self.input_target:
+            return
+        original = str(self.input_path)
+        if self.input_target == original:
+            return
+        # Só reverte se a entrada ainda está renomeada no disco. No fluxo com
+        # RAR, input_target aponta para um .rar que já foi deletado.
+        if not os.path.exists(self.input_target):
+            return
+        if os.path.exists(original):
+            return
+        try:
+            os.rename(self.input_target, original)
+            print(f"↩️  Nome original restaurado: {self.input_path.name}")
+            self.input_target = original
+        except OSError as e:
+            print(f"⚠️  Falha ao restaurar nome original ('{self.input_target}' → '{original}'): {e}")
+            print(f"    AÇÃO MANUAL: renomeie '{os.path.basename(self.input_target)}' de volta para '{self.input_path.name}'")
 
     def check_nzb_conflict_early(self) -> bool:
         """Verifica conflito de NZB antecipadamente, antes de qualquer processamento."""
@@ -856,9 +881,11 @@ class UpaPastaOrchestrator:
             bar.done("UPLOAD")
             self.cleanup()
             self._revert_extension_normalization()
+            self._revert_obfuscation()
         else:
             print("\n⏭️  [--skip-upload] Upload foi pulado.")
             self._revert_extension_normalization()
+            self._revert_obfuscation()
 
         total_elapsed = time.time() - total_start
         bar.done("DONE")

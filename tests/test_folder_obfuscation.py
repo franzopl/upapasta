@@ -52,8 +52,8 @@ class TestFolderObfuscation(unittest.TestCase):
         result = orchestrator.run()
         self.assertEqual(result, 0, f"O orquestrador deve retornar 0. rc={result}")
 
-        # A pasta original é renomeada durante a ofuscação — não deve mais existir
-        self.assertFalse(self.test_dir.exists(), "A pasta original deve ser renomeada pela ofuscação.")
+        # Com o fix, a pasta original deve ser restaurada após o workflow
+        self.assertTrue(self.test_dir.exists(), "A pasta original deve ser restaurada após o upload.")
 
         # O mapeamento deve ter a relação ofuscado → original
         self.assertTrue(orchestrator.obfuscated_map, "obfuscated_map deve ser preenchido.")
@@ -62,9 +62,9 @@ class TestFolderObfuscation(unittest.TestCase):
         self.assertEqual(original_base, self.test_dir.name)
         self.assertNotEqual(obf_base, self.test_dir.name)
 
-        # A pasta ofuscada deve existir no disco
+        # A pasta ofuscada não deve mais existir (foi revertida)
         obf_path = self.test_dir.parent / obf_base
-        self.assertTrue(obf_path.exists(), f"Pasta ofuscada '{obf_base}' deve existir no disco.")
+        self.assertFalse(obf_path.exists(), f"Pasta ofuscada '{obf_base}' não deve mais existir (foi revertida).")
 
         # O subject deve ser o nome ofuscado (não o original)
         self.assertEqual(orchestrator.subject, obf_base)

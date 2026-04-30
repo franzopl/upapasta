@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.14.1 - 2026-04-29
+
+### Correções (Fixes)
+
+- **Correção na reversão de ofuscação in-place**: no fluxo `--skip-rar --obfuscate`, a pasta original era renomeada permanentemente para o nome ofuscado. Adicionado mecanismo de reversão automática que restaura o nome original após upload bem-sucedido, em falhas de upload, ou quando `--skip-upload` é utilizado.
+
 ## 0.14.0 - 2026-04-29
 
 ### Novas Features
