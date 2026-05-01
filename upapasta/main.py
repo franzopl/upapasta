@@ -84,12 +84,6 @@ def main():
                 return True
             if any(pattern in f.name for pattern in skip_patterns):
                 return True
-            # Ignora hardlinks temporários (st_nlink > 1 indica hardlink não removido)
-            try:
-                if f.is_file() and f.stat().st_nlink > 1:
-                    return True
-            except (OSError, ValueError):
-                pass
             return False
 
         # --each foca em arquivos; --season inclui pastas (episódios podem ser pastas)
