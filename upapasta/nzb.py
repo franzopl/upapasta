@@ -178,10 +178,6 @@ def fix_nzb_subjects(
         if not files:
             # Tenta sem namespace como fallback
             files = root.findall(".//file")
-        
-        print(f"DEBUG fix_nzb_subjects: found {len(files)} files in {os.path.basename(nzb_path)}")
-        if obfuscated_map:
-            print(f"DEBUG fix_nzb_subjects: obfuscated_map={obfuscated_map}")
 
         for i, file_elem in enumerate(files):
             old_subject = file_elem.get("subject", "")
