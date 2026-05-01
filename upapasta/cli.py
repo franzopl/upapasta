@@ -38,11 +38,10 @@ COMPORTAMENTO PADRÃO
   Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
   Com --rar: cria RAR primeiro, depois PAR2 + upload
 
-  --obfuscate: nomes aleatórios + senha gerada automaticamente (proteção completa).
-  --obfuscate --password abc: nomes aleatórios + senha definida pelo usuário.
-  --obfuscate com arquivo único: cria RAR automaticamente.
-  --password com arquivo único: cria RAR automaticamente.
-  --rar é incompatível com --password (use --obfuscate para ambos).
+  --obfuscate: nomes aleatórios (sem RAR por padrão; proteção via parpar + ofuscação).
+  --obfuscate --password abc: nomes aleatórios + RAR com senha.
+  --password sozinho: presume --rar automaticamente (precisa de RAR para proteger).
+  Arquivo único com --obfuscate ou --password: cria RAR automaticamente.
 
 FLUXO RECOMENDADO 2026 (padrão moderno)
   upapasta Pasta/ --obfuscate --backend parpar \\
@@ -61,7 +60,7 @@ EXEMPLOS
   upapasta Filme.2024/ --rar                  pasta como release único (com RAR)
   upapasta Episodio.S01E01.mkv               arquivo único, sem RAR
   upapasta Temporada.1/ --each               cada arquivo da pasta separado
-  upapasta Pasta/ --password "abc123" --rar   RAR com senha injetada no NZB
+  upapasta Pasta/ --password "abc123"         RAR com senha (presume --rar automaticamente)
   upapasta Pasta/ --filepath-format keep     preserva caminho completo
 """
 
@@ -136,7 +135,7 @@ def parse_args():
         metavar="SENHA",
         help=(
             "Senha para o RAR (injetada no NZB para extração automática por SABnzbd/NZBGet). "
-            "Em arquivo único, cria RAR automaticamente. Incompatível com a ausência de --rar."
+            "Presume automaticamente --rar (precisa de RAR para proteger com senha)."
         ),
     )
     essential.add_argument(
@@ -375,17 +374,10 @@ def _validate_flags(args) -> bool:
         # Ignora --skip-rar deprecated e mantém --rar = False
         args.rar = False
 
-    if args.rar and args.password is None:
-        # --rar sem --password é válido (RAR sem senha)
-        pass
-
-    if not args.rar and args.password:
-        print(
-            "❌  --password requer --rar.\n"
-            "    Sem RAR não é possível proteger o conteúdo com senha.\n"
-            "    Adicione --rar ou remova --password."
-        )
-        return False
+    # --password presume --rar (precisa de RAR para proteger com senha)
+    if args.password and not args.rar:
+        print("ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger).")
+        args.rar = True
 
     if args.each or args.season:
         p = Path(args.input)
