@@ -339,3 +339,58 @@ def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
     except Exception as e:
         print(f"Erro ao mesclar NZBs: {e}")
         return False
+
+
+def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str]]:
+    """Encontra NZBs de episódios na pasta e retorna (path, episode_name).
+
+    Procura por NZBs que começam com season_prefix e extrai o nome do episódio
+    a partir do subject do primeiro arquivo de dados encontrado em cada NZB.
+
+    Retorna lista ordenada de (nzb_path, episode_name) para mesclar e corrigir subjects.
+    """
+    import glob
+    from pathlib import Path
+
+    ns_url = "http://www.newzbin.com/DTD/2003/nzb"
+    nzb_dir_path = Path(nzb_dir)
+
+    if not nzb_dir_path.exists():
+        return []
+
+    # Procura por NZBs que começam com o prefixo da temporada
+    pattern = str(nzb_dir_path / f"{season_prefix}*.nzb")
+    nzb_files = sorted(glob.glob(pattern))
+
+    # Exclui o NZB final da temporada (que tem o mesmo nome da pasta)
+    season_final_nzb = str(nzb_dir_path / f"{season_prefix}.nzb")
+    nzb_files = [f for f in nzb_files if f != season_final_nzb]
+
+    episode_data = []
+    for nzb_path in nzb_files:
+        ep_name = None
+        try:
+            tree = ET.parse(nzb_path)
+            root = tree.getroot()
+
+            # Encontra o primeiro arquivo de dados (não-.par2)
+            files = root.findall(f".//{{{ns_url}}}file") or root.findall(".//file")
+            for file_elem in files:
+                subj = file_elem.get("subject", "")
+                if subj and not "par2" in subj.lower():
+                    # Tenta extrair o prefixo da pasta do subject
+                    # Formato típico: "EP_NAME/filename" ou apenas "filename"
+                    if "/" in subj:
+                        ep_name = subj.split("/")[0]
+                    else:
+                        # Se não tem prefixo, usa o basename do NZB (sem .nzb)
+                        ep_name = Path(nzb_path).stem
+                    break
+        except Exception as e:
+            print(f"Aviso: não foi possível ler episódio de {Path(nzb_path).name}: {e}")
+            continue
+
+        if ep_name:
+            episode_data.append((nzb_path, ep_name))
+
+    return episode_data
