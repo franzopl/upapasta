@@ -84,6 +84,12 @@ def main():
                 return True
             if any(pattern in f.name for pattern in skip_patterns):
                 return True
+            # Ignora hardlinks temporários (st_nlink > 1 indica hardlink não removido)
+            try:
+                if f.is_file() and f.stat().st_nlink > 1:
+                    return True
+            except (OSError, ValueError):
+                pass
             return False
 
         # --each foca em arquivos; --season inclui pastas (episódios podem ser pastas)
@@ -150,9 +156,16 @@ def main():
         if args.season:
             # Coleta NZBs de episódios gerados na pasta
             env_vars = load_env_file(env_file)
-            working_dir = env_vars.get("NZB_OUT_DIR") or "."
+            nzb_out_dir = env_vars.get("NZB_OUT_DIR")
+            if not nzb_out_dir:
+                nzb_out_dir = env_vars.get("NZB_OUT")
+                if nzb_out_dir:
+                    # Se NZB_OUT é um template, extrai o diretório
+                    nzb_out_dir = str(Path(nzb_out_dir).parent)
+            working_dir = nzb_out_dir or "."
+            working_dir_path = Path(working_dir).expanduser().resolve()
 
-            episode_data = collect_season_nzbs(working_dir, folder.name)
+            episode_data = collect_season_nzbs(str(working_dir_path), folder.name)
 
             if episode_data:
                 print(f"\n{'='*60}")
@@ -161,7 +174,7 @@ def main():
 
                 # O nome do NZB da temporada é o nome da pasta
                 season_nzb_name = f"{folder.name}.nzb"
-                season_nzb_path = Path(working_dir) / season_nzb_name
+                season_nzb_path = working_dir_path / season_nzb_name
 
                 nzb_paths = [p for p, _ in episode_data]
                 print(f"📦 Mesclando {len(nzb_paths)} NZBs em: {season_nzb_name}")
@@ -180,7 +193,7 @@ def main():
                 else:
                     print(f"⚠️  Falha ao gerar NFO da temporada.")
             elif not failed:
-                print(f"⚠️  Nenhum NZB de episódio encontrado em {working_dir}")
+                print(f"⚠️  Nenhum NZB de episódio encontrado em {working_dir_path}")
 
         sys.exit(0)
 
