@@ -75,11 +75,22 @@ def main():
     # ── Modo --each ou --season: processa itens individualmente ──────────────
     if args.each or args.season:
         folder = Path(args.input)
+        # Extensões de arquivos gerados que devem ser ignorados
+        skip_extensions = {'.par2', '.nfo', '.nzb'}
+        skip_patterns = ['.vol', '.part']
+
+        def should_skip(f: Path) -> bool:
+            if any(f.name.endswith(ext) for ext in skip_extensions):
+                return True
+            if any(pattern in f.name for pattern in skip_patterns):
+                return True
+            return False
+
         # --each foca em arquivos; --season inclui pastas (episódios podem ser pastas)
         if args.each:
-            items = sorted(f for f in folder.iterdir() if f.is_file())
+            items = sorted(f for f in folder.iterdir() if f.is_file() and not should_skip(f))
         else:
-            items = sorted(f for f in folder.iterdir() if not f.name.startswith('.'))
+            items = sorted(f for f in folder.iterdir() if not f.name.startswith('.') and not should_skip(f))
 
         if not items:
             print(f"❌  Nenhum item encontrado em: {folder}")
