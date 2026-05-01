@@ -20,12 +20,12 @@ UpaPasta — uploader automatizado para Usenet
   Uso:  upapasta <caminho>  [opções]
 
   Exemplos rápidos:
-    upapasta Filme.2024/              pasta inteira como um release (RAR + PAR2)
-    upapasta Episodio.S01E01.mkv      arquivo único sem RAR
-    upapasta Temporada.1/ --each      cada arquivo da pasta vira um release separado
-    upapasta Pasta/ --obfuscate       release com nomes ofuscados
-    upapasta Pasta/ --password abc    release com senha no RAR
-    upapasta Pasta/ --dry-run         simula sem enviar nada
+    upapasta Filme.2024/ --rar            pasta inteira como um release (RAR + PAR2)
+    upapasta Episodio.S01E01.mkv          arquivo único sem RAR
+    upapasta Temporada.1/ --each          cada arquivo da pasta vira um release separado
+    upapasta Pasta/ --obfuscate           release com nomes ofuscados
+    upapasta Pasta/ --password abc --rar  release com senha no RAR
+    upapasta Pasta/ --dry-run             simula sem enviar nada
 
   Para ajuda completa:  upapasta --help
 """
@@ -34,33 +34,34 @@ _DESCRIPTION = "UpaPasta — uploader automatizado para Usenet"
 
 _EPILOG = """\
 COMPORTAMENTO PADRÃO
-  Pasta   → RAR (store) + PAR2 (balanced) + upload → NZB + NFO
+  Pasta   → PAR2 (balanced) + upload direto (sem RAR) → NZB + NFO
   Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
+  Com --rar: cria RAR primeiro, depois PAR2 + upload
 
   --obfuscate: nomes aleatórios + senha gerada automaticamente (proteção completa).
   --obfuscate --password abc: nomes aleatórios + senha definida pelo usuário.
-  --obfuscate em arquivo único: cria RAR automaticamente.
-  --password  em arquivo único: cria RAR automaticamente.
-  --skip-rar  é incompatível com --password.
+  --obfuscate com arquivo único: cria RAR automaticamente.
+  --password com arquivo único: cria RAR automaticamente.
+  --rar é incompatível com --password (use --obfuscate para ambos).
 
-FLUXO RECOMENDADO 2026 (pastas com subpastas)
-  upapasta Pasta/ --skip-rar --backend parpar --obfuscate \\
+FLUXO RECOMENDADO 2026 (padrão moderno)
+  upapasta Pasta/ --obfuscate --backend parpar \\
       --filepath-format common --par-profile safe
 
   Por quê: parpar grava a estrutura de pastas nos .par2; SABnzbd/NZBGet
-  recentes reconstroem a árvore no download. RAR-com-senha é overkill
-  na maioria dos casos — ofuscação forte + PAR2 já protege contra
-  scans automáticos de copyright.
+  recentes reconstroem a árvore no download. RAR é opcional — ofuscação
+  forte + PAR2 já protege contra scans automáticos de copyright. Use --rar
+  apenas se precisar do RAR-com-senha (casos legados).
 
   No SABnzbd: desative "Recursive Unpacking" e revise "Unwanted Extensions".
   Use --rename-extensionless se houver arquivos sem extensão (evita .txt do SAB).
 
 EXEMPLOS
-  upapasta Pasta/ --skip-rar --obfuscate     fluxo moderno (recomendado)
-  upapasta Filme.2024/                        pasta como release único (com RAR)
+  upapasta Pasta/ --obfuscate                 fluxo moderno (recomendado)
+  upapasta Filme.2024/ --rar                  pasta como release único (com RAR)
   upapasta Episodio.S01E01.mkv               arquivo único, sem RAR
   upapasta Temporada.1/ --each               cada arquivo da pasta separado
-  upapasta Pasta/ --password "abc123"        RAR com senha injetada no NZB
+  upapasta Pasta/ --password "abc123" --rar   RAR com senha injetada no NZB
   upapasta Pasta/ --filepath-format keep     preserva caminho completo
 """
 
@@ -135,13 +136,19 @@ def parse_args():
         metavar="SENHA",
         help=(
             "Senha para o RAR (injetada no NZB para extração automática por SABnzbd/NZBGet). "
-            "Em arquivo único, cria RAR automaticamente. Incompatível com --skip-rar."
+            "Em arquivo único, cria RAR automaticamente. Incompatível com a ausência de --rar."
         ),
+    )
+    essential.add_argument(
+        "--rar",
+        action="store_true",
+        help="Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão com PAR2).",
     )
     essential.add_argument(
         "--skip-rar",
         action="store_true",
-        help="Não cria RAR — envia os arquivos como estão. Incompatível com --password.",
+        dest="skip_rar_deprecated",
+        help="[DEPRECATED: use ausência de --rar] Não cria RAR.",
     )
     essential.add_argument(
         "--dry-run",
@@ -361,11 +368,22 @@ def check_dependencies(rar_needed: bool = True) -> bool:
 
 def _validate_flags(args) -> bool:
     """Valida combinações de flags incompatíveis. Retorna False se há erro fatal."""
-    if args.skip_rar and args.password:
+    # Backward compatibility: --skip-rar → sem --rar
+    if getattr(args, 'skip_rar_deprecated', False):
+        print("⚠️  --skip-rar está deprecado. O padrão já é sem RAR.")
+        print("   Para usar RAR, adicione --rar explicitamente.")
+        # Ignora --skip-rar deprecated e mantém --rar = False
+        args.rar = False
+
+    if args.rar and args.password is None:
+        # --rar sem --password é válido (RAR sem senha)
+        pass
+
+    if not args.rar and args.password:
         print(
-            "❌  --skip-rar e --password são incompatíveis.\n"
+            "❌  --password requer --rar.\n"
             "    Sem RAR não é possível proteger o conteúdo com senha.\n"
-            "    Remova --skip-rar ou remova --password."
+            "    Adicione --rar ou remova --password."
         )
         return False
 
@@ -384,13 +402,13 @@ def _validate_flags(args) -> bool:
             print("❌  --watch é incompatível com --each e --season.")
             return False
 
-    if args.skip_rar and args.obfuscate:
+    if args.obfuscate and not args.rar:
         # Em 2026 esse fluxo é o recomendado: ofuscação externa nos nomes que
         # vão para os headers NNTP + paths preservados dentro dos .par2 pelo
         # parpar (filepath-format). Não há ofuscação "parcial" — a estrutura
         # interna fica protegida pelo próprio mecanismo do parpar.
         print(
-            "✅ Fluxo moderno: --skip-rar + --obfuscate.\n"
+            "✅ Fluxo moderno: --obfuscate (sem RAR).\n"
             "   Nomes externos ofuscados; estrutura preservada via parpar."
         )
 
