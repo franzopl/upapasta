@@ -344,12 +344,14 @@ def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
 def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str]]:
     """Encontra NZBs de episódios na pasta e retorna (path, episode_name).
 
-    Procura por NZBs que começam com season_prefix e extrai o nome do episódio
-    a partir do subject do primeiro arquivo de dados encontrado em cada NZB.
+    Extrai padrão de temporada (ex: S02E) do nome da pasta e procura por NZBs
+    que contenham esse padrão. Extrai o nome do episódio a partir do subject
+    do primeiro arquivo de dados encontrado em cada NZB.
 
     Retorna lista ordenada de (nzb_path, episode_name) para mesclar e corrigir subjects.
     """
     import glob
+    import re
     from pathlib import Path
 
     ns_url = "http://www.newzbin.com/DTD/2003/nzb"
@@ -358,9 +360,16 @@ def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str
     if not nzb_dir_path.exists():
         return []
 
-    # Procura por NZBs que começam com o prefixo da temporada
-    pattern = str(nzb_dir_path / f"{season_prefix}*.nzb")
-    nzb_files = sorted(glob.glob(pattern))
+    # Extrai padrão de temporada do folder name (ex: S02E de Rick.And.Morty.S02....)
+    season_match = re.search(r'(S\d{2}E?)', season_prefix, re.IGNORECASE)
+    if not season_match:
+        return []
+
+    season_pattern = season_match.group(1)
+
+    # Procura por todos os NZBs e filtra os que contenham o padrão de temporada
+    all_nzbs = sorted(glob.glob(str(nzb_dir_path / "*.nzb")))
+    nzb_files = [f for f in all_nzbs if season_pattern in Path(f).stem]
 
     # Exclui o NZB final da temporada (que tem o mesmo nome da pasta)
     season_final_nzb = str(nzb_dir_path / f"{season_prefix}.nzb")
