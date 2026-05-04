@@ -1,6 +1,6 @@
 # TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Última revisão: 2026-05-04 (pós-estabilização fase 1: 145 testes verdes, 1 skipped)
+> Última revisão: 2026-05-04 (fase 1 completa: 193 testes verdes, 1 skipped)
 > Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
@@ -47,26 +47,23 @@
 
 ### ~~1.8 · Atualizar INSTALL.md~~ ✅ Concluído (commit ae6b39a)
 
-### 1.9 · Testes para `resources.py` `Média · Baixo esforço` ← depende de 1.5
-- `calculate_optimal_resources` tem cobertura zero
-- ≥4 testes: `{pequeno, grande, conservador, override manual}`, `/proc/meminfo` ausente, CPUs=1
+### ~~1.9 · Testes para `resources.py`~~ ✅ Concluído
+- 21 testes: `get_mem_available_mb`, `get_total_size`, `calculate_optimal_resources` (overrides, faixas, limites de memória, estrutura do retorno)
 
-### 1.10 · Testes para `ui.py` (PhaseBar + _TeeStream) `Média · Baixo esforço` ← depende de 1.5
-- `ui.py` tem cobertura zero
-- ≥6 testes: PhaseBar lifecycle (skip→active→done→error), `_TeeStream` strip ANSI completo
+### ~~1.10 · Testes para `ui.py` (PhaseBar + _TeeStream)~~ ✅ Concluído
+- 27 testes: `format_time`, `_TeeStream` (duplicação, strip ANSI, mascaramento de senhas, encoding), `PhaseBar` lifecycle completo (pending→active→done→skipped→error)
 
 ### ~~1.11 · Mascarar senhas em `_TeeStream.write`~~ ✅ Concluído (commit ae6b39a)
 
-### 1.12 · Documentar `examples/` no README (seção Hooks) `Média · Baixo esforço` ← depende de 1.1
-- `examples/post_upload_debug.sh` não mencionado em nenhum doc
+### ~~1.12 · Documentar `examples/` no README (seção Hooks)~~ ✅ Concluído
+- Seção "Hooks Pós-Upload" expandida com tabela `UPAPASTA_*`, referência a `examples/post_upload_debug.sh` e comportamento de timeout/falha
 
 ### ~~1.13 · Remover `__import__("shlex")` inline~~ ✅ Concluído (commit ae6b39a)
 
 ### ~~1.14 · Mover `--profile` para grupo "essenciais"~~ ✅ Concluído (commit ae6b39a)
 
-### 1.15 · Remover/migrar `scripts/check_header.py` `Média · Baixo esforço`
-- Usa `python-dotenv` (não declarado em `pyproject.toml`) — viola stdlib-only
-- Migrar para usar `config.load_env_file` já existente
+### ~~1.15 · Migrar `scripts/check_header.py`~~ ✅ Concluído
+- Substituída dependência `python-dotenv` por `config.load_env_file`; adicionado SSL explícito com `ssl.create_default_context()`
 
 ---
 
@@ -233,8 +230,8 @@
 | 3 | v0.21.x→v1.0 | Features | F3.1–3.15: webhooks, TMDb, 7z, stats, publicação |
 
 **Próximos passos imediatos** (em ordem):
-1. ~~F1.1–F1.8, F1.11, F1.13–F1.14~~ ✅ Concluídos
-2. F1.9 — Testes para `resources.py` (cobertura zero)
-3. F1.10 — Testes para `ui.py` / `_TeeStream` (cobertura zero, inclui teste de mascaramento)
-4. F1.15 — Migrar `scripts/check_header.py` para stdlib
-5. F2.1 — Validação prévia de input (espaço em disco, permissões)
+1. ~~F1.1–F1.15~~ ✅ Fase 1 completa
+2. F2.15 — Bug de segurança `ssl.CERT_NONE` em `nntp_test.py` (S1)
+3. F2.1 — Validação prévia de input (espaço em disco, permissões)
+4. F2.3 — Mensagens de erro de subprocesso parseadas (nyuu stderr)
+5. F2.4 — Retry com backoff exponencial + jitter

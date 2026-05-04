@@ -174,17 +174,35 @@ Recuperável mesmo que os arquivos sejam movidos ou deletados.
 
 ## Hooks Pós-Upload
 
-Configure hooks em `~/.config/upapasta/.env` para executar ações após upload bem-sucedido:
+Configure `POST_UPLOAD_SCRIPT` em `~/.config/upapasta/.env` para executar um script após cada upload bem-sucedido:
 
 ```bash
-HOOK_POST_UPLOAD=curl -X POST http://localhost:5000/upload -d '{"nzb": "%NZB%", "path": "%PATH%"}'
+# ~/.config/upapasta/.env
+POST_UPLOAD_SCRIPT=/home/user/meus_scripts/notificar.sh
 ```
 
-Variáveis disponíveis:
-- `%NZB%` — caminho do arquivo NZB
-- `%PATH%` — caminho original
-- `%SENHA%` — senha (se aplicável)
-- `%CATEGORIA%` — categoria detectada
+O script recebe as seguintes variáveis de ambiente:
+
+| Variável | Descrição |
+|---|---|
+| `UPAPASTA_NZB` | Caminho completo do arquivo NZB gerado |
+| `UPAPASTA_NFO` | Caminho completo do arquivo NFO gerado |
+| `UPAPASTA_SENHA` | Senha RAR (vazia se não houver) |
+| `UPAPASTA_NOME_ORIGINAL` | Nome original da entrada (antes de ofuscação) |
+| `UPAPASTA_NOME_OFUSCADO` | Nome ofuscado usado no upload (igual ao original se sem `--obfuscate`) |
+| `UPAPASTA_TAMANHO` | Tamanho total em bytes |
+| `UPAPASTA_GRUPO` | Grupo Usenet usado no upload |
+
+O script tem timeout de 60 segundos. Se retornar código diferente de 0, o upapasta imprime um aviso mas **não** aborta.
+
+Para depurar o que é recebido, use o exemplo incluído no repositório:
+
+```bash
+# Imprime todas as variáveis UPAPASTA_* recebidas pelo hook
+POST_UPLOAD_SCRIPT=/caminho/para/upapasta/examples/post_upload_debug.sh
+```
+
+O arquivo `examples/post_upload_debug.sh` pode ser usado como ponto de partida para scripts personalizados (notificações Telegram, Discord, indexadores, etc.).
 
 ## Notas Importantes
 
