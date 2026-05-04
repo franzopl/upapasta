@@ -94,6 +94,9 @@
 - 1026 linhas, quebra Single Responsibility
 - Meta: `orchestrator.py < 600 linhas`; cada nova classe testada isoladamente
 
+### 3.0 · Melhorias de Ofuscação
+- [ ] Implementar `--strong-obfuscate`: mantém os nomes aleatórios também dentro do NZB (máxima privacidade em indexadores, requer renomeação manual ou via par2 após download).
+
 ### 2.7 · Refatorar `makepar.py::obfuscate_and_par` em sub-funções por modo `Média · Alto esforço` ← depende de 2.6
 - Função tem 195 linhas com 4 ramos (folder/rar-volset/single-file/erro)
 - Meta: função principal < 60 linhas

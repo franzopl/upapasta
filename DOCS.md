@@ -133,6 +133,12 @@ done
 | `--each` | Processa cada arquivo da pasta individualmente |
 | `--season` | Episódios individuais + NZB único da temporada |
 | `--obfuscate` | Nomes aleatórios nos arquivos RAR/PAR2 antes do upload |
+
+> [!IMPORTANT]
+> **Privacidade e Ofuscação Reversível**
+> O UpaPasta utiliza um método de **ofuscação reversível**. Isso significa que, embora os arquivos sejam enviados para a Usenet com nomes totalmente aleatórios (protegendo contra scans automáticos de DMCA nos headers dos grupos), o arquivo `.nzb` final é processado para restaurar os nomes originais nos "subjects".
+> 
+> Isso permite que o seu leitor (SABnzbd/NZBGet) reconstrua os nomes originais automaticamente ao baixar. **Portanto, quem possui o NZB (ou indexadores onde o NZB foi carregado) verá os nomes originais, mas os arquivos permanecem anônimos e protegidos nos servidores da Usenet.**
 | `--password SENHA` | Protege o RAR com senha; injetada no NZB automaticamente |
 | `--skip-rar` | Não cria RAR — envia arquivos como estão (incompatível com `--password`) |
 | `--dry-run` | Simula tudo sem criar ou enviar arquivos |
