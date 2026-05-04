@@ -723,6 +723,22 @@ class UpaPastaOrchestrator:
         except OSError as e:
             print(f"⚠️  Falha ao restaurar nome original ('{self.input_target}' → '{original}'): {e}")
             print(f"    AÇÃO MANUAL: renomeie '{os.path.basename(self.input_target)}' de volta para '{self.input_path.name}'")
+            return
+
+        # Reverter deep obfuscation dos arquivos internos (rename não cria hardlinks)
+        obf_base = os.path.basename(self.input_target)
+        deep_entries = {k: v for k, v in self.obfuscated_map.items() if k != obf_base}
+        # Ordenar por profundidade decrescente para renomear arquivos antes dos dirs pais
+        for new_rel in sorted(deep_entries, key=lambda p: p.count(os.sep), reverse=True):
+            orig_rel = deep_entries[new_rel]
+            new_full = os.path.join(original, new_rel)
+            orig_full = os.path.join(original, orig_rel)
+            if os.path.exists(new_full) and not os.path.exists(orig_full):
+                try:
+                    os.makedirs(os.path.dirname(orig_full), exist_ok=True)
+                    os.rename(new_full, orig_full)
+                except OSError:
+                    pass
 
     def check_nzb_conflict_early(self) -> bool:
         """Verifica conflito de NZB antecipadamente, antes de qualquer processamento."""
