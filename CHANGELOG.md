@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.23.0 - 2026-05-04
+
+### Novas Features
+
+- **`--strong-obfuscate`**: novo flag para máxima privacidade — mantém nomes aleatórios também dentro do NZB (ninguém em indexadores sabe o conteúdo). Diferente de `--obfuscate` (reversível), requer renomeação manual ou via PAR2 após download. Implica automaticamente `--obfuscate`. Use para releases privados ou conteúdo sensível.
+
+### Melhorias
+
+- **Ofuscação reversível bem documentada**: DOCS.md e README.md agora explicam claramente a diferença entre `--obfuscate` (proteção DMCA + conveniência) e `--strong-obfuscate` (privacidade máxima).
+- **CLAUDE.md atualizado**: seção "Comportamentos Sutis" documenta a implementação de ofuscação em `fix_nzb_subjects` e fluxo em `obfuscate_and_par`.
+
 ## 0.22.3 - 2026-05-04
 
 ### Correções (Bugfix)

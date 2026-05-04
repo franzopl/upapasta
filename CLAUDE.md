@@ -207,7 +207,8 @@ ls -la ~/.config/upapasta/nzb/
 ## 9. Comportamentos Sutis
 
 - **Pastas vazias**: NNTP só carrega arquivos. PAR2 idem. Em `--skip-rar` (default agora), subdirs sem arquivos somem no destino. O orchestrator detecta em runtime e imprime aviso. Para preservar: usar `--rar` (RAR mantém diretórios vazios) ou colocar `.keep` sentinela.
-- **Obfuscação parcial**: `--obfuscate` sem `--rar` é o fluxo recomendado em 2026. Estrutura interna fica protegida pelo `_deep_obfuscate_tree` (renomeia tudo) + reverso pelo NZB via `obfuscated_map`.
+- **Ofuscação reversível** (`--obfuscate`): renomeia arquivos antes do upload, mas `fix_nzb_subjects` restaura os nomes originais no NZB usando `obfuscated_map`. A estrutura interna é protegida por `_deep_obfuscate_tree` (renomeia arquivos/diretórios dentro de pastas). Recomendado em 2026: proteção balanceada contra DMCA + conveniência de download.
+- **Ofuscação máxima** (`--strong-obfuscate`): implica `--obfuscate`, mas `fix_nzb_subjects` pula a reversão quando `strong_obfuscate=True`. Resultado: nomes aleatórios em TUDO (arquivos, estrutura, subjects). Máxima privacidade; requer renomeação manual ou via PAR2 após download. Use para releases privados ou conteúdo sensível.
 - **Senha sem RAR**: `--password` sem `--rar` agora **presume `--rar`** automaticamente (válido a partir de 0.18.0). `--skip-rar` + `--password` ainda é erro fatal (legado).
 - **Slice dinâmico**: `make_parity` calcula slice = `ARTICLE_SIZE * 2`, escalonado por tamanho total: ≤50 GB→base; ≤100 GB→×1.5; ≤200 GB→×2; >200 GB→×2.5. Clamp 1 MiB–4 MiB. `-S` (auto-scaling) sempre ativo; `--min-input-slices`/`--max-input-slices` ajustados dinamicamente.
 - **`backend=par2` + `--skip-rar` em pasta com subdirs**: aviso explícito — par2 clássico não grava paths. O orchestrator sugere migrar para `parpar`.

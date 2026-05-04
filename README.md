@@ -67,6 +67,9 @@ upapasta /movies/Nosferatu.1922.mkv --obfuscate
 
 # Arquivo: cria RAR com senha (não obfusca nomes)
 upapasta /movies/Nosferatu.1922.mkv --password "xyz789"
+
+# Máxima privacidade: nomes aleatórios em TUDO (indexadores não veem nada)
+upapasta /files/Confidential/ --strong-obfuscate
 ```
 
 ### Modo Watch (Daemon)
@@ -135,7 +138,8 @@ $ upapasta /path/to/folder
 
 **Ofuscação e Proteção:**
 ```
---obfuscate             Nomes aleatórios + senha gerada (senha só usada com RAR)
+--obfuscate             Nomes aleatórios; NZB restaura nomes originais (ofuscação reversível)
+--strong-obfuscate      Máxima privacidade: nomes aleatórios também no NZB (implica --obfuscate)
 --password SENHA        Define senha RAR manualmente (presume --rar automaticamente)
 ```
 
@@ -207,6 +211,10 @@ O arquivo `examples/post_upload_debug.sh` pode ser usado como ponto de partida p
 ## Notas Importantes
 
 **Obfuscação e Senha:**
+- `--obfuscate` (padrão): ofuscação reversível — nomes aleatórios nos arquivos, mas NZB restaura nomes originais
+- `--strong-obfuscate`: máxima privacidade — nomes aleatórios em TUDO (arquivos, estrutura, NZB subjects)
+  - Requer renomeação manual ou via PAR2 após download (não é conveniente para uso regular)
+  - Use apenas quando privacidade máxima for crítica (releases privados, conteúdo sensível)
 - `--obfuscate` gera uma senha automaticamente, MAS ela só é injetada no NZB se houver RAR (use `--obfuscate --rar`)
 - `--password` presume automaticamente `--rar` (proteger com senha requer RAR)
 - Fluxo moderno (sem RAR): proteção via nomes aleatórios + parpar apenas

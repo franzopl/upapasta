@@ -83,11 +83,17 @@ upapasta Episodio.S01E01.mkv
 upapasta Temporada.1/ --each
 ```
 
-**Release com nomes ofuscados:**
+**Release com nomes ofuscados (ofuscação reversível):**
 ```bash
 upapasta Pasta/ --obfuscate
 ```
-> Renomeia RAR e PAR2 com nomes aleatórios antes do upload. O NZB é salvo com o nome original. Senha aleatória gerada automaticamente e injetada no NZB.
+> Renomeia RAR e PAR2 com nomes aleatórios. O NZB é processado para restaurar nomes originais nos subjects. Baixadores veem os nomes originais; Usenet vê nomes aleatórios. Senha aleatória gerada automaticamente.
+
+**Release com máxima privacidade (nomes aleatórios em tudo):**
+```bash
+upapasta Pasta/ --strong-obfuscate
+```
+> Nomes aleatórios em TUDO: arquivos, estrutura interna e subjects do NZB. Ninguém em indexadores sabe o conteúdo. Requer renomeação manual ou via PAR2 após download.
 
 **Release com senha RAR:**
 ```bash
@@ -132,13 +138,23 @@ done
 |-------|-----------|
 | `--each` | Processa cada arquivo da pasta individualmente |
 | `--season` | Episódios individuais + NZB único da temporada |
-| `--obfuscate` | Nomes aleatórios nos arquivos RAR/PAR2 antes do upload |
+| `--obfuscate` | Nomes aleatórios nos arquivos RAR/PAR2 antes do upload (ofuscação reversível) |
+| `--strong-obfuscate` | Máxima privacidade: nomes aleatórios também dentro do NZB (implica `--obfuscate`) |
 
 > [!IMPORTANT]
-> **Privacidade e Ofuscação Reversível**
-> O UpaPasta utiliza um método de **ofuscação reversível**. Isso significa que, embora os arquivos sejam enviados para a Usenet com nomes totalmente aleatórios (protegendo contra scans automáticos de DMCA nos headers dos grupos), o arquivo `.nzb` final é processado para restaurar os nomes originais nos "subjects".
-> 
-> Isso permite que o seu leitor (SABnzbd/NZBGet) reconstrua os nomes originais automaticamente ao baixar. **Portanto, quem possui o NZB (ou indexadores onde o NZB foi carregado) verá os nomes originais, mas os arquivos permanecem anônimos e protegidos nos servidores da Usenet.**
+> **Ofuscação: Dois Modos**
+>
+> **`--obfuscate` (ofuscação reversível, padrão)**
+> - Arquivos enviados com nomes aleatórios (protegem contra scans automáticos de DMCA)
+> - NZB processado para restaurar os nomes originais nos subjects
+> - Quem tem o NZB vê os nomes originais; arquivos na Usenet ficam anônimos
+> - **Recomendado**: proteção balanceada contra automação + conveniência de download
+>
+> **`--strong-obfuscate` (máxima privacidade)**
+> - Nomes aleatórios em TUDO: arquivos, estrutura interna e subjects do NZB
+> - Ninguém em indexadores sabe o que tem dentro
+> - Requer renomeação manual ou via PAR2 após download
+> - **Use quando**: privacidade máxima for crítica (releases privados, conteúdo sensível)
 | `--password SENHA` | Protege o RAR com senha; injetada no NZB automaticamente |
 | `--skip-rar` | Não cria RAR — envia arquivos como estão (incompatível com `--password`) |
 | `--dry-run` | Simula tudo sem criar ou enviar arquivos |
