@@ -68,7 +68,9 @@ pip install -e .
 
 ### Configuração de Credenciais
 
-Na primeira vez que você executar o `upapasta`, o script irá verificar se as credenciais de Usenet estão configuradas. Se não estiverem, ele solicitará que você as insira e as salvará em um arquivo `.env` no diretório de trabalho atual.
+Na primeira vez que você executar o `upapasta`, o wizard interativo irá verificar se as credenciais de Usenet estão configuradas. Se não estiverem, ele solicitará que você as insira e as salvará em `~/.config/upapasta/.env`. Para reconfigurar a qualquer momento: `upapasta --config`.
+
+Veja `examples/post_upload_debug.sh` para um exemplo de hook pós-upload configurável via `POST_UPLOAD_SCRIPT`.
 
 ### Executando o UpaPasta
 

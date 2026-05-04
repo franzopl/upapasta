@@ -28,8 +28,11 @@ class _TeeStream(io.TextIOBase):
     def write(self, s: str) -> int:
         self._original.write(s)
         self._original.flush()
-        # Remove sequências ANSI antes de gravar no log
         clean = re.sub(r'\x1b\[[0-9;]*[mABCDEFGHJKSTfhilmns]', '', s)
+        # Mascara valores sensíveis antes de gravar no log em disco
+        clean = re.sub(r'(?i)(senha\s+rar:\s*)\S+', r'\1***', clean)
+        clean = re.sub(r'(?i)(NNTP_PASS=)\S+', r'\1***', clean)
+        clean = re.sub(r'(?i)(-hp)\S+', r'\1***', clean)
         self._log.write(clean)
         self._log.flush()
         return len(s)

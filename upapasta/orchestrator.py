@@ -11,6 +11,7 @@ import logging
 import os
 import re
 import secrets
+import shlex
 import shutil
 import string
 import time
@@ -210,11 +211,11 @@ class UpaPastaOrchestrator:
             max_memory_mb=args.max_memory,
             filepath_format=getattr(args, "filepath_format", "common"),
             parpar_extra_args=(
-                __import__("shlex").split(args.parpar_args)
+                shlex.split(args.parpar_args)
                 if getattr(args, "parpar_args", None) else None
             ),
             nyuu_extra_args=(
-                __import__("shlex").split(args.nyuu_args)
+                shlex.split(args.nyuu_args)
                 if getattr(args, "nyuu_args", None) else None
             ),
             rename_extensionless=getattr(args, "rename_extensionless", False),

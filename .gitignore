@@ -55,6 +55,7 @@ logs/
 *.par2
 *.vol*.par2
 *.nzb
+*.nfo
 checkpoint.json
 upapasta.db
 nzb
