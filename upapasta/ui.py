@@ -13,7 +13,7 @@ import re
 import sys
 import time
 from datetime import datetime
-from typing import Optional
+from typing import Optional, cast
 
 logger = logging.getLogger("upapasta")
 
@@ -42,8 +42,9 @@ class _TeeStream(io.TextIOBase):
         self._log.flush()
 
     @property
-    def encoding(self):
-        return getattr(self._original, 'encoding', 'utf-8')
+    def encoding(self) -> str:  # type: ignore[override]
+        enc = getattr(self._original, 'encoding', 'utf-8')
+        return enc if isinstance(enc, str) else 'utf-8'
 
     def fileno(self):
         return self._original.fileno()
@@ -86,13 +87,18 @@ def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple:
     log_fh = open(log_path, "w", encoding="utf-8", buffering=1)
     log_fh.write(f"# UpaPasta — log de sessão\n# Início: {datetime.now().isoformat()}\n# Entrada: {input_name}\n\n")
 
-    sys.stdout = _TeeStream(sys.__stdout__, log_fh)
+    original_stdout = sys.__stdout__
+    if original_stdout is None:
+        original_stdout = sys.stdout  # type: ignore[assignment]
+    tee_stream = _TeeStream(original_stdout, log_fh)  # type: ignore[arg-type]
+    sys.stdout = tee_stream
     return log_path, log_fh
 
 
 def teardown_session_log(log_fh: Optional[io.TextIOBase], log_path: str) -> None:
     """Restaura stdout e fecha o arquivo de log."""
-    sys.stdout = sys.__stdout__
+    original = sys.__stdout__ or sys.stdout
+    sys.stdout = cast(io.TextIOWrapper, original)
     if log_fh:
         log_fh.write(f"\n# Fim: {datetime.now().isoformat()}\n")
         log_fh.close()

@@ -601,9 +601,11 @@ def make_parity(
         return 2
 
     profile_config = PROFILES[profile]
+    if not isinstance(profile_config, dict):
+        profile_config = {}
 
     if redundancy is None:
-        redundancy = profile_config["redundancy"]
+        redundancy = int(profile_config.get("redundancy", 10))
 
     rar_path = os.path.abspath(rar_path)
     if not os.path.exists(rar_path):

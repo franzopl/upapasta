@@ -428,11 +428,10 @@ def upload_to_usenet(
             print(f"\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max_attempts}...")
             time.sleep(wait)
             print(f"\nTentativa {attempt}/{max_attempts} de upload...")
+        stderr_data = ""
         try:
-            with managed_popen(cmd, cwd=working_dir) as proc:
-                last_rc = proc.wait()
-
-            stderr_data = ""
+            with managed_popen(cmd, cwd=working_dir) as proc:  # type: ignore[assignment]
+                last_rc = proc.wait()  # type: ignore[attr-defined]
             if last_rc == 0:
                 break
             print(f"\nErro: nyuu retornou código {last_rc}.")

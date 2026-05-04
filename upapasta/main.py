@@ -24,12 +24,14 @@ def main():
     args = parse_args()
 
     # Resolver arquivo de env: --profile > --env-file > padrão
-    profile = getattr(args, "profile", None)
+    profile: str | None = getattr(args, "profile", None)
     if profile:
-        env_file = resolve_env_file(profile)
+        env_file: str = resolve_env_file(profile)
     else:
-        env_file = getattr(args, "env_file", None)
-        if not env_file:
+        env_file_arg = getattr(args, "env_file", None)
+        if env_file_arg:
+            env_file = str(env_file_arg)
+        else:
             env_file = resolve_env_file()
 
     if getattr(args, "config", False):

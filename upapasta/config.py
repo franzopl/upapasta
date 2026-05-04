@@ -40,7 +40,7 @@ DEFAULT_GROUP_POOL = (
 )
 
 
-def _ask(prompt: str, default: str = None, validator=None, secret: bool = False) -> str:
+def _ask(prompt: str, default: str | None = None, validator=None, secret: bool = False) -> str:
     hint = f" [{default}]" if default is not None else ""
     while True:
         if secret:
@@ -75,7 +75,8 @@ def _write_full_env(env_file: str, values: dict) -> None:
     merged = {**existing, **values}
 
     def v(key: str) -> str:
-        return merged.get(key, "")
+        val = merged.get(key, "")
+        return val if isinstance(val, str) else ""
 
     lines = [
         "# Configuração para upload em Usenet com nyuu",
@@ -199,10 +200,10 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict:
     """Solicita credenciais ao usuário e salva um .env completo com todos os campos."""
     existing = load_env_file(env_file) if (force and os.path.exists(env_file)) else {}
 
-    def ex(key: str, fallback: str) -> str:
+    def ex(key: str, fallback: str | None) -> str | None:
         return existing.get(key) or fallback
 
-    def ex_secret(key: str) -> str:
+    def ex_secret(key: str) -> str | None:
         """Retorna '****' se já existe valor, senão None (obriga preenchimento)."""
         return "****" if existing.get(key) else None
 
@@ -222,10 +223,10 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict:
     print()
 
     print("── Servidor NNTP ─────────────────────────────────────")
-    host = _ask("Servidor NNTP (ex: news.eweka.nl)", default=ex("NNTP_HOST", None), validator=lambda v: (True if v and " " not in v else (print("    Endereço inválido.") or False)))
-    port = _ask("Porta NNTP", default=ex("NNTP_PORT", "563"), validator=_is_numeric_port)
-    ssl  = _ask("Usar SSL/TLS?", default=ex("NNTP_SSL", "true"), validator=lambda v: (True if v.lower() in ("true", "false") else (print("    Digite true ou false.") or False)))
-    user = _ask("Usuário NNTP", default=ex("NNTP_USER", None))
+    host = _ask("Servidor NNTP (ex: news.eweka.nl)", default=ex("NNTP_HOST", None) or "", validator=lambda v: (True if v and " " not in v else (print("    Endereço inválido.") or False)))
+    port = _ask("Porta NNTP", default=ex("NNTP_PORT", "563") or "563", validator=_is_numeric_port)
+    ssl  = _ask("Usar SSL/TLS?", default=ex("NNTP_SSL", "true") or "true", validator=lambda v: (True if v.lower() in ("true", "false") else (print("    Digite true ou false.") or False)))
+    user = _ask("Usuário NNTP", default=ex("NNTP_USER", None) or "")
 
     # Senha: se já existe, permite manter com Enter
     passwd_hint = ex_secret("NNTP_PASS")

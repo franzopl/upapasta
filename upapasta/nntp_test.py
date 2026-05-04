@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import ssl
 import sys
+from typing import Any
 
 try:
     import nntplib
 except ImportError:
-    nntplib = None
+    nntplib = None  # type: ignore[assignment]
 
 
 def test_nntp_connection(
@@ -41,6 +42,7 @@ def test_nntp_connection(
         return False, "❌ nntplib não disponível no seu ambiente."
 
     try:
+        nntp: Any = None  # noqa: F841
         if use_ssl:
             context = ssl.create_default_context()
             if insecure:

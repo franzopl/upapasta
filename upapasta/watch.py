@@ -69,8 +69,10 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
                 ts = datetime.now().strftime("%H:%M:%S")
                 char = spinner[spinner_idx % len(spinner)]
                 # Use sys.__stdout__ para garantir que o spinner não vá para o arquivo de log
-                sys.__stdout__.write(f"\r[{ts}] {char} Ocioso: aguardando novos arquivos...   ")
-                sys.__stdout__.flush()
+                stdout_real = sys.__stdout__
+                if stdout_real is not None:
+                    stdout_real.write(f"\r[{ts}] {char} Ocioso: aguardando novos arquivos...   ")
+                    stdout_real.flush()
                 spinner_idx += 1
 
             # Divide o intervalo em pequenos passos para o spinner ser fluido
@@ -82,8 +84,10 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
 
         # Limpa a linha do spinner antes de mostrar novos itens
         if sys.stdout.isatty():
-            sys.__stdout__.write("\r" + " " * 60 + "\r")
-            sys.__stdout__.flush()
+            stdout_real = sys.__stdout__
+            if stdout_real is not None:
+                stdout_real.write("\r" + " " * 60 + "\r")
+                stdout_real.flush()
 
         print(f"\n{'🔔' if len(new_items) == 1 else '🔔🔔'} {len(new_items)} novo(s) item(ns) detectado(s)!")
         for item in new_items:

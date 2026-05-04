@@ -43,7 +43,8 @@ def resolve_nzb_basename(
             return original_name if original_name else obfuscated_basename
         else:
             # Valor já é base name sem extensão — não aplicar splitext novamente
-            return next(iter(obfuscated_map.values()))
+            val = next(iter(obfuscated_map.values()))
+            return val if isinstance(val, str) else ""
 
     basename = os.path.basename(input_path)
     if not is_folder:
@@ -293,8 +294,8 @@ def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, 
 
         for file_elem in files:
             old_subj = file_elem.get("subject", "")
-            ep_name = subject_to_ep.get(old_subj)
-            if ep_name is None:
+            episode_name: str | None = subject_to_ep.get(old_subj)
+            if episode_name is None:
                 continue
 
             m = re.search(r'"(.*?)"', old_subj)
@@ -302,6 +303,8 @@ def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, 
                 continue
 
             fname = m.group(1)
+            if episode_name:
+                fname = fname.replace(old_subj.split('"')[1], episode_name)
             # Remove prefixo de pasta existente (pode ser nome ofuscado ou errado)
             if "/" in fname:
                 fname = fname.split("/", 1)[1]

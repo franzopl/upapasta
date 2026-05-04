@@ -306,6 +306,7 @@ class UpaPastaOrchestrator:
     def _run_makepar_obfuscated(self, resolver: PathResolver) -> bool:
         print("🔐 Ofuscando arquivos e gerando paridade...")
         print("-" * 60)
+        assert self.input_target is not None, "input_target não foi configurado"
         try:
             rc, obfuscated_path, obf_map, was_linked = obfuscate_and_par(
                 self.input_target,
@@ -331,6 +332,7 @@ class UpaPastaOrchestrator:
             print(f"\n❌ Erro ao ofuscar/gerar paridade (código {rc}).")
             return False
 
+        assert obfuscated_path is not None, "obfuscated_path não definido"
         self.obfuscated_map = obf_map
         self.obfuscate_was_linked = was_linked
         self.input_target = obfuscated_path
@@ -343,6 +345,7 @@ class UpaPastaOrchestrator:
         self.subject = obf_base_no_ext
         print(f"✨ Subject ofuscado: {self.subject}")
 
+        assert self.input_target is not None, "input_target não foi configurado após ofuscação"
         self.par_file = resolver.par_file_path(self.input_target)
         if os.path.exists(self.par_file):
             return True
@@ -352,6 +355,7 @@ class UpaPastaOrchestrator:
     def _run_makepar_plain(self, resolver: PathResolver) -> bool:
         print(f"🔐 Gerando paridade (perfil: {self.par_profile})...")
         print("-" * 60)
+        assert self.input_target is not None, "input_target não foi configurado"
         try:
             rc = make_parity(
                 self.input_target,
@@ -375,6 +379,7 @@ class UpaPastaOrchestrator:
         if rc != 0:
             print("-" * 60)
             print(f"\n❌ Erro ao gerar paridade (código {rc}).")
+            assert self.input_target is not None, "input_target não foi configurado"
             return handle_par_failure(
                 input_target=self.input_target,
                 original_rc=rc,
@@ -389,6 +394,7 @@ class UpaPastaOrchestrator:
             )
 
         print("-" * 60)
+        assert self.input_target is not None, "input_target não foi configurado"
         self.par_file = resolver.par_file_path(self.input_target)
         return True
 
@@ -405,6 +411,7 @@ class UpaPastaOrchestrator:
         print("=" * 60)
 
         try:
+            assert self.input_target is not None, "input_target não foi configurado"
             if self.nzb_conflict:
                 self.env_vars['NZB_CONFLICT'] = self.nzb_conflict
             rc = upload_to_usenet(

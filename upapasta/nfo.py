@@ -25,11 +25,12 @@ def find_mediainfo() -> str | None:
 
 
 def _format_size(size_bytes: int) -> str:
+    size_float: float = float(size_bytes)
     for unit in ("B", "KB", "MB", "GB", "TB"):
-        if size_bytes < 1024 or unit == "TB":
-            return f"{size_bytes:.2f} {unit}" if unit != "B" else f"{size_bytes} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.2f} TB"
+        if size_float < 1024 or unit == "TB":
+            return f"{size_float:.2f} {unit}" if unit != "B" else f"{int(size_float)} {unit}"
+        size_float /= 1024
+    return f"{size_float:.2f} TB"
 
 
 def _get_video_info(file_path: str) -> tuple[float, dict]:
@@ -284,8 +285,8 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         lines.extend(tree_lines)
         lines.append(f"\n{total_dirs} diretorios, {total_files_in_tree} arquivos, {_format_size(total_size)}")
 
-        with open(nfo_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines))
+        with open(nfo_path, "w", encoding="utf-8") as nfo_fh:
+            nfo_fh.write("\n".join(lines))
         return True
     except Exception as e:
         print(f"Atenção: falha ao gerar NFO de pasta: {e}")
