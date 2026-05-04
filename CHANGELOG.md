@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.21.0 - 2026-05-04
+
+### Novas Features
+
+- **ETA pré-pipeline**: estimativa de tempo de upload exibida antes do início do pipeline, calculada por conexões NNTP (500 KB/s por conexão).
+- **Validação antecipada**: `orchestrator.validate()` verifica espaço em disco (≥2× tamanho da fonte) e permissões de leitura antes de iniciar o pipeline.
+- **`--insecure` em `--test-connection`**: desativa verificação de certificado CA para servidores com certificados auto-assinados.
+- **CA certs por padrão** em `--test-connection`: usa `ssl.create_default_context()` com verificação completa de cadeia.
+
+### Melhorias
+
+- **`_progress.py`** (novo módulo): extrai `_read_output` e `_process_output` de `makerar.py` e `makepar.py`, eliminando duplicação.
+- **`nfo._get_video_info()`**: uma única chamada `ffprobe` substitui `_get_video_duration` + `_get_video_metadata` (menos subprocessos).
+- **`resources.get_total_size`**: cache `@lru_cache(maxsize=64)` evita re-walk do filesystem durante o pipeline.
+- **Retry com backoff exponencial**: uploads repetem com delays 30s→90s→270s + jitter ±10%; stderr do nyuu lido em thread separada para não bloquear retry.
+- **Tradução de erros nyuu** em `upfolder._parse_nyuu_stderr()`: mapeia códigos 401, 502, timeout, SSL e ECONNREFUSED para mensagens legíveis.
+- **Limpeza de PAR2 parciais** em `obfuscate_and_par`: bloco `finally` remove `random_base*.par2` e `orig*.par2` em caso de falha.
+- **Timestamp ISO** nos logs: handler de stream exibe timestamp quando `--verbose`; handler de arquivo sempre exibe.
+
+### Testes
+
+- `tests/test_phase2.py` (389 linhas, 219 testes verdes): cobertura de validação, ETA, retry, tradução de erros, cache de recursos, limpeza PAR2, e refatoração de progress.
+- `tests/test_ui.py` (241 linhas): 27 testes para `PhaseBar`, `_TeeStream` e `format_time` (cobertura zero anterior).
+- `tests/test_resources.py` (184 linhas): cobertura de `calculate_optimal_resources` e `get_total_size`.
+- `tests/test_watch.py`: testes para `_item_size` (arquivo/pasta/inexistente) e `_watch_loop` com mock.
+
+### Correções
+
+- **`scripts/check_header.py`**: removida dependência `python-dotenv`; usa `config.load_env_file` + `ssl.create_default_context` (stdlib-only).
+- **`--season` integração**: testes de integração suspensos temporariamente (mock de round-trip pendente).
+
+### Documentação
+
+- **README.md**: seção "Hooks Pós-Upload" expandida com tabela completa de variáveis `UPAPASTA_*` e referência a `examples/`.
+- **`examples/post_upload_debug.sh`**: exemplo de hook adicionado ao repositório.
+
 ## 0.16.1 - 2026-04-30
 
 ### Correções (Fixes)
