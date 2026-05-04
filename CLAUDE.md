@@ -53,7 +53,7 @@ upapasta Pasta/ --obfuscate --backend parpar \
 
 ## 3. Arquitetura Modular (v0.18.0)
 
-Diretório: `upapasta/` (16 módulos, ~5.2k linhas Python). Linhas atualizadas via `wc -l upapasta/*.py`.
+Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas via `wc -l upapasta/*.py`.
 
 | Módulo | Linhas | Responsabilidade |
 |---|---|---|
@@ -71,7 +71,9 @@ Diretório: `upapasta/` (16 módulos, ~5.2k linhas Python). Linhas atualizadas v
 | `nzb.py` | 405 | `resolve_nzb_template`, `resolve_nzb_basename`, `resolve_nzb_out`, `handle_nzb_conflict` (rename/overwrite/fail), `inject_nzb_password` (`<meta type="password">`), `fix_nzb_subjects` (deofuscação + path), `fix_season_nzb_subjects`, `merge_nzbs`, `collect_season_nzbs` |
 | `cli.py` | 407 | `argparse` com 3 grupos (essenciais/ajuste/avançadas), `_USAGE_SHORT`, `_DESCRIPTION`, `_EPILOG`, `check_dependencies`, `_validate_flags` |
 | `upfolder.py` | 457 | `upload_to_usenet`: nyuu **sem cópia para /tmp** (paths relativos preservam subpastas); pool de grupos via `random.choice`; uploader anônimo aleatório; retry automático; verificação XML do NZB; injeção de senha pós-upload |
-| `makepar.py` | 971 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `make_parity` aceita `filepath_format` e `parpar_extra_args`; `obfuscate_and_par` (hardlink+rollback via try/finally em todas as saídas, incluindo KeyboardInterrupt); `_deep_obfuscate_tree` (renomeia árvore inteira em `--skip-rar`); `handle_par_failure` (retry conservador automático) |
+| `makepar.py` | 853 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `make_parity` aceita `filepath_format` e `parpar_extra_args`; `obfuscate_and_par` refatorado em subfunções (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure); `handle_par_failure` (retry conservador automático) |
+| `_pipeline.py` | 601 | Classes auxiliares do orchestrator: `DependencyChecker` (valida entrada/disco), `PathResolver` (NZB/NFO/PAR2 paths), `PipelineReporter` (banner/stats/sumário/catálogo); funções standalone: `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources` |
+| `orchestrator.py` | 599 | `UpaPastaOrchestrator` (workflow completo, delegando às classes de `_pipeline.py`) + `UpaPastaSession` (context manager de cleanup); `from_args` classmethod |
 | `orchestrator.py` | 1026 | `UpaPastaOrchestrator` (workflow completo) + `UpaPastaSession` (context manager OBRIGATÓRIO de cleanup); `from_args` classmethod; `run_generate_nfo`, `run_makerar`, `run_makepar`, `run_upload`, `_cleanup_on_error`, `_revert_obfuscation`; helpers `normalize_extensionless` / `revert_extensionless` |
 
 ---

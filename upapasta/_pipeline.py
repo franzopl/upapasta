@@ -1,0 +1,601 @@
+"""
+_pipeline.py
+
+Classes auxiliares do UpaPastaOrchestrator:
+  - DependencyChecker  : valida entrada, permissões e disco
+  - PathResolver       : resolve caminhos NZB/NFO/PAR2
+  - PipelineReporter   : banner, estatísticas, sumário e catálogo
+
+Funções auxiliares standalone:
+  - normalize_extensionless / revert_extensionless
+  - do_cleanup_files        : remove RAR e PAR2 gerados
+  - revert_obfuscation      : restaura nomes originais ou remove hardlinks
+  - recalculate_resources   : dimensiona threads/memória para a entrada
+"""
+
+from __future__ import annotations
+
+import glob
+import os
+import re
+import shutil
+from pathlib import Path
+from typing import Optional
+
+from .resources import get_total_size, calculate_optimal_resources
+
+
+# ── Funções utilitárias de extensão (re-exportadas por orchestrator) ─────────
+
+def normalize_extensionless(root: str, suffix: str = ".bin") -> dict[str, str]:
+    """Renomeia recursivamente arquivos sem extensão para `<nome>{suffix}`.
+
+    Mitigação para SABnzbd com "Unwanted Extensions": arquivos sem extensão
+    recebem .txt no destino, quebrando hashes e estrutura.
+
+    Retorna dict {novo_caminho_absoluto: caminho_original_absoluto}.
+    """
+    mapping: dict[str, str] = {}
+
+    def _rename_one(path: str) -> None:
+        base = os.path.basename(path)
+        if "." in base and not base.startswith(".") and os.path.splitext(base)[1]:
+            return
+        if base.startswith("."):
+            return
+        new = path + suffix
+        if os.path.exists(new):
+            return
+        os.rename(path, new)
+        mapping[os.path.abspath(new)] = os.path.abspath(path)
+
+    if os.path.isfile(root):
+        _rename_one(root)
+        return mapping
+
+    for dirpath, _dirs, files in os.walk(root):
+        for f in files:
+            _rename_one(os.path.join(dirpath, f))
+    return mapping
+
+
+def revert_extensionless(mapping: dict[str, str]) -> None:
+    """Desfaz normalize_extensionless. Tolerante a entradas já revertidas."""
+    for new_path, original in mapping.items():
+        if os.path.exists(new_path) and not os.path.exists(original):
+            try:
+                os.rename(new_path, original)
+            except OSError:
+                pass
+
+
+# ── DependencyChecker ─────────────────────────────────────────────────────────
+
+class DependencyChecker:
+    """Valida a entrada e o ambiente antes de iniciar o pipeline."""
+
+    @staticmethod
+    def validate(input_path: Path, dry_run: bool) -> bool:
+        """Verifica existência, permissões de leitura e espaço em disco."""
+        if not input_path.exists():
+            print(f"Erro: arquivo ou pasta '{input_path}' não existe.")
+            return False
+
+        if not input_path.is_dir() and not input_path.is_file():
+            print(f"Erro: '{input_path}' não é um arquivo nem um diretório.")
+            return False
+
+        unreadable = []
+        if input_path.is_file():
+            if not os.access(str(input_path), os.R_OK):
+                unreadable.append(str(input_path))
+        else:
+            for dirpath, _dirs, files in os.walk(str(input_path)):
+                for f in files:
+                    fp = os.path.join(dirpath, f)
+                    if not os.access(fp, os.R_OK):
+                        unreadable.append(fp)
+        if unreadable:
+            print(f"Erro: {len(unreadable)} arquivo(s) sem permissão de leitura:")
+            for p in unreadable[:5]:
+                print(f"  {p}")
+            if len(unreadable) > 5:
+                print(f"  ... e mais {len(unreadable) - 5}")
+            return False
+
+        if not dry_run:
+            source_size = get_total_size(str(input_path))
+            try:
+                stat = shutil.disk_usage(str(input_path.parent))
+                needed = source_size * 2
+                if stat.free < needed:
+                    free_gb = stat.free / (1024 ** 3)
+                    needed_gb = needed / (1024 ** 3)
+                    source_gb = source_size / (1024 ** 3)
+                    print(
+                        f"Erro: espaço insuficiente em disco.\n"
+                        f"  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | Livre: {free_gb:.2f} GB\n"
+                        f"  Libere espaço ou use --dry-run para simular."
+                    )
+                    return False
+            except OSError:
+                pass
+
+        return True
+
+
+# ── PathResolver ──────────────────────────────────────────────────────────────
+
+class PathResolver:
+    """Resolve caminhos de saída para NZB, NFO e PAR2."""
+
+    def __init__(
+        self,
+        env_vars: dict,
+        input_path: Path,
+        skip_rar: bool,
+        nzb_conflict: Optional[str],
+        subject: str,
+    ) -> None:
+        self.env_vars = env_vars
+        self.input_path = input_path
+        self.skip_rar = skip_rar
+        self.nzb_conflict = nzb_conflict
+        self.subject = subject
+
+    def _effective_env(self) -> dict:
+        env = self.env_vars.copy()
+        if self.nzb_conflict:
+            env["NZB_CONFLICT"] = self.nzb_conflict
+        return env
+
+    def nfo_path(self) -> tuple[str, str]:
+        """Retorna (nfo_path_absoluto, nzb_dir)."""
+        from .nzb import resolve_nzb_template
+        from .config import render_template
+
+        env = self._effective_env()
+        nzb_template = resolve_nzb_template(env, self.input_path.is_dir(), self.skip_rar)
+
+        basename = self.subject
+        video_exts = (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm")
+        if basename.lower().endswith(video_exts):
+            basename = os.path.splitext(basename)[0]
+
+        nzb_filename = render_template(nzb_template, basename)
+
+        if os.path.isabs(nzb_filename):
+            nzb_dir = os.path.dirname(nzb_filename)
+            nfo_filename = os.path.splitext(os.path.basename(nzb_filename))[0] + ".nfo"
+        else:
+            nzb_dir = env.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+            nfo_filename = os.path.splitext(nzb_filename)[0] + ".nfo"
+
+        return os.path.join(nzb_dir, nfo_filename), nzb_dir
+
+    @staticmethod
+    def par_file_path(input_target: str) -> str:
+        """Retorna o caminho esperado do .par2 para input_target."""
+        stem = os.path.splitext(input_target)[0]
+        if input_target.endswith(".rar") and ".part" in stem:
+            stem = stem.rsplit(".part", 1)[0]
+        return stem + ".par2"
+
+    def check_nzb_conflict(
+        self,
+        input_target: Optional[str],
+        skip_upload: bool,
+        dry_run: bool,
+    ) -> bool:
+        """Verifica conflito de NZB antecipadamente."""
+        from .nzb import resolve_nzb_out, handle_nzb_conflict
+
+        if skip_upload or dry_run:
+            return True
+
+        path = input_target or str(self.input_path)
+        is_folder = os.path.isdir(path)
+        env = self._effective_env()
+        working_dir = env.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+        nzb_out, nzb_out_abs = resolve_nzb_out(path, env, is_folder, self.skip_rar, working_dir)
+        _, _, _, ok = handle_nzb_conflict(nzb_out, nzb_out_abs, env)
+        return ok
+
+
+# ── PipelineReporter ──────────────────────────────────────────────────────────
+
+class PipelineReporter:
+    """Formata e exibe o progresso, resultado e catálogo do pipeline."""
+
+    @staticmethod
+    def print_header(
+        input_path: Path,
+        res: dict,
+        subject: str,
+        par_profile: str,
+        post_size: Optional[str],
+        rar_threads: int,
+        par_threads: int,
+        rar_src: str,
+        par_src: str,
+        obfuscate: bool,
+        rar_password: Optional[str],
+        dry_run: bool,
+        eta_str: str,
+        nntp_connections: int,
+    ) -> None:
+        from .ui import format_time as _ft  # noqa: F401 — evita import circular no topo
+        mem_gb = res["max_memory_mb"] / 1024
+        print("\n" + "=" * 60)
+        print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
+        print("=" * 60)
+        print(f"📁 Entrada:     {input_path.name}")
+        print(f"📦 Tamanho:     {res['total_gb']} GB")
+        print(f"⏱  ETA upload:  ~{eta_str} @ {nntp_connections} conexões (estimativa)")
+        print(f"🎯 Perfil PAR2: {par_profile}")
+        print(f"📊 Post-size:   {post_size or '(do perfil)'}")
+        print(f"✉️  Subject:     {subject}")
+        print(f"⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})")
+        print(f"🧠 Memória PAR: {mem_gb:.1f} GB")
+        if obfuscate:
+            print(f"🔒 Ofuscação:   ativada")
+            if rar_password:
+                print(f"🔑 Senha RAR:   {rar_password}")
+        if dry_run:
+            print("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado")
+
+    @staticmethod
+    def collect_stats(
+        input_target: Optional[str],
+        rar_file: Optional[str],
+        par_file: Optional[str],
+    ) -> dict:
+        """Coleta tamanhos de RAR e PAR2 gerados."""
+        stats: dict = {"rar_size_mb": 0.0, "par2_size_mb": 0.0, "par2_file_count": 0}
+        if not input_target or not os.path.exists(input_target):
+            return stats
+
+        base_name: str
+        if os.path.isdir(input_target):
+            total_bytes = 0
+            for root, _dirs, files in os.walk(input_target):
+                for file in files:
+                    try:
+                        total_bytes += os.path.getsize(os.path.join(root, file))
+                    except OSError:
+                        pass
+            stats["rar_size_mb"] = total_bytes / (1024 * 1024)
+            base_name = input_target
+        else:
+            try:
+                rar_stem = os.path.splitext(input_target)[0]
+                if rar_stem.endswith(tuple(f".part{n:02d}" for n in range(1, 100))):
+                    rar_stem = rar_stem.rsplit(".", 1)[0]
+                rar_vols = glob.glob(glob.escape(rar_stem) + ".part*.rar")
+                if rar_vols:
+                    stats["rar_size_mb"] = sum(os.path.getsize(f) for f in rar_vols) / (1024 * 1024)
+                else:
+                    stats["rar_size_mb"] = os.path.getsize(input_target) / (1024 * 1024)
+                base_name = rar_stem
+            except OSError:
+                base_name = os.path.splitext(input_target)[0]
+
+        par_volumes = glob.glob(glob.escape(base_name) + "*.par2")
+        stats["par2_file_count"] = len(par_volumes)
+        stats["par2_size_mb"] = sum(
+            os.path.getsize(f) for f in par_volumes if os.path.exists(f)
+        ) / (1024 * 1024)
+        return stats
+
+    @staticmethod
+    def print_summary(
+        stats: dict,
+        input_path: Path,
+        subject: str,
+        rar_password: Optional[str],
+        obfuscate: bool,
+        skip_upload: bool,
+        env_vars: dict,
+        group: Optional[str],
+        nfo_file: Optional[str],
+        rar_file: Optional[str],
+        elapsed: float,
+    ) -> None:
+        from .ui import format_time
+
+        print("=" * 60)
+        print("🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉")
+        print("=" * 60)
+        print("\n📊 RESUMO DA OPERAÇÃO:")
+        print("-" * 25)
+        print(f"  » Entrada de Origem: {input_path.name}")
+        if obfuscate:
+            print(f"  » Nome Ofuscado:    {subject}")
+        if rar_password:
+            print(f"  » Senha RAR:        {rar_password}")
+        if not skip_upload:
+            raw_group = group or env_vars.get("USENET_GROUP") or "(Não especificado)"
+            display_group = (
+                f"Pool ({len(raw_group.split(','))} grupos)" if "," in raw_group else raw_group
+            )
+            print(f"  » Subject da Postagem: {subject}")
+            print(f"  » Grupo Usenet: {display_group}")
+
+        print("\n📦 ARQUIVOS GERADOS:")
+        print("-" * 25)
+        if nfo_file and os.path.exists(nfo_file):
+            print(f"  » NFO: {os.path.basename(nfo_file)}")
+        rar_display = os.path.basename(rar_file) if rar_file else None
+        if stats["rar_size_mb"] > 0:
+            if rar_display:
+                print(f"  » RAR: {rar_display} ({stats['rar_size_mb']:.2f} MB)")
+            elif os.path.isdir(str(input_path)):
+                print(f"  » Pasta: {input_path.name} ({stats['rar_size_mb']:.2f} MB)")
+            else:
+                print(f"  » Arquivo: {input_path.name} ({stats['rar_size_mb']:.2f} MB)")
+        if stats["par2_file_count"] > 0:
+            print(f"  » PAR2: {stats['par2_file_count']} arquivo(s) ({stats['par2_size_mb']:.2f} MB)")
+        total_size = stats["rar_size_mb"] + stats["par2_size_mb"]
+        print(f"  » Total: {total_size:.2f} MB")
+        print(f"\n  » Tempo total: {format_time(int(elapsed))}")
+        print("\n" + "=" * 60 + "\n")
+
+    @staticmethod
+    def record_catalog_and_hook(
+        env_vars: dict,
+        stats: dict,
+        input_path: Path,
+        subject: str,
+        rar_password: Optional[str],
+        obfuscate: bool,
+        skip_upload: bool,
+        group: Optional[str],
+        nfo_file: Optional[str],
+        elapsed: float,
+        skip_rar: bool,
+        obfuscated_map: dict,
+        redundancy: Optional[int],
+        nzb_path: Optional[str],
+    ) -> None:
+        from .catalog import record_upload, run_post_upload_hook
+        from .nzb import resolve_nzb_out
+
+        working_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
+        nzb_out, _nzb_abs = resolve_nzb_out(
+            str(input_path), env_vars, input_path.is_dir(), skip_rar, working_dir, obfuscated_map
+        )
+
+        _nzb_abs_final: Optional[str] = _nzb_abs
+        if _nzb_abs and not os.path.exists(_nzb_abs):
+            base, ext = os.path.splitext(_nzb_abs)
+            for i in range(1, 11):
+                test_path = f"{base}_{i}{ext}"
+                if os.path.exists(test_path):
+                    _nzb_abs_final = test_path
+                    break
+            else:
+                _nzb_abs_final = None
+
+        raw_group = group or env_vars.get("USENET_GROUP") or ""
+        effective_group = raw_group.split(",")[0].strip() if "," in raw_group else raw_group
+
+        tamanho = int(stats["rar_size_mb"] * 1024 * 1024) if stats["rar_size_mb"] else None
+        nome_ofuscado = subject if obfuscate else None
+
+        try:
+            record_upload(
+                nome_original=input_path.name,
+                nome_ofuscado=nome_ofuscado,
+                senha_rar=rar_password,
+                tamanho_bytes=tamanho,
+                grupo_usenet=effective_group or None,
+                servidor_nntp=env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST"),
+                redundancia_par2=f"{redundancy}%" if redundancy else None,
+                duracao_upload_s=round(elapsed, 1),
+                num_arquivos_rar=stats.get("par2_file_count"),
+                caminho_nzb=_nzb_abs_final,
+                subject=subject,
+            )
+        except Exception as e:
+            print(f"⚠️  Falha ao registrar no catálogo: {e}")
+
+        if not skip_upload:
+            run_post_upload_hook(
+                env_vars,
+                nzb_path=_nzb_abs_final,
+                nfo_path=nfo_file,
+                senha_rar=rar_password,
+                nome_original=input_path.name,
+                nome_ofuscado=nome_ofuscado,
+                tamanho_bytes=tamanho,
+                grupo_usenet=effective_group or None,
+            )
+
+
+# ── Funções auxiliares standalone ────────────────────────────────────────────
+
+def do_cleanup_files(
+    rar_file: Optional[str],
+    par_file: Optional[str],
+    keep_files: bool,
+    on_error: bool = False,
+    preserve_rar: bool = False,
+) -> None:
+    """Remove arquivos RAR e PAR2 gerados pelo pipeline."""
+    if on_error:
+        print("\n🧹 Limpando arquivos temporários devido a erro...")
+    else:
+        if keep_files:
+            print("\n⚡ [--keep-files] Mantendo arquivos RAR e PAR2.")
+            return
+        print("\n🧹 Limpando arquivos temporários...")
+
+    candidates: list = []
+    base_name: Optional[str] = None
+
+    if rar_file and not preserve_rar:
+        rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(rar_file)[0])
+        rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
+        candidates.extend(rar_volumes if rar_volumes else ([rar_file] if os.path.exists(rar_file) else []))
+        base_name = rar_base
+    elif rar_file and preserve_rar:
+        base_name = re.sub(r'\.part\d+$', '', os.path.splitext(rar_file)[0])
+
+    if base_name is None and par_file:
+        base_name = os.path.splitext(par_file)[0]
+    if base_name:
+        candidates.extend(glob.glob(glob.escape(base_name) + "*.par2"))
+    elif par_file and os.path.exists(par_file):
+        candidates.append(par_file)
+
+    files_to_delete = list(dict.fromkeys(candidates))
+    deleted_count = 0
+    for file_path in files_to_delete:
+        try:
+            if os.path.exists(file_path):
+                if os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+                    print(f"  ✓ Removido diretório: {os.path.basename(file_path)}")
+                else:
+                    os.remove(file_path)
+                    print(f"  ✓ Removido: {os.path.basename(file_path)}")
+                deleted_count += 1
+        except Exception as e:
+            print(f"  ✗ Erro ao remover {file_path}: {e}")
+
+    if deleted_count > 0:
+        print(f"\n✅ {deleted_count} arquivo(s) removido(s) com sucesso")
+    print()
+
+
+def revert_obfuscation(
+    obfuscate: bool,
+    input_target: Optional[str],
+    input_path: Path,
+    obfuscate_was_linked: bool,
+    obfuscated_map: dict,
+    keep_files: bool,
+) -> Optional[str]:
+    """
+    Restaura o nome original da entrada ou remove hardlinks.
+
+    Retorna o novo input_target (que pode ter sido restaurado ao original).
+    """
+    if not obfuscate or not input_target:
+        return input_target
+
+    original = str(input_path)
+    if input_target == original:
+        return input_target
+
+    if obfuscate_was_linked:
+        if keep_files:
+            print(f"⚡ [--keep-files] Mantendo links de ofuscação: {os.path.basename(input_target)}")
+            return input_target
+        if not os.path.exists(input_target):
+            return input_target
+        print(f"🧹 Removendo links temporários de ofuscação: {os.path.basename(input_target)}")
+        try:
+            if os.path.isdir(input_target):
+                shutil.rmtree(input_target)
+            else:
+                os.remove(input_target)
+        except OSError as e:
+            print(f"⚠️  Falha ao remover links de ofuscação: {e}")
+        return input_target
+
+    if not os.path.exists(input_target) or os.path.exists(original):
+        return input_target
+    try:
+        os.rename(input_target, original)
+        print(f"↩️  Nome original restaurado: {input_path.name}")
+        input_target = original
+    except OSError as e:
+        print(f"⚠️  Falha ao restaurar nome original ('{input_target}' → '{original}'): {e}")
+        print(f"    AÇÃO MANUAL: renomeie '{os.path.basename(input_target)}' de volta para '{input_path.name}'")
+        return input_target
+
+    obf_base = os.path.basename(input_target)
+    deep_entries = {k: v for k, v in obfuscated_map.items() if k != obf_base}
+    for new_rel in sorted(deep_entries, key=lambda p: p.count(os.sep), reverse=True):
+        orig_rel = deep_entries[new_rel]
+        new_full = os.path.join(original, new_rel)
+        orig_full = os.path.join(original, orig_rel)
+        if os.path.exists(new_full) and not os.path.exists(orig_full):
+            try:
+                os.makedirs(os.path.dirname(orig_full), exist_ok=True)
+                os.rename(new_full, orig_full)
+            except OSError:
+                pass
+    return input_target
+
+
+def print_skip_rar_hints(input_path: Path, filepath_format: str, backend: str) -> None:
+    """Exibe dicas relevantes quando skip_rar está ativo."""
+    if not input_path.is_dir():
+        return
+    if backend == "parpar":
+        has_subdirs = any(e.is_dir() for e in input_path.iterdir())
+        if has_subdirs:
+            print(
+                f"✅ Pasta com subpastas + parpar (filepath-format={filepath_format}): "
+                "estrutura será preservada via PAR2."
+            )
+            print(
+                "   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip internos\n"
+                "   e revise 'Unwanted Extensions' (use --rename-extensionless se houver arquivos sem extensão)."
+            )
+            empty_dirs = [
+                os.path.relpath(dp, input_path)
+                for dp, _, files in os.walk(input_path)
+                if not files and dp != str(input_path)
+                and not any(os.scandir(dp))
+            ]
+            if empty_dirs:
+                print(
+                    f"⚠️  {len(empty_dirs)} diretório(s) vazio(s) detectado(s) — não serão preservados no upload.\n"
+                    f"    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem no destino.\n"
+                    f"    Se a estrutura vazia for relevante, remova --skip-rar para empacotar em RAR."
+                )
+    elif backend == "par2":
+        print(
+            "⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva hierarquia.\n"
+            "    Considere --backend parpar (recomendado) ou remova --skip-rar."
+        )
+
+
+def print_rar_hints(
+    input_path: Path, backend: str, rar_password: Optional[str], obfuscate: bool
+) -> None:
+    """Exibe dica sobre skip-rar quando RAR é desnecessário."""
+    if (
+        input_path.is_dir()
+        and backend == "parpar"
+        and not rar_password
+        and not obfuscate
+        and any(e.is_dir() for e in input_path.iterdir())
+    ):
+        print(
+            "💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
+            "   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
+            "   downloaders modernos reconstroem a árvore. Menos overhead, mesmo resultado."
+        )
+
+
+def recalculate_resources(
+    input_path: Path,
+    user_rar_threads: Optional[int],
+    user_par_threads: Optional[int],
+    user_memory_mb: Optional[int],
+) -> tuple[dict, str, str]:
+    """Recalcula threads e memória ótimos baseados no tamanho real da entrada."""
+    total_bytes = get_total_size(str(input_path))
+    res = calculate_optimal_resources(
+        total_bytes,
+        user_threads=user_rar_threads if user_rar_threads == user_par_threads else None,
+        user_memory_mb=user_memory_mb,
+    )
+    conservative_tag = " (conservador)" if res["conservative_mode"] else ""
+    rar_src = "manual" if user_rar_threads is not None else f"auto{conservative_tag}"
+    par_src = "manual" if user_par_threads is not None else f"auto{conservative_tag}"
+    return res, rar_src, par_src
