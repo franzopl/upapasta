@@ -440,26 +440,10 @@ def upload_to_usenet(
             time.sleep(wait)
             print(f"\nTentativa {attempt}/{max_attempts} de upload...")
         try:
-            import threading as _threading
-            stderr_chunks: list[str] = []
-
-            def _read_stderr(pipe) -> None:
-                try:
-                    if pipe:
-                        data = pipe.read()
-                        if isinstance(data, str):
-                            stderr_chunks.append(data)
-                except Exception:
-                    pass
-
-            with managed_popen(cmd, cwd=working_dir, stderr=subprocess.PIPE, text=True) as proc:
-                stderr_pipe = getattr(proc, "stderr", None)
-                stderr_thread = _threading.Thread(target=_read_stderr, args=(stderr_pipe,), daemon=True)
-                stderr_thread.start()
+            with managed_popen(cmd, cwd=working_dir) as proc:
                 last_rc = proc.wait()
-                stderr_thread.join(timeout=2)
 
-            stderr_data = "".join(stderr_chunks)
+            stderr_data = ""
             if last_rc == 0:
                 break
             print(f"\nErro: nyuu retornou código {last_rc}.")
