@@ -1,8 +1,7 @@
 import io
-import os
-import shutil
-import pytest
+
 from upapasta.upfolder import upload_to_usenet
+
 
 def test_upload_single_file_generates_nfo(monkeypatch, tmp_path):
     # Create a dummy input file and a dummy par2
@@ -60,8 +59,8 @@ def test_upload_single_file_generates_nfo(monkeypatch, tmp_path):
     # And ensure that it wasn't included in the nyuu command; it should not be uploaded
     lines = stdout.splitlines()
     cmd_line = None
-    for i, l in enumerate(lines):
-        if 'Comando nyuu (dry-run):' in l:
+    for i, line in enumerate(lines):
+        if 'Comando nyuu (dry-run):' in line:
             if i + 1 < len(lines):
                 cmd_line = lines[i + 1]
             break
@@ -93,7 +92,7 @@ def test_upload_single_file_generates_nfo_in_nzb_out_dir(monkeypatch, tmp_path):
 
     import upapasta.upfolder as upfolder
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
-    
+
     class DummyCompletedProcess:
         def __init__(self, stdout: str = ""):
             self.stdout = stdout
@@ -139,7 +138,7 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
 
     import upapasta.upfolder as upfolder
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
-    
+
     # Capture the args passed to nyuu (the non-mediainfo call)
     captured = {}
 
@@ -191,17 +190,17 @@ def test_upload_to_usenet_basic(monkeypatch, tmp_path):
     rar_file.write_text("rar content")
     par2_file = tmp_path / "test.par2"
     par2_file.write_text("par2 content")
-    
+
     env_vars = {
         "NNTP_HOST": "news.example.com",
         "NNTP_USER": "user",
         "NNTP_PASS": "pass",
         "USENET_GROUP": "alt.binaries.test"
     }
-    
+
     import upapasta.upfolder as upfolder
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
-    
+
     class C:
         returncode = 0
         def wait(self): return 0
@@ -209,7 +208,7 @@ def test_upload_to_usenet_basic(monkeypatch, tmp_path):
         def __exit__(self, *a): pass
 
     monkeypatch.setattr(upfolder, "managed_popen", lambda *a, **k: C())
-    
+
     rc = upload_to_usenet(str(rar_file), env_vars)
     assert rc == 0
 

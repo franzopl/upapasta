@@ -230,7 +230,7 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict:
     # Senha: se já existe, permite manter com Enter
     passwd_hint = ex_secret("NNTP_PASS")
     if passwd_hint:
-        raw = getpass.getpass(f"  Senha NNTP [****]: ")
+        raw = getpass.getpass("  Senha NNTP [****]: ")
         passwd = raw if raw.strip() else existing["NNTP_PASS"]
     else:
         passwd = _ask("Senha NNTP", secret=True)

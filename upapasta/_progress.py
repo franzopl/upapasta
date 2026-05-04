@@ -9,7 +9,6 @@ from __future__ import annotations
 import re
 import shutil
 import sys
-import threading
 from queue import Queue
 from typing import Tuple
 

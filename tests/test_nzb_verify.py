@@ -1,8 +1,5 @@
 """Testes para _verify_nzb e retry de upload."""
-import os
-import subprocess
 from upapasta.upfolder import _verify_nzb, upload_to_usenet
-
 
 NZB_VALID = """\
 <?xml version="1.0" encoding="UTF-8"?>

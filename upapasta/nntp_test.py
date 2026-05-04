@@ -34,11 +34,11 @@ def test_nntp_connection(
     if nntplib is None:
         if sys.version_info >= (3, 14):
             return False, (
-                f"❌ nntplib não disponível em Python 3.14+. "
-                f"O módulo foi removido da stdlib. "
-                f"Use Python 3.13 ou inferior para --test-connection."
+                "❌ nntplib não disponível em Python 3.14+. "
+                "O módulo foi removido da stdlib. "
+                "Use Python 3.13 ou inferior para --test-connection."
             )
-        return False, f"❌ nntplib não disponível no seu ambiente."
+        return False, "❌ nntplib não disponível no seu ambiente."
 
     try:
         if use_ssl:

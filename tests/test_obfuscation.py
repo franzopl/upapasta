@@ -1,9 +1,10 @@
 
-import os
 import shutil
 import unittest
 from pathlib import Path
+
 from upapasta.orchestrator import UpaPastaOrchestrator
+
 
 class TestObfuscation(unittest.TestCase):
     def setUp(self):

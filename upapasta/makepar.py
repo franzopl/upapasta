@@ -36,17 +36,17 @@ import argparse
 import glob
 import os
 import random
+import re
 import shutil
 import string
 import subprocess
-import sys
 import threading
 from queue import Queue
 from typing import Optional, Tuple
 
 from ._process import managed_popen
-from ._progress import _read_output, _process_output
-
+from ._progress import _process_output, _read_output
+from .config import DEFAULT_PROFILE, PROFILES
 
 # ── Helpers de tamanho ────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ def _get_article_size_bytes() -> int:
     Retorna o valor em bytes. Fallback: 786432 (768K).
     """
     try:
-        from .config import load_env_file, DEFAULT_ENV_FILE
+        from .config import DEFAULT_ENV_FILE, load_env_file
         env = load_env_file(DEFAULT_ENV_FILE)
         raw = env.get("ARTICLE_SIZE", "").strip()
         if raw:
@@ -153,9 +153,6 @@ def get_parpar_memory_limit() -> Optional[str]:
     return None
 
 
-from .config import PROFILES, DEFAULT_PROFILE
-
-
 # ── Obfuscação ────────────────────────────────────────────────────────────────
 
 def generate_random_name(length: int = 12) -> str:
@@ -189,7 +186,7 @@ def _deep_obfuscate_tree(path: str) -> dict[str, str]:
     Retorna mapeamento {novo_caminho_relativo: caminho_original_relativo}.
     """
     mapping = {}
-    
+
     # Vamos usar um dicionário que mapeia o caminho RELATIVO ATUAL para o RELATIVO ORIGINAL.
     # Inicialmente, a árvore está original.
     current_to_original = {".": "."}
@@ -202,9 +199,9 @@ def _deep_obfuscate_tree(path: str) -> dict[str, str]:
         for f in files:
             name, ext = os.path.splitext(f)
             new_name = generate_random_name() + ext
-            
+
             os.rename(os.path.join(root, f), os.path.join(root, new_name))
-            
+
             new_rel_f = os.path.normpath(os.path.join(rel_root, new_name))
             orig_rel_f = os.path.normpath(os.path.join(orig_rel_root, f))
             mapping[new_rel_f] = orig_rel_f
@@ -212,19 +209,19 @@ def _deep_obfuscate_tree(path: str) -> dict[str, str]:
         # 2. Renomeia diretórios
         for i, d in enumerate(dirs):
             new_name = generate_random_name()
-            
+
             os.rename(os.path.join(root, d), os.path.join(root, new_name))
-            
+
             new_rel_d = os.path.normpath(os.path.join(rel_root, new_name))
             orig_rel_d = os.path.normpath(os.path.join(orig_rel_root, d))
-            
+
             # Atualiza dirs para os.walk continuar
             dirs[i] = new_name
-            
+
             # Registra mapeamentos
             current_to_original[new_rel_d] = orig_rel_d
             mapping[new_rel_d] = orig_rel_d
-            
+
     return mapping
 
 
@@ -282,7 +279,7 @@ def _revert_obfuscation(
                 ok += 1
             except OSError as e:
                 print(f"  ✗ Falha ao reverter '{os.path.basename(vol)}' → '{orig_base + suffix}': {e}")
-                print(f"    AÇÃO MANUAL: renomeie o arquivo manualmente.")
+                print("    AÇÃO MANUAL: renomeie o arquivo manualmente.")
         if ok:
             print(f"  ✓ {ok} volume(s) RAR restaurado(s): {orig_base}.part*.rar")
 
@@ -802,7 +799,7 @@ def handle_par_failure(
     retry_profile = "safe"
     retry_memory_mb = max(512, (memory_mb or 2048) // 2)
 
-    print(f"\n⚠️  Tentando novamente com configurações conservadoras...")
+    print("\n⚠️  Tentando novamente com configurações conservadoras...")
     print(f"   Perfil: {retry_profile} | Threads: {retry_threads} | Memória: {retry_memory_mb} MB")
     print("-" * 60)
 
@@ -843,7 +840,7 @@ def handle_par_failure(
             extra += " --par-profile safe"
         if threads != retry_threads:
             extra += f" --par-threads {retry_threads}"
-        print(f"\n💡 Para retomar quando o problema for resolvido:")
+        print("\n💡 Para retomar quando o problema for resolvido:")
         print(f"   upapasta {first_rar} --force{extra}")
 
     return False

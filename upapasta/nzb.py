@@ -9,6 +9,7 @@ e correção de subjects em arquivos NZB.
 from __future__ import annotations
 
 import os
+import re
 import xml.etree.ElementTree as ET
 
 from .config import render_template
@@ -19,13 +20,13 @@ def resolve_nzb_template(env_vars: dict, is_folder: bool, skip_rar: bool) -> str
     template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
     if not template:
         return "{filename}.nzb"
-    
+
     # Se o template aponta para um diretório existente, termina com barra
     # ou não contém o template/extensão esperada, anexar automaticamente {filename}.nzb
     if "{filename}" not in template:
         if os.path.isdir(template) or template.endswith("/") or template.endswith("\\") or not template.lower().endswith(".nzb"):
             return os.path.join(template, "{filename}.nzb")
-        
+
     return template
 
 
@@ -156,8 +157,6 @@ def inject_nzb_password(nzb_path: str, password: str) -> None:
         print(f"Aviso: não foi possível injetar senha no NZB: {e}")
 
 
-import re
-
 def fix_nzb_subjects(
     nzb_path: str,
     file_list: list[str] | None = None,
@@ -194,11 +193,11 @@ def fix_nzb_subjects(
                 m = re.search(r'\"(.*?)\"', old_subject)
                 if m:
                     current_filename = m.group(1)
-            
+
             # Se não encontrou no subject e temos file_list, usa como fallback (ordem assumida)
             if not current_filename and from_file_list:
                 current_filename = file_list[i]  # type: ignore[index]
-            
+
             # Último recurso: heurística de split no subject
             if not current_filename:
                 # Se não tem aspas, remove tags típicas se houver
@@ -242,7 +241,7 @@ def fix_nzb_subjects(
                 final_filename = f"{folder_name}/{original_filename}"
             else:
                 final_filename = original_filename
-            
+
             if '"' in old_subject:
                 # Substitui o conteúdo entre as aspas duplas
                 new_subject = re.sub(r'\"(.*?)\"', f'"{final_filename}"', old_subject)
@@ -252,7 +251,7 @@ def fix_nzb_subjects(
             else:
                 # Tenta substituir a ocorrência do nome no subject
                 new_subject = old_subject.replace(current_filename, final_filename)
-                
+
             file_elem.set("subject", new_subject)
 
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
@@ -328,21 +327,21 @@ def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
     try:
         ns = "http://www.newzbin.com/DTD/2003/nzb"
         ET.register_namespace("", ns)
-        
+
         # Usa o primeiro NZB como base para o <head>
         first_tree = ET.parse(nzb_paths[0])
         first_root = first_tree.getroot()
-        
+
         # Coleta todos os elementos <file> dos outros NZBs
         for other_path in nzb_paths[1:]:
             other_tree = ET.parse(other_path)
             other_root = other_tree.getroot()
-            
+
             # Encontra todos os elementos <file> (com ou sem namespace)
             files = other_root.findall(f"{{{ns}}}file") or other_root.findall("file")
             for file_elem in files:
                 first_root.append(file_elem)
-        
+
         # Escreve o resultado
         first_tree.write(output_path, encoding="UTF-8", xml_declaration=True)
         return True
@@ -396,7 +395,7 @@ def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str
             files = root.findall(f".//{{{ns_url}}}file") or root.findall(".//file")
             for file_elem in files:
                 subj = file_elem.get("subject", "")
-                if subj and not "par2" in subj.lower():
+                if subj and "par2" not in subj.lower():
                     # Tenta extrair o prefixo da pasta do subject
                     # Formato típico: "EP_NAME/filename" ou apenas "filename"
                     if "/" in subj:

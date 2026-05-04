@@ -34,15 +34,14 @@ import re
 import shutil
 import string
 import subprocess
-import sys
 import time
 import xml.etree.ElementTree as ET
 from typing import Optional
 
-from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects, inject_nzb_password
 from upapasta import nfo
-from ._process import managed_popen
 
+from ._process import managed_popen
+from .nzb import fix_nzb_subjects, handle_nzb_conflict, inject_nzb_password, resolve_nzb_out
 
 _NYUU_ERRORS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"40[13]", re.I), "Erro de autenticação (401/403): verifique usuário e senha no .env"),
@@ -187,7 +186,6 @@ def upload_to_usenet(
 
     if is_folder:
         working_dir = input_path
-        parent_dir = os.path.dirname(input_path)
 
         # Caminhos relativos de todos os arquivos dentro da pasta
         files_to_upload: list = []
@@ -205,7 +203,6 @@ def upload_to_usenet(
 
     else:
         working_dir = os.path.dirname(input_path)
-        parent_dir = working_dir
 
         base_no_ext = os.path.splitext(os.path.basename(input_path))[0]
         is_rar_volume = input_path.endswith(".rar") and ".part" in base_no_ext
@@ -241,7 +238,7 @@ def upload_to_usenet(
     nntp_pass = env_vars.get("NNTP_PASS") or os.environ.get("NNTP_PASS")
     nntp_connections = env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "50")
     usenet_group = group or env_vars.get("USENET_GROUP") or os.environ.get("USENET_GROUP")
-    
+
     # Pool de grupos: seleciona um grupo aleatório por upload para distribuir
     # o histórico entre múltiplos grupos e dificultar remoção seletiva.
     if usenet_group and "," in usenet_group:
@@ -249,16 +246,7 @@ def upload_to_usenet(
         if groups:
             usenet_group = random.choice(groups)
     article_size = env_vars.get("ARTICLE_SIZE") or os.environ.get("ARTICLE_SIZE", "700K")
-    check_connections = env_vars.get("CHECK_CONNECTIONS") or os.environ.get("CHECK_CONNECTIONS", "5")
-    check_tries = env_vars.get("CHECK_TRIES") or os.environ.get("CHECK_TRIES", "2")
-    check_delay = env_vars.get("CHECK_DELAY") or os.environ.get("CHECK_DELAY", "5s")
-    check_retry_delay = env_vars.get("CHECK_RETRY_DELAY") or os.environ.get("CHECK_RETRY_DELAY", "30s")
-    check_post_tries = env_vars.get("CHECK_POST_TRIES") or os.environ.get("CHECK_POST_TRIES", "2")
     nzb_overwrite_env = env_vars.get("NZB_OVERWRITE") or os.environ.get("NZB_OVERWRITE")
-    skip_errors = env_vars.get("SKIP_ERRORS") or os.environ.get("SKIP_ERRORS", "all")
-    dump_failed_posts = env_vars.get("DUMP_FAILED_POSTS") or os.environ.get("DUMP_FAILED_POSTS")
-    quiet = env_vars.get("QUIET", "false").lower() in ("true", "1", "yes")
-    log_time = env_vars.get("LOG_TIME", "true").lower() in ("true", "1", "yes")
 
     # Args extras do .env
     env_nyuu_args = env_vars.get("NYUU_EXTRA_ARGS")

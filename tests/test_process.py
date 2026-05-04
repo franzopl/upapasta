@@ -3,11 +3,11 @@
 import subprocess
 import sys
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from upapasta._process import managed_popen, _terminate_process
+from upapasta._process import _terminate_process, managed_popen
 
 
 class TestTerminateProcess:
@@ -105,7 +105,7 @@ class TestManagedPopen:
                 [sys.executable, "-c", "import time; time.sleep(0.05)"],
                 stdout=subprocess.PIPE,
             ) as proc:
-                rc = proc.wait()
+                _ = proc.wait()
 
             # _terminate_process deve ter sido chamado ao menos uma vez
             assert mock_term.called
@@ -119,7 +119,7 @@ class TestManagedPopen:
                 with managed_popen(
                     [sys.executable, "-c", script],
                     stdout=subprocess.PIPE,
-                ) as proc:
+                ) as _:
                     time.sleep(0.1)
                     raise KeyboardInterrupt()
             except KeyboardInterrupt:
@@ -135,7 +135,7 @@ class TestManagedPopen:
             with managed_popen(
                 [sys.executable, "-c", script],
                 stdout=subprocess.PIPE,
-            ) as proc:
+            ) as _:
                 time.sleep(0.1)
                 raise KeyboardInterrupt()
 
@@ -146,7 +146,7 @@ class TestManagedPopen:
                 with managed_popen(
                     [sys.executable, "-c", "import time; time.sleep(10)"],
                     stdout=subprocess.PIPE,
-                ) as proc:
+                ) as _:
                     time.sleep(0.1)
                     raise ValueError("test error")
             except ValueError:
@@ -160,7 +160,7 @@ class TestManagedPopen:
             with managed_popen(
                 [sys.executable, "-c", "import time; time.sleep(10)"],
                 stdout=subprocess.PIPE,
-            ) as proc:
+            ) as _:
                 time.sleep(0.1)
                 raise ValueError("test error")
 
@@ -171,7 +171,7 @@ class TestManagedPopen:
                 with managed_popen(
                     [sys.executable, "-c", "import time; time.sleep(10)"],
                     stdout=subprocess.PIPE,
-                ) as proc:
+                ) as _:
                     time.sleep(0.1)
                     return "early"
 

@@ -11,8 +11,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from .ui import setup_session_log, teardown_session_log
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
+from .ui import setup_session_log, teardown_session_log
 
 
 def _item_size(path: Path) -> int:
@@ -41,14 +41,14 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
         processed = set()
 
     print("\n" + "═" * 60)
-    print(f"👁️  MODO WATCH ATIVADO")
+    print("👁️  MODO WATCH ATIVADO")
     print("═" * 60)
     print(f"📁 Pasta:       {folder}")
     print(f"⏱️  Intervalo:   {interval}s")
     print(f"⚖️  Estabilidade: {stable_secs}s")
     print(f"🚫 Ignorados:   {len(processed)} item(ns) já existentes")
-    print(f"💡 Dica:        Mova arquivos para a pasta para iniciar o upload")
-    print(f"🛑 Atalho:      Pressione Ctrl+C para encerrar")
+    print("💡 Dica:        Mova arquivos para a pasta para iniciar o upload")
+    print("🛑 Atalho:      Pressione Ctrl+C para encerrar")
     print("═" * 60 + "\n")
 
     spinner = ["|", "/", "-", "\\"]
@@ -62,7 +62,7 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
             continue
 
         new_items = sorted(current - processed)
-        
+
         if not new_items:
             # Mostra spinner apenas no terminal (não polui log nem gera nova linha)
             if sys.stdout.isatty():
@@ -72,7 +72,7 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
                 sys.__stdout__.write(f"\r[{ts}] {char} Ocioso: aguardando novos arquivos...   ")
                 sys.__stdout__.flush()
                 spinner_idx += 1
-            
+
             # Divide o intervalo em pequenos passos para o spinner ser fluido
             for _ in range(max(1, interval * 2)):
                 if list(folder.iterdir()) != list(current): # Pequena otimização: checa se algo mudou antes do sleep total
@@ -84,7 +84,7 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
         if sys.stdout.isatty():
             sys.__stdout__.write("\r" + " " * 60 + "\r")
             sys.__stdout__.flush()
-        
+
         print(f"\n{'🔔' if len(new_items) == 1 else '🔔🔔'} {len(new_items)} novo(s) item(ns) detectado(s)!")
         for item in new_items:
             print(f"  • {item.name}")
@@ -99,7 +99,7 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
             if sizes_before[item] == size_after and size_after > 0:
                 print(f"\n🚀 Iniciando processamento: {item.name}")
                 print("─" * 40)
-                
+
                 log_path, log_fh = setup_session_log(item.name, env_file=args.env_file)
                 try:
                     orch = UpaPastaOrchestrator.from_args(args, str(item))
@@ -118,9 +118,9 @@ def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
                     traceback.print_exc()
                 finally:
                     teardown_session_log(log_fh, log_path)
-                
+
                 print("\n" + "─" * 40)
-                print(f"🔄 Retornando ao modo watch...")
+                print("🔄 Retornando ao modo watch...")
                 # Marca como processado independente de sucesso (evita retry infinito)
                 processed.add(item)
             else:

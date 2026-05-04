@@ -2,15 +2,10 @@
 import io
 import logging
 import subprocess
-from pathlib import Path
-from unittest.mock import patch
 
-import pytest
-
+from upapasta.makepar import make_parity
 from upapasta.orchestrator import UpaPastaOrchestrator
 from upapasta.ui import setup_logging
-from upapasta.makepar import make_parity
-
 
 # ---------------------------------------------------------------------------
 # Helpers

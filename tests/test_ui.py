@@ -2,13 +2,11 @@
 from __future__ import annotations
 
 import io
-import sys
 from unittest.mock import patch
 
 import pytest
 
 from upapasta.ui import PhaseBar, _TeeStream, format_time
-
 
 # ---------------------------------------------------------------------------
 # format_time
@@ -136,7 +134,6 @@ def test_tee_encoding_fallback_utf8():
 def _capture_renders(bar: PhaseBar, actions) -> list[str]:
     """Executa ações e captura todas as linhas impressas por _render."""
     prints: list[str] = []
-    original_print = print
 
     def fake_print(*args, **kwargs):
         prints.append(args[0] if args else "")

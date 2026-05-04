@@ -10,14 +10,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from .cli import parse_args, check_dependencies, _validate_flags, _USAGE_SHORT
-from .config import check_or_prompt_credentials, resolve_env_file, load_env_file
-from .nntp_test import test_nntp_connection
-from .ui import setup_logging, setup_session_log, teardown_session_log
-from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
-from .watch import _watch_loop
-from .nzb import merge_nzbs, resolve_nzb_out, fix_season_nzb_subjects, collect_season_nzbs
+from .cli import _USAGE_SHORT, _validate_flags, check_dependencies, parse_args
+from .config import check_or_prompt_credentials, load_env_file, resolve_env_file
 from .nfo import generate_nfo_folder
+from .nntp_test import test_nntp_connection
+from .nzb import collect_season_nzbs, fix_season_nzb_subjects, merge_nzbs
+from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
+from .ui import setup_logging, setup_session_log, teardown_session_log
+from .watch import _watch_loop
 
 
 def main():
@@ -175,18 +175,18 @@ def main():
                 print(f"📦 Mesclando {len(nzb_paths)} NZBs em: {season_nzb_name}")
                 if merge_nzbs(nzb_paths, str(season_nzb_path)):
                     fix_season_nzb_subjects(str(season_nzb_path), episode_data)
-                    print(f"✅ NZB da temporada gerado com sucesso!")
+                    print("✅ NZB da temporada gerado com sucesso!")
                 else:
-                    print(f"❌ Falha ao gerar NZB da temporada.")
+                    print("❌ Falha ao gerar NZB da temporada.")
 
                 # Geração do NFO da temporada
                 season_nfo_path = season_nzb_path.with_suffix(".nfo")
                 banner = env_vars.get("NFO_BANNER")
-                print(f"📄 Gerando NFO da temporada...")
+                print("📄 Gerando NFO da temporada...")
                 if generate_nfo_folder(str(folder), str(season_nfo_path), banner=banner):
                     print(f"✅ NFO da temporada gerado: {season_nfo_path.name}")
                 else:
-                    print(f"⚠️  Falha ao gerar NFO da temporada.")
+                    print("⚠️  Falha ao gerar NFO da temporada.")
             elif not failed:
                 print(f"⚠️  Nenhum NZB de episódio encontrado em {working_dir_path}")
 

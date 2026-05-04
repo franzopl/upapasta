@@ -1,11 +1,5 @@
 """Testes para _do_cleanup, cleanup e caminhos de erro críticos."""
-import glob
-import os
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 
 from upapasta.orchestrator import UpaPastaOrchestrator
 

@@ -13,7 +13,6 @@ import pytest
 from upapasta import makepar as makepar_module
 from upapasta.makepar import make_parity
 
-
 _captured_argv: list = []
 
 

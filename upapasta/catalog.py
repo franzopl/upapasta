@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-
 # ── Detecção de categoria ────────────────────────────────────────────────────
 
 _ANIME_RE = re.compile(

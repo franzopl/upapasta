@@ -29,10 +29,9 @@ import pytest
 from upapasta import makepar as makepar_module
 from upapasta import upfolder as upfolder_module
 from upapasta.makepar import make_parity, obfuscate_and_par
-from upapasta.orchestrator import normalize_extensionless, revert_extensionless
 from upapasta.nzb import fix_nzb_subjects
+from upapasta.orchestrator import normalize_extensionless, revert_extensionless
 from upapasta.upfolder import upload_to_usenet
-
 
 # ─────────────────────────── Helpers / mocks ────────────────────────────────
 

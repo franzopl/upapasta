@@ -2,11 +2,10 @@
 Testes para a nova flag --rar (positiva) e comportamento de --password.
 """
 
-import sys
 import tempfile
 from pathlib import Path
 
-from upapasta.cli import parse_args, _validate_flags
+from upapasta.cli import _validate_flags
 from upapasta.orchestrator import UpaPastaOrchestrator
 
 

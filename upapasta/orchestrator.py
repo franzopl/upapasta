@@ -12,24 +12,24 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from .config import check_or_prompt_credentials
-from .makerar import make_rar
-from .makepar import make_parity, obfuscate_and_par, handle_par_failure
-from .upfolder import upload_to_usenet
-from .resources import get_total_size
-from .ui import PhaseBar, format_time
 from ._pipeline import (
     DependencyChecker,
     PathResolver,
     PipelineReporter,
-    normalize_extensionless,
-    revert_extensionless,
     do_cleanup_files,
-    revert_obfuscation,
-    print_skip_rar_hints,
+    normalize_extensionless,
     print_rar_hints,
+    print_skip_rar_hints,
     recalculate_resources,
+    revert_extensionless,
+    revert_obfuscation,
 )
+from .config import check_or_prompt_credentials
+from .makepar import handle_par_failure, make_parity, obfuscate_and_par
+from .makerar import make_rar
+from .resources import get_total_size
+from .ui import PhaseBar, format_time
+from .upfolder import upload_to_usenet
 
 logger = logging.getLogger("upapasta")
 
@@ -197,7 +197,7 @@ class UpaPastaOrchestrator:
         return self._path_resolver().nfo_path()
 
     def run_generate_nfo(self) -> bool:
-        from .nfo import generate_nfo_single_file, generate_nfo_folder
+        from .nfo import generate_nfo_folder, generate_nfo_single_file
         nfo_path, nzb_dir = self._resolve_nfo_path()
         nfo_filename = os.path.basename(nfo_path)
         try:
@@ -220,7 +220,7 @@ class UpaPastaOrchestrator:
     def run_makerar(self) -> bool:
         if self.input_path.is_file():
             if self.rar_password:
-                print(f"📦 Arquivo único com senha: criando RAR automaticamente.")
+                print("📦 Arquivo único com senha: criando RAR automaticamente.")
             else:
                 self.skip_rar = True
                 if self.obfuscate:
@@ -244,7 +244,7 @@ class UpaPastaOrchestrator:
         if self.dry_run:
             self.rar_file = str(self.input_path.parent / f"{self.input_path.name}.rar")
             self.input_target = self.rar_file
-            print(f"[DRY-RUN] pularia a criação do RAR.")
+            print("[DRY-RUN] pularia a criação do RAR.")
             print(f"[DRY-RUN] RAR seria criado em: {self.rar_file}")
             return True
 
@@ -295,7 +295,7 @@ class UpaPastaOrchestrator:
                 if os.path.isdir(self.input_target)
                 else resolver.par_file_path(self.input_target)
             )
-            print(f"[DRY-RUN] pularia a criação do PAR2.")
+            print("[DRY-RUN] pularia a criação do PAR2.")
             print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
             return True
 
@@ -554,7 +554,6 @@ class UpaPastaOrchestrator:
                 return 2
 
         stats = PipelineReporter.collect_stats(self.input_target, self.rar_file, self.par_file)
-        rar_display_name = os.path.basename(self.rar_file) if self.rar_file else None
 
         # ── Upload ───────────────────────────────────────────────────────────
         if not self.skip_upload:

@@ -20,21 +20,21 @@ from __future__ import annotations
 
 import io
 import logging
-import os
+import shutil
 import ssl
-import sys
-import tempfile
-import time
 from pathlib import Path
 from queue import Queue
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-
-# ── F2.3: parse de stderr do nyuu ────────────────────────────────────────────
-
+from upapasta._progress import _process_output, _read_output
+from upapasta.nntp_test import test_nntp_connection as _check_nntp
+from upapasta.orchestrator import UpaPastaOrchestrator
+from upapasta.resources import get_total_size
+from upapasta.ui import setup_logging
 from upapasta.upfolder import _parse_nyuu_stderr
+from upapasta.watch import _item_size, _watch_loop
 
 
 def test_parse_nyuu_stderr_auth():
@@ -64,8 +64,6 @@ def test_parse_nyuu_stderr_unknown():
 
 
 # ── F2.15: SSL seguro por padrão ─────────────────────────────────────────────
-
-from upapasta.nntp_test import test_nntp_connection as _check_nntp
 
 
 def test_ssl_secure_by_default(monkeypatch):
@@ -113,8 +111,6 @@ def test_ssl_insecure_flag_disables_verification(monkeypatch):
 
 # ── F2.17: Cache de get_total_size ───────────────────────────────────────────
 
-from upapasta.resources import get_total_size
-
 
 def test_get_total_size_cache(tmp_path):
     """Segunda chamada com mesmo path deve retornar valor cacheado sem re-walk."""
@@ -134,8 +130,6 @@ def test_get_total_size_single_file(tmp_path):
 
 
 # ── F2.8: _progress.py compartilhado ─────────────────────────────────────────
-
-from upapasta._progress import _read_output, _process_output
 
 
 def test_progress_empty_queue(capsys):
@@ -188,8 +182,6 @@ def test_read_output_simple_pipe():
 
 # ── F2.13: Timestamps no logging ─────────────────────────────────────────────
 
-from upapasta.ui import setup_logging
-
 
 def test_logging_verbose_has_timestamp():
     """Em modo verbose, o handler de stream deve incluir timestamp ISO."""
@@ -225,8 +217,6 @@ def test_logging_non_verbose_no_timestamp():
 
 # ── F2.1: Validação prévia (permissões e espaço) ─────────────────────────────
 
-from upapasta.orchestrator import UpaPastaOrchestrator
-
 
 def test_validate_missing_input():
     orch = UpaPastaOrchestrator("/nonexistent/path/xyz", dry_run=True)
@@ -251,7 +241,6 @@ def test_validate_disk_space_ok(tmp_path):
 
 def test_validate_disk_space_insufficient(tmp_path, monkeypatch):
     """Quando não há espaço, validate() deve retornar False."""
-    import shutil
     f = tmp_path / "big.txt"
     f.write_bytes(b"x" * 1000)
 
@@ -286,8 +275,6 @@ def test_eta_shown_in_run_output(tmp_path, capsys, monkeypatch):
 
 # ── F2.14: watch.py — polling básico ─────────────────────────────────────────
 
-from upapasta.watch import _item_size, _watch_loop
-
 
 def test_item_size_file(tmp_path):
     f = tmp_path / "x.txt"
@@ -310,7 +297,6 @@ def test_item_size_nonexistent(tmp_path):
 
 def test_watch_loop_processes_new_item(tmp_path, monkeypatch):
     """_watch_loop deve detectar novo item e chamar UpaPastaOrchestrator."""
-    calls = []
 
     class FakeArgs:
         rar = False
@@ -344,11 +330,7 @@ def test_watch_loop_processes_new_item(tmp_path, monkeypatch):
     # Cria arquivo na pasta monitorada DEPOIS de inicializar o loop
     new_file = tmp_path / "release.mkv"
 
-    processed_items = set()
-
     import upapasta.watch as watch_mod
-
-    orig_iterdir = Path.iterdir
 
     call_count = [0]
 

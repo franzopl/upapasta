@@ -9,22 +9,18 @@ Testes isolados para as classes e funções de _pipeline.py:
   - recalculate_resources
 """
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from upapasta._pipeline import (
     DependencyChecker,
     PathResolver,
     PipelineReporter,
-    normalize_extensionless,
-    revert_extensionless,
     do_cleanup_files,
-    revert_obfuscation,
+    normalize_extensionless,
     recalculate_resources,
+    revert_extensionless,
+    revert_obfuscation,
 )
-
 
 # ── DependencyChecker ─────────────────────────────────────────────────────────
 
@@ -287,7 +283,7 @@ class TestRevertObfuscation:
         obfuscated = tmp_path / "xyz123.rar"
         obfuscated.write_bytes(b"x")
         original = tmp_path / "MyMovie.rar"
-        result = revert_obfuscation(
+        revert_obfuscation(
             obfuscate=True,
             input_target=str(obfuscated),
             input_path=original,

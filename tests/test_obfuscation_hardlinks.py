@@ -2,9 +2,10 @@ import os
 import shutil
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from upapasta.orchestrator import UpaPastaOrchestrator
+
 
 class TestObfuscationHardlinks(unittest.TestCase):
     def setUp(self):
@@ -31,7 +32,7 @@ class TestObfuscationHardlinks(unittest.TestCase):
         mock_proc = MagicMock()
         mock_proc.wait.return_value = 0
         mock_up_popen.return_value.__enter__.return_value = mock_proc
-        
+
         mock_check_creds.return_value = {
             "NNTP_HOST": "x", "NNTP_USER": "x", "NNTP_PASS": "x", "USENET_GROUP": "x"
         }
@@ -49,7 +50,7 @@ class TestObfuscationHardlinks(unittest.TestCase):
         # Original must exist and have same inode
         self.assertTrue(self.test_file.exists())
         self.assertEqual(self.test_file.stat().st_ino, self.original_inode)
-        
+
         # Obfuscated path should be gone
         obf_base = list(orchestrator.obfuscated_map.keys())[0]
         obf_path = self.test_dir.parent / obf_base
@@ -61,7 +62,7 @@ class TestObfuscationHardlinks(unittest.TestCase):
     def test_fallback_to_rename(self, mock_link: MagicMock, mock_par_popen: MagicMock, mock_creds: MagicMock):
         # Simulate cross-device link failure
         mock_link.side_effect = OSError("Invalid cross-device link")
-        
+
         mock_proc = MagicMock()
         mock_proc.wait.return_value = 0
         mock_proc.stdout.read.side_effect = ["100%\n", ""]
@@ -88,10 +89,10 @@ class TestObfuscationHardlinks(unittest.TestCase):
 
         with patch('upapasta.orchestrator.os.path.exists', side_effect=smart_exists):
             result = orchestrator.run()
-        
+
         self.assertEqual(result, 0)
         self.assertFalse(orchestrator.obfuscate_was_linked)
-        
+
         # Original should be restored via rename back
         self.assertTrue(self.test_file.exists())
 

@@ -1,7 +1,6 @@
 """Testes para catalog.py: detecção de categoria, registro e hook pós-upload."""
 
 import json
-import os
 import stat
 from pathlib import Path
 from unittest.mock import patch
@@ -9,7 +8,6 @@ from unittest.mock import patch
 import pytest
 
 from upapasta.catalog import detect_category, record_upload, run_post_upload_hook
-
 
 # ── detect_category ──────────────────────────────────────────────────────────
 

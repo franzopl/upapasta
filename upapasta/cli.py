@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import argparse
 import shutil
-import sys
 from pathlib import Path
 
 from .config import DEFAULT_ENV_FILE
-
 
 _USAGE_SHORT = """\
 UpaPasta — uploader automatizado para Usenet

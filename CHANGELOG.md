@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.23.1 - 2026-05-04
+
+### Correções (CI/Linting)
+
+- **Linting ruff**: Corrigidos 150+ erros de ruff (imports desordenados, variáveis não utilizadas, tabs vs espaços).
+  - Reorganizados imports em ordem correta (stdlib → terceiros → locais) em todos os módulos de teste.
+  - Removidas variáveis atribuídas mas nunca usadas (`quiet`, `log_time`, `check_connections`, etc.) em `upfolder.py`.
+  - Convertidos tabs para espaços em `makerar.py` (W191).
+  - Corrigidos nomes ambíguos de variáveis (`l` → `line`).
+- **CI/GitHub Actions**: Testes agora passam 100% em Python 3.9, 3.11, 3.12. Ruff check ✅, mypy ✅, pytest ✅ (252 passed, 1 skipped).
+
 ## 0.23.0 - 2026-05-04
 
 ### Novas Features

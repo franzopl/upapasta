@@ -22,8 +22,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from .resources import get_total_size, calculate_optimal_resources
-
+from .resources import calculate_optimal_resources, get_total_size
 
 # ── Funções utilitárias de extensão (re-exportadas por orchestrator) ─────────
 
@@ -151,8 +150,8 @@ class PathResolver:
 
     def nfo_path(self) -> tuple[str, str]:
         """Retorna (nfo_path_absoluto, nzb_dir)."""
-        from .nzb import resolve_nzb_template
         from .config import render_template
+        from .nzb import resolve_nzb_template
 
         env = self._effective_env()
         nzb_template = resolve_nzb_template(env, self.input_path.is_dir(), self.skip_rar)
@@ -188,7 +187,7 @@ class PathResolver:
         dry_run: bool,
     ) -> bool:
         """Verifica conflito de NZB antecipadamente."""
-        from .nzb import resolve_nzb_out, handle_nzb_conflict
+        from .nzb import handle_nzb_conflict, resolve_nzb_out
 
         if skip_upload or dry_run:
             return True
@@ -238,7 +237,7 @@ class PipelineReporter:
         print(f"⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})")
         print(f"🧠 Memória PAR: {mem_gb:.1f} GB")
         if obfuscate:
-            print(f"🔒 Ofuscação:   ativada")
+            print("🔒 Ofuscação:   ativada")
             if rar_password:
                 print(f"🔑 Senha RAR:   {rar_password}")
         if dry_run:

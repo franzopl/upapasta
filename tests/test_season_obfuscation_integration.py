@@ -1,16 +1,17 @@
 import os
-import shutil
 import secrets
-import pytest
-
-pytestmark = pytest.mark.skip(reason="testes de integração --season ainda não necessários")
+import shutil
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock
-from contextlib import contextmanager
 
+import pytest
+
+from upapasta.nzb import fix_season_nzb_subjects, merge_nzbs
 from upapasta.orchestrator import UpaPastaOrchestrator, UpaPastaSession
-from upapasta.nzb import merge_nzbs, fix_season_nzb_subjects
+
+pytestmark = pytest.mark.skip(reason="testes de integração --season ainda não necessários")
 
 
 @pytest.fixture
