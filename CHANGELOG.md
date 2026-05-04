@@ -52,7 +52,7 @@ All notable changes to this project will be documented in this file.
 
 ### Novas Features
 
-- **Catálogo de uploads (`catalog.py`)**: banco SQLite local em `~/.config/upapasta/history.db` criado automaticamente. Registra a cada upload bem-sucedido: timestamp, nome original, nome ofuscado, senha RAR, tamanho, categoria detectada, grupo Usenet efetivo, servidor NNTP, redundância PAR2, duração, número de volumes RAR, caminho do NZB e o próprio conteúdo binário do NZB (`nzb_blob`) — recuperável mesmo que o arquivo físico seja movido ou apagado.
+- **Catálogo de uploads (`catalog.py`)**: arquivo JSONL append-only em `~/.config/upapasta/history.jsonl` criado automaticamente. Registra a cada upload bem-sucedido: timestamp, nome original, nome ofuscado, senha RAR, tamanho, categoria detectada, grupo Usenet efetivo, servidor NNTP, redundância PAR2, duração, número de volumes RAR e caminho do NZB. NZBs são arquivados em `~/.config/upapasta/nzb/` via hardlink — recuperáveis mesmo que o arquivo físico seja movido ou apagado.
 - **Detecção automática de categoria**: analisa o nome do arquivo para inferir `Anime` (`[SubGroup] Título - 01`), `TV` (`S01E01`, `1x01`, `Season 2`), `Movie` (ano 19xx/20xx isolado no título) ou `Generic`. Sem flags manuais.
 - **Hook pós-upload (`POST_UPLOAD_SCRIPT`)**: configure um script externo no `.env`. O UpaPasta o executa após cada upload bem-sucedido passando informações via variáveis de ambiente `UPAPASTA_*` (NZB, NFO, senha, nome original/ofuscado, tamanho, grupo). Timeout de 60s; falha no hook não afeta o código de saída principal.
 

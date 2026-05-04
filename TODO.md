@@ -1,166 +1,259 @@
-# TODO — Upapasta: Melhorias e Problemas a Resolver
+# TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Guia de trabalho futuro. Itens ordenados por prioridade dentro de cada categoria.
-> Última revisão: 2026-04-23
-
-## ✅ Implementado Recentemente (2026-04-23)
-
-- **--profile flag**: Suporte a múltiplos perfis de configuração (~/.config/upapasta/<profile>.env)
-- **--test-connection flag**: Validação de conectividade NNTP com handshake (CONNECT, LOGIN, QUIT)
-- **render_template centralizado**: Eliminada duplicação de template rendering entre nzb.py e orchestrator.py
-- **--config flag**: Reconfiguração de credenciais com preservação de valores existentes
-- **Melhorias de NFO** (2026-04-22): Geração aprimorada de NFOs de pastas, remoção de lógica de produtor
+> Última revisão: 2026-05-04 (incorporando varredura profunda do projeto)
+> Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
 
-## 🔴 Bugs / Problemas Imediatos
+## ✅ Implementado (histórico)
 
-> *(Nenhum bug crítico aberto no momento)*
-
----
-
-## 🟡 Melhorias de Qualidade e Robustez
-
-### 1. Cobertura de testes — cenários ainda sem cobertura
-- Testes para `managed_popen`: verificar SIGTERM/SIGKILL em subprocessos, cleanup em KeyboardInterrupt, comportamento em processo já finalizado.
-- Geração de NFO para pastas com vídeos multi-track e legendas embutidas (requer ffprobe mock).
-- Testes de integração para os 5 falhos pré-existentes em `test_upfolder.py` / obfuscation (NFO single-file).
-
-### 2. ~~Dívida técnica: template parsing duplicado~~ ✅ FEITO
-- ~~`main.py` e `upfolder.py` resolvem `{filename}`, `{title}` etc. de forma independente.~~
-- ✅ Centralizado em `render_template(template: str, filename: str)` em `config.py`
-- ✅ Usado em `nzb.py` e `orchestrator.py`
-
-### 3. Sem verificação de tipo estática
-- Nenhum uso de `mypy` ou `pyright`.
-- **Proposta:** adicionar type hints em todas as funções públicas e rodar `mypy --strict` no CI.
+- **render_template centralizado** — `config.py` (eliminada duplicação entre `nzb.py` e `orchestrator.py`)
+- **`--profile <nome>`** — perfis nomeados em `~/.config/upapasta/<nome>.env`
+- **`--test-connection`** — handshake NNTP (CONNECT/LOGIN/QUIT)
+- **`--config`** — reconfiguração com preservação de valores
+- **`--rar` opt-in** (0.18.0) — inversão de `--skip-rar`; `--password` presume `--rar`
+- **`--each` / `--season` / `--watch`** — modos de processamento múltiplo
+- **Upload sem staging `/tmp`** (0.9.0) — paths diretos via `cwd=input_path`
+- **`managed_popen`** (0.9.0) — SIGTERM→SIGKILL para todos os subprocessos externos
+- **Ofuscação atômica via hardlink + try/finally** (0.14.x–0.15.x)
+- **Catálogo JSONL + arquivamento NZB via hardlink** (0.12.0)
+- **Pool de grupos aleatório** (0.11.0)
+- **`from_args` classmethod** (0.12.0) — ponto único de mapeamento args→orchestrator
 
 ---
 
-## 🟢 Funcionalidades Novas
+## 🔴 Fase 1 — Estabilidade (v0.19.x)
 
-### 4. Suporte a `--resume` / upload parcial
-- Viável porque não usamos pasta temporária (nyuu opera sobre paths diretos).
-- **Proposta:** nyuu suporta `--input` para re-upload de artigos específicos. Implementar salvamento do estado de upload (arquivo `.upapasta-state`) e resume automático ao detectar estado salvo.
+**Meta: zero falhas de teste, CI verde, docs sincronizadas. Sem novas features.**
 
-### 5. Suporte a múltiplos servidores Usenet
-- Atualmente apenas um servidor NNTP é configurado.
-- **Proposta:** suporte a lista de servidores com prioridade (primary + fallback), lido do `.env` como `NNTP_HOST_2`, `NNTP_PASS_2` etc., ou via JSON simples.
+### 1.1 · Sincronizar docs ↔ código (catálogo JSONL) `Crítica · Baixo esforço`
+- README.md:163-165, 269-281 ainda menciona `sqlite3 ... history.db`
+- DOCS.md:236-289 com exemplos sqlite3 não funcionam
+- CHANGELOG.md:55 menciona SQLite
+- Substituir por exemplos com `tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool`
 
-### 6. Geração de NFO melhorada
-- FFprobe pode ser chamado múltiplas vezes por vídeo.
-- **Fix:** uma única chamada com `-show_streams -show_format`.
-- **Melhoria:** detectar áudio multi-track, legendas embutidas e incluir no NFO.
-- **Melhoria:** suporte a template de NFO customizável via `NFO_TEMPLATE` no `.env` (abordagem de templates externos).
+### 1.2 · Migrar testes de `test_catalog.py` para JSONL `Crítica · Baixo esforço` ← depende de 1.1
+- 4 testes falham por mockarem `_db_path` da era SQLite (não existe mais; é `_history_path`)
+- Critério: `pytest tests/test_catalog.py` 100% verde
 
-### 7. ✅ Perfis de configuração nomeados — IMPLEMENTADO
-- ✅ `--profile <nome>` carrega `~/.config/upapasta/<nome>.env` para múltiplos provedores
-- ✅ Integrado com `--config --profile <nome>` para configurar perfil específico
-- ✅ Compatível com `--test-connection --profile <nome>`
-- Exemplo: `upapasta /path --profile myserver` ou `upapasta /path --config --profile myserver`
+### 1.3 · Corrigir `test_fix_nzb_subjects_preserves_nested_subjects` ou ajustar `fix_nzb_subjects` `Crítica · Médio esforço`
+- Bug B1: quando subject NZB não contém aspas e não é exatamente igual ao filename, o nome não é substituído
+- `nzb.py:182-244` — lógica de matching frágil (distingue por presença de aspas)
+- **Recomendação**: fortalecer a função para aceitar NZBs sem aspas (caso de uso real)
 
-### 8. NZB com `<meta>` enriquecido
-- **Proposta:** injetar `<meta type="title">`, `<meta type="poster">`, `<meta type="category">` baseado em heurísticas do nome / NFO.
+### 1.4 · Corrigir `test_fallback_to_rename` (mock obsoleto) `Alta · Baixo esforço`
+- `tests/test_obfuscation_hardlinks.py` — mock desatualizado
+- Critério: teste verde sem skip
 
-### 9. Estimativa de tempo de upload
-- Antes de iniciar, exibir tamanho total + conexões configuradas como ETA simples.
+### 1.5 · GitHub Actions CI: pytest + ruff + mypy em push/PR `Crítica · Médio esforço` ← depende de 1.1–1.4
+- Criar `.github/workflows/ci.yml`
+- Badge verde no README; falha automática em PRs com regressão
 
-### 10. Suporte a entrada múltipla
-- **Proposta:** `upapasta file1 file2 folder1` — processar em sequência (ou paralelo com `--jobs N`).
+### 1.6 · Limpeza de arquivos órfãos no root do repo `Alta · Baixo esforço`
+- Arquivos lixo de testes manuais: `Episode01.nzb`, `MySeries.nfo`, `original_file.txt.nfo`, `test_*_dir.nfo`, `test_revert_skip_upload.nfo`
+- `.gitignore` mais agressivo para `*.nzb`, `*.nfo` fora de `tests/`
 
-### 11. Suporte a `--watch <dir>`
-- Monitorar diretório e fazer upload automático de novos arquivos/pastas.
-- **Proposta:** modo daemon simples com polling via `inotify` (Linux) ou `watchdog`.
+### 1.7 · Atualizar/substituir GEMINI.md `Alta · Baixo esforço` ← depende de 1.1
+- `GEMINI.md:69` lista versão 0.9.0 como current; menciona SQLite; design pré-modularização
+- Opção recomendada: substituir conteúdo por redirecionamento para `CLAUDE.md`
 
-### 12. Suporte a compressão alternativa (7-zip)
-- RAR5 requer licença para criar (binário `rar` pago em Linux).
-- **Proposta:** `--compressor 7z`, gerando volumes `.7z.001` etc.
+### 1.8 · Atualizar INSTALL.md `Alta · Baixo esforço` ← depende de 1.1
+- `INSTALL.md:71` menciona `.env` no diretório atual → corrigir para `~/.config/upapasta/.env`
+- Adicionar referência a `examples/post_upload_debug.sh`
 
----
+### 1.9 · Testes para `resources.py` `Média · Baixo esforço` ← depende de 1.5
+- `calculate_optimal_resources` tem cobertura zero
+- ≥4 testes: `{pequeno, grande, conservador, override manual}`, `/proc/meminfo` ausente, CPUs=1
 
-## 🔵 Dívida Técnica / Refactoring
+### 1.10 · Testes para `ui.py` (PhaseBar + _TeeStream) `Média · Baixo esforço` ← depende de 1.5
+- `ui.py` tem cobertura zero
+- ≥6 testes: PhaseBar lifecycle (skip→active→done→error), `_TeeStream` strip ANSI completo
 
-### 13. `main.py` com ~1100 linhas é difícil de manter
-- `UpaPastaOrchestrator` faz orquestração, resolução de caminhos, formatação de saída e lógica de negócio.
-- **Proposta:** extrair responsabilidades em classes/módulos dedicados:
-  - `PathResolver` — resolução de NZB/NFO output paths
-  - `PipelineReporter` — output/progress formatting
-  - `DependencyChecker` — verificação de binários externos
+### 1.11 · Mascarar senhas em `_TeeStream.write` antes de gravar log `Alta · Médio esforço` ← depende de 1.10
+- Bug de segurança S2: senha aparece em log de sessão
+- Regex strip `Senha RAR: ...`, `NNTP_PASS=...`; teste explícito
+- `ui.py:21-49`
 
-### 14. `config.py` mistura perfis PAR2 e defaults de configuração
-- **Proposta:** mover constantes de perfil para `profiles.py` e manter `config.py` apenas para leitura de `.env`.
+### 1.12 · Documentar `examples/` no README (seção Hooks) `Média · Baixo esforço` ← depende de 1.1
+- `examples/post_upload_debug.sh` não mencionado em nenhum doc
 
-### 15. Suporte a Python 3.8 limita features modernas
-- `match/case` (3.10), `tomllib` (3.11), `ExceptionGroup` (3.11) não podem ser usados.
-- **Proposta:** avaliar elevar o mínimo para 3.10 (Ubuntu 22.04 LTS vem com 3.10 por padrão).
+### 1.13 · Remover `__import__("shlex")` inline em `orchestrator.from_args` `Baixa · Baixo esforço`
+- `orchestrator.py:213,217` — anti-pattern; mover import para topo do módulo
 
-### 16. CI/CD ausente
-- **Proposta mínima:**
-  - `pytest` em push/PR
-  - `mypy` para type checking
-  - `ruff` para linting
+### 1.14 · Mover `--profile` para grupo "essenciais" no argparse `Baixa · Baixo esforço`
+- `cli.py:90-95` — flag solta fora dos grupos; deve aparecer em "essenciais" no `--help`
 
----
-
-## 🏁 Meta v1.0.0 — Critérios de Estabilidade
-
-Para considerar o projeto estável e pronto para uso geral:
-
-- [ ] Cobertura de testes > 90% (incluindo `managed_popen` e cenários de erro)
-- [ ] CI/CD com GitHub Actions (pytest + mypy + ruff)
-- [ ] `--resume` funcional para uploads interrompidos
-- [ ] Retry de upload robusto com fallback configurável
-- [ ] Documentação completa (README atualizado + `--help` detalhado)
-- [ ] Zero dependências externas além de stdlib (manter atual)
+### 1.15 · Remover/migrar `scripts/check_header.py` `Média · Baixo esforço`
+- Usa `python-dotenv` (não declarado em `pyproject.toml`) — viola stdlib-only
+- Migrar para usar `config.load_env_file` já existente
 
 ---
 
-## 📋 Próximos Passos Recomendados
+## 🟡 Fase 2 — Robustez & UX (v0.20.x)
 
-| Prioridade | Item | Status | Esforço |
-|------------|------|--------|---------|
-| ✅ 1 | #2 render_template centralizado | Feito | - |
-| ✅ 2 | #7 Perfis de configuração nomeados | Feito | - |
-| 🆕 3 | #1 Testes para managed_popen | Pendente | Médio |
-| 4 | #3 Type checking com mypy | Pendente | Médio |
-| 5 | #16 CI/CD GitHub Actions | Pendente | Médio |
-| 6 | #4 --resume / upload parcial | Pendente | Alto |
-| 7 | #13 Refatorar main.py | Pendente | Alto |
-| 8 | #6 NFO avançado (ffprobe único + multi-track) | Pendente | Médio |
+**Meta: pipeline resiliente a falhas reais; visibilidade clara ao usuário.**
+
+### 2.1 · Validação prévia de input (tamanho, permissões, espaço em disco) `Alta · Médio esforço` ← depende de 1.5
+- Antes do RAR: valida `df ≥ 2x tamanho fonte`; permissões legíveis
+- Aborta limpo com mensagem clara se requisitos não forem atendidos
+
+### 2.2 · ETA pré-pipeline `Alta · Médio esforço` ← depende de 2.1
+- Mostrar antes do confirm: `Tamanho: X GB | Estimativa upload: Y min @ N conn`
+
+### 2.3 · Mensagens de erro de subprocesso parseadas `Alta · Médio esforço`
+- Parsear stderr de nyuu (401 Authentication, 502, timeout) e traduzir para português
+- Teste com fixture de stderr
+
+### 2.4 · Retry com backoff exponencial + jitter `Alta · Médio esforço` ← depende de 1.5
+- `--upload-retries 3` deve fazer 30s→90s→270s em vez de tentativas back-to-back
+- Infraestrutura existe em `upfolder.py`; apenas refinar
+
+### 2.5 · `obfuscate_and_par` rollback completo de volumes PAR2 ofuscados `Alta · Médio esforço` ← depende de 1.5
+- Bug B5: volumes PAR2 gerados antes de Ctrl+C não são removidos no rollback
+- `makepar.py:265-295` — apenas o root é renomeado de volta
+
+### 2.6 · Refatorar `orchestrator.py` → extrair `PathResolver`, `PipelineReporter`, `DependencyChecker` `Alta · Alto esforço` ← depende de 1.5
+- 1026 linhas, quebra Single Responsibility
+- Meta: `orchestrator.py < 600 linhas`; cada nova classe testada isoladamente
+
+### 2.7 · Refatorar `makepar.py::obfuscate_and_par` em sub-funções por modo `Média · Alto esforço` ← depende de 2.6
+- Função tem 195 linhas com 4 ramos (folder/rar-volset/single-file/erro)
+- Meta: função principal < 60 linhas
+
+### 2.8 · Deduplicate progress parser → `_progress.py` compartilhado `Média · Médio esforço` ← depende de 1.5
+- `_PCT_RE`, `_read_output`, `_process_output` quase idênticos entre `makerar.py` e `makepar.py`
+- `makerar.py:50-152`, `makepar.py:572-681`
+
+### 2.9 · Múltiplos servidores NNTP com failover `Alta · Alto esforço` ← depende de 2.3
+- `NNTP_HOST_1/2/3` no `.env`; primeira falha → tenta próximo
+- Teste de switch automático
+
+### 2.10 · `--resume` / upload parcial via `.upapasta-state` JSON `Alta · Alto esforço` ← depende de 2.6
+- nyuu suporta retomada via `--input <file>` com lista de artigos
+- Salvar hash do conteúdo + último artigo confirmado
+- Teste: Ctrl+C durante upload + rerun retoma de onde parou
+
+### 2.11 · NFO `ffprobe` single-call (`-show_streams -show_format`) `Média · Baixo esforço`
+- Atualmente 2 chamadas por vídeo em `nfo.py:36-79`
+- Meta: tempo de NFO em pasta de 20 vídeos cai >50%
+
+### 2.12 · NFO multi-track (áudio + legendas embutidas) `Média · Médio esforço` ← depende de 2.11
+- NFO deve mostrar: `Áudio: PT, EN, JP | Legendas: PT` para `.mkv` multi-track
+
+### 2.13 · Logging estruturado com timestamps + níveis `Média · Baixo esforço` ← depende de 1.5
+- `logger.info/debug` com timestamp ISO; `--verbose` mostra DEBUG
+
+### 2.14 · Testes para `--watch` daemon `Alta · Médio esforço` ← depende de 1.5
+- `watch.py` tem cobertura zero
+- Mock de polling; fixture de pasta+novos arquivos; asserts de processamento
+
+### 2.15 · `nntp_test.py` SSL verification opt-in (default verify) `Alta · Médio esforço`
+- Bug de segurança S1: `ssl.CERT_NONE` incondicionalmente sem aviso
+- Adicionar flag `--insecure`; default usa CA certs
+- `nntp_test.py:42-43`
+
+### 2.16 · `fix_nzb_subjects` reescrito com parser estruturado `Média · Médio esforço` ← depende de 1.3
+- Substituir lógica de matching por aspas por parser real
+- Suportar `(\d+/\d+)`, yEnc, subjects sem aspas
+
+### 2.17 · Cache global de `os.path.getsize` no pipeline `Baixa · Baixo esforço` ← depende de 2.6
+- `get_total_size`, `_folder_size`, `_par_file_path` percorrem a árvore independentemente
+- `@lru_cache` em walker compartilhado
 
 ---
 
-## 💡 Sugestões Adicionais (Identificadas em 2026-04-23)
+## 🟢 Fase 3 — Features Estratégicas (v0.21.x → v1.0.0)
 
-### A. Validação de entrada antes do RAR
-- **Problema:** Se o arquivo/pasta for muito grande ou inválido, só descobre após começar o RAR
-- **Solução:** validação rápida de tamanho, permissões e estrutura antes de iniciar pipeline
-- **Impacto:** melhor UX, menos re-execuções
+**Meta: features diferenciadoras; ferramenta autoexplicativa; suporte cross-platform.**
 
-### B. Mensagens de erro mais informativas
-- **Problema:** Erros de subprocesso (RAR, PAR2, nyuu) às vezes são genéricos
-- **Solução:** parsear stderr de cada binário e extrair mensagem específica
-- **Exemplo:** `nyuu timeout` → "Servidor NNTP indisponível ou timeout de conexão (verifique credenciais)"
+### 3.1 · Múltiplas entradas posicionais: `upapasta a b c` `Média · Médio esforço` ← depende de 2.6
+- Processar em sequência ou `--jobs N` em paralelo
 
-### C. Logging estruturado
-- **Atual:** stdout + arquivo de log simples
-- **Proposta:** adicionar timestamps e níveis (DEBUG, INFO, WARN, ERROR) ao log
-- **Benefício:** rastreamento de problemas em produção + debugging mais fácil
+### 3.2 · Compressor alternativo: `--compressor 7z` (novo `make7z.py`) `Média · Alto esforço` ← depende de 2.6
+- RAR continua default; 7z gera `.7z.001` etc. (livre, sem licença comercial)
+- Testes de round-trip
 
-### D. Retry com backoff exponencial
-- **Atual:** retry simples em ny uu
-- **Proposta:** exponential backoff com jitter para uploads de longa duração
-- **Código:** já existe infraestrutura em `upfolder.py`, apenas refiná-la
+### 3.3 · Webhooks nativos: Discord/Telegram/Slack via `WEBHOOK_URL` `Alta · Médio esforço` ← depende de 2.13
+- POST JSON ao final de cada upload; templates simples; stdlib `urllib`
+- Teste com mock httpserver
 
-### E. Teste de conectividade antes de upload
-- **Proposta:** antes de RAR/PAR2, fazer handshake rápido com servidor NNTP
-- **Ganho:** fail fast, economiza tempo se credenciais estão erradas
+### 3.4 · TMDb integration: enriquece NFO com sinopse/poster URL/IMDB ID `Alta · Alto esforço` ← depende de 2.12
+- Detecta filme/série, faz lookup, enriquece NFO
+- Flag opt-in `--tmdb`
 
-### F. Preview do tamanho final antes de começar
-- **Proposta:** mostrar tamanho RAR estimado + tamanho total com PAR2 antes de `[Y/n]?`
-- **UX:** melhor previsibilidade antes de committed ao processo
+### 3.5 · NZB com `<meta>` enriquecido (title/poster/category) `Média · Médio esforço` ← depende de 3.4
+- Injetar `<meta type="title">`, `<meta type="poster">`, `<meta type="category">`
+- Teste XML
 
-### G. Suporte a .nfo customizado via template
-- **Atual:** geração automática baseada em metadados
-- **Proposta:** permitir `--nfo-template <arquivo>` com placeholders: `{title}`, `{size}`, `{files}`, `{video_info}`, etc.
-- **Compatibilidade:** fallback para geração automática se template não existir
+### 3.6 · Template de NFO customizável: `--nfo-template <arquivo>` `Média · Médio esforço` ← depende de 2.12
+- Placeholders: `{title}`, `{size}`, `{files}`, `{video_info}`, `{tmdb}`
+- Fallback automático para geração automática se template não existir
+
+### 3.7 · `upapasta --stats` (histórico agregado) `Média · Médio esforço` ← depende de 2.13
+- Lê `history.jsonl`; imprime top categorias, GB/mês, grupo mais usado
+- Teste com fixture
+
+### 3.8 · Modo interativo TUI (`--interactive`) `Baixa · Alto esforço` ← depende de 3.7
+- `curses` da stdlib; menu de upload + histórico
+
+### 3.9 · `--dry-run --verbose` imprime argv completo dos subprocessos `Média · Baixo esforço` ← depende de 1.5
+- Imprimir comando completo de `parpar`/`nyuu` em vez de apenas "[DRY-RUN] PAR2 será criado em: ..."
+
+### 3.10 · Suporte Windows nativo testado (CI matrix) `Média · Alto esforço` ← depende de 1.5
+- GitHub Actions roda em Windows; paths normalizados; sem regressões
+
+### 3.11 · Separar `profiles.py` de `config.py` `Baixa · Baixo esforço` ← depende de 2.6
+- `config.py` mistura perfis PAR2 com leitura de `.env`
+- Mover constantes PAR2 para `profiles.py`
+
+### 3.12 · `mypy --strict` no CI `Média · Médio esforço` ← depende de 2.6, 2.7
+- Zero warnings; type hints completos em todos os módulos
+
+### 3.13 · Cobertura de testes ≥ 90% por módulo `Crítica · Alto esforço` ← depende de 2.x
+- `pytest --cov` ≥ 90% para `cli/orchestrator/makerar/makepar/upfolder/nzb`
+- ≥ 75% global
+- Lacunas prioritárias: `--season` end-to-end (L1), `handle_par_failure` retry (L7), catálogo JSONL corrompido (L9), `_validate_flags` matrix (L12)
+
+### 3.14 · Documentação completa (man page, FAQ, troubleshooting) `Alta · Médio esforço` ← depende de 3.x
+- `man upapasta`, `docs/FAQ.md`, `docs/TROUBLESHOOTING.md`
+
+### 3.15 · Publicação no PyPI com workflow automatizado `Alta · Médio esforço` ← depende de 3.13
+- `gh release create` dispara `pypa/gh-action-pypi-publish`
+- Confirmar se já existe no PyPI ou se README.md precisa ser corrigido (README.md:103-104)
+
+### 3.16 · Migrar para Python 3.10+ no `requires-python` (pós-v1.0) `Baixa · Baixo esforço`
+- Permite `match/case`, `tomllib`
+- Apenas após v1.0.0
+
+### 3.17 · Plugin system: hooks Python em `~/.config/upapasta/hooks/<name>.py` `Baixa · Alto esforço`
+- Hook recebe dict; documentado; pós-v1.0
+
+---
+
+## 🏁 Critérios de v1.0.0
+
+- [ ] Todas as Fases 1 e 2 concluídas
+- [ ] CI verde (pytest + mypy + ruff) via GitHub Actions
+- [ ] Cobertura ≥ 90% nos módulos core (F3.13)
+- [ ] `--resume` funcional (F2.10)
+- [ ] Múltiplos servidores NNTP (F2.9)
+- [ ] Documentação completa e atualizada (F3.14)
+- [ ] PyPI publicado (F3.15)
+- [ ] Zero dependências Python externas (manter atual)
+
+---
+
+## 📋 Resumo de Prioridades
+
+| Fase | Versão | Foco | Itens-chave |
+|------|--------|------|-------------|
+| 1 | v0.19.x | Estabilidade | F1.1–1.15: docs sync, testes verdes, CI, segurança básica |
+| 2 | v0.20.x | Robustez & UX | F2.1–2.17: validação, retry, refactor, resume, multi-server |
+| 3 | v0.21.x→v1.0 | Features | F3.1–3.15: webhooks, TMDb, 7z, stats, publicação |
+
+**Próximos passos imediatos** (em ordem):
+1. F1.1 — Sincronizar docs (JSONL)
+2. F1.2 — Migrar `test_catalog.py`
+3. F1.3 — Corrigir `fix_nzb_subjects`
+4. F1.4 — Corrigir `test_fallback_to_rename`
+5. F1.5 — GitHub Actions CI

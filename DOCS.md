@@ -235,7 +235,7 @@ O grupo efetivamente usado fica registrado no catálogo.
 
 ## Catálogo de uploads
 
-Todos os uploads bem-sucedidos são registrados automaticamente em `~/.config/upapasta/history.db` (SQLite). Nenhuma configuração necessária.
+Todos os uploads bem-sucedidos são registrados automaticamente em `~/.config/upapasta/history.jsonl` (JSONL, append-only). Os NZBs são arquivados em `~/.config/upapasta/nzb/` via hardlink. Nenhuma configuração necessária.
 
 ### Campos registrados
 
@@ -253,7 +253,6 @@ Todos os uploads bem-sucedidos são registrados automaticamente em `~/.config/up
 | `duracao_upload_s` | Duração total em segundos |
 | `num_arquivos_rar` | Quantidade de volumes RAR gerados |
 | `caminho_nzb` | Caminho do `.nzb` no disco |
-| `nzb_blob` | Conteúdo binário do `.nzb` — recuperável mesmo que o arquivo seja movido |
 | `subject` | Subject da postagem |
 
 ### Detecção automática de categoria
@@ -267,23 +266,47 @@ Todos os uploads bem-sucedidos são registrados automaticamente em `~/.config/up
 
 ### Consultas úteis
 
-Listar os 20 últimos uploads:
+Inspecionar os últimos 5 uploads:
 ```bash
-sqlite3 ~/.config/upapasta/history.db \
-  "SELECT data_upload, nome_original, categoria, tamanho_bytes FROM uploads ORDER BY id DESC LIMIT 20;"
+tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool
 ```
 
-Recuperar um NZB perdido:
+Listar os 20 últimos uploads (nome + categoria + tamanho):
 ```bash
-sqlite3 -bail ~/.config/upapasta/history.db \
-  "SELECT nzb_blob FROM uploads WHERE nome_original LIKE '%Dune%' LIMIT 1;" \
-  | xxd -r -p > recuperado.nzb
+python3 - <<'EOF'
+import json, pathlib
+lines = pathlib.Path("~/.config/upapasta/history.jsonl").expanduser().read_text().splitlines()
+for line in lines[-20:]:
+    e = json.loads(line)
+    print(e.get("data_upload",""), e.get("nome_original",""), e.get("categoria",""), e.get("tamanho_bytes",""))
+EOF
+```
+
+Buscar upload por nome:
+```bash
+python3 - <<'EOF'
+import json, pathlib, sys
+termo = sys.argv[1] if len(sys.argv) > 1 else "Dune"
+for line in pathlib.Path("~/.config/upapasta/history.jsonl").expanduser().read_text().splitlines():
+    e = json.loads(line)
+    if termo.lower() in e.get("nome_original","").lower():
+        print(json.dumps(e, indent=2, ensure_ascii=False))
+EOF
 ```
 
 Total enviado:
 ```bash
-sqlite3 ~/.config/upapasta/history.db \
-  "SELECT printf('%.2f GB', SUM(tamanho_bytes) / 1e9) FROM uploads;"
+python3 - <<'EOF'
+import json, pathlib
+total = sum(json.loads(l).get("tamanho_bytes", 0)
+            for l in pathlib.Path("~/.config/upapasta/history.jsonl").expanduser().read_text().splitlines())
+print(f"{total/1e9:.2f} GB")
+EOF
+```
+
+NZBs arquivados (hardlinks por timestamp):
+```bash
+ls -la ~/.config/upapasta/nzb/
 ```
 
 ---

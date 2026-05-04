@@ -1,8 +1,8 @@
 """Testes para catalog.py: detecção de categoria, registro e hook pós-upload."""
 
+import json
 import os
 import stat
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -40,51 +40,55 @@ def test_detect_category(name, expected):
 # ── record_upload ────────────────────────────────────────────────────────────
 
 def test_record_upload_cria_registro(tmp_path):
-    db_file = tmp_path / "history.db"
-    with patch("upapasta.catalog._db_path", return_value=db_file):
-        rowid = record_upload(
+    jsonl_file = tmp_path / "history.jsonl"
+    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
+         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
+        record_upload(
             nome_original="Dune.2021.mkv",
             senha_rar="abc123",
             tamanho_bytes=4_000_000_000,
             grupo_usenet="alt.binaries.movies",
             duracao_upload_s=120.5,
         )
-    assert rowid == 1
-    assert db_file.exists()
+    assert jsonl_file.exists()
+    record = json.loads(jsonl_file.read_text().strip())
+    assert record["nome_original"] == "Dune.2021.mkv"
+    assert record["tamanho_bytes"] == 4_000_000_000
 
 
 def test_record_upload_categoria_inferida(tmp_path):
-    import sqlite3
-    db_file = tmp_path / "history.db"
-    with patch("upapasta.catalog._db_path", return_value=db_file):
+    jsonl_file = tmp_path / "history.jsonl"
+    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
+         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
         record_upload(nome_original="Breaking.Bad.S02E03.mkv")
-    conn = sqlite3.connect(str(db_file))
-    row = conn.execute("SELECT categoria FROM uploads").fetchone()
-    conn.close()
-    assert row[0] == "TV"
+    record = json.loads(jsonl_file.read_text().strip())
+    assert record["categoria"] == "TV"
 
 
-def test_record_upload_salva_nzb_blob(tmp_path):
-    import sqlite3
+def test_record_upload_arquiva_nzb(tmp_path):
     nzb = tmp_path / "test.nzb"
     nzb.write_bytes(b"<nzb>fake</nzb>")
-    db_file = tmp_path / "history.db"
-    with patch("upapasta.catalog._db_path", return_value=db_file):
+    jsonl_file = tmp_path / "history.jsonl"
+    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
+         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
         record_upload(nome_original="test.mkv", caminho_nzb=str(nzb))
-    conn = sqlite3.connect(str(db_file))
-    row = conn.execute("SELECT nzb_blob FROM uploads").fetchone()
-    conn.close()
-    assert row[0] == b"<nzb>fake</nzb>"
+    record = json.loads(jsonl_file.read_text().strip())
+    # NZB arquivado deve apontar para um arquivo existente dentro de tmp_path/nzb/
+    assert record["caminho_nzb"] is not None
+    assert Path(record["caminho_nzb"]).read_bytes() == b"<nzb>fake</nzb>"
 
 
 def test_record_upload_nzb_ausente_nao_falha(tmp_path):
-    db_file = tmp_path / "history.db"
-    with patch("upapasta.catalog._db_path", return_value=db_file):
-        rowid = record_upload(
+    jsonl_file = tmp_path / "history.jsonl"
+    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
+         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
+        record_upload(
             nome_original="test.mkv",
             caminho_nzb="/caminho/inexistente.nzb",
         )
-    assert rowid == 1
+    record = json.loads(jsonl_file.read_text().strip())
+    assert record["nome_original"] == "test.mkv"
+    assert record["caminho_nzb"] is None
 
 
 # ── run_post_upload_hook ─────────────────────────────────────────────────────

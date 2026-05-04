@@ -179,15 +179,16 @@ def fix_nzb_subjects(
             # Tenta sem namespace como fallback
             files = root.findall(".//file")
 
+        from_file_list = bool(file_list and len(file_list) == len(files))
         for i, file_elem in enumerate(files):
             old_subject = file_elem.get("subject", "")
-            
+
             # Determina qual nome de arquivo usar para este elemento.
             # Se uma file_list foi fornecida e tem o mesmo tamanho, usamos ela.
             # Caso contrário, tentamos extrair o nome do próprio subject atual.
             current_filename = ""
-            if file_list and len(file_list) == len(files):
-                current_filename = file_list[i]
+            if from_file_list:
+                current_filename = file_list[i]  # type: ignore[index]
             else:
                 # Tenta extrair entre aspas ou usa o subject inteiro se for simples
                 if '"' in old_subject:
@@ -235,13 +236,12 @@ def fix_nzb_subjects(
             if '"' in old_subject:
                 # Substitui o conteúdo entre as aspas duplas
                 new_subject = re.sub(r'\"(.*?)\"', f'"{final_filename}"', old_subject)
+            elif old_subject.strip() == current_filename or from_file_list:
+                # Subject é o próprio nome, ou veio de file_list (subject pode ser placeholder)
+                new_subject = final_filename
             else:
-                # Se o subject original era apenas o nome, substitui por completo
-                if old_subject.strip() == current_filename:
-                    new_subject = final_filename
-                else:
-                    # Tenta substituir a ocorrência do nome no subject
-                    new_subject = old_subject.replace(current_filename, final_filename)
+                # Tenta substituir a ocorrência do nome no subject
+                new_subject = old_subject.replace(current_filename, final_filename)
                 
             file_elem.set("subject", new_subject)
 
