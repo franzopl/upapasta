@@ -26,16 +26,15 @@ import argparse
 import glob
 import math
 import os
-import re
 import shutil
 import subprocess
 import sys
-import time
 import threading
 from queue import Queue
 from typing import Optional, Tuple
 
 from ._process import managed_popen
+from ._progress import _read_output, _process_output
 
 
 def find_rar():
@@ -45,111 +44,6 @@ def find_rar():
 		if path:
 			return path
 	return None
-
-
-# Regex compartilhado — compilado uma vez, tolerante a formatos variados.
-_PCT_RE = re.compile(r"(?:^(.+?)[:\s]+)?(\d{1,3}(?:\.\d+)?)\s*%")
-
-_CHUNK_SIZE = 4096  # bytes por read() — reduz syscalls vs. read(1)
-
-
-def _read_output(pipe, queue: Queue) -> None:
-	"""
-	Thread worker que lê o pipe do subprocess em chunks de 4 KB e envia
-	linhas individuais para a fila, tratando tanto \\r quanto \\n como
-	separadores (necessário para barras de progresso que usam \\r sem \\n).
-	"""
-	if pipe is None:
-		queue.put(None)
-		return
-	buf = ""
-	try:
-		while True:
-			chunk = pipe.read(_CHUNK_SIZE)
-			if not chunk:
-				break
-			buf += chunk
-			# Emite cada "linha" separada por \r ou \n
-			while True:
-				for sep in ("\r\n", "\r", "\n"):
-					idx = buf.find(sep)
-					if idx != -1:
-						token = buf[:idx]
-						buf = buf[idx + len(sep):]
-						if token:
-							queue.put(token)
-						break
-				else:
-					# Nenhum separador no buffer — aguarda mais dados
-					break
-	finally:
-		if buf:
-			queue.put(buf)
-		queue.put(None)  # Sinal de fim de stream
-
-
-def _process_output(queue: Queue) -> Tuple[int, bool]:
-	"""
-	Processa linhas de output da fila na thread principal.
-
-	Lógica de exibição:
-	  1. Se a linha contém "XX%" → barra de progresso animada.
-	  2. Caso contrário → spinner + texto truncado (fallback robusto).
-
-	Retorna (last_percent, teve_percentual).
-	"""
-	last_percent = -1
-	teve_percentual = False
-	spinner = "|/-\\"
-	spin_idx = 0
-	bar_width = 25
-
-	try:
-		term_columns = shutil.get_terminal_size().columns
-	except Exception:
-		term_columns = 80
-
-	clear = "\r" + " " * (term_columns - 1) + "\r"
-
-	while True:
-		line = queue.get()
-		if line is None:
-			break
-
-		line = line.strip()
-		if not line:
-			continue
-
-		sys.stdout.write(clear)
-
-		# ── Tenta parsear porcentagem ──────────────────────────────────────
-		m = _PCT_RE.search(line)
-		if m:
-			try:
-				pct = float(m.group(2))
-				if 0.0 <= pct <= 100.0:
-					last_percent = int(pct)
-					teve_percentual = True
-					filled = int((pct / 100.0) * bar_width)
-					bar = "#" * filled + "-" * (bar_width - filled)
-					clean = line[:m.start()].strip().rstrip(".").rstrip(":").strip()
-					msg = f"[{bar}] {last_percent:3d}% {clean}"
-					sys.stdout.write(msg[:term_columns - 1])
-					sys.stdout.flush()
-					continue
-			except (ValueError, TypeError):
-				pass  # cai para spinner abaixo
-
-		# ── Fallback: spinner + texto (formato desconhecido ou mensagem info) ──
-		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
-		sys.stdout.write(msg[:term_columns - 1])
-		sys.stdout.flush()
-		spin_idx += 1
-
-	sys.stdout.write("\n")
-	sys.stdout.flush()
-
-	return last_percent, teve_percentual
 
 
 _MIN_SPLIT_SIZE = 10 * 1024 * 1024 * 1024  # 10 GB — abaixo disso, RAR único

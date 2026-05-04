@@ -29,18 +29,38 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import random
+import re
 import shutil
+import string
 import subprocess
 import sys
-import random
-import string
-import re
+import time
 import xml.etree.ElementTree as ET
 from typing import Optional
 
 from .nzb import resolve_nzb_out, handle_nzb_conflict, fix_nzb_subjects, inject_nzb_password
 from upapasta import nfo
 from ._process import managed_popen
+
+
+_NYUU_ERRORS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"40[13]", re.I), "Erro de autenticação (401/403): verifique usuário e senha no .env"),
+    (re.compile(r"502", re.I), "Servidor indisponível (502): tente novamente mais tarde"),
+    (re.compile(r"441", re.I), "Artigo rejeitado pelo servidor (441): verifique permissões da conta"),
+    (re.compile(r"timeout", re.I), "Timeout de conexão: verifique host/porta e sua conexão de internet"),
+    (re.compile(r"ECONNREFUSED|connection refused", re.I), "Conexão recusada: verifique NNTP_HOST e NNTP_PORT"),
+    (re.compile(r"ENOTFOUND|getaddrinfo", re.I), "Host não encontrado: verifique NNTP_HOST no .env"),
+    (re.compile(r"certificate|SSL|TLS", re.I), "Erro de certificado SSL: use NNTP_IGNORE_CERT=true para contornar"),
+]
+
+
+def _parse_nyuu_stderr(stderr: str) -> str | None:
+    """Traduz mensagens de erro do nyuu para português. Retorna None se não reconhecido."""
+    for pattern, msg in _NYUU_ERRORS:
+        if pattern.search(stderr):
+            return msg
+    return None
 
 
 def _verify_nzb(nzb_path: str) -> bool:
@@ -406,18 +426,54 @@ def upload_to_usenet(
 
     # ── Executar nyuu ────────────────────────────────────────────────────────
     # managed_popen garante SIGTERM → SIGKILL no nyuu se receber Ctrl+C.
-    # Usamos Popen em vez de subprocess.run para ter controle do processo.
+    # Retry com backoff exponencial: 30s → 90s → 270s (+jitter ±10%).
     max_attempts = 1 + max(0, upload_retries)
     last_rc = 5
+    _BACKOFF_BASE = 30  # segundos
+
     for attempt in range(1, max_attempts + 1):
         if attempt > 1:
+            delay = _BACKOFF_BASE * (3 ** (attempt - 2))
+            jitter = int(delay * 0.10 * (random.random() * 2 - 1))
+            wait = max(1, delay + jitter)
+            print(f"\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max_attempts}...")
+            time.sleep(wait)
             print(f"\nTentativa {attempt}/{max_attempts} de upload...")
         try:
-            with managed_popen(cmd, cwd=working_dir) as proc:
+            import threading as _threading
+            stderr_chunks: list[str] = []
+
+            def _read_stderr(pipe) -> None:
+                try:
+                    if pipe:
+                        data = pipe.read()
+                        if isinstance(data, str):
+                            stderr_chunks.append(data)
+                except Exception:
+                    pass
+
+            with managed_popen(cmd, cwd=working_dir, stderr=subprocess.PIPE, text=True) as proc:
+                stderr_pipe = getattr(proc, "stderr", None)
+                stderr_thread = _threading.Thread(target=_read_stderr, args=(stderr_pipe,), daemon=True)
+                stderr_thread.start()
                 last_rc = proc.wait()
+                stderr_thread.join(timeout=2)
+
+            stderr_data = "".join(stderr_chunks)
             if last_rc == 0:
                 break
             print(f"\nErro: nyuu retornou código {last_rc}.")
+            if stderr_data:
+                friendly = _parse_nyuu_stderr(stderr_data)
+                if friendly:
+                    print(f"  → {friendly}")
+                else:
+                    # Exibe últimas 3 linhas do stderr para diagnóstico
+                    lines = [ln for ln in stderr_data.strip().splitlines() if ln.strip()][-3:]
+                    if lines:
+                        print("  Saída do nyuu:")
+                        for line in lines:
+                            print(f"    {line}")
         except KeyboardInterrupt:
             # managed_popen já matou o nyuu; propaga para o orquestrador
             raise

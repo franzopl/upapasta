@@ -227,15 +227,52 @@ class UpaPastaOrchestrator:
         return "".join(secrets.choice(chars) for _ in range(length))
 
     def validate(self) -> bool:
-        """Valida entrada e ambiente."""
+        """Valida entrada e ambiente (existência, permissões e espaço em disco)."""
         if not self.input_path.exists():
             print(f"Erro: arquivo ou pasta '{self.input_path}' não existe.")
             return False
 
-        # We allow either directories (old behaviour) or a single file
         if not self.input_path.is_dir() and not self.input_path.is_file():
             print(f"Erro: '{self.input_path}' não é um arquivo nem um diretório.")
             return False
+
+        # Verificar permissões de leitura
+        unreadable = []
+        if self.input_path.is_file():
+            if not os.access(str(self.input_path), os.R_OK):
+                unreadable.append(str(self.input_path))
+        else:
+            for dirpath, _dirs, files in os.walk(str(self.input_path)):
+                for f in files:
+                    fp = os.path.join(dirpath, f)
+                    if not os.access(fp, os.R_OK):
+                        unreadable.append(fp)
+        if unreadable:
+            print(f"Erro: {len(unreadable)} arquivo(s) sem permissão de leitura:")
+            for p in unreadable[:5]:
+                print(f"  {p}")
+            if len(unreadable) > 5:
+                print(f"  ... e mais {len(unreadable) - 5}")
+            return False
+
+        # Verificar espaço livre no diretório pai (precisa de ≥ 2× o tamanho da fonte)
+        if not self.dry_run:
+            source_size = get_total_size(str(self.input_path))
+            try:
+                stat = shutil.disk_usage(str(self.input_path.parent))
+                needed = source_size * 2
+                if stat.free < needed:
+                    free_gb = stat.free / (1024 ** 3)
+                    needed_gb = needed / (1024 ** 3)
+                    source_gb = source_size / (1024 ** 3)
+                    print(
+                        f"Erro: espaço insuficiente em disco.\n"
+                        f"  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | Livre: {free_gb:.2f} GB\n"
+                        f"  Libere espaço ou use --dry-run para simular."
+                    )
+                    return False
+            except OSError:
+                pass  # Falha ao checar disk_usage não deve bloquear
 
         return True
 
@@ -806,11 +843,18 @@ class UpaPastaOrchestrator:
         par_src = f"manual" if self._user_par_threads is not None else f"auto{conservative_tag}"
         mem_gb = res["max_memory_mb"] / 1024
 
+        # ETA de upload: estimativa conservadora com ~500 KB/s por conexão
+        nntp_connections = int(self.env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "10"))
+        upload_speed_bps = nntp_connections * 500 * 1024  # 500 KB/s por conexão
+        eta_seconds = int(total_bytes / upload_speed_bps) if upload_speed_bps > 0 else 0
+        eta_str = format_time(eta_seconds) if eta_seconds > 0 else "N/A"
+
         print("\n" + "=" * 60)
         print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
         print("=" * 60)
         print(f"📁 Entrada:     {self.input_path.name}")
         print(f"📦 Tamanho:     {res['total_gb']} GB")
+        print(f"⏱  ETA upload:  ~{eta_str} @ {nntp_connections} conexões (estimativa)")
         print(f"🎯 Perfil PAR2: {self.par_profile}")
         print(f"📊 Post-size:   {self.post_size or '(do perfil)'}")
         print(f"✉️  Subject:     {self.subject}")

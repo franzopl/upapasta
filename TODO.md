@@ -1,6 +1,6 @@
 # TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Última revisão: 2026-05-04 (fase 1 completa: 193 testes verdes, 1 skipped)
+> Última revisão: 2026-05-04 (fase 2 parcial: 219 testes verdes, 1 skipped)
 > Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
@@ -71,24 +71,24 @@
 
 **Meta: pipeline resiliente a falhas reais; visibilidade clara ao usuário.**
 
-### 2.1 · Validação prévia de input (tamanho, permissões, espaço em disco) `Alta · Médio esforço` ← depende de 1.5
-- Antes do RAR: valida `df ≥ 2x tamanho fonte`; permissões legíveis
-- Aborta limpo com mensagem clara se requisitos não forem atendidos
+### ~~2.1 · Validação prévia de input (tamanho, permissões, espaço em disco)~~ ✅ Concluído
+- `orchestrator.validate()`: valida `df ≥ 2× tamanho fonte`, permissões legíveis, mensagens claras
+- 4 testes em `test_phase2.py`
 
-### 2.2 · ETA pré-pipeline `Alta · Médio esforço` ← depende de 2.1
-- Mostrar antes do confirm: `Tamanho: X GB | Estimativa upload: Y min @ N conn`
+### ~~2.2 · ETA pré-pipeline~~ ✅ Concluído
+- Linha `⏱  ETA upload: ~HH:MM:SS @ N conexões (estimativa)` no header de `run()`
+- Estimativa conservadora: 500 KB/s por conexão
 
-### 2.3 · Mensagens de erro de subprocesso parseadas `Alta · Médio esforço`
-- Parsear stderr de nyuu (401 Authentication, 502, timeout) e traduzir para português
-- Teste com fixture de stderr
+### ~~2.3 · Mensagens de erro de subprocesso parseadas~~ ✅ Concluído
+- `_parse_nyuu_stderr()` em `upfolder.py`: traduz 401/403, 502, timeout, ECONNREFUSED, SSL para português
+- 6 testes em `test_phase2.py`
 
-### 2.4 · Retry com backoff exponencial + jitter `Alta · Médio esforço` ← depende de 1.5
-- `--upload-retries 3` deve fazer 30s→90s→270s em vez de tentativas back-to-back
-- Infraestrutura existe em `upfolder.py`; apenas refinar
+### ~~2.4 · Retry com backoff exponencial + jitter~~ ✅ Concluído
+- `--upload-retries 3` → 30s → 90s → 270s com ±10% jitter antes de cada retry
+- Thread para leitura de stderr sem deadlock
 
-### 2.5 · `obfuscate_and_par` rollback completo de volumes PAR2 ofuscados `Alta · Médio esforço` ← depende de 1.5
-- Bug B5: volumes PAR2 gerados antes de Ctrl+C não são removidos no rollback
-- `makepar.py:265-295` — apenas o root é renomeado de volta
+### ~~2.5 · `obfuscate_and_par` rollback completo de volumes PAR2 ofuscados~~ ✅ Concluído
+- `finally` em `obfuscate_and_par`: remove `random_base*.par2` e `orig_stem*.par2` antes de reverter rename
 
 ### 2.6 · Refatorar `orchestrator.py` → extrair `PathResolver`, `PipelineReporter`, `DependencyChecker` `Alta · Alto esforço` ← depende de 1.5
 - 1026 linhas, quebra Single Responsibility
@@ -98,9 +98,10 @@
 - Função tem 195 linhas com 4 ramos (folder/rar-volset/single-file/erro)
 - Meta: função principal < 60 linhas
 
-### 2.8 · Deduplicate progress parser → `_progress.py` compartilhado `Média · Médio esforço` ← depende de 1.5
-- `_PCT_RE`, `_read_output`, `_process_output` quase idênticos entre `makerar.py` e `makepar.py`
-- `makerar.py:50-152`, `makepar.py:572-681`
+### ~~2.8 · Deduplicate progress parser → `_progress.py` compartilhado~~ ✅ Concluído
+- `_PCT_RE`, `_read_output`, `_process_output` extraídos para `upapasta/_progress.py`
+- `makerar.py` e `makepar.py` importam de `_progress.py`
+- 5 testes em `test_phase2.py`
 
 ### 2.9 · Múltiplos servidores NNTP com failover `Alta · Alto esforço` ← depende de 2.3
 - `NNTP_HOST_1/2/3` no `.env`; primeira falha → tenta próximo
@@ -111,32 +112,33 @@
 - Salvar hash do conteúdo + último artigo confirmado
 - Teste: Ctrl+C durante upload + rerun retoma de onde parou
 
-### 2.11 · NFO `ffprobe` single-call (`-show_streams -show_format`) `Média · Baixo esforço`
-- Atualmente 2 chamadas por vídeo em `nfo.py:36-79`
-- Meta: tempo de NFO em pasta de 20 vídeos cai >50%
+### ~~2.11 · NFO `ffprobe` single-call (`-show_streams -show_format`)~~ ✅ Concluído
+- `_get_video_info()` substitui `_get_video_duration()` + `_get_video_metadata()` com uma única chamada
+- `nfo.py:36-79` — ~50% menos chamadas de subprocesso para pastas com vídeos
 
 ### 2.12 · NFO multi-track (áudio + legendas embutidas) `Média · Médio esforço` ← depende de 2.11
 - NFO deve mostrar: `Áudio: PT, EN, JP | Legendas: PT` para `.mkv` multi-track
 
-### 2.13 · Logging estruturado com timestamps + níveis `Média · Baixo esforço` ← depende de 1.5
-- `logger.info/debug` com timestamp ISO; `--verbose` mostra DEBUG
+### ~~2.13 · Logging estruturado com timestamps + níveis~~ ✅ Concluído
+- `--verbose` ativa timestamp ISO `%Y-%m-%dT%H:%M:%S` no handler de stream
+- Modo padrão: sem timestamp (output limpo)
+- 2 testes em `test_phase2.py`
 
-### 2.14 · Testes para `--watch` daemon `Alta · Médio esforço` ← depende de 1.5
-- `watch.py` tem cobertura zero
-- Mock de polling; fixture de pasta+novos arquivos; asserts de processamento
+### ~~2.14 · Testes para `--watch` daemon~~ ✅ Concluído
+- 4 testes em `test_phase2.py`: `_item_size` (arquivo, pasta, inexistente) + `_watch_loop` com mock de polling
 
-### 2.15 · `nntp_test.py` SSL verification opt-in (default verify) `Alta · Médio esforço`
-- Bug de segurança S1: `ssl.CERT_NONE` incondicionalmente sem aviso
-- Adicionar flag `--insecure`; default usa CA certs
-- `nntp_test.py:42-43`
+### ~~2.15 · `nntp_test.py` SSL verification opt-in (default verify)~~ ✅ Concluído
+- Default agora usa CA certs do sistema (`ssl.create_default_context()` sem modificação)
+- `--insecure` desativa verificação; propagado via CLI → `main.py` → `test_nntp_connection(insecure=...)`
+- 2 testes em `test_phase2.py`
 
 ### 2.16 · `fix_nzb_subjects` reescrito com parser estruturado `Média · Médio esforço` ← depende de 1.3
 - Substituir lógica de matching por aspas por parser real
 - Suportar `(\d+/\d+)`, yEnc, subjects sem aspas
 
-### 2.17 · Cache global de `os.path.getsize` no pipeline `Baixa · Baixo esforço` ← depende de 2.6
-- `get_total_size`, `_folder_size`, `_par_file_path` percorrem a árvore independentemente
-- `@lru_cache` em walker compartilhado
+### ~~2.17 · Cache global de `os.path.getsize` no pipeline~~ ✅ Concluído
+- `@lru_cache(maxsize=64)` em `get_total_size` em `resources.py`
+- 2 testes em `test_phase2.py`
 
 ---
 

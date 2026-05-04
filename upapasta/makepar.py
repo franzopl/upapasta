@@ -36,7 +36,6 @@ import argparse
 import glob
 import os
 import random
-import re
 import shutil
 import string
 import subprocess
@@ -46,6 +45,7 @@ from queue import Queue
 from typing import Optional, Tuple
 
 from ._process import managed_popen
+from ._progress import _read_output, _process_output
 
 
 # ── Helpers de tamanho ────────────────────────────────────────────────────────
@@ -475,9 +475,24 @@ def obfuscate_and_par(
         raise
 
     finally:
-        # Se falhar PAR2, reverte (remove links ou rename back)
+        # Se falhar PAR2, reverte ofuscação e remove PAR2 parciais gerados
         if not _par_succeeded and obfuscated_path and obfuscated_map:
             print("\nErro ao gerar paridade. Revertendo ofuscação...")
+            # Remove quaisquer volumes PAR2 gerados antes da falha/interrupção
+            for par_file in glob.glob(os.path.join(parent_dir, glob.escape(random_base) + "*.par2")):
+                try:
+                    os.remove(par_file)
+                except OSError:
+                    pass
+            # Também remove PAR2 com nome original (caso falhou antes do rename)
+            actual_par_input_stem = os.path.splitext(os.path.basename(input_path))[0]
+            if is_rar_vol_set:
+                actual_par_input_stem = actual_par_input_stem.rsplit(".part", 1)[0]
+            for par_file in glob.glob(os.path.join(parent_dir, glob.escape(actual_par_input_stem) + "*.par2")):
+                try:
+                    os.remove(par_file)
+                except OSError:
+                    pass
             _revert_obfuscation(
                 is_folder=is_folder,
                 is_rar_vol_set=is_rar_vol_set,
@@ -566,118 +581,6 @@ def parse_args():
         help="Número de threads (parpar). Padrão: CPUs disponíveis.",
     )
     return p.parse_args()
-
-
-# ── Output do subprocess ──────────────────────────────────────────────────────
-
-# Regex para capturar porcentagem de progresso.
-# Tolerante: aceita "label: 50%", "50%", "[50.0%]", etc.
-_PCT_RE = re.compile(r"(?:^(.+?)[:\s]+)?(\d{1,3}(?:\.\d+)?)\s*%")
-
-_CHUNK_SIZE = 4096  # bytes por read() — reduz syscalls vs. read(1)
-
-
-def _read_output(pipe, queue: Queue) -> None:
-	"""
-	Thread worker que lê o pipe do subprocess em chunks de 4 KB e envia
-	linhas individuais para a fila, tratando tanto \\r quanto \\n como
-	separadores (necessário para barras de progresso que usam \\r sem \\n).
-	"""
-	if pipe is None:
-		queue.put(None)
-		return
-	buf = ""
-	try:
-		while True:
-			chunk = pipe.read(_CHUNK_SIZE)
-			if not chunk:
-				break
-			buf += chunk
-			# Emite cada "linha" separada por \r ou \n
-			while True:
-				for sep in ("\r\n", "\r", "\n"):
-					idx = buf.find(sep)
-					if idx != -1:
-						token = buf[:idx]
-						buf = buf[idx + len(sep):]
-						if token:  # ignora tokens vazios
-							queue.put(token)
-						break
-				else:
-					# Nenhum separador no buffer — aguarda mais dados
-					break
-	finally:
-		if buf:  # flush do que sobrou (sem newline final)
-			queue.put(buf)
-		queue.put(None)  # Sinal de fim de stream
-
-def _process_output(queue: Queue) -> None:
-	"""
-	Consome linhas da fila e exibe progresso no terminal.
-
-	Lógica de exibição:
-	  1. Se a linha contém "XX%" → barra de progresso animada.
-	  2. Caso contrário → spinner + texto truncado (fallback robusto).
-
-	O fallback para spinner garante que versões futuras do parpar/rar que
-	mudem o formato da string de progresso não causem tela em branco.
-	"""
-	bar_width = 25
-	spinner = "|/-\\"
-	spin_idx = 0
-	last_label = ""
-
-	try:
-		term_columns = shutil.get_terminal_size().columns
-	except Exception:
-		term_columns = 80
-
-	# Linha em branco de limpeza (reutilizada a cada iteração)
-	clear = "\r" + " " * (term_columns - 1) + "\r"
-
-	while True:
-		line = queue.get()
-		if line is None:
-			break
-
-		line = line.strip()
-		if not line:
-			continue
-
-		sys.stdout.write(clear)
-
-		# ── Tenta parsear porcentagem ──────────────────────────────────────
-		m = _PCT_RE.search(line)
-		if m:
-			label_raw = (m.group(1) or "").strip().rstrip(":").strip()
-			if label_raw:
-				last_label = label_raw
-			try:
-				pct_val = float(m.group(2))
-				if 0.0 <= pct_val <= 100.0:
-					filled = int((pct_val / 100.0) * bar_width)
-					bar = "#" * filled + "-" * (bar_width - filled)
-					prefix = f"[{bar}] {pct_val:5.1f}%"
-					if last_label:
-						available = term_columns - 1 - len(prefix) - 2
-						label_trunc = last_label[:available] if available > 0 else ""
-						msg = f"{prefix}  {label_trunc}" if label_trunc else prefix
-					else:
-						msg = prefix
-					sys.stdout.write(msg[:term_columns - 1])
-					sys.stdout.flush()
-					continue
-			except (ValueError, TypeError):
-				pass  # cai para spinner abaixo
-
-		# ── Fallback: spinner + texto (formato desconhecido ou mensagem info) ──
-		msg = f"{spinner[spin_idx % len(spinner)]} {line}"
-		sys.stdout.write(msg[:term_columns - 1])
-		sys.stdout.flush()
-		spin_idx += 1
-
-	sys.stdout.write("\n")
-	sys.stdout.flush()
 
 
 # ── make_parity ───────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import logging
+from functools import lru_cache
 
 logger = logging.getLogger("upapasta")
 
@@ -25,8 +26,13 @@ def get_mem_available_mb() -> int:
     return 2048
 
 
+@lru_cache(maxsize=64)
 def get_total_size(path: str) -> int:
-    """Tamanho total em bytes de arquivo ou pasta, sem seguir symlinks."""
+    """Tamanho total em bytes de arquivo ou pasta, sem seguir symlinks.
+
+    Cache LRU (64 entradas) evita percursos repetidos durante o mesmo pipeline.
+    O cache é por processo — não persiste entre invocações.
+    """
     if os.path.isfile(path):
         return os.path.getsize(path)
     total = 0

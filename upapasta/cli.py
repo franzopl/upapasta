@@ -87,6 +87,11 @@ def parse_args():
         action="store_true",
         help="Testa conectividade com o servidor NNTP (valida host, porta e credenciais)",
     )
+    p.add_argument(
+        "--insecure",
+        action="store_true",
+        help="Desativa verificação de certificado SSL em --test-connection (use apenas para testes)",
+    )
     # ── Opções essenciais ────────────────────────────────────────────────────
     essential = p.add_argument_group("opções essenciais")
     essential.add_argument(

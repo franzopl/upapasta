@@ -56,14 +56,16 @@ def setup_logging(verbose: bool = False, log_file: Optional[str] = None) -> None
     level = logging.DEBUG if verbose else logging.INFO
     handler = logging.StreamHandler()
     handler.setLevel(level)
-    handler.setFormatter(logging.Formatter("%(levelname)s %(message)s"))
+    # Timestamps no terminal apenas em verbose — mantém output limpo no modo padrão
+    fmt = "%(asctime)s %(levelname)s %(message)s" if verbose else "%(levelname)s %(message)s"
+    handler.setFormatter(logging.Formatter(fmt, datefmt="%Y-%m-%dT%H:%M:%S"))
     root = logging.getLogger("upapasta")
     root.setLevel(level)
     root.addHandler(handler)
     if log_file:
         fh = logging.FileHandler(log_file, encoding="utf-8")
         fh.setLevel(logging.DEBUG)
-        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%dT%H:%M:%S"))
         root.addHandler(fh)
 
 

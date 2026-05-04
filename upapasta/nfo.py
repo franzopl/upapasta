@@ -32,51 +32,42 @@ def _format_size(size_bytes: int) -> str:
     return f"{size_bytes:.2f} TB"
 
 
-def _get_video_duration(file_path: str) -> float:
+def _get_video_info(file_path: str) -> tuple[float, dict]:
+    """Retorna (duration_seconds, metadata) com uma única chamada ao ffprobe."""
+    duration = 0.0
+    metadata: dict = {"codec": "N/A", "resolution": "N/A", "bitrate": "N/A"}
     try:
         cmd = [
             "ffprobe", "-v", "error",
-            "-show_entries", "format=duration",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,width,height:format=duration,bit_rate",
             "-of", "default=noprint_wrappers=1:nokey=1",
             file_path,
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True)
-        return float(result.stdout.strip())
-    except Exception:
-        return 0.0
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True
+        )
+        values = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        # ffprobe emite: codec_name, width, height (stream), depois duration, bit_rate (format)
+        # A ordem é determinística quando select_streams + show_entries é usado.
+        codec = values[0] if len(values) > 0 else "N/A"
+        width = values[1] if len(values) > 1 else ""
+        height = values[2] if len(values) > 2 else ""
+        dur_raw = values[3] if len(values) > 3 else ""
+        br_raw = values[4] if len(values) > 4 else ""
 
-
-def _get_video_metadata(file_path: str) -> dict:
-    metadata = {"codec": "N/A", "resolution": "N/A", "bitrate": "N/A"}
-    try:
-        # codec e resolução do stream de vídeo
-        cmd_stream = [
-            "ffprobe", "-v", "error", "-select_streams", "v:0",
-            "-show_entries", "stream=codec_name,width,height",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            file_path,
-        ]
-        result = subprocess.run(cmd_stream, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True)
-        data = result.stdout.strip().split("\n")
-        if len(data) >= 1 and data[0]:
-            metadata["codec"] = data[0]
-        if len(data) >= 3 and data[1].isdigit() and data[2].isdigit():
-            metadata["resolution"] = f"{data[1]}x{data[2]}"
-
-        # bitrate do formato (muito mais confiável que stream-level)
-        cmd_fmt = [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=bit_rate",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            file_path,
-        ]
-        result_fmt = subprocess.run(cmd_fmt, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True)
-        br = result_fmt.stdout.strip()
-        if br and br.isdigit() and int(br) > 0:
-            metadata["bitrate"] = f"{int(br) / 1000:.0f} kbps"
+        metadata["codec"] = codec if codec else "N/A"
+        if width.isdigit() and height.isdigit():
+            metadata["resolution"] = f"{width}x{height}"
+        try:
+            duration = float(dur_raw)
+        except (ValueError, TypeError):
+            duration = 0.0
+        if br_raw and br_raw.isdigit() and int(br_raw) > 0:
+            metadata["bitrate"] = f"{int(br_raw) / 1000:.0f} kbps"
     except Exception:
         pass
-    return metadata
+    return duration, metadata
 
 
 def _format_duration(seconds: float) -> str:
@@ -236,8 +227,7 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         video_metadata_map = {}
         total_duration_seconds = 0.0
         for video in video_files:
-            duration_sec = _get_video_duration(str(video))
-            meta = _get_video_metadata(str(video))
+            duration_sec, meta = _get_video_info(str(video))
             meta["duration_str"] = _format_duration(duration_sec)
             total_duration_seconds += duration_sec
             video_metadata_map[os.path.abspath(video)] = meta

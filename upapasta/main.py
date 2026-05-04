@@ -47,6 +47,7 @@ def main():
             use_ssl=env_vars.get("NNTP_SSL", "true").lower() in ("true", "1", "yes"),
             user=env_vars["NNTP_USER"],
             password=env_vars["NNTP_PASS"],
+            insecure=getattr(args, "insecure", False),
         )
         print(message)
         sys.exit(0 if success else 1)

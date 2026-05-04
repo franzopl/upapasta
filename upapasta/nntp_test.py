@@ -22,8 +22,12 @@ def test_nntp_connection(
     user: str,
     password: str,
     timeout: int = 10,
+    insecure: bool = False,
 ) -> tuple[bool, str]:
     """Testa conectividade com servidor NNTP.
+
+    Por padrão verifica o certificado SSL via CA bundle do sistema.
+    Passe insecure=True para desativar a verificação (apenas para testes).
 
     Retorna (sucesso: bool, mensagem: str).
     """
@@ -39,8 +43,9 @@ def test_nntp_connection(
     try:
         if use_ssl:
             context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
+            if insecure:
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
             nntp = nntplib.NNTP_SSL(
                 host,
                 port,
