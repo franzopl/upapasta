@@ -18,7 +18,7 @@ class TestObfuscation(unittest.TestCase):
             shutil.rmtree(self.test_dir)
 
     def test_obfuscation_workflow(self):
-        """Arquivo único com --obfuscate: cria RAR com nome aleatório, original intacto."""
+        """Arquivo único com --obfuscate (sem --password): ofuscação + PAR2, sem RAR (fluxo moderno)."""
         orchestrator = UpaPastaOrchestrator(
             input_path=str(self.test_file),
             dry_run=False,
@@ -31,16 +31,20 @@ class TestObfuscation(unittest.TestCase):
         result = orchestrator.run()
         self.assertEqual(result, 0, "O orquestrador deve retornar 0 em caso de sucesso.")
 
-        # Arquivo original permanece intacto (está dentro do RAR)
+        # Arquivo original permanece intacto
         self.assertTrue(self.test_file.exists(), "O arquivo original deve continuar existindo.")
 
-        # Deve existir um RAR com nome aleatório (diferente do original)
-        rar_files = [f for f in self.test_dir.glob("*.rar") if f.stem != self.test_file.stem]
-        self.assertTrue(len(rar_files) > 0, "Deve haver um arquivo RAR ofuscado.")
-        obfuscated_rar = rar_files[0]
+        # NÃO deve haver RAR (fluxo moderno: ofuscação + PAR2 direto)
+        rar_files = list(self.test_dir.glob("*.rar"))
+        self.assertEqual(len(rar_files), 0, "--obfuscate sem --password não deve criar RAR.")
 
-        # Arquivo de paridade criado para o RAR ofuscado
-        par2_file = obfuscated_rar.with_suffix(".par2")
+        # Deve haver arquivo ofuscado (hardlink) com nome aleatório
+        obfuscated_files = [f for f in self.test_dir.glob("*.txt") if f.name != self.test_file.name]
+        self.assertTrue(len(obfuscated_files) > 0, "Deve haver um arquivo ofuscado (hardlink).")
+        obfuscated_file = obfuscated_files[0]
+
+        # Arquivo de paridade criado para o arquivo ofuscado
+        par2_file = obfuscated_file.with_suffix(".par2")
         self.assertTrue(par2_file.exists(), f"O arquivo de paridade {par2_file} deve existir.")
 
 if __name__ == "__main__":

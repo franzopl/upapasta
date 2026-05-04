@@ -114,11 +114,7 @@ class UpaPastaOrchestrator:
         self.obfuscate = obfuscate
         self.obfuscated_map: dict[str, str] = {}
         self.obfuscate_was_linked = False
-        # --obfuscate implica senha aleatória se não fornecida
-        if obfuscate and rar_password is None:
-            self.rar_password: str | None = self._generate_password()
-        else:
-            self.rar_password = rar_password
+        self.rar_password = rar_password
         self.par_slice_size = par_slice_size
         self.upload_timeout = upload_timeout
         self.upload_retries = upload_retries
@@ -220,12 +216,14 @@ class UpaPastaOrchestrator:
 
     def run_makerar(self) -> bool:
         if self.input_path.is_file():
-            if self.obfuscate or self.rar_password:
-                reason = "ofuscação" if self.obfuscate else "senha"
-                print(f"📦 Arquivo único com {reason}: criando RAR automaticamente.")
+            if self.rar_password:
+                print(f"📦 Arquivo único com senha: criando RAR automaticamente.")
             else:
                 self.skip_rar = True
-                print(f"✅ Arquivo único: {self.input_path.name} (upload direto, sem RAR)")
+                if self.obfuscate:
+                    print(f"✅ Arquivo único com ofuscação: {self.input_path.name} (upload direto ofuscado + PAR2)")
+                else:
+                    print(f"✅ Arquivo único: {self.input_path.name} (upload direto, sem RAR)")
 
         if self.skip_rar:
             print_skip_rar_hints(self.input_path, self.filepath_format, self.backend)

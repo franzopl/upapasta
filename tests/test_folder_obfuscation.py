@@ -82,9 +82,8 @@ class TestFolderObfuscation(unittest.TestCase):
         # nyuu deve ter sido chamado
         self.assertTrue(mock_managed_popen.called, "nyuu deveria ter sido chamado.")
 
-        # --obfuscate gera senha aleatória automaticamente
-        self.assertIsNotNone(orchestrator.rar_password, "Senha RAR deve ser gerada automaticamente com --obfuscate.")
-        self.assertGreater(len(orchestrator.rar_password), 8)
+        # --obfuscate sem --password não gera senha (fluxo moderno 2026: ofuscação + PAR2, sem RAR)
+        self.assertIsNone(orchestrator.rar_password, "--obfuscate sozinho não deve gerar senha.")
 
 if __name__ == "__main__":
     unittest.main()
