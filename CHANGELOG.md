@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.22.1 - 2026-05-04
+
+### Correções (Bugfix)
+
+- **Ofuscação de arquivo único**: corrigido bug onde parpar era executado com arquivo original em vez de ofuscado, causando inconsistência de nomes no NZB (Part #1 com nome original, PAR2s com ofuscado). Agora metadados do PAR2 são consistentes com nomes ofuscados.
+
 ## 0.22.0 - 2026-05-04
 
 ### Refatorações internas (sem quebra de API)
