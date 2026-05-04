@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.22.0 - 2026-05-04
+
+### Refatorações internas (sem quebra de API)
+
+- **`_pipeline.py`** (novo módulo, 601 linhas): extrai `DependencyChecker`, `PathResolver` e `PipelineReporter` de `orchestrator.py`; funções auxiliares standalone `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources`.
+- **`orchestrator.py`**: 1087 → 599 linhas (Single Responsibility — delega validação, resolução de caminhos e relatório às novas classes).
+- **`makepar.py::obfuscate_and_par`**: 195 → 76 linhas; extraídas subfunções `_obfuscate_folder`, `_obfuscate_rar_vol_set`, `_obfuscate_single_file`, `_rename_par2_files`, `_cleanup_on_par_failure`.
+- **33 testes novos** em `tests/test_pipeline.py` (252 testes no total).
+
 ## 0.21.0 - 2026-05-04
 
 ### Novas Features
