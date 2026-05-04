@@ -454,9 +454,7 @@ def obfuscate_and_par(
         print(f"❌ Erro crítico na ofuscação: {e}")
         return 1, None, {}, False
 
-    # Arquivo/volume: gera PAR2 com nome original para que o .par2 grave o nome real.
-    # Pasta: usa a cópia ofuscada (link_tree já garantiu nomes originais dentro).
-    actual_par_input = input_path if not is_folder else par_input
+    actual_par_input = par_input
     _par_succeeded = False
     rc = 5
 
@@ -470,8 +468,6 @@ def obfuscate_and_par(
         )
         if rc == 0:
             _par_succeeded = True
-            if not is_folder:
-                _rename_par2_files(parent_dir, actual_par_input, is_rar_vol_set, random_base)
             if is_folder and usenet and obfuscated_path:
                 print("  🔒 Ofuscando estrutura interna (deep obfuscation)...")
                 obfuscated_map.update(_deep_obfuscate_tree(obfuscated_path))

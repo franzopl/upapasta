@@ -170,10 +170,11 @@ def fix_nzb_subjects(
     apenas o nome do arquivo pelo caminho original (deofuscado).
     """
     try:
+        ns_url = "http://www.newzbin.com/DTD/2003/nzb"
+        ET.register_namespace("", ns_url)
         tree = ET.parse(nzb_path)
         root = tree.getroot()
 
-        ns_url = "http://www.newzbin.com/DTD/2003/nzb"
         files = root.findall(f".//{{{ns_url}}}file")
         if not files:
             # Tenta sem namespace como fallback
