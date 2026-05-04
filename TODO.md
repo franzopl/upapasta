@@ -1,6 +1,6 @@
 # TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Última revisão: 2026-05-04 (incorporando varredura profunda do projeto)
+> Última revisão: 2026-05-04 (pós-estabilização fase 1: 145 testes verdes, 1 skipped)
 > Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
@@ -12,6 +12,10 @@
 - **`--test-connection`** — handshake NNTP (CONNECT/LOGIN/QUIT)
 - **`--config`** — reconfiguração com preservação de valores
 - **`--rar` opt-in** (0.18.0) — inversão de `--skip-rar`; `--password` presume `--rar`
+- **Docs JSONL sincronizadas** (0.18.x) — README, DOCS, CHANGELOG corrigidos; F1.1 ✅
+- **`test_catalog.py` migrado para JSONL** (0.18.x) — 4 testes corrigidos (`_history_path`); F1.2 ✅
+- **`fix_nzb_subjects` corrigido** (0.18.x) — matching robusto sem aspas; F1.3 ✅
+- **`test_fallback_to_rename` corrigido** (0.18.x) — mock atualizado; F1.4 ✅
 - **`--each` / `--season` / `--watch`** — modos de processamento múltiplo
 - **Upload sem staging `/tmp`** (0.9.0) — paths diretos via `cwd=input_path`
 - **`managed_popen`** (0.9.0) — SIGTERM→SIGKILL para todos os subprocessos externos
@@ -24,42 +28,24 @@
 
 ## 🔴 Fase 1 — Estabilidade (v0.19.x)
 
-**Meta: zero falhas de teste, CI verde, docs sincronizadas. Sem novas features.**
+**Meta: CI verde, cobertura de segurança básica e limpeza. Sem novas features.**
+**Status: 145 passed, 1 skipped (`test_season_obfuscation_integration` — suspenso intencionalmente)**
 
-### 1.1 · Sincronizar docs ↔ código (catálogo JSONL) `Crítica · Baixo esforço`
-- README.md:163-165, 269-281 ainda menciona `sqlite3 ... history.db`
-- DOCS.md:236-289 com exemplos sqlite3 não funcionam
-- CHANGELOG.md:55 menciona SQLite
-- Substituir por exemplos com `tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool`
+### ~~1.1 · Sincronizar docs ↔ código (catálogo JSONL)~~ ✅ Concluído (commit b0a7636)
 
-### 1.2 · Migrar testes de `test_catalog.py` para JSONL `Crítica · Baixo esforço` ← depende de 1.1
-- 4 testes falham por mockarem `_db_path` da era SQLite (não existe mais; é `_history_path`)
-- Critério: `pytest tests/test_catalog.py` 100% verde
+### ~~1.2 · Migrar testes de `test_catalog.py` para JSONL~~ ✅ Concluído (commit b0a7636)
 
-### 1.3 · Corrigir `test_fix_nzb_subjects_preserves_nested_subjects` ou ajustar `fix_nzb_subjects` `Crítica · Médio esforço`
-- Bug B1: quando subject NZB não contém aspas e não é exatamente igual ao filename, o nome não é substituído
-- `nzb.py:182-244` — lógica de matching frágil (distingue por presença de aspas)
-- **Recomendação**: fortalecer a função para aceitar NZBs sem aspas (caso de uso real)
+### ~~1.3 · Corrigir `fix_nzb_subjects`~~ ✅ Concluído (commit b0a7636)
 
-### 1.4 · Corrigir `test_fallback_to_rename` (mock obsoleto) `Alta · Baixo esforço`
-- `tests/test_obfuscation_hardlinks.py` — mock desatualizado
-- Critério: teste verde sem skip
+### ~~1.4 · Corrigir `test_fallback_to_rename`~~ ✅ Concluído (commit d18cd23)
 
-### 1.5 · GitHub Actions CI: pytest + ruff + mypy em push/PR `Crítica · Médio esforço` ← depende de 1.1–1.4
-- Criar `.github/workflows/ci.yml`
-- Badge verde no README; falha automática em PRs com regressão
+### ~~1.5 · GitHub Actions CI~~ ✅ Concluído (commit ae6b39a)
 
-### 1.6 · Limpeza de arquivos órfãos no root do repo `Alta · Baixo esforço`
-- Arquivos lixo de testes manuais: `Episode01.nzb`, `MySeries.nfo`, `original_file.txt.nfo`, `test_*_dir.nfo`, `test_revert_skip_upload.nfo`
-- `.gitignore` mais agressivo para `*.nzb`, `*.nfo` fora de `tests/`
+### ~~1.6 · Limpeza de arquivos órfãos no root do repo~~ ✅ Concluído (commit ae6b39a)
 
-### 1.7 · Atualizar/substituir GEMINI.md `Alta · Baixo esforço` ← depende de 1.1
-- `GEMINI.md:69` lista versão 0.9.0 como current; menciona SQLite; design pré-modularização
-- Opção recomendada: substituir conteúdo por redirecionamento para `CLAUDE.md`
+### ~~1.7 · Atualizar/substituir GEMINI.md~~ ✅ Concluído (commit ae6b39a)
 
-### 1.8 · Atualizar INSTALL.md `Alta · Baixo esforço` ← depende de 1.1
-- `INSTALL.md:71` menciona `.env` no diretório atual → corrigir para `~/.config/upapasta/.env`
-- Adicionar referência a `examples/post_upload_debug.sh`
+### ~~1.8 · Atualizar INSTALL.md~~ ✅ Concluído (commit ae6b39a)
 
 ### 1.9 · Testes para `resources.py` `Média · Baixo esforço` ← depende de 1.5
 - `calculate_optimal_resources` tem cobertura zero
@@ -69,19 +55,14 @@
 - `ui.py` tem cobertura zero
 - ≥6 testes: PhaseBar lifecycle (skip→active→done→error), `_TeeStream` strip ANSI completo
 
-### 1.11 · Mascarar senhas em `_TeeStream.write` antes de gravar log `Alta · Médio esforço` ← depende de 1.10
-- Bug de segurança S2: senha aparece em log de sessão
-- Regex strip `Senha RAR: ...`, `NNTP_PASS=...`; teste explícito
-- `ui.py:21-49`
+### ~~1.11 · Mascarar senhas em `_TeeStream.write`~~ ✅ Concluído (commit ae6b39a)
 
 ### 1.12 · Documentar `examples/` no README (seção Hooks) `Média · Baixo esforço` ← depende de 1.1
 - `examples/post_upload_debug.sh` não mencionado em nenhum doc
 
-### 1.13 · Remover `__import__("shlex")` inline em `orchestrator.from_args` `Baixa · Baixo esforço`
-- `orchestrator.py:213,217` — anti-pattern; mover import para topo do módulo
+### ~~1.13 · Remover `__import__("shlex")` inline~~ ✅ Concluído (commit ae6b39a)
 
-### 1.14 · Mover `--profile` para grupo "essenciais" no argparse `Baixa · Baixo esforço`
-- `cli.py:90-95` — flag solta fora dos grupos; deve aparecer em "essenciais" no `--help`
+### ~~1.14 · Mover `--profile` para grupo "essenciais"~~ ✅ Concluído (commit ae6b39a)
 
 ### 1.15 · Remover/migrar `scripts/check_header.py` `Média · Baixo esforço`
 - Usa `python-dotenv` (não declarado em `pyproject.toml`) — viola stdlib-only
@@ -252,8 +233,8 @@
 | 3 | v0.21.x→v1.0 | Features | F3.1–3.15: webhooks, TMDb, 7z, stats, publicação |
 
 **Próximos passos imediatos** (em ordem):
-1. F1.1 — Sincronizar docs (JSONL)
-2. F1.2 — Migrar `test_catalog.py`
-3. F1.3 — Corrigir `fix_nzb_subjects`
-4. F1.4 — Corrigir `test_fallback_to_rename`
-5. F1.5 — GitHub Actions CI
+1. ~~F1.1–F1.8, F1.11, F1.13–F1.14~~ ✅ Concluídos
+2. F1.9 — Testes para `resources.py` (cobertura zero)
+3. F1.10 — Testes para `ui.py` / `_TeeStream` (cobertura zero, inclui teste de mascaramento)
+4. F1.15 — Migrar `scripts/check_header.py` para stdlib
+5. F2.1 — Validação prévia de input (espaço em disco, permissões)
