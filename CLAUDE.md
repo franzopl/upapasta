@@ -19,7 +19,7 @@
 
 **UpaPasta** é uma ferramenta CLI Python que automatiza o pipeline completo de upload para Usenet com o mínimo de configuração possível.
 
-Versão atual: **0.18.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
+Versão atual: **0.22.3** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
 
 Pipeline padrão executado por `UpaPastaOrchestrator.run()`:
 
@@ -51,7 +51,7 @@ upapasta Pasta/ --obfuscate --backend parpar \
 
 ---
 
-## 3. Arquitetura Modular (v0.18.0)
+## 3. Arquitetura Modular (v0.22.3)
 
 Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas via `wc -l upapasta/*.py`.
 

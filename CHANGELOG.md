@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.22.3 - 2026-05-04
+
+### Correções (Bugfix)
+
+- **Ofuscação de Assuntos e Extensões**: Corrigido bug onde o nome original vazava no NZB e extensões eram mal identificadas em uploads ofuscados.
+  - Substituído uso de `-s` (subject) por `-t` (comment) no `nyuu` para preservar formatação padrão de assuntos com nomes de arquivos.
+  - Refatorada a função `fix_nzb_subjects` para extrair nomes de arquivos diretamente dos assuntos do NZB, eliminando erros de mapeamento por ordem.
+  - Adicionado suporte a deofuscação de arquivos `.par2` e volumes `.volNN+MM.par2` no NZB.
+  - Corrigido bug onde arquivos `.par2` não recebiam o prefixo de pasta em uploads de temporada (`--season`).
+
 ## 0.22.2 - 2026-05-04
 
 ### Correções (Bugfix)

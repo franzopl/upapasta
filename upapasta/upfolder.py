@@ -337,7 +337,7 @@ def upload_to_usenet(
         "-a", article_size,
         "-f", generate_anonymous_uploader(),
         "--date", "now",
-        "-s", subject,
+        "-t", subject,
     ])
 
     if nzb_out:

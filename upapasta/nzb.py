@@ -185,26 +185,23 @@ def fix_nzb_subjects(
             old_subject = file_elem.get("subject", "")
 
             # Determina qual nome de arquivo usar para este elemento.
-            # Se uma file_list foi fornecida e tem o mesmo tamanho, usamos ela.
-            # Caso contrário, tentamos extrair o nome do próprio subject atual.
+            # Prioriza extrair entre aspas do próprio subject (gerado pelo nyuu -t).
             current_filename = ""
-            if from_file_list:
+            if '"' in old_subject:
+                m = re.search(r'\"(.*?)\"', old_subject)
+                if m:
+                    current_filename = m.group(1)
+            
+            # Se não encontrou no subject e temos file_list, usa como fallback (ordem assumida)
+            if not current_filename and from_file_list:
                 current_filename = file_list[i]  # type: ignore[index]
-            else:
-                # Tenta extrair entre aspas ou usa o subject inteiro se for simples
-                if '"' in old_subject:
-                    m = re.search(r'\"(.*?)\"', old_subject)
-                    if m:
-                        current_filename = m.group(1)
-                else:
-                    # Se não tem aspas, assume que o subject pode ser o próprio nome (comum em ofuscados)
-                    # mas remove tags típicas se houver
-                    current_filename = old_subject.split(' (')[0].split(' [')[0].strip()
+            
+            # Último recurso: heurística de split no subject
+            if not current_filename:
+                # Se não tem aspas, remove tags típicas se houver
+                current_filename = old_subject.split(' (')[0].split(' [')[0].strip()
 
             if not current_filename:
-                continue
-
-            if current_filename.lower().endswith('.par2'):
                 continue
 
             # Tenta deofuscar
@@ -214,16 +211,23 @@ def fix_nzb_subjects(
                     original_filename = obfuscated_map[current_filename]
                 else:
                     # Tenta match por base name (ex: 12345.part01.rar -> 12345)
+                    # Agora também tratamos .par2 e .volNN+MM.par2
                     base = current_filename
                     ext_part = ""
                     
                     # Trata .partNN.rar
                     rar_match = re.search(r'(\.part\d+\.rar)$', current_filename, re.IGNORECASE)
+                    # Trata .par2 e .volNN+MM.par2
+                    par2_match = re.search(r'(\.vol\d+\+\d+\.par2|\.par2)$', current_filename, re.IGNORECASE)
+                    
                     if rar_match:
                         ext_part = rar_match.group(1)
                         base = current_filename[:-len(ext_part)]
+                    elif par2_match:
+                        ext_part = par2_match.group(1)
+                        base = current_filename[:-len(ext_part)]
                     else:
-                        # Trata extensão simples
+                        # Trata extensão simples (.mkv, .mp4, etc)
                         base, ext_part = os.path.splitext(current_filename)
                     
                     if base in obfuscated_map:
@@ -298,7 +302,7 @@ def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, 
             if "/" in fname:
                 fname = fname.split("/", 1)[1]
 
-            if not fname or fname.lower().endswith(".par2"):
+            if not fname:
                 continue
 
             new_fname = f"{ep_name}/{fname}"
