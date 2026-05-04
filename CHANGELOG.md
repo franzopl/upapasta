@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.22.2 - 2026-05-04
+
+### Correções (Bugfix)
+
+- **`--obfuscate` sem `--password`**: corrigido bug onde arquivo único com ofuscação criava RAR automaticamente (gerava senha aleatória). Agora segue a filosofia de 2026: `--obfuscate` sem `--password` = ofuscação + PAR2 direto, sem RAR. Apenas `--password` (explícito) presume `--rar` automaticamente.
+- **Barra de progresso do nyuu**: restaurada exibição da barra de progresso durante upload. O stderr do nyuu agora vai para o terminal normalmente (estava sendo redirecionado para captura de erros).
+
 ## 0.22.1 - 2026-05-04
 
 ### Correções (Bugfix)
