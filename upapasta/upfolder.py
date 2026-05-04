@@ -148,6 +148,7 @@ def upload_to_usenet(
     password: Optional[str] = None,
     nyuu_extra_args: Optional[list] = None,
     folder_name: Optional[str] = None,
+    strong_obfuscate: bool = False,
 ) -> int:
     """
     Upload de arquivos para Usenet usando nyuu.
@@ -480,7 +481,7 @@ def upload_to_usenet(
         # Os par2 passados ao nyuu eram absolutos; para o NZB só seus basenames
         # interessam.
         par2_basenames = [os.path.basename(f) for f in par2_files]
-        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name, obfuscated_map)
+        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name, obfuscated_map, strong_obfuscate)
 
     # Injetar senha no NZB para extração automática pelos clientes
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password and not skip_rar:

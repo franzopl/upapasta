@@ -163,11 +163,14 @@ def fix_nzb_subjects(
     file_list: list[str] | None = None,
     folder_name: str | None = None,
     obfuscated_map: dict | None = None,
+    strong_obfuscate: bool = False,
 ) -> None:
     """Corrige os subjects no NZB para incluir o caminho relativo do arquivo.
-    
+
     Tenta preservar a estrutura do subject (partes/total, yEnc, etc) substituindo
     apenas o nome do arquivo pelo caminho original (deofuscado).
+
+    Se strong_obfuscate=True, mantém os nomes aleatórios nos subjects (máxima privacidade).
     """
     try:
         ns_url = "http://www.newzbin.com/DTD/2003/nzb"
@@ -204,9 +207,9 @@ def fix_nzb_subjects(
             if not current_filename:
                 continue
 
-            # Tenta deofuscar
+            # Tenta deofuscar (a menos que seja strong_obfuscate)
             original_filename = current_filename
-            if obfuscated_map:
+            if not strong_obfuscate and obfuscated_map:
                 if current_filename in obfuscated_map:
                     original_filename = obfuscated_map[current_filename]
                 else:
@@ -214,12 +217,12 @@ def fix_nzb_subjects(
                     # Agora também tratamos .par2 e .volNN+MM.par2
                     base = current_filename
                     ext_part = ""
-                    
+
                     # Trata .partNN.rar
                     rar_match = re.search(r'(\.part\d+\.rar)$', current_filename, re.IGNORECASE)
                     # Trata .par2 e .volNN+MM.par2
                     par2_match = re.search(r'(\.vol\d+\+\d+\.par2|\.par2)$', current_filename, re.IGNORECASE)
-                    
+
                     if rar_match:
                         ext_part = rar_match.group(1)
                         base = current_filename[:-len(ext_part)]
@@ -229,11 +232,13 @@ def fix_nzb_subjects(
                     else:
                         # Trata extensão simples (.mkv, .mp4, etc)
                         base, ext_part = os.path.splitext(current_filename)
-                    
+
                     if base in obfuscated_map:
                         original_filename = obfuscated_map[base] + ext_part
 
-            if folder_name:
+            if strong_obfuscate:
+                final_filename = current_filename
+            elif folder_name:
                 final_filename = f"{folder_name}/{original_filename}"
             else:
                 final_filename = original_filename

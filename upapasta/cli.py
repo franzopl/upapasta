@@ -134,6 +134,14 @@ def parse_args():
         ),
     )
     essential.add_argument(
+        "--strong-obfuscate",
+        action="store_true",
+        help=(
+            "Ofuscação máxima: nomes aleatórios no RAR/PAR2 E dentro do NZB (nenhum nome original visível em indexadores). "
+            "Requer renomeação manual ou via PAR2 após download. Implica --obfuscate."
+        ),
+    )
+    essential.add_argument(
         "--password",
         default=None,
         metavar="SENHA",
@@ -382,6 +390,11 @@ def _validate_flags(args) -> bool:
     if args.password and not args.rar:
         print("ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger).")
         args.rar = True
+
+    # --strong-obfuscate presume --obfuscate
+    if getattr(args, 'strong_obfuscate', False):
+        args.obfuscate = True
+        print("ℹ️  --strong-obfuscate ativa --obfuscate automaticamente.")
 
     if args.each or args.season:
         p = Path(args.input)
