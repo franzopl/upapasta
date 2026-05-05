@@ -23,10 +23,10 @@ from __future__ import annotations
 import subprocess
 import sys
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Generator
 
 
-def _terminate_process(proc: subprocess.Popen, timeout: int = 5) -> None:
+def _terminate_process(proc: subprocess.Popen[Any], timeout: int = 5) -> None:
     """
     Encerra o processo filho de forma segura.
 
@@ -54,9 +54,9 @@ def _terminate_process(proc: subprocess.Popen, timeout: int = 5) -> None:
 
 @contextmanager
 def managed_popen(
-    *args,
-    **kwargs,
-) -> Generator[subprocess.Popen, None, None]:
+    *args: Any,
+    **kwargs: Any,
+) -> Generator[subprocess.Popen[Any], None, None]:
     """
     Context manager que garante encerramento do processo filho em qualquer situação.
 

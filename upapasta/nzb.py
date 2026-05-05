@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 from .config import render_template
 
 
-def resolve_nzb_template(env_vars: dict, is_folder: bool, skip_rar: bool) -> str:
+def resolve_nzb_template(env_vars: dict[str, str], is_folder: bool, skip_rar: bool) -> str:
     """Retorna o template NZB_OUT a ser usado."""
     template = env_vars.get("NZB_OUT") or os.environ.get("NZB_OUT")
     if not template:
@@ -33,7 +33,7 @@ def resolve_nzb_template(env_vars: dict, is_folder: bool, skip_rar: bool) -> str
 def resolve_nzb_basename(
     input_path: str,
     is_folder: bool,
-    obfuscated_map: dict | None = None,
+    obfuscated_map: dict[str, str] | None = None,
 ) -> str:
     """Determina o basename para substituição de {filename} no template NZB_OUT."""
     if obfuscated_map:
@@ -57,11 +57,11 @@ def resolve_nzb_basename(
 
 def resolve_nzb_out(
     input_path: str,
-    env_vars: dict,
+    env_vars: dict[str, str],
     is_folder: bool,
     skip_rar: bool,
     working_dir: str,
-    obfuscated_map: dict | None = None,
+    obfuscated_map: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     """Resolve o caminho de saída do NZB a partir do template e do input.
 
@@ -84,7 +84,7 @@ def resolve_nzb_out(
 def handle_nzb_conflict(
     nzb_out: str,
     nzb_out_abs: str,
-    env_vars: dict,
+    env_vars: dict[str, str],
     nzb_overwrite_env: str | None = None,
     working_dir: str | None = None,
 ) -> tuple[str, str, bool, bool]:
@@ -204,7 +204,7 @@ def _parse_subject(subject: str) -> tuple[str, str, str]:
 
 def _deobfuscate_filename(
     current_filename: str,
-    obfuscated_map: dict,
+    obfuscated_map: dict[str, str],
 ) -> str:
     """Resolve o nome original a partir do mapa de ofuscação.
 
@@ -240,7 +240,7 @@ def fix_nzb_subjects(
     nzb_path: str,
     file_list: list[str] | None = None,
     folder_name: str | None = None,
-    obfuscated_map: dict | None = None,
+    obfuscated_map: dict[str, str] | None = None,
     strong_obfuscate: bool = False,
 ) -> None:
     """Corrige os subjects no NZB para incluir o caminho relativo do arquivo.

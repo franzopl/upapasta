@@ -21,7 +21,7 @@ from .ui import setup_logging, setup_session_log, teardown_session_log
 from .watch import _watch_loop
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     # Resolver arquivo de env: --profile > --env-file > padrão

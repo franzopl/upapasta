@@ -6,6 +6,7 @@ Lógica do modo daemon (--watch) para monitoramento automático de pastas.
 
 from __future__ import annotations
 
+import argparse
 import sys
 import time
 from datetime import datetime
@@ -33,7 +34,7 @@ def _item_size(path: Path) -> int:
 
 
 
-def _watch_loop(args, folder: Path, interval: int, stable_secs: int) -> None:
+def _watch_loop(args: argparse.Namespace, folder: Path, interval: int, stable_secs: int) -> None:
     """Monitora folder via polling e processa novos itens automaticamente."""
     try:
         processed: set[Path] = set(folder.iterdir())  # baseline: ignora o que já existe

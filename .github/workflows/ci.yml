@@ -36,7 +36,7 @@ jobs:
         run: ruff check upapasta/ tests/
 
       - name: Type check (mypy)
-        run: mypy upapasta/
+        run: mypy upapasta/ --strict
 
       - name: Test (pytest)
         run: pytest tests/ -v --tb=short

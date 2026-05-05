@@ -49,7 +49,7 @@ from .nzb import (
     resolve_nzb_out,
 )
 
-_NYUU_ERRORS: list[tuple[re.Pattern, str]] = [
+_NYUU_ERRORS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"40[13]", re.I), "Erro de autenticação (401/403): verifique usuário e senha no .env"),
     (re.compile(r"502", re.I), "Servidor indisponível (502): tente novamente mais tarde"),
     (re.compile(r"441", re.I), "Artigo rejeitado pelo servidor (441): verifique permissões da conta"),
@@ -60,7 +60,7 @@ _NYUU_ERRORS: list[tuple[re.Pattern, str]] = [
 ]
 
 
-def _build_server_list(env_vars: dict) -> list[dict]:
+def _build_server_list(env_vars: dict[str, str]) -> list[dict[str, object]]:
     """Constrói lista de configs de servidor NNTP a partir do env.
 
     Servidor primário: NNTP_HOST, NNTP_PORT, NNTP_USER, NNTP_PASS, ...
@@ -71,7 +71,7 @@ def _build_server_list(env_vars: dict) -> list[dict]:
         return val.lower() in ("true", "1", "yes") if val else default
 
     primary_host = env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST", "")
-    servers: list[dict] = []
+    servers: list[dict[str, object]] = []
     if primary_host:
         servers.append({
             "host": primary_host,
@@ -124,7 +124,7 @@ def _get_uploaded_files_from_nzb(nzb_path: str) -> set[str]:
         return set()
 
 
-def _save_upload_state(state_path: str, files: list, par2_files: list, working_dir: str, nzb_out_abs: str) -> None:
+def _save_upload_state(state_path: str, files: list[str], par2_files: list[str], working_dir: str, nzb_out_abs: str) -> None:
     """Salva estado do upload para permitir retomada em caso de interrupção."""
     import hashlib
     import json as _json
@@ -190,7 +190,7 @@ def find_nyuu() -> Optional[str]:
     return None
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Upload de .rar + .par2 para Usenet com nyuu"
     )
@@ -238,17 +238,17 @@ def generate_anonymous_uploader() -> str:
 
 def upload_to_usenet(
     input_path: str,
-    env_vars: dict,
+    env_vars: dict[str, str],
     dry_run: bool = False,
     nyuu_path: Optional[str] = None,
     subject: Optional[str] = None,
     group: Optional[str] = None,
     skip_rar: bool = False,
-    obfuscated_map: Optional[dict] = None,
+    obfuscated_map: Optional[dict[str, str]] = None,
     upload_timeout: Optional[int] = None,
     upload_retries: int = 0,
     password: Optional[str] = None,
-    nyuu_extra_args: Optional[list] = None,
+    nyuu_extra_args: Optional[list[str]] = None,
     folder_name: Optional[str] = None,
     strong_obfuscate: bool = False,
     resume: bool = False,
@@ -292,7 +292,7 @@ def upload_to_usenet(
         working_dir = input_path
 
         # Caminhos relativos de todos os arquivos dentro da pasta
-        files_to_upload: list = []
+        files_to_upload: list[str] = []
         for root, _, files in os.walk(input_path):
             for file in sorted(files):
                 abs_file = os.path.join(root, file)
@@ -302,7 +302,7 @@ def upload_to_usenet(
         # PAR2 fica no diretório pai — passamos caminhos absolutos
         base_name = input_path
         par2_pattern = glob.escape(base_name) + "*par2*"
-        par2_files: list = sorted(glob.glob(par2_pattern))
+        par2_files: list[str] = sorted(glob.glob(par2_pattern))
         # par2_files já são absolutos (resultado de glob com caminho absoluto)
 
     else:
@@ -409,8 +409,8 @@ def upload_to_usenet(
             if mediainfo_path:
                 try:
                     proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
-                    with open(nfo_path, "w", encoding="utf-8") as f:
-                        f.write(proc.stdout)
+                    with open(nfo_path, "w", encoding="utf-8") as nfo_fh:
+                        nfo_fh.write(proc.stdout)
                 except Exception:
                     pass
 

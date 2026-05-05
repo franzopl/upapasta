@@ -63,7 +63,7 @@ EXEMPLOS
 """
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description=_DESCRIPTION,
         epilog=_EPILOG,
@@ -391,7 +391,7 @@ def check_dependencies(rar_needed: bool = True) -> bool:
     return True
 
 
-def _validate_flags(args) -> bool:
+def _validate_flags(args: argparse.Namespace) -> bool:
     """Valida combinações de flags incompatíveis. Retorna False se há erro fatal."""
     # Backward compatibility: --skip-rar → sem --rar
     if getattr(args, 'skip_rar_deprecated', False):

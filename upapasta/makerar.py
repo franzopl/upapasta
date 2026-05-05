@@ -36,7 +36,7 @@ from ._process import managed_popen
 from ._progress import _process_output, _read_output
 
 
-def find_rar():
+def find_rar() -> str | None:
     """Procura o executável 'rar' no PATH."""
     for cmd in ("rar", "rar.exe"):
         path = shutil.which(cmd)
@@ -184,7 +184,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
             bufsize=1,
         ) as proc:
             # Fila para comunicação entre threads
-            output_queue: Queue = Queue()
+            output_queue: Queue[str | None] = Queue()
 
             # Thread daemon: morrerá automaticamente quando o processo filho morrer
             reader_thread = threading.Thread(
@@ -227,7 +227,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
         return 5, None
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Cria um .rar de uma pasta com o mesmo nome")
     p.add_argument("folder", help="Caminho para a pasta a ser compactada")
     p.add_argument("-f", "--force", action="store_true", help="Sobrescrever .rar existente")

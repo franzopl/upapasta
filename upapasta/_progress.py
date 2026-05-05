@@ -9,8 +9,9 @@ from __future__ import annotations
 import re
 import shutil
 import sys
+from io import TextIOWrapper
 from queue import Queue
-from typing import Tuple
+from typing import IO, Optional
 
 # Tolerante a "label: 50%", "50%", "[50.0%]", etc.
 _PCT_RE = re.compile(r"(?:^(.+?)[:\s]+)?(\d{1,3}(?:\.\d+)?)\s*%")
@@ -18,7 +19,7 @@ _PCT_RE = re.compile(r"(?:^(.+?)[:\s]+)?(\d{1,3}(?:\.\d+)?)\s*%")
 _CHUNK_SIZE = 4096  # bytes por read() — reduz syscalls vs. read(1)
 
 
-def _read_output(pipe, queue: Queue) -> None:
+def _read_output(pipe: Optional[IO[str]], queue: Queue[Optional[str]]) -> None:
     """Thread worker: lê pipe em chunks de 4 KB, envia linhas para a fila.
 
     Trata \\r e \\n como separadores (barras de progresso usam \\r sem \\n).
@@ -50,7 +51,7 @@ def _read_output(pipe, queue: Queue) -> None:
         queue.put(None)
 
 
-def _process_output(queue: Queue) -> Tuple[int, bool]:
+def _process_output(queue: Queue[Optional[str]]) -> tuple[int, bool]:
     """Consome linhas da fila e exibe progresso no terminal.
 
     Exibição:

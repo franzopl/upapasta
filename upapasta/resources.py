@@ -51,7 +51,7 @@ def calculate_optimal_resources(
     total_size_bytes: int,
     user_threads: int | None = None,
     user_memory_mb: int | None = None,
-) -> dict:
+) -> dict[str, int | float | bool]:
     """
     Calcula threads e limite de memória para o job atual.
 

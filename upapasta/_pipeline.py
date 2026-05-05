@@ -20,7 +20,7 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from .resources import calculate_optimal_resources, get_total_size
 
@@ -130,7 +130,7 @@ class PathResolver:
 
     def __init__(
         self,
-        env_vars: dict,
+        env_vars: dict[str, str],
         input_path: Path,
         skip_rar: bool,
         nzb_conflict: Optional[str],
@@ -142,7 +142,7 @@ class PathResolver:
         self.nzb_conflict = nzb_conflict
         self.subject = subject
 
-    def _effective_env(self) -> dict:
+    def _effective_env(self) -> dict[str, str]:
         env = self.env_vars.copy()
         if self.nzb_conflict:
             env["NZB_CONFLICT"] = self.nzb_conflict
@@ -209,7 +209,7 @@ class PipelineReporter:
     @staticmethod
     def print_header(
         input_path: Path,
-        res: dict,
+        res: dict[str, Any],
         subject: str,
         par_profile: str,
         post_size: Optional[str],
@@ -248,9 +248,9 @@ class PipelineReporter:
         input_target: Optional[str],
         rar_file: Optional[str],
         par_file: Optional[str],
-    ) -> dict:
+    ) -> dict[str, float | int]:
         """Coleta tamanhos de RAR e PAR2 gerados."""
-        stats: dict = {"rar_size_mb": 0.0, "par2_size_mb": 0.0, "par2_file_count": 0}
+        stats: dict[str, float | int] = {"rar_size_mb": 0.0, "par2_size_mb": 0.0, "par2_file_count": 0}
         if not input_target or not os.path.exists(input_target):
             return stats
 
@@ -288,13 +288,13 @@ class PipelineReporter:
 
     @staticmethod
     def print_summary(
-        stats: dict,
+        stats: dict[str, float | int],
         input_path: Path,
         subject: str,
         rar_password: Optional[str],
         obfuscate: bool,
         skip_upload: bool,
-        env_vars: dict,
+        env_vars: dict[str, str],
         group: Optional[str],
         nfo_file: Optional[str],
         rar_file: Optional[str],
@@ -341,8 +341,8 @@ class PipelineReporter:
 
     @staticmethod
     def record_catalog_and_hook(
-        env_vars: dict,
-        stats: dict,
+        env_vars: dict[str, str],
+        stats: dict[str, float | int],
         input_path: Path,
         subject: str,
         rar_password: Optional[str],
@@ -352,7 +352,7 @@ class PipelineReporter:
         nfo_file: Optional[str],
         elapsed: float,
         skip_rar: bool,
-        obfuscated_map: dict,
+        obfuscated_map: dict[str, str],
         redundancy: Optional[int],
         nzb_path: Optional[str],
     ) -> None:
@@ -391,7 +391,7 @@ class PipelineReporter:
                 servidor_nntp=env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST"),
                 redundancia_par2=f"{redundancy}%" if redundancy else None,
                 duracao_upload_s=round(elapsed, 1),
-                num_arquivos_rar=stats.get("par2_file_count"),
+                num_arquivos_rar=int(stats["par2_file_count"]) if "par2_file_count" in stats else None,
                 caminho_nzb=_nzb_abs_final,
                 subject=subject,
             )
@@ -442,7 +442,7 @@ def do_cleanup_files(
             return
         print("\n🧹 Limpando arquivos temporários...")
 
-    candidates: list = []
+    candidates: list[str] = []
     base_name: Optional[str] = None
 
     if rar_file and not preserve_rar:
@@ -485,7 +485,7 @@ def revert_obfuscation(
     input_target: Optional[str],
     input_path: Path,
     obfuscate_was_linked: bool,
-    obfuscated_map: dict,
+    obfuscated_map: dict[str, str],
     keep_files: bool,
 ) -> Optional[str]:
     """
@@ -617,7 +617,7 @@ def recalculate_resources(
     user_rar_threads: Optional[int],
     user_par_threads: Optional[int],
     user_memory_mb: Optional[int],
-) -> tuple[dict, str, str]:
+) -> tuple[dict[str, Any], str, str]:
     """Recalcula threads e memória ótimos baseados no tamanho real da entrada."""
     total_bytes = get_total_size(str(input_path))
     res = calculate_optimal_resources(

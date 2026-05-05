@@ -220,7 +220,7 @@ def print_stats() -> None:
 # ── Hook pós-upload ──────────────────────────────────────────────────────────
 
 def run_post_upload_hook(
-    env_vars: dict,
+    env_vars: dict[str, str],
     *,
     nzb_path: Optional[str] = None,
     nfo_path: Optional[str] = None,

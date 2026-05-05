@@ -46,10 +46,10 @@ class _TeeStream(io.TextIOBase):
         enc = getattr(self._original, 'encoding', 'utf-8')
         return enc if isinstance(enc, str) else 'utf-8'
 
-    def fileno(self):
+    def fileno(self) -> int:
         return self._original.fileno()
 
-    def isatty(self):
+    def isatty(self) -> bool:
         return self._original.isatty()
 
 
@@ -70,7 +70,7 @@ def setup_logging(verbose: bool = False, log_file: Optional[str] = None) -> None
         root.addHandler(fh)
 
 
-def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple:
+def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple[str, io.TextIOWrapper]:
     """
     Cria arquivo de log da sessão em ~/.config/upapasta/logs/.
     Redireciona stdout para TeeStream que grava simultaneamente no terminal e no log.

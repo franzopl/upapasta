@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from typing import Any
 
 
 def find_mediainfo() -> str | None:
@@ -33,7 +34,7 @@ def _format_size(size_bytes: int) -> str:
     return f"{size_float:.2f} TB"
 
 
-def _get_video_info(file_path: str) -> tuple[float, dict]:
+def _get_video_info(file_path: str) -> tuple[float, dict[str, Any]]:
     """Retorna (duration_seconds, metadata) com uma única chamada ao ffprobe.
 
     metadata inclui: codec, resolution, bitrate, audio_tracks, subtitle_tracks.
@@ -41,7 +42,7 @@ def _get_video_info(file_path: str) -> tuple[float, dict]:
     """
     import json as _json
     duration = 0.0
-    metadata: dict = {
+    metadata: dict[str, Any] = {
         "codec": "N/A", "resolution": "N/A", "bitrate": "N/A",
         "audio_tracks": [], "subtitle_tracks": [],
     }
@@ -112,7 +113,7 @@ def _normalize_text(text: str) -> str:
 _MAX_FILENAME_LEN = 42
 
 
-def _generate_tree(start_path: str, video_metadata_map: dict, file_sizes: dict) -> tuple[list[str], int, int]:
+def _generate_tree(start_path: str, video_metadata_map: dict[str, Any], file_sizes: dict[str, int]) -> tuple[list[str], int, int]:
     if not os.path.isdir(start_path):
         return [], 0, 0
 

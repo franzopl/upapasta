@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import getpass
 import os
+from typing import Callable, Optional
 
 CONFIG_DIR = os.path.expanduser("~/.config/upapasta")
 DEFAULT_ENV_FILE = os.path.join(CONFIG_DIR, ".env")
@@ -40,7 +41,7 @@ DEFAULT_GROUP_POOL = (
 )
 
 
-def _ask(prompt: str, default: str | None = None, validator=None, secret: bool = False) -> str:
+def _ask(prompt: str, default: str | None = None, validator: Optional[Callable[[str], bool]] = None, secret: bool = False) -> str:
     hint = f" [{default}]" if default is not None else ""
     while True:
         if secret:
@@ -69,7 +70,7 @@ def render_template(template: str, filename: str) -> str:
     return template.replace("{filename}", filename)
 
 
-def _write_full_env(env_file: str, values: dict) -> None:
+def _write_full_env(env_file: str, values: dict[str, str]) -> None:
     # Preserva valores que já existem no .env mas não foram respondidos no wizard
     existing = load_env_file(env_file) if os.path.exists(env_file) else {}
     merged = {**existing, **values}
@@ -162,7 +163,7 @@ from .profiles import DEFAULT_PROFILE, PROFILES
 __all__ = ["DEFAULT_PROFILE", "PROFILES"]
 
 
-def load_env_file(env_path: str = DEFAULT_ENV_FILE) -> dict:
+def load_env_file(env_path: str = DEFAULT_ENV_FILE) -> dict[str, str]:
     """Carrega variáveis de ambiente de um arquivo .env simples."""
     env_vars = {}
     if os.path.exists(env_path):
@@ -176,7 +177,7 @@ def load_env_file(env_path: str = DEFAULT_ENV_FILE) -> dict:
     return env_vars
 
 
-def prompt_for_credentials(env_file: str, force: bool = False) -> dict:
+def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]:
     """Solicita credenciais ao usuário e salva um .env completo com todos os campos."""
     existing = load_env_file(env_file) if (force and os.path.exists(env_file)) else {}
 
@@ -267,7 +268,7 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict:
     return values
 
 
-def check_or_prompt_credentials(env_file: str, force: bool = False) -> dict:
+def check_or_prompt_credentials(env_file: str, force: bool = False) -> dict[str, str]:
     """Verifica se as credenciais existem e estão preenchidas, senão, solicita."""
     if force:
         return prompt_for_credentials(env_file, force=True)

@@ -6,7 +6,7 @@ Perfis de otimização PAR2 (fast / balanced / safe).
 
 from __future__ import annotations
 
-PROFILES: dict[str, dict] = {
+PROFILES: dict[str, dict[str, object]] = {
     "fast": {
         "description": "Máxima velocidade (ideal para upload urgente)",
         "slice_size": "20M",

@@ -194,8 +194,9 @@
 - `PROFILES` e `DEFAULT_PROFILE` movidos para `upapasta/profiles.py`
 - `config.py` re-exporta para compatibilidade retroativa; `makepar.py` importa direto de `profiles.py`
 
-### 3.12 · `mypy --strict` no CI `Média · Médio esforço` ← depende de 2.6, 2.7
-- Zero warnings; type hints completos em todos os módulos
+### ~~3.12 · `mypy --strict` no CI~~ ✅ Concluído
+- Zero erros em 20 arquivos (84 erros corrigidos): `dict/list/Queue/Popen` tipados, todas as funções com assinaturas completas
+- `pyproject.toml` atualizado com `strict = true`; CI atualizado com `mypy upapasta/ --strict`
 
 ### 3.13 · Cobertura de testes ≥ 90% por módulo `Crítica · Alto esforço` ← depende de 2.x
 - `pytest --cov` ≥ 90% para `cli/orchestrator/makerar/makepar/upfolder/nzb`
@@ -246,7 +247,7 @@
 4. ~~F3.3~~ ✅ Webhooks nativos Discord/Telegram/Slack via `WEBHOOK_URL`
 5. ~~F3.7~~ ✅ `upapasta --stats` (histórico agregado)
 6. ~~F3.11~~ ✅ `profiles.py` separado de `config.py`
-7. **F3.12** — `mypy --strict` no CI (desbloqueador de qualidade)
+7. ~~F3.12~~ ✅ `mypy --strict` no CI (84 erros corrigidos, 20 arquivos)
 8. **F3.13** — Cobertura ≥ 90% nos módulos core
 9. **F3.1** — Múltiplas entradas posicionais (`upapasta a b c`)
 10. **F3.15** — Publicação no PyPI

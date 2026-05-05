@@ -232,7 +232,7 @@ def _revert_obfuscation(
     input_path: str,
     parent_dir: str,
     random_base: str,
-    obfuscated_map: dict,
+    obfuscated_map: dict[str, str],
     was_linked: bool = False,
 ) -> None:
     """
@@ -294,7 +294,7 @@ def _revert_obfuscation(
 
 def _obfuscate_folder(
     input_path: str, parent_dir: str, base: str, random_base: str
-) -> Tuple[str, dict, bool, str]:
+) -> Tuple[str, dict[str, str], bool, str]:
     """Cria visão ofuscada de uma pasta via hardlinks (ou rename fallback)."""
     obfuscated_path = os.path.join(parent_dir, random_base)
     print(f"Ofuscando pasta (hardlink): {base} → {random_base}")
@@ -310,7 +310,7 @@ def _obfuscate_folder(
 
 def _obfuscate_rar_vol_set(
     input_path: str, parent_dir: str, name_no_ext: str, random_base: str
-) -> Tuple[str, dict, bool, str]:
+) -> Tuple[str, dict[str, str], bool, str]:
     """Cria visão ofuscada de um conjunto de volumes RAR."""
     original_base = name_no_ext.rsplit(".part", 1)[0]
     volumes = sorted(glob.glob(os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar"))) or [input_path]
@@ -338,7 +338,7 @@ def _obfuscate_rar_vol_set(
 
 def _obfuscate_single_file(
     input_path: str, parent_dir: str, base: str, random_base: str
-) -> Tuple[str, dict, bool, str]:
+) -> Tuple[str, dict[str, str], bool, str]:
     """Cria visão ofuscada de um arquivo único."""
     name_no_ext, ext = os.path.splitext(base)
     obfuscated_path = os.path.join(parent_dir, random_base + ext)
@@ -375,7 +375,7 @@ def _cleanup_on_par_failure(
     is_rar_vol_set: bool,
     is_folder: bool,
     obfuscated_path: str,
-    obfuscated_map: dict,
+    obfuscated_map: dict[str, str],
     was_linked: bool,
 ) -> None:
     """Remove PAR2 parciais e reverte ofuscação após falha na geração de paridade."""
@@ -417,8 +417,8 @@ def obfuscate_and_par(
     slice_size: Optional[str] = None,
     memory_mb: Optional[int] = None,
     filepath_format: str = "common",
-    parpar_extra_args: Optional[list] = None,
-) -> Tuple[int, Optional[str], dict, bool]:
+    parpar_extra_args: Optional[list[str]] = None,
+) -> Tuple[int, Optional[str], dict[str, str], bool]:
     """
     Cria visão ofuscada da entrada (hardlinks ou rename) e gera paridade.
 
@@ -482,7 +482,7 @@ def obfuscate_and_par(
 
 # ── Detecção de backends ──────────────────────────────────────────────────────
 
-def find_par2():
+def find_par2() -> tuple[str, str] | None:
     for cmd in ("par2", "par2create", "par2.exe", "par2create.exe"):
         path = shutil.which(cmd)
         if path:
@@ -490,7 +490,7 @@ def find_par2():
     return None
 
 
-def find_parpar():
+def find_parpar() -> tuple[str, str] | None:
     for cmd in ("parpar", "parpar.exe"):
         path = shutil.which(cmd)
         if path:
@@ -500,7 +500,7 @@ def find_parpar():
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Cria arquivos de paridade para um arquivo/pasta (par2/parpar). "
                     "O slice size é calculado automaticamente com base no ARTICLE_SIZE do seu .env."
@@ -571,7 +571,7 @@ def make_parity(
     profile: str = DEFAULT_PROFILE,
     memory_mb: Optional[int] = None,
     filepath_format: str = "common",
-    parpar_extra_args: Optional[list] = None,
+    parpar_extra_args: Optional[list[str]] = None,
     dry_run: bool = False,
 ) -> int:
     """
@@ -606,7 +606,8 @@ def make_parity(
         profile_config = {}
 
     if redundancy is None:
-        redundancy = int(profile_config.get("redundancy", 10))
+        _red = profile_config.get("redundancy", 10)
+        redundancy = int(_red) if isinstance(_red, (int, float, str)) else 10
 
     rar_path = os.path.abspath(rar_path)
     if not os.path.exists(rar_path):
@@ -747,7 +748,7 @@ def make_parity(
         with managed_popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
         ) as proc:
-            output_queue: Queue = Queue()
+            output_queue: Queue[str | None] = Queue()
             reader_thread = threading.Thread(
                 target=_read_output, args=(proc.stdout, output_queue), daemon=True
             )

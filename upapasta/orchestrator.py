@@ -10,7 +10,7 @@ import shlex
 import string
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from ._pipeline import (
     DependencyChecker,
@@ -43,7 +43,7 @@ class UpaPastaSession:
     def __enter__(self) -> "UpaPastaOrchestrator":
         return self.orch
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
         if exc_type is not None:
             if exc_type is KeyboardInterrupt:
                 print("\n⚠️  Interrompido pelo usuário (Ctrl+C).")
@@ -51,7 +51,6 @@ class UpaPastaSession:
                 self.orch._cleanup_on_error(preserve_rar=(exc_type is KeyboardInterrupt))
             except Exception:
                 pass
-        return False
 
 
 class UpaPastaOrchestrator:
@@ -85,8 +84,8 @@ class UpaPastaOrchestrator:
         verbose: bool = False,
         max_memory_mb: Optional[int] = None,
         filepath_format: str = "common",
-        parpar_extra_args: Optional[list] = None,
-        nyuu_extra_args: Optional[list] = None,
+        parpar_extra_args: Optional[list[str]] = None,
+        nyuu_extra_args: Optional[list[str]] = None,
         rename_extensionless: bool = False,
         nzb_subject_prefix: Optional[str] = None,
         resume: bool = False,
@@ -134,11 +133,11 @@ class UpaPastaOrchestrator:
         self.par_file: Optional[str] = None
         self.nfo_file: Optional[str] = None
         self.input_target: Optional[str] = None
-        self.env_vars: dict = {}
+        self.env_vars: dict[str, str] = {}
         self.generated_nzb: Optional[str] = None
 
     @classmethod
-    def from_args(cls, args, input_path: str) -> "UpaPastaOrchestrator":
+    def from_args(cls, args: Any, input_path: str) -> "UpaPastaOrchestrator":
         """Cria instância a partir do namespace retornado por parse_args()."""
         return cls(
             input_path=input_path,
@@ -459,7 +458,7 @@ class UpaPastaOrchestrator:
         return self._path_resolver().check_nzb_conflict(
             self.input_target, self.skip_upload, self.dry_run)
 
-    def _recalculate_resources(self) -> tuple[dict, str, str]:
+    def _recalculate_resources(self) -> tuple[dict[str, Any], str, str]:
         res, rar_src, par_src = recalculate_resources(
             self.input_path, self._user_rar_threads, self._user_par_threads, self._user_memory_mb
         )
