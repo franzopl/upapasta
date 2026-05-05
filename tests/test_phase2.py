@@ -369,3 +369,141 @@ def test_watch_loop_processes_new_item(tmp_path, monkeypatch):
 
     # O orquestrador deve ter sido chamado para o arquivo novo
     mock_orch.run.assert_called_once()
+
+
+# ── F2.9 — Múltiplos servidores NNTP (failover) ──────────────────────────────
+
+class TestBuildServerList:
+    def test_primary_only(self):
+        from upapasta.upfolder import _build_server_list
+        env = {"NNTP_HOST": "news.example.com", "NNTP_PORT": "563",
+               "NNTP_SSL": "true", "NNTP_USER": "u", "NNTP_PASS": "p",
+               "NNTP_CONNECTIONS": "30"}
+        servers = _build_server_list(env)
+        assert len(servers) == 1
+        assert servers[0]["host"] == "news.example.com"
+        assert servers[0]["ssl"] is True
+        assert servers[0]["connections"] == "30"
+
+    def test_secondary_server_added(self):
+        from upapasta.upfolder import _build_server_list
+        env = {"NNTP_HOST": "primary.example.com", "NNTP_PORT": "563",
+               "NNTP_SSL": "true", "NNTP_USER": "u", "NNTP_PASS": "p",
+               "NNTP_CONNECTIONS": "50",
+               "NNTP_HOST_2": "backup.example.com"}
+        servers = _build_server_list(env)
+        assert len(servers) == 2
+        assert servers[1]["host"] == "backup.example.com"
+        # Herda user/pass do primário quando não definido
+        assert servers[1]["user"] == "u"
+        assert servers[1]["password"] == "p"
+
+    def test_secondary_with_own_credentials(self):
+        from upapasta.upfolder import _build_server_list
+        env = {"NNTP_HOST": "primary.example.com", "NNTP_PORT": "563",
+               "NNTP_SSL": "false", "NNTP_USER": "u1", "NNTP_PASS": "p1",
+               "NNTP_CONNECTIONS": "50",
+               "NNTP_HOST_2": "backup.example.com",
+               "NNTP_USER_2": "u2", "NNTP_PASS_2": "p2",
+               "NNTP_CONNECTIONS_2": "20"}
+        servers = _build_server_list(env)
+        assert len(servers) == 2
+        assert servers[1]["user"] == "u2"
+        assert servers[1]["password"] == "p2"
+        assert servers[1]["connections"] == "20"
+
+    def test_empty_env_returns_empty(self):
+        from upapasta.upfolder import _build_server_list
+        servers = _build_server_list({})
+        assert servers == []
+
+
+# ── F2.10 — Resume / upload parcial ──────────────────────────────────────────
+
+class TestUploadResume:
+    def test_get_uploaded_files_from_nzb_empty_file(self, tmp_path):
+        from upapasta.upfolder import _get_uploaded_files_from_nzb
+        p = tmp_path / "empty.nzb"
+        p.write_text("")
+        assert _get_uploaded_files_from_nzb(str(p)) == set()
+
+    def test_get_uploaded_files_from_nzb_missing(self, tmp_path):
+        from upapasta.upfolder import _get_uploaded_files_from_nzb
+        assert _get_uploaded_files_from_nzb(str(tmp_path / "nao_existe.nzb")) == set()
+
+    def test_get_uploaded_files_from_nzb_with_subjects(self, tmp_path):
+        from upapasta.upfolder import _get_uploaded_files_from_nzb
+        nzb = tmp_path / "test.nzb"
+        nzb.write_text(
+            '<?xml version="1.0"?>'
+            '<!DOCTYPE nzb PUBLIC "-//newzBin//DTD NZB 1.0//EN" "http://www.newzbin.com/DTD/nzb/nzb-1.0.dtd">'
+            '<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">'
+            '<file subject="[1/2] &quot;episodio01.mkv&quot; yEnc (1/100)">'
+            '<groups><group>alt.binaries.test</group></groups>'
+            '<segments><segment number="1" bytes="700000" messageid="abc@test">1</segment></segments>'
+            '</file></nzb>'
+        )
+        found = _get_uploaded_files_from_nzb(str(nzb))
+        assert "episodio01.mkv" in found
+
+    def test_save_and_load_upload_state(self, tmp_path):
+        from upapasta.upfolder import _save_upload_state, _load_upload_state
+        state_path = str(tmp_path / "test.upapasta-state.json")
+        _save_upload_state(
+            state_path,
+            files=["a.mkv", "b.mkv"],
+            par2_files=["/abs/a.par2"],
+            working_dir="/source",
+            nzb_out_abs="/out/test.nzb",
+        )
+        state = _load_upload_state(state_path)
+        assert state is not None
+        assert state["files"] == ["a.mkv", "b.mkv"]
+        assert state["working_dir"] == "/source"
+        assert "content_hash" in state
+
+    def test_load_nonexistent_state_returns_none(self, tmp_path):
+        from upapasta.upfolder import _load_upload_state
+        assert _load_upload_state(str(tmp_path / "nao_existe.json")) is None
+
+
+# ── F2.12 — NFO multi-track (áudio + legendas) ───────────────────────────────
+
+class TestNfoMultiTrack:
+    def test_get_video_info_returns_track_keys(self, tmp_path):
+        """_get_video_info retorna audio_tracks e subtitle_tracks mesmo sem ffprobe."""
+        import upapasta.nfo as nfo_mod
+        # Arquivo inexistente → ffprobe falha → retorna defaults com chaves corretas
+        duration, meta = nfo_mod._get_video_info(str(tmp_path / "nao_existe.mkv"))
+        assert "audio_tracks" in meta
+        assert "subtitle_tracks" in meta
+        assert isinstance(meta["audio_tracks"], list)
+        assert isinstance(meta["subtitle_tracks"], list)
+
+    def test_get_video_info_parses_json_output(self, tmp_path, monkeypatch):
+        """_get_video_info parseia corretamente o JSON do ffprobe."""
+        import json, subprocess
+        import upapasta.nfo as nfo_mod
+
+        ffprobe_output = json.dumps({
+            "streams": [
+                {"codec_type": "video", "codec_name": "h264", "width": 1920, "height": 1080, "tags": {}},
+                {"codec_type": "audio", "codec_name": "aac", "tags": {"language": "por"}},
+                {"codec_type": "audio", "codec_name": "aac", "tags": {"language": "eng"}},
+                {"codec_type": "subtitle", "codec_name": "ass", "tags": {"language": "por"}},
+            ],
+            "format": {"duration": "3600.0", "bit_rate": "8000000"},
+        })
+
+        class FakeResult:
+            stdout = ffprobe_output
+            returncode = 0
+
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FakeResult())
+        duration, meta = nfo_mod._get_video_info("fakefile.mkv")
+        assert duration == pytest.approx(3600.0)
+        assert meta["codec"] == "h264"
+        assert meta["resolution"] == "1920x1080"
+        assert "POR" in meta["audio_tracks"]
+        assert "ENG" in meta["audio_tracks"]
+        assert "POR" in meta["subtitle_tracks"]

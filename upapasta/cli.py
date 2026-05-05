@@ -141,11 +141,14 @@ def parse_args():
     )
     essential.add_argument(
         "--password",
+        nargs="?",
+        const="__random__",
         default=None,
         metavar="SENHA",
         help=(
             "Senha para o RAR (injetada no NZB para extração automática por SABnzbd/NZBGet). "
-            "Presume automaticamente --rar (precisa de RAR para proteger com senha)."
+            "Presume automaticamente --rar (precisa de RAR para proteger com senha). "
+            "Sem argumento, gera uma senha aleatória de 16 caracteres."
         ),
     )
     essential.add_argument(
@@ -340,6 +343,14 @@ def parse_args():
             "Evita que o SABnzbd adicione .txt em arquivos sem extensão."
         ),
     )
+    advanced.add_argument(
+        "--resume",
+        action="store_true",
+        help=(
+            "Retoma upload interrompido: detecta arquivos já postados via NZB parcial "
+            "e faz upload apenas dos restantes, mesclando os NZBs ao final."
+        ),
+    )
 
     return p.parse_args()
 
@@ -383,6 +394,13 @@ def _validate_flags(args) -> bool:
         print("   Para usar RAR, adicione --rar explicitamente.")
         # Ignora --skip-rar deprecated e mantém --rar = False
         args.rar = False
+
+    # --password sem argumento gera senha aleatória
+    if args.password == "__random__":
+        import secrets, string
+        chars = string.ascii_letters + string.digits
+        args.password = "".join(secrets.choice(chars) for _ in range(16))
+        print(f"🔑  Senha gerada automaticamente: {args.password}")
 
     # --password presume --rar (precisa de RAR para proteger com senha)
     if args.password and not args.rar:

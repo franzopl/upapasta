@@ -34,38 +34,63 @@ def _format_size(size_bytes: int) -> str:
 
 
 def _get_video_info(file_path: str) -> tuple[float, dict]:
-    """Retorna (duration_seconds, metadata) com uma única chamada ao ffprobe."""
+    """Retorna (duration_seconds, metadata) com uma única chamada ao ffprobe.
+
+    metadata inclui: codec, resolution, bitrate, audio_tracks, subtitle_tracks.
+    audio_tracks e subtitle_tracks são listas de códigos de idioma (ex: ['PT', 'EN']).
+    """
+    import json as _json
     duration = 0.0
-    metadata: dict = {"codec": "N/A", "resolution": "N/A", "bitrate": "N/A"}
+    metadata: dict = {
+        "codec": "N/A", "resolution": "N/A", "bitrate": "N/A",
+        "audio_tracks": [], "subtitle_tracks": [],
+    }
     try:
         cmd = [
             "ffprobe", "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=codec_name,width,height:format=duration,bit_rate",
-            "-of", "default=noprint_wrappers=1:nokey=1",
+            "-show_entries", "stream=codec_type,codec_name,width,height,tags:format=duration,bit_rate",
+            "-of", "json",
             file_path,
         ]
         result = subprocess.run(
             cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True
         )
-        values = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        # ffprobe emite: codec_name, width, height (stream), depois duration, bit_rate (format)
-        # A ordem é determinística quando select_streams + show_entries é usado.
-        codec = values[0] if len(values) > 0 else "N/A"
-        width = values[1] if len(values) > 1 else ""
-        height = values[2] if len(values) > 2 else ""
-        dur_raw = values[3] if len(values) > 3 else ""
-        br_raw = values[4] if len(values) > 4 else ""
-
-        metadata["codec"] = codec if codec else "N/A"
-        if width.isdigit() and height.isdigit():
-            metadata["resolution"] = f"{width}x{height}"
+        data = _json.loads(result.stdout)
+        fmt = data.get("format", {})
         try:
-            duration = float(dur_raw)
+            duration = float(fmt.get("duration") or 0)
         except (ValueError, TypeError):
             duration = 0.0
-        if br_raw and br_raw.isdigit() and int(br_raw) > 0:
-            metadata["bitrate"] = f"{int(br_raw) / 1000:.0f} kbps"
+        try:
+            br = int(fmt.get("bit_rate") or 0)
+            if br > 0:
+                metadata["bitrate"] = f"{br / 1000:.0f} kbps"
+        except (ValueError, TypeError):
+            pass
+
+        audio_langs: list[str] = []
+        sub_langs: list[str] = []
+        for stream in data.get("streams", []):
+            codec_type = stream.get("codec_type", "")
+            codec_name = stream.get("codec_name", "") or ""
+            tags = stream.get("tags") or {}
+            lang = (tags.get("language") or tags.get("LANGUAGE") or "").strip().upper()
+            # "und" = idioma indefinido — mostra codec como fallback
+            if lang in ("", "UND"):
+                lang = codec_name.upper() or "?"
+
+            if codec_type == "video":
+                metadata["codec"] = codec_name or "N/A"
+                w, h = stream.get("width"), stream.get("height")
+                if w and h:
+                    metadata["resolution"] = f"{w}x{h}"
+            elif codec_type == "audio":
+                audio_langs.append(lang)
+            elif codec_type == "subtitle":
+                sub_langs.append(lang)
+
+        metadata["audio_tracks"] = audio_langs
+        metadata["subtitle_tracks"] = sub_langs
     except Exception:
         pass
     return duration, metadata
@@ -117,6 +142,12 @@ def _generate_tree(start_path: str, video_metadata_map: dict, file_sizes: dict) 
                 if key in video_metadata_map:
                     m = video_metadata_map[key]
                     meta_line += f" | {m.get('duration_str', '00:00:00')} | {m.get('resolution', 'N/A'):<10} | {m.get('codec', 'N/A'):<6} | {m.get('bitrate', 'N/A')}"
+                    audio = m.get("audio_tracks", [])
+                    subs = m.get("subtitle_tracks", [])
+                    if audio:
+                        meta_line += f" | Áud: {', '.join(audio)}"
+                    if subs:
+                        meta_line += f" | Sub: {', '.join(subs)}"
                 lines.append(f"{prefix}{pointer}{display_name}{meta_line}")
 
     lines.append(_normalize_text(os.path.basename(start_path)))
@@ -269,6 +300,20 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
 
         if total_duration_seconds > 0:
             lines.append(f"  > Duracao Total:      {_format_duration(total_duration_seconds)} ({total_duration_seconds / 3600:.2f} horas)")
+
+        # Exibe faixas de áudio e legendas do primeiro vídeo encontrado (representativo da release)
+        if video_files and video_metadata_map:
+            first_key = os.path.abspath(video_files[0])
+            vm = video_metadata_map.get(first_key, {})
+            audio_tracks: list[str] = vm.get("audio_tracks", [])
+            sub_tracks: list[str] = vm.get("subtitle_tracks", [])
+            if audio_tracks or sub_tracks:
+                parts = []
+                if audio_tracks:
+                    parts.append(f"Audio: {', '.join(audio_tracks)}")
+                if sub_tracks:
+                    parts.append(f"Legendas: {', '.join(sub_tracks)}")
+                lines.append(f"  > Faixas:             {' | '.join(parts)}")
 
         lines.append("  > Arquivos por Tipo:")
         for ext, count in sorted(extension_counts.items(), key=lambda x: x[1], reverse=True):

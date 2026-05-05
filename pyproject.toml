@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "upapasta"
-version = "0.23.3"
+version = "0.24.0"
 description = "Ferramenta CLI para upload automatizado em Usenet com RAR, PAR2 e nyuu"
 authors = [{name = "franzopl", email = "franzopl@pm.me"}]
 requires-python = ">=3.9"

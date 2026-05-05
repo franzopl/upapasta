@@ -153,9 +153,39 @@ $ upapasta /path/to/folder
 **Outros:**
 ```
 --dry-run               Testa tudo sem fazer upload real
+--resume                Retoma upload interrompido (detecta arquivos já postados no NZB parcial)
 --log-file ARQUIVO      Salva log completo da sessão
 --rename-extensionless  Renomeia arquivos sem extensão para .bin (evita .txt do SAB)
 ```
+
+## Múltiplos Servidores NNTP (Failover)
+
+Configure servidores adicionais no `.env` para failover automático em caso de falha:
+
+```ini
+# Servidor primário (obrigatório)
+NNTP_HOST=news.primary.com
+NNTP_USER=usuario
+NNTP_PASS=senha
+
+# Servidor de failover (opcional — campos ausentes herdam do primário)
+NNTP_HOST_2=news.backup.com
+NNTP_CONNECTIONS_2=20
+
+# Até NNTP_HOST_9
+```
+
+Em caso de falha, a próxima tentativa de upload usa automaticamente o servidor seguinte.
+
+## Upload Parcial / Resume
+
+Se um upload for interrompido (Ctrl+C, queda de rede), retome com `--resume`:
+
+```bash
+upapasta Pasta/ --resume      # mesmas flags do upload original
+```
+
+O UpaPasta detecta quais arquivos já foram postados via NZB parcial existente, faz upload apenas dos restantes e mescla os NZBs ao final. O state file (`.upapasta-state.json`) é removido automaticamente após conclusão.
 
 ## Histórico
 

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.24.0 - 2026-05-04
+
+### Novas Features
+
+- **F2.9 — Múltiplos servidores NNTP com failover**: configure `NNTP_HOST_2`, `NNTP_HOST_3` ... `NNTP_HOST_9` no `.env` para failover automático. Em caso de falha, o próximo servidor da lista é tentado na próxima retry. Campos não definidos (porta, user, pass, SSL) herdam do servidor primário. Atualizado `.env.example` com exemplo comentado.
+- **F2.10 — `--resume` / upload parcial**: retoma upload interrompido via Ctrl+C ou falha de rede. Antes de iniciar, salva `.upapasta-state.json` junto ao NZB. Em `--resume`, detecta arquivos já postados via NZB parcial existente, faz upload apenas dos restantes, mescla os NZBs e remove o state file ao final.
+- **F2.12 — NFO multi-track**: o NFO de pastas agora exibe faixas de áudio e legendas para arquivos `.mkv`/`.mp4` com múltiplos idiomas (ex: `Audio: POR, ENG | Legendas: POR`). Também exibido por arquivo na árvore de diretórios. Usa `ffprobe -of json` para uma única chamada (consolidado com F2.11).
+
+### Testes
+
+- 14 novos testes em `test_phase2.py` cobrindo F2.9 (`_build_server_list`), F2.10 (`_get_uploaded_files_from_nzb`, `_save_upload_state`, `_load_upload_state`) e F2.12 (`_get_video_info` com monkeypatch do ffprobe JSON).
+- Total: 293 passed, 1 skipped.
+
 ## 0.23.1 - 2026-05-04
 
 ### Correções (CI/Linting)

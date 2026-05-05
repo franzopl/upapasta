@@ -106,21 +106,24 @@
 - `makerar.py` e `makepar.py` importam de `_progress.py`
 - 5 testes em `test_phase2.py`
 
-### 2.9 · Múltiplos servidores NNTP com failover `Alta · Alto esforço` ← depende de 2.3
-- `NNTP_HOST_1/2/3` no `.env`; primeira falha → tenta próximo
-- Teste de switch automático
+### ~~2.9 · Múltiplos servidores NNTP com failover~~ ✅ Concluído (0.24.0)
+- `NNTP_HOST_2`...`NNTP_HOST_9` no `.env`; failover automático por tentativa
+- Campos sem definição herdam do servidor primário
+- 4 testes em `test_phase2.py`
 
-### 2.10 · `--resume` / upload parcial via `.upapasta-state` JSON `Alta · Alto esforço` ← depende de 2.6
-- nyuu suporta retomada via `--input <file>` com lista de artigos
-- Salvar hash do conteúdo + último artigo confirmado
-- Teste: Ctrl+C durante upload + rerun retoma de onde parou
+### ~~2.10 · `--resume` / upload parcial via `.upapasta-state` JSON~~ ✅ Concluído (0.24.0)
+- State file `.upapasta-state.json` salvo junto ao NZB antes do upload
+- Resume detecta arquivos já no NZB parcial, faz upload dos restantes, mescla NZBs
+- 5 testes em `test_phase2.py`
 
 ### ~~2.11 · NFO `ffprobe` single-call (`-show_streams -show_format`)~~ ✅ Concluído
 - `_get_video_info()` substitui `_get_video_duration()` + `_get_video_metadata()` com uma única chamada
 - `nfo.py:36-79` — ~50% menos chamadas de subprocesso para pastas com vídeos
 
-### 2.12 · NFO multi-track (áudio + legendas embutidas) `Média · Médio esforço` ← depende de 2.11
-- NFO deve mostrar: `Áudio: PT, EN, JP | Legendas: PT` para `.mkv` multi-track
+### ~~2.12 · NFO multi-track (áudio + legendas embutidas)~~ ✅ Concluído (0.24.0)
+- NFO mostra `Audio: POR, ENG | Legendas: POR` na seção de estatísticas e na árvore por arquivo
+- `_get_video_info` usa `ffprobe -of json` e retorna `audio_tracks` + `subtitle_tracks`
+- 5 testes em `test_phase2.py`
 
 ### ~~2.13 · Logging estruturado com timestamps + níveis~~ ✅ Concluído
 - `--verbose` ativa timestamp ISO `%Y-%m-%dT%H:%M:%S` no handler de stream
