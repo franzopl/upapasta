@@ -58,7 +58,7 @@ def test_run_makerar_permission_error_returns_false(tmp_path, monkeypatch):
 
     monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
-    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
+    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False, skip_rar=False)
     assert o.run_makerar() is False
 
 
@@ -71,7 +71,7 @@ def test_run_makerar_oserror_returns_false(tmp_path, monkeypatch):
 
     monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
-    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
+    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False, skip_rar=False)
     assert o.run_makerar() is False
 
 

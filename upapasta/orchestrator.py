@@ -65,7 +65,7 @@ class UpaPastaOrchestrator:
         post_size: Optional[str] = None,
         subject: Optional[str] = None,
         group: Optional[str] = None,
-        skip_rar: bool = False,
+        skip_rar: bool = True,
         skip_par: bool = False,
         skip_upload: bool = False,
         force: bool = False,
@@ -221,6 +221,8 @@ class UpaPastaOrchestrator:
         if self.input_path.is_file():
             if self.rar_password:
                 print("📦 Arquivo único com senha: criando RAR automaticamente.")
+            elif self.obfuscate and not self.skip_rar:
+                print("📦 Arquivo único com ofuscação e --rar: criando RAR.")
             else:
                 self.skip_rar = True
                 if self.obfuscate:

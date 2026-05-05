@@ -103,7 +103,7 @@ def test_run_makerar_rar_failure_returns_false(tmp_path, monkeypatch):
 
     monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
-    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
+    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False, skip_rar=False)
     result = o.run_makerar()
     assert result is False
 
@@ -117,7 +117,7 @@ def test_run_makerar_file_not_found_returns_false(tmp_path, monkeypatch):
 
     monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
-    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False)
+    o = UpaPastaOrchestrator(input_path=str(folder), dry_run=False, skip_rar=False)
     result = o.run_makerar()
     assert result is False
 
