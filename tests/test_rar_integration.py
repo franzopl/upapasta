@@ -64,7 +64,7 @@ class TestRarIntegrationFile:
 
         # Arquivo com senha: deve ter criado RAR
         assert orch.rar_file is not None
-        assert "movie.mkv.rar" in orch.rar_file
+        assert "movie.rar" in orch.rar_file
 
     def test_rar_obfuscate_file_generates_rar(self, temp_file):
         """--rar --obfuscate em arquivo único: DEVE gerar RAR."""
@@ -85,7 +85,7 @@ class TestRarIntegrationFile:
 
         # --rar --obfuscate: deve ter criado RAR
         assert orch.rar_file is not None
-        assert "movie.mkv.rar" in orch.rar_file
+        assert "movie.rar" in orch.rar_file
 
     def test_obfuscate_without_rar_file_no_rar(self, temp_file):
         """Apenas --obfuscate em arquivo único (sem --rar): NÃO deve gerar RAR (fluxo moderno)."""
@@ -127,7 +127,7 @@ class TestRarIntegrationFile:
         # Ambos: deve ter RAR com senha
         assert orch.rar_file is not None
         assert orch.rar_password == "mysecret123"
-        assert "movie.mkv.rar" in orch.rar_file
+        assert "movie.rar" in orch.rar_file
 
 
 class TestRarIntegrationFolder:

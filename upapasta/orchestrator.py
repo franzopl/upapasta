@@ -247,7 +247,7 @@ class UpaPastaOrchestrator:
         print_rar_hints(self.input_path, self.backend, self.rar_password, self.obfuscate)
 
         if self.dry_run:
-            self.rar_file = str(self.input_path.parent / f"{self.input_path.name}.rar")
+            self.rar_file = str(self.input_path.parent / f"{self.input_path.stem}.rar")
             self.input_target = self.rar_file
             print("[DRY-RUN] pularia a criação do RAR.")
             print(f"[DRY-RUN] RAR seria criado em: {self.rar_file}")

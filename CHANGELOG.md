@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.24.1 - 2026-05-04
+
+### Correções
+
+- **`--dry-run` com `--password`/`--rar`**: path sugerido do RAR mostrava extensão dupla (`arquivo.mkv.rar`). Corrigido para usar `stem` em vez de `name`, gerando o caminho correto (`arquivo.rar`).
+
+### Testes
+
+- Adicionado `tests/test_password_flag.py` (6 testes) cobrindo todas as combinações de `--password`: sem argumento (senha aleatória de 16 chars), com senha explícita, ativação implícita de `--rar`, e unicidade entre gerações consecutivas.
+
 ## 0.24.0 - 2026-05-04
 
 ### Novas Features
