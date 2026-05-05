@@ -46,7 +46,7 @@ from typing import Optional, Tuple
 
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
-from .config import DEFAULT_PROFILE, PROFILES
+from .profiles import DEFAULT_PROFILE, PROFILES
 
 # ── Helpers de tamanho ────────────────────────────────────────────────────────
 
@@ -572,6 +572,7 @@ def make_parity(
     memory_mb: Optional[int] = None,
     filepath_format: str = "common",
     parpar_extra_args: Optional[list] = None,
+    dry_run: bool = False,
 ) -> int:
     """
     Gera arquivos .par2 para rar_path (arquivo único, volume set ou pasta).
@@ -735,6 +736,11 @@ def make_parity(
         else f"'{rar_path}'"
     )
     print(f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}...")
+
+    if dry_run:
+        print("[DRY-RUN] Comando PAR2:")
+        print(" ".join(str(x) for x in cmd))
+        return 0
 
     try:
         # managed_popen garante SIGTERM → SIGKILL no filho se receber Ctrl+C

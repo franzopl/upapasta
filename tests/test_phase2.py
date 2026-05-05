@@ -509,3 +509,95 @@ class TestNfoMultiTrack:
         assert "POR" in meta["audio_tracks"]
         assert "ENG" in meta["audio_tracks"]
         assert "POR" in meta["subtitle_tracks"]
+
+
+class TestParseSubject:
+    """Testes para _parse_subject (F2.16 — parser estruturado de subjects Usenet)."""
+
+    def test_quoted_canonical(self):
+        """Formato canônico nyuu: "filename" yEnc (N/M) size."""
+        from upapasta.nzb import _parse_subject
+        pre, name, suf = _parse_subject('"video.mkv" yEnc (1/23) 750000')
+        assert name == "video.mkv"
+        assert "yEnc" in suf
+        assert "(1/23)" in suf
+        assert pre == ""
+
+    def test_quoted_with_prefix(self):
+        """Subject com prefixo antes das aspas."""
+        from upapasta.nzb import _parse_subject
+        pre, name, suf = _parse_subject('[MyRelease] "file.part01.rar" yEnc (3/10)')
+        assert name == "file.part01.rar"
+        assert "[MyRelease]" in pre
+        assert "(3/10)" in suf
+
+    def test_unquoted_yenc(self):
+        """Subject sem aspas com indicador yEnc."""
+        from upapasta.nzb import _parse_subject
+        pre, name, suf = _parse_subject('file.mkv yEnc (2/5)')
+        assert name == "file.mkv"
+        assert "yEnc" in suf
+        assert "(2/5)" in suf
+
+    def test_unquoted_part_only(self):
+        """Subject sem aspas apenas com (N/M)."""
+        from upapasta.nzb import _parse_subject
+        pre, name, suf = _parse_subject('archive.part02.rar (2/10)')
+        assert name == "archive.part02.rar"
+        assert "(2/10)" in suf
+
+    def test_bare_filename(self):
+        """Subject é apenas o nome do arquivo."""
+        from upapasta.nzb import _parse_subject
+        pre, name, suf = _parse_subject('documento.pdf')
+        assert name == "documento.pdf"
+        assert pre == ""
+        assert suf == ""
+
+    def test_fix_nzb_subjects_preserves_yenc(self, tmp_path):
+        """fix_nzb_subjects preserva yEnc e (N/M) ao substituir filename."""
+        import xml.etree.ElementTree as ET
+        from upapasta.nzb import fix_nzb_subjects
+
+        ns = "http://www.newzbin.com/DTD/2003/nzb"
+        root = ET.Element(f"{{{ns}}}nzb")
+        f = ET.SubElement(root, f"{{{ns}}}file")
+        f.set("subject", '"obfuscated.mkv" yEnc (1/5) 500000')
+        tree = ET.ElementTree(root)
+        nzb = tmp_path / "test.nzb"
+        tree.write(str(nzb), encoding="UTF-8", xml_declaration=True)
+
+        fix_nzb_subjects(
+            str(nzb),
+            obfuscated_map={"obfuscated": "original"},
+            folder_name="MyRelease",
+        )
+
+        result = ET.parse(str(nzb)).getroot()
+        subj = result.find(f".//{{{ns}}}file").get("subject")
+        assert '"MyRelease/original.mkv"' in subj
+        assert "yEnc" in subj
+        assert "(1/5)" in subj
+
+    def test_fix_nzb_subjects_unquoted_subject(self, tmp_path):
+        """fix_nzb_subjects funciona com subjects sem aspas."""
+        import xml.etree.ElementTree as ET
+        from upapasta.nzb import fix_nzb_subjects
+
+        ns = "http://www.newzbin.com/DTD/2003/nzb"
+        root = ET.Element(f"{{{ns}}}nzb")
+        f = ET.SubElement(root, f"{{{ns}}}file")
+        f.set("subject", "randomname.mkv yEnc (1/3)")
+        tree = ET.ElementTree(root)
+        nzb = tmp_path / "test.nzb"
+        tree.write(str(nzb), encoding="UTF-8", xml_declaration=True)
+
+        fix_nzb_subjects(
+            str(nzb),
+            folder_name="Folder",
+        )
+
+        result = ET.parse(str(nzb)).getroot()
+        subj = result.find(f".//{{{ns}}}file").get("subject")
+        assert "Folder/randomname.mkv" in subj
+        assert "yEnc" in subj

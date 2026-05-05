@@ -158,6 +158,84 @@ def inject_nzb_password(nzb_path: str, password: str) -> None:
         print(f"Aviso: não foi possível injetar senha no NZB: {e}")
 
 
+def _parse_subject(subject: str) -> tuple[str, str, str]:
+    """Decompõe um subject Usenet em (prefixo, nome_arquivo, sufixo).
+
+    Suporta os formatos mais comuns gerados por nyuu e outros posters:
+      - "filename.ext" yEnc (N/M) [size]
+      - [tag] "filename.ext" yEnc (N/M)
+      - filename.ext yEnc (N/M)
+      - filename.ext (N/M)
+      - filename.ext           (sem indicador de parte)
+
+    Retorna (prefixo, nome_arquivo, sufixo). Se não for possível isolar o nome
+    do arquivo, retorna ("", subject, "").
+    """
+    # Caso 1: nome entre aspas duplas — formato canônico nyuu/NewsPost
+    m = re.match(r'^(.*?)"([^"]+)"(.*)$', subject, re.DOTALL)
+    if m:
+        return m.group(1), m.group(2), m.group(3)
+
+    # Caso 2: sem aspas — tenta localizar indicador de parte (N/M) ou yEnc
+    # Padrão: <texto_opcional> <nome_arquivo> <yEnc> <(N/M)> <[tamanho]>
+    # O nome do arquivo é o token imediatamente antes de "yEnc" ou de "(N/M)"
+    m_yenc = re.search(r'^(.*?)(\s+yEnc\s+\(\d+/\d+\).*)$', subject)
+    if m_yenc:
+        pre = m_yenc.group(1)
+        suffix = m_yenc.group(2)
+        # O último token de `pre` é o nome do arquivo
+        idx = pre.rfind(' ')
+        if idx >= 0:
+            return pre[:idx + 1], pre[idx + 1:], suffix
+        return '', pre, suffix
+
+    m_part = re.search(r'^(.*?)(\s*\(\d+/\d+\).*)$', subject)
+    if m_part:
+        pre = m_part.group(1)
+        suffix = m_part.group(2)
+        idx = pre.rfind(' ')
+        if idx >= 0:
+            return pre[:idx + 1], pre[idx + 1:], suffix
+        return '', pre, suffix
+
+    # Caso 3: subject é apenas o nome do arquivo (sem indicadores)
+    return '', subject, ''
+
+
+def _deobfuscate_filename(
+    current_filename: str,
+    obfuscated_map: dict,
+) -> str:
+    """Resolve o nome original a partir do mapa de ofuscação.
+
+    Trata extensões compostas (.part01.rar, .vol00+01.par2, .par2) e simples.
+    Devolve current_filename se não encontrar mapeamento.
+    """
+    if current_filename in obfuscated_map:
+        return obfuscated_map[current_filename]
+
+    # Extensões compostas: .partNN.rar e .volNN+MM.par2 / .par2
+    for pattern in (
+        r'(\.part\d+\.rar)$',
+        r'(\.vol\d+\+\d+\.par2)$',
+        r'(\.par2)$',
+    ):
+        m = re.search(pattern, current_filename, re.IGNORECASE)
+        if m:
+            ext = m.group(1)
+            base = current_filename[: -len(ext)]
+            if base in obfuscated_map:
+                return obfuscated_map[base] + ext
+            break
+    else:
+        # Extensão simples
+        base, ext = os.path.splitext(current_filename)
+        if base in obfuscated_map:
+            return obfuscated_map[base] + ext
+
+    return current_filename
+
+
 def fix_nzb_subjects(
     nzb_path: str,
     file_list: list[str] | None = None,
@@ -167,10 +245,10 @@ def fix_nzb_subjects(
 ) -> None:
     """Corrige os subjects no NZB para incluir o caminho relativo do arquivo.
 
-    Tenta preservar a estrutura do subject (partes/total, yEnc, etc) substituindo
-    apenas o nome do arquivo pelo caminho original (deofuscado).
+    Usa _parse_subject para decompor cada subject em (prefixo, nome, sufixo),
+    preservando indicadores de parte (N/M), yEnc e demais metadados.
 
-    Se strong_obfuscate=True, mantém os nomes aleatórios nos subjects (máxima privacidade).
+    Se strong_obfuscate=True, mantém os nomes aleatórios (máxima privacidade).
     """
     try:
         ns_url = "http://www.newzbin.com/DTD/2003/nzb"
@@ -180,61 +258,27 @@ def fix_nzb_subjects(
 
         files = root.findall(f".//{{{ns_url}}}file")
         if not files:
-            # Tenta sem namespace como fallback
             files = root.findall(".//file")
 
         from_file_list = bool(file_list and len(file_list) == len(files))
         for i, file_elem in enumerate(files):
             old_subject = file_elem.get("subject", "")
 
-            # Determina qual nome de arquivo usar para este elemento.
-            # Prioriza extrair entre aspas do próprio subject (gerado pelo nyuu -t).
-            current_filename = ""
-            if '"' in old_subject:
-                m = re.search(r'\"(.*?)\"', old_subject)
-                if m:
-                    current_filename = m.group(1)
-
-            # Se não encontrou no subject e temos file_list, usa como fallback (ordem assumida)
-            if not current_filename and from_file_list:
+            if from_file_list:
+                # file_list é autoritativo: o subject pode ser placeholder gerado pelo uploader
                 current_filename = file_list[i]  # type: ignore[index]
-
-            # Último recurso: heurística de split no subject
-            if not current_filename:
-                # Se não tem aspas, remove tags típicas se houver
-                current_filename = old_subject.split(' (')[0].split(' [')[0].strip()
+                prefix, suffix = "", ""
+            else:
+                prefix, current_filename, suffix = _parse_subject(old_subject)
 
             if not current_filename:
                 continue
 
-            # Tenta deofuscar (a menos que seja strong_obfuscate)
-            original_filename = current_filename
-            if not strong_obfuscate and obfuscated_map:
-                if current_filename in obfuscated_map:
-                    original_filename = obfuscated_map[current_filename]
-                else:
-                    # Tenta match por base name (ex: 12345.part01.rar -> 12345)
-                    # Agora também tratamos .par2 e .volNN+MM.par2
-                    base = current_filename
-                    ext_part = ""
-
-                    # Trata .partNN.rar
-                    rar_match = re.search(r'(\.part\d+\.rar)$', current_filename, re.IGNORECASE)
-                    # Trata .par2 e .volNN+MM.par2
-                    par2_match = re.search(r'(\.vol\d+\+\d+\.par2|\.par2)$', current_filename, re.IGNORECASE)
-
-                    if rar_match:
-                        ext_part = rar_match.group(1)
-                        base = current_filename[:-len(ext_part)]
-                    elif par2_match:
-                        ext_part = par2_match.group(1)
-                        base = current_filename[:-len(ext_part)]
-                    else:
-                        # Trata extensão simples (.mkv, .mp4, etc)
-                        base, ext_part = os.path.splitext(current_filename)
-
-                    if base in obfuscated_map:
-                        original_filename = obfuscated_map[base] + ext_part
+            # Deofuscação (pulada quando strong_obfuscate ou sem mapa)
+            if strong_obfuscate or not obfuscated_map:
+                original_filename = current_filename
+            else:
+                original_filename = _deobfuscate_filename(current_filename, obfuscated_map)
 
             if strong_obfuscate:
                 final_filename = current_filename
@@ -243,15 +287,12 @@ def fix_nzb_subjects(
             else:
                 final_filename = original_filename
 
-            if '"' in old_subject:
-                # Substitui o conteúdo entre as aspas duplas
-                new_subject = re.sub(r'\"(.*?)\"', f'"{final_filename}"', old_subject)
-            elif old_subject.strip() == current_filename or from_file_list:
-                # Subject é o próprio nome, ou veio de file_list (subject pode ser placeholder)
-                new_subject = final_filename
+            # Reconstrói o subject preservando prefixo e sufixo
+            quoted = '"' in old_subject
+            if quoted:
+                new_subject = f'{prefix}"{final_filename}"{suffix}'
             else:
-                # Tenta substituir a ocorrência do nome no subject
-                new_subject = old_subject.replace(current_filename, final_filename)
+                new_subject = f'{prefix}{final_filename}{suffix}'
 
             file_elem.set("subject", new_subject)
 

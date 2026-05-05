@@ -157,29 +157,9 @@ def _write_full_env(env_file: str, values: dict) -> None:
     with open(env_file, "w") as f:
         f.write("\n".join(lines))
 
-PROFILES = {
-    "fast": {
-        "description": "Máxima velocidade (ideal para upload urgente)",
-        "slice_size": "20M",
-        "redundancy": 5,
-        "post_size": "100M",
-    },
-    "balanced": {
-        # slice_size=None → makepar.py calcula dinamicamente via ARTICLE_SIZE do .env
-        "description": "Equilibrado (RECOMENDADO para Usenet) — slice dinâmico automático",
-        "slice_size": None,
-        "redundancy": 10,
-        "post_size": "50M",
-    },
-    "safe": {
-        "description": "Alta proteção (ideal para arquivos críticos)",
-        "slice_size": "5M",
-        "redundancy": 20,
-        "post_size": "30M",
-    },
-}
+from .profiles import DEFAULT_PROFILE, PROFILES
 
-DEFAULT_PROFILE = "balanced"
+__all__ = ["DEFAULT_PROFILE", "PROFILES"]
 
 
 def load_env_file(env_path: str = DEFAULT_ENV_FILE) -> dict:

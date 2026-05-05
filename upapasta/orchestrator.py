@@ -295,17 +295,7 @@ class UpaPastaOrchestrator:
         print("🛡️  ETAPA 2: Gerar arquivo de paridade PAR2")
         print("=" * 60)
 
-        if self.dry_run:
-            self.par_file = (
-                os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
-                if os.path.isdir(self.input_target)
-                else resolver.par_file_path(self.input_target)
-            )
-            print("[DRY-RUN] pularia a criação do PAR2.")
-            print(f"[DRY-RUN] PAR2 será criado em: {self.par_file}")
-            return True
-
-        if self.obfuscate:
+        if self.obfuscate and not self.dry_run:
             return self._run_makepar_obfuscated(resolver)
         return self._run_makepar_plain(resolver)
 
@@ -362,6 +352,11 @@ class UpaPastaOrchestrator:
         print(f"🔐 Gerando paridade (perfil: {self.par_profile})...")
         print("-" * 60)
         assert self.input_target is not None, "input_target não foi configurado"
+        self.par_file = (
+            os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
+            if os.path.isdir(self.input_target)
+            else resolver.par_file_path(self.input_target)
+        )
         try:
             rc = make_parity(
                 self.input_target,
@@ -376,6 +371,7 @@ class UpaPastaOrchestrator:
                 memory_mb=self.par_memory_mb,
                 filepath_format=self.filepath_format,
                 parpar_extra_args=self.parpar_extra_args,
+                dry_run=self.dry_run,
             )
         except (FileNotFoundError, PermissionError, OSError) as e:
             label = "binário de paridade não encontrado" if isinstance(e, FileNotFoundError) else str(e)
@@ -400,18 +396,12 @@ class UpaPastaOrchestrator:
             )
 
         print("-" * 60)
-        assert self.input_target is not None, "input_target não foi configurado"
-        self.par_file = resolver.par_file_path(self.input_target)
         return True
 
     def run_upload(self) -> bool:
         if not self.input_target:
             print("Erro: caminho de entrada não definido.")
             return False
-        if self.dry_run:
-            print("DRY-RUN: Pularia o upload.")
-            return True
-
         print("\n" + "=" * 60)
         print("📤 ETAPA 3: Upload para Usenet")
         print("=" * 60)

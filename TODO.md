@@ -1,6 +1,6 @@
 # TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Última revisão: 2026-05-04 (fase 2 parcial: 219 testes verdes, 1 skipped)
+> Última revisão: 2026-05-05 (fase 3 em andamento: 319 testes verdes, 1 skipped)
 > Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
@@ -67,7 +67,7 @@
 
 ---
 
-## 🟡 Fase 2 — Robustez & UX (v0.20.x)
+## ✅ Fase 2 — Robustez & UX (v0.20.x → v0.24.3) — COMPLETA
 
 **Meta: pipeline resiliente a falhas reais; visibilidade clara ao usuário.**
 
@@ -138,9 +138,10 @@
 - `--insecure` desativa verificação; propagado via CLI → `main.py` → `test_nntp_connection(insecure=...)`
 - 2 testes em `test_phase2.py`
 
-### 2.16 · `fix_nzb_subjects` reescrito com parser estruturado `Média · Médio esforço` ← depende de 1.3
-- Substituir lógica de matching por aspas por parser real
-- Suportar `(\d+/\d+)`, yEnc, subjects sem aspas
+### ~~2.16 · `fix_nzb_subjects` reescrito com parser estruturado~~ ✅ Concluído
+- `_parse_subject` decompõe subjects em (prefixo, nome, sufixo); suporta `"quoted"`, yEnc `(N/M)`, subjects sem aspas, extensões compostas (.part01.rar, .vol00+01.par2)
+- `_deobfuscate_filename` extraída como função standalone testável
+- 7 testes em `test_phase2.py` (TestParseSubject)
 
 ### ~~2.17 · Cache global de `os.path.getsize` no pipeline~~ ✅ Concluído
 - `@lru_cache(maxsize=64)` em `get_total_size` em `resources.py`
@@ -159,9 +160,10 @@
 - RAR continua default; 7z gera `.7z.001` etc. (livre, sem licença comercial)
 - Testes de round-trip
 
-### 3.3 · Webhooks nativos: Discord/Telegram/Slack via `WEBHOOK_URL` `Alta · Médio esforço` ← depende de 2.13
-- POST JSON ao final de cada upload; templates simples; stdlib `urllib`
-- Teste com mock httpserver
+### ~~3.3 · Webhooks nativos: Discord/Telegram/Slack via `WEBHOOK_URL`~~ ✅ Concluído
+- `_webhook.py`: `send_webhook()` + `_build_payload()` com detecção automática Discord/Slack/Telegram/genérico
+- `WEBHOOK_URL` no `.env.example`; chamado em `_pipeline.py` após `run_post_upload_hook`
+- 10 testes em `test_phase3.py`
 
 ### 3.4 · TMDb integration: enriquece NFO com sinopse/poster URL/IMDB ID `Alta · Alto esforço` ← depende de 2.12
 - Detecta filme/série, faz lookup, enriquece NFO
@@ -175,22 +177,22 @@
 - Placeholders: `{title}`, `{size}`, `{files}`, `{video_info}`, `{tmdb}`
 - Fallback automático para geração automática se template não existir
 
-### 3.7 · `upapasta --stats` (histórico agregado) `Média · Médio esforço` ← depende de 2.13
-- Lê `history.jsonl`; imprime top categorias, GB/mês, grupo mais usado
-- Teste com fixture
+### ~~3.7 · `upapasta --stats` (histórico agregado)~~ ✅ Concluído
+- Lê `history.jsonl`; imprime totais, top categorias, GB/mês (últimos 6), grupo mais usado, duração média
 
 ### 3.8 · Modo interativo TUI (`--interactive`) `Baixa · Alto esforço` ← depende de 3.7
 - `curses` da stdlib; menu de upload + histórico
 
-### 3.9 · `--dry-run --verbose` imprime argv completo dos subprocessos `Média · Baixo esforço` ← depende de 1.5
-- Imprimir comando completo de `parpar`/`nyuu` em vez de apenas "[DRY-RUN] PAR2 será criado em: ..."
+### ~~3.9 · `--dry-run --verbose` imprime argv completo dos subprocessos~~ ✅ Concluído
+- `make_parity` agora imprime o comando completo de `parpar`/`par2` quando `dry_run=True`
+- `upload_to_usenet` já imprimia o comando nyuu completo; orchestrator parou de interceptar antes
 
 ### 3.10 · Suporte Windows nativo testado (CI matrix) `Média · Alto esforço` ← depende de 1.5
 - GitHub Actions roda em Windows; paths normalizados; sem regressões
 
-### 3.11 · Separar `profiles.py` de `config.py` `Baixa · Baixo esforço` ← depende de 2.6
-- `config.py` mistura perfis PAR2 com leitura de `.env`
-- Mover constantes PAR2 para `profiles.py`
+### ~~3.11 · Separar `profiles.py` de `config.py`~~ ✅ Concluído
+- `PROFILES` e `DEFAULT_PROFILE` movidos para `upapasta/profiles.py`
+- `config.py` re-exporta para compatibilidade retroativa; `makepar.py` importa direto de `profiles.py`
 
 ### 3.12 · `mypy --strict` no CI `Média · Médio esforço` ← depende de 2.6, 2.7
 - Zero warnings; type hints completos em todos os módulos
@@ -239,7 +241,12 @@
 
 **Próximos passos imediatos** (em ordem):
 1. ~~F1.1–F1.15~~ ✅ Fase 1 completa
-2. F2.15 — Bug de segurança `ssl.CERT_NONE` em `nntp_test.py` (S1)
-3. F2.1 — Validação prévia de input (espaço em disco, permissões)
-4. F2.3 — Mensagens de erro de subprocesso parseadas (nyuu stderr)
-5. F2.4 — Retry com backoff exponencial + jitter
+2. ~~F2.1–F2.17~~ ✅ Fase 2 completa (304 testes, 1 skipped intencional)
+3. ~~F3.9~~ ✅ `--dry-run --verbose` imprime argv completo
+4. ~~F3.3~~ ✅ Webhooks nativos Discord/Telegram/Slack via `WEBHOOK_URL`
+5. ~~F3.7~~ ✅ `upapasta --stats` (histórico agregado)
+6. ~~F3.11~~ ✅ `profiles.py` separado de `config.py`
+7. **F3.12** — `mypy --strict` no CI (desbloqueador de qualidade)
+8. **F3.13** — Cobertura ≥ 90% nos módulos core
+9. **F3.1** — Múltiplas entradas posicionais (`upapasta a b c`)
+10. **F3.15** — Publicação no PyPI

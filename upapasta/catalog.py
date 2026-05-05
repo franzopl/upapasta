@@ -138,6 +138,85 @@ def record_upload(
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+# ── Estatísticas do catálogo ─────────────────────────────────────────────────
+
+def print_stats() -> None:
+    """Lê history.jsonl e imprime estatísticas agregadas."""
+    path = _history_path()
+    if not os.path.exists(path):
+        print("Nenhum upload registrado ainda.")
+        return
+
+    records = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+
+    if not records:
+        print("Histórico vazio.")
+        return
+
+    total = len(records)
+    total_bytes = sum(r.get("tamanho_bytes") or 0 for r in records)
+    total_gb = total_bytes / (1024 ** 3)
+
+    # Por categoria
+    cat_counts: dict[str, int] = {}
+    for r in records:
+        cat = r.get("categoria") or "Desconhecida"
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+
+    # Por grupo usenet
+    group_counts: dict[str, int] = {}
+    for r in records:
+        g = r.get("grupo_usenet")
+        if g:
+            group_counts[g] = group_counts.get(g, 0) + 1
+
+    # Por mês (YYYY-MM)
+    month_bytes: dict[str, int] = {}
+    for r in records:
+        data = r.get("data_upload", "")[:7]  # "YYYY-MM"
+        if data:
+            month_bytes[data] = month_bytes.get(data, 0) + (r.get("tamanho_bytes") or 0)
+
+    # Duração média de upload
+    durations = [r["duracao_upload_s"] for r in records if r.get("duracao_upload_s")]
+    avg_dur = sum(durations) / len(durations) if durations else None
+
+    sep = "─" * 50
+    print(sep)
+    print(f"  Uploads totais : {total}")
+    print(f"  Volume total   : {total_gb:.2f} GB")
+    if avg_dur is not None:
+        mins, secs = divmod(int(avg_dur), 60)
+        print(f"  Duração média  : {mins}m {secs:02d}s")
+    print()
+
+    print("  Categorias:")
+    for cat, count in sorted(cat_counts.items(), key=lambda x: -x[1]):
+        print(f"    {cat:<20} {count:>5} upload(s)")
+    print()
+
+    if group_counts:
+        top_group = max(group_counts, key=lambda k: group_counts[k])
+        print(f"  Grupo mais usado: {top_group} ({group_counts[top_group]} upload(s))")
+        print()
+
+    if month_bytes:
+        print("  Volume por mês (últimos 6):")
+        for month in sorted(month_bytes)[-6:]:
+            gb = month_bytes[month] / (1024 ** 3)
+            print(f"    {month}  {gb:>7.2f} GB")
+
+    print(sep)
+
+
 # ── Hook pós-upload ──────────────────────────────────────────────────────────
 
 def run_post_upload_hook(

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .cli import _USAGE_SHORT, _validate_flags, check_dependencies, parse_args
 from .config import check_or_prompt_credentials, load_env_file, resolve_env_file
+from .catalog import print_stats
 from .nfo import generate_nfo_folder
 from .nntp_test import test_nntp_connection
 from .nzb import collect_season_nzbs, fix_season_nzb_subjects, merge_nzbs
@@ -36,6 +37,10 @@ def main():
 
     if getattr(args, "config", False):
         check_or_prompt_credentials(env_file, force=True)
+        sys.exit(0)
+
+    if getattr(args, "stats", False):
+        print_stats()
         sys.exit(0)
 
     if getattr(args, "test_connection", False):
