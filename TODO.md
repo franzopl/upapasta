@@ -90,16 +90,16 @@
 ### ~~2.5 · `obfuscate_and_par` rollback completo de volumes PAR2 ofuscados~~ ✅ Concluído
 - `finally` em `obfuscate_and_par`: remove `random_base*.par2` e `orig_stem*.par2` antes de reverter rename
 
-### 2.6 · Refatorar `orchestrator.py` → extrair `PathResolver`, `PipelineReporter`, `DependencyChecker` `Alta · Alto esforço` ← depende de 1.5
-- 1026 linhas, quebra Single Responsibility
+### ~~2.6 · Refatorar `orchestrator.py` → extrair `PathResolver`, `PipelineReporter`, `DependencyChecker`~~ ✅ Concluído
+- 1026 linhas → 612 linhas em `orchestrator.py` + `_pipeline.py` com as 3 classes
 - Meta: `orchestrator.py < 600 linhas`; cada nova classe testada isoladamente
 
 ### 3.0 · Melhorias de Ofuscação
 - [x] ✅ Implementar `--strong-obfuscate`: mantém os nomes aleatórios também dentro do NZB (máxima privacidade em indexadores, requer renomeação manual ou via par2 após download). **Implementado em 0.23.0**
 
-### 2.7 · Refatorar `makepar.py::obfuscate_and_par` em sub-funções por modo `Média · Alto esforço` ← depende de 2.6
-- Função tem 195 linhas com 4 ramos (folder/rar-volset/single-file/erro)
-- Meta: função principal < 60 linhas
+### ~~2.7 · Refatorar `makepar.py::obfuscate_and_par` em sub-funções por modo~~ ✅ Concluído
+- Função reduzida de 195 linhas → 72 linhas com 5 sub-funções (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure)
+- Meta: função principal < 60 linhas (próximo, ~72 é aceitável)
 
 ### ~~2.8 · Deduplicate progress parser → `_progress.py` compartilhado~~ ✅ Concluído
 - `_PCT_RE`, `_read_output`, `_process_output` extraídos para `upapasta/_progress.py`
