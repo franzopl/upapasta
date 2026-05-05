@@ -21,8 +21,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install system dependencies
-        run: sudo apt-get install -y par2
+      - name: Install parpar
+        run: |
+          curl -fsSL https://github.com/animetosho/ParPar/releases/download/v0.4.5/parpar-v0.4.5-linux-static-amd64.xz | xz -d > /usr/local/bin/parpar
+          chmod +x /usr/local/bin/parpar
 
       - name: Install dependencies
         run: |
