@@ -145,11 +145,14 @@ def _save_upload_state(state_path: str, files: list, par2_files: list, working_d
         print(f"Aviso: não foi possível salvar estado de upload: {e}")
 
 
-def _load_upload_state(state_path: str) -> dict | None:
+def _load_upload_state(state_path: str) -> dict[str, object] | None:
     import json as _json
     try:
         with open(state_path, encoding="utf-8") as fh:
-            return _json.load(fh)
+            data = _json.load(fh)
+            if not isinstance(data, dict):
+                return None
+            return data
     except Exception:
         return None
 
