@@ -25,8 +25,8 @@ class TestRarIntegrationFile:
             f.write_bytes(b"x" * 1024)
             yield f
 
-    def test_rar_only_file_no_rar_generated(self, temp_file):
-        """--rar em arquivo único sem proteção: NÃO deve gerar RAR (inútil)."""
+    def test_rar_only_file_creates_rar(self, temp_file):
+        """--rar em arquivo único sem proteção: DEVE gerar RAR (flag explícita honrada)."""
         setup_logging()
         orch = UpaPastaOrchestrator(
             input_path=str(temp_file),
@@ -42,8 +42,9 @@ class TestRarIntegrationFile:
             except Exception:
                 pass
 
-        # Arquivo único sem proteção: não precisa RAR mesmo com --rar
-        assert orch.rar_file is None
+        # --rar explícito deve criar RAR mesmo sem obfuscate/password
+        assert orch.rar_file is not None
+        assert orch.rar_file.endswith(".rar")
 
     def test_rar_password_file_generates_rar(self, temp_file):
         """--rar --password em arquivo único: DEVE gerar RAR com senha."""

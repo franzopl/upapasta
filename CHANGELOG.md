@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.24.2 - 2026-05-05
+
+### Correções
+
+- **`--rar` em arquivo único**: a flag `--rar` agora é sempre honrada para arquivos únicos, mesmo sem `--obfuscate` ou `--password`. Antes, o orchestrator ignorava a flag e forçava `skip_rar=True` nesses casos.
+- **`revert_obfuscation` após cleanup**: quando o hardlink já foi removido pelo cleanup, o original (mesmo inode) é corretamente removido usando o `obfuscated_map`.
+- **`will_create_rar` simplificado**: condição reduzida para `not self.skip_rar` (correto após refatoração do significado de `skip_rar`).
+
+### Testes
+
+- `test_orchestrator_file_skip_rar_sets_input_target_and_skip_flag`: corrigido para passar `skip_rar=True` (padrão sem `--rar`).
+- `test_orchestrator_file_with_rar_flag_creates_rar`: novo teste verificando que `--rar` explícito cria RAR em arquivo único.
+- `test_rar_only_file_creates_rar`: atualizado para refletir comportamento correto (RAR criado com `--rar` explícito).
+
 ## 0.24.1 - 2026-05-04
 
 ### Correções

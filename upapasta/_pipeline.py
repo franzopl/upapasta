@@ -492,6 +492,24 @@ def revert_obfuscation(
             print(f"⚡ [--keep-files] Mantendo links de ofuscação: {os.path.basename(input_target)}")
             return input_target
         if not os.path.exists(input_target):
+            # hardlink já removido pelo cleanup; o original (mesmo inode) pode ainda existir
+            target_dir = os.path.dirname(input_target)
+            target_ext = os.path.splitext(input_target)[1]
+            obf_full_base = os.path.basename(os.path.splitext(input_target)[0])
+            obf_base = re.sub(r'\.part\d+$', '', obf_full_base)
+            original_base = obfuscated_map.get(obf_base)
+            if original_base:
+                # arquivo único ou primeiro volume
+                orig_path = os.path.join(target_dir, original_base + target_ext)
+                candidates = glob.glob(glob.escape(os.path.join(target_dir, original_base)) + ".part*.rar")
+                if not candidates and os.path.exists(orig_path):
+                    candidates = [orig_path]
+                for cand in candidates:
+                    try:
+                        os.remove(cand)
+                        print(f"🧹 Removido original após cleanup do hardlink: {os.path.basename(cand)}")
+                    except OSError as e:
+                        print(f"⚠️  Falha ao remover original '{os.path.basename(cand)}': {e}")
             return input_target
         print(f"🧹 Removendo links temporários de ofuscação: {os.path.basename(input_target)}")
         try:

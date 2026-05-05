@@ -226,12 +226,13 @@ class UpaPastaOrchestrator:
                 print("📦 Arquivo único com senha: criando RAR automaticamente.")
             elif self.obfuscate and not self.skip_rar:
                 print("📦 Arquivo único com ofuscação e --rar: criando RAR.")
-            else:
-                self.skip_rar = True
+            elif self.skip_rar:
+                # sem --rar explícito → upload direto (MKV/arquivo original)
                 if self.obfuscate:
                     print(f"✅ Arquivo único com ofuscação: {self.input_path.name} (upload direto ofuscado + PAR2)")
                 else:
                     print(f"✅ Arquivo único: {self.input_path.name} (upload direto, sem RAR)")
+            # else: --rar explícito sem --obfuscate/--password → cria RAR normalmente
 
         if self.skip_rar:
             print_skip_rar_hints(self.input_path, self.filepath_format, self.backend)
@@ -483,7 +484,7 @@ class UpaPastaOrchestrator:
         total_start = time.time()
         bar = PhaseBar()
 
-        single_file_no_rar = self.input_path.is_file() and not self.obfuscate and not self.rar_password
+        single_file_no_rar = self.input_path.is_file() and self.skip_rar and not self.obfuscate and not self.rar_password
         if self.skip_rar or single_file_no_rar:
             bar.skip("RAR")
         if self.skip_par:
@@ -531,9 +532,7 @@ class UpaPastaOrchestrator:
             return 3
 
         # ── RAR ──────────────────────────────────────────────────────────────
-        will_create_rar = not self.skip_rar and (
-            self.input_path.is_dir() or self.obfuscate or self.rar_password
-        )
+        will_create_rar = not self.skip_rar
         if will_create_rar:
             bar.start("RAR")
             if not self.run_makerar():
