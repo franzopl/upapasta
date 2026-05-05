@@ -1,10 +1,7 @@
 """Testes para a flag --password: senha aleatória e ativação implícita de --rar."""
 from __future__ import annotations
 
-import sys
-import types
 import argparse
-import pytest
 
 from upapasta.cli import _validate_flags
 

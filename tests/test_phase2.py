@@ -447,7 +447,7 @@ class TestUploadResume:
         assert "episodio01.mkv" in found
 
     def test_save_and_load_upload_state(self, tmp_path):
-        from upapasta.upfolder import _save_upload_state, _load_upload_state
+        from upapasta.upfolder import _load_upload_state, _save_upload_state
         state_path = str(tmp_path / "test.upapasta-state.json")
         _save_upload_state(
             state_path,
@@ -482,7 +482,9 @@ class TestNfoMultiTrack:
 
     def test_get_video_info_parses_json_output(self, tmp_path, monkeypatch):
         """_get_video_info parseia corretamente o JSON do ffprobe."""
-        import json, subprocess
+        import json
+        import subprocess
+
         import upapasta.nfo as nfo_mod
 
         ffprobe_output = json.dumps({

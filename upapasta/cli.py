@@ -397,7 +397,8 @@ def _validate_flags(args) -> bool:
 
     # --password sem argumento gera senha aleatória
     if args.password == "__random__":
-        import secrets, string
+        import secrets
+        import string
         chars = string.ascii_letters + string.digits
         args.password = "".join(secrets.choice(chars) for _ in range(16))
         print(f"🔑  Senha gerada automaticamente: {args.password}")

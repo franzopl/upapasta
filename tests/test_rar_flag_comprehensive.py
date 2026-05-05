@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from upapasta.orchestrator import UpaPastaOrchestrator
 from upapasta.cli import _validate_flags
+from upapasta.orchestrator import UpaPastaOrchestrator
 
 
 class TestRarFlagWithFile:
@@ -277,7 +277,7 @@ class TestRarDecisionLogic:
 
     def test_single_file_no_rar_by_default(self, single_file):
         """Arquivo único sem flags de proteção: skip_rar deve ser ativado em run_makerar()."""
-        orch = UpaPastaOrchestrator(
+        UpaPastaOrchestrator(
             input_path=single_file,
             skip_rar=False,  # Inicialmente quer RAR
             obfuscate=False,

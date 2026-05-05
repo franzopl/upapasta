@@ -41,7 +41,13 @@ from typing import Optional
 from upapasta import nfo
 
 from ._process import managed_popen
-from .nzb import fix_nzb_subjects, handle_nzb_conflict, inject_nzb_password, merge_nzbs, resolve_nzb_out
+from .nzb import (
+    fix_nzb_subjects,
+    handle_nzb_conflict,
+    inject_nzb_password,
+    merge_nzbs,
+    resolve_nzb_out,
+)
 
 _NYUU_ERRORS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"40[13]", re.I), "Erro de autenticação (401/403): verifique usuário e senha no .env"),

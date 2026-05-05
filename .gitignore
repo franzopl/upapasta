@@ -62,6 +62,7 @@ nzb
 
 # Temporários
 tmp_test_folder/
+temporary/
 test_upload.log
 upload.log
 SUMMARY.txt
