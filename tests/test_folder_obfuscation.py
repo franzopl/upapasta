@@ -28,8 +28,9 @@ class TestFolderObfuscation(unittest.TestCase):
                 item.unlink(missing_ok=True)
 
     @patch('upapasta.orchestrator.check_or_prompt_credentials')
+    @patch('upapasta.upfolder.find_nyuu', return_value='/usr/local/bin/nyuu')
     @patch('upapasta.upfolder.managed_popen')
-    def test_folder_obfuscation_workflow(self, mock_managed_popen: MagicMock, mock_check_creds: MagicMock):
+    def test_folder_obfuscation_workflow(self, mock_managed_popen: MagicMock, mock_find_nyuu: MagicMock, mock_check_creds: MagicMock):
         mock_proc = MagicMock()
         mock_proc.wait.return_value = 0
         mock_managed_popen.return_value.__enter__.return_value = mock_proc
