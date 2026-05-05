@@ -11,6 +11,9 @@ requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "MIT"}
 
+[tool.setuptools.packages.find]
+include = ["upapasta*"]
+
 [project.scripts]
 upapasta = "upapasta.main:main"
 
