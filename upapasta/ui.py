@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from datetime import datetime
-from typing import Optional
+from typing import Optional, cast
 
 logger = logging.getLogger("upapasta")
 
@@ -41,7 +41,7 @@ class _ThreadDispatchTeeStream(io.TextIOBase):
     sys.stdout globalmente.
     """
 
-    def __init__(self, terminal: io.TextIOWrapper) -> None:
+    def __init__(self, terminal: io.TextIOBase) -> None:
         self._terminal = terminal
 
     def write(self, s: str) -> int:
@@ -161,9 +161,9 @@ def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple[
     # Instala o dispatcher global uma única vez (proteção com lock)
     with _dispatch_lock:
         if _dispatch_stream is None:
-            terminal = sys.__stdout__ or sys.stdout
+            terminal = cast(io.TextIOBase, sys.__stdout__ or sys.stdout)
             _dispatch_stream = _ThreadDispatchTeeStream(terminal)
-            sys.stdout = _dispatch_stream  # type: ignore[assignment]
+            sys.stdout = _dispatch_stream
 
     # Registra o log file desta thread
     _thread_local.log_fh = log_fh
