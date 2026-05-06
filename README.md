@@ -1,6 +1,8 @@
 # UpaPasta
 
-**Uploader automatizado para Usenet.** Um comando, pipeline completo: PAR2 → upload → NZB pronto.
+[Português (pt-BR)](README.pt-BR.md)
+
+**Automated Usenet Uploader.** One command, full pipeline: PAR2 → upload → NZB ready.
 
 ```bash
 upapasta /tv/Night.of.the.Living.Dead.S01/
@@ -13,156 +15,156 @@ upapasta /tv/Night.of.the.Living.Dead.S01/
 
 ---
 
-## O que faz
+## What it does
 
-- Gera PAR2 com perfis de redundância (5 / 10 / 20%)
-- Faz upload via nyuu sem staging em `/tmp` (paths diretos)
-- Entrega NZB + NFO com metadados de vídeo
-- (Opcional) Cria RAR5 com senha antes do upload
-- Registra tudo em `~/.config/upapasta/history.jsonl`
+- Generates PAR2 with redundancy profiles (5 / 10 / 20%)
+- Uploads via nyuu without staging in `/tmp` (direct paths)
+- Delivers NZB + NFO with video metadata
+- (Optional) Creates RAR5 with password before upload
+- Logs everything in `~/.config/upapasta/history.jsonl`
 
-Zero dependências Python — apenas binários do sistema.
+Zero Python dependencies — system binaries only.
 
 ---
 
-## Instalação
+## Installation
 
 ```bash
 pip install upapasta
 ```
 
-**Dependências do sistema:**
+**System dependencies:**
 
-| Binário | Função | Instalar |
+| Binary | Function | Install |
 |---------|--------|----------|
-| `nyuu` | Upload NNTP | `npm install -g nyuu` |
-| `parpar` | Geração de PAR2 (recomendado) | `pip install parpar` |
-| `par2` | Alternativa ao parpar | `apt install par2` |
-| `rar` | RAR5 (apenas com `--rar`) | `apt install rar` |
-| `ffprobe` | Metadados de vídeo no NFO | `apt install ffmpeg` |
-| `mediainfo` | Info técnica de mídia no NFO | `apt install mediainfo` |
+| `nyuu` | NNTP Upload | `npm install -g nyuu` |
+| `parpar` | PAR2 Generation (recommended) | `pip install parpar` |
+| `par2` | parpar alternative | `apt install par2` |
+| `rar` | RAR5 (only with `--rar`) | `apt install rar` |
+| `ffprobe` | Video metadata in NFO | `apt install ffmpeg` |
+| `mediainfo` | Technical media info in NFO | `apt install mediainfo` |
 
-Veja [INSTALL.md](INSTALL.md) para instruções detalhadas por plataforma.
+See [INSTALL.md](INSTALL.md) for detailed instructions per platform.
 
 ---
 
-## Configuração
+## Configuration
 
-Na primeira execução, um wizard interativo cria `~/.config/upapasta/.env`:
+On the first run, an interactive wizard creates `~/.config/upapasta/.env`:
 
 ```bash
 upapasta --config
 ```
 
-Para configurar failover com múltiplos servidores NNTP, edite o `.env` diretamente — veja [DOCS.md § Múltiplos servidores NNTP](DOCS.md#múltiplos-servidores-nntp).
+To configure failover with multiple NNTP servers, edit `.env` directly — see [DOCS.md § Multiple NNTP servers](DOCS.md#7-multiple-nntp-servers).
 
 ---
 
-## Casos de uso
+## Use cases
 
-| Caso | Comando |
+| Case | Command |
 |------|---------|
-| Pasta inteira | `upapasta Pasta/` |
-| Arquivo único | `upapasta Episodio.S01E01.mkv` |
-| Múltiplos inputs | `upapasta A/ B/ C/` |
-| Paralelo | `upapasta A/ B/ C/ --jobs 3` |
-| Ofuscação reversível | `upapasta Pasta/ --obfuscate` |
-| Máxima privacidade | `upapasta Pasta/ --strong-obfuscate` |
-| Senha RAR | `upapasta Pasta/ --password "abc123"` |
-| Cada arquivo = release | `upapasta /tv/Show.S04/ --each` |
-| Temporada + NZB único | `upapasta /tv/Show.S04/ --season` |
-| Daemon (monitorar pasta) | `upapasta /downloads/ --watch` |
-| Sem upload (só gera arquivos) | `upapasta Pasta/ --skip-upload` |
-| Simular sem enviar | `upapasta Pasta/ --dry-run` |
-| Retomar upload interrompido | `upapasta Pasta/ --resume` |
+| Entire folder | `upapasta Folder/` |
+| Single file | `upapasta Episode.S01E01.mkv` |
+| Multiple inputs | `upapasta A/ B/ C/` |
+| Parallel | `upapasta A/ B/ C/ --jobs 3` |
+| Reversible obfuscation | `upapasta Folder/ --obfuscate` |
+| Maximum privacy | `upapasta Folder/ --strong-obfuscate` |
+| RAR Password | `upapasta Folder/ --password "abc123"` |
+| Each file = release | `upapasta /tv/Show.S04/ --each` |
+| Season + Single NZB | `upapasta /tv/Show.S04/ --season` |
+| Daemon (watch folder) | `upapasta /downloads/ --watch` |
+| No upload (files only) | `upapasta Folder/ --skip-upload` |
+| Dry run (simulate) | `upapasta Folder/ --dry-run` |
+| Resume interrupted upload | `upapasta Folder/ --resume` |
 
 ---
 
-## Fluxo recomendado 2026
+## Recommended Workflow 2026
 
-RAR não é mais necessário para a maioria dos casos. O parpar grava a hierarquia de pastas nos `.par2` e SABnzbd/NZBGet recentes reconstroem a árvore no download:
+RAR is no longer necessary for most cases. parpar stores the folder hierarchy in `.par2` files, and recent SABnzbd/NZBGet versions rebuild the tree upon download:
 
 ```bash
-upapasta Pasta/ --obfuscate --backend parpar \
+upapasta Folder/ --obfuscate --backend parpar \
     --filepath-format common --par-profile safe
 ```
 
-Use `--rar` apenas quando precisar de senha (casos legados) ou quando o downloader não suporta reconstrução via PAR2.
+Use `--rar` only when you need a password (legacy cases) or when the downloader does not support reconstruction via PAR2.
 
-### Níveis de ofuscação
+### Obfuscation levels
 
-| Flag | O que ofusca | NZB mostra nome original? |
+| Flag | What is obfuscated | NZB shows original name? |
 |------|-------------|--------------------------|
-| (nenhuma) | nada | sim |
-| `--obfuscate` | arquivos + PAR2 | sim (reversível) |
-| `--strong-obfuscate` | arquivos + PAR2 + subjects do NZB | não |
+| (none) | nothing | yes |
+| `--obfuscate` | files + PAR2 | yes (reversible) |
+| `--strong-obfuscate` | files + PAR2 + NZB subjects | no |
 
 ---
 
-## Opções principais
+## Main options
 
 ```
---rar                    Cria RAR5 antes do upload
---obfuscate              Nomes aleatórios; NZB restaura nomes originais
---strong-obfuscate       Máxima privacidade: nomes aleatórios em tudo
---password SENHA         Senha RAR (presume --rar automaticamente)
---par-profile PERFIL     fast (5%) · balanced (10%) · safe (20%)
---jobs N                 Uploads paralelos quando múltiplos inputs
---resume                 Retoma upload interrompido
---dry-run                Simula sem enviar
---skip-upload            Gera RAR/PAR2/NFO sem fazer upload
---each                   Cada arquivo da pasta = release separado
---season                 Como --each + NZB único da temporada
---watch                  Daemon: processa automaticamente novos itens
+--rar                    Create RAR5 before upload
+--obfuscate              Random names; NZB restores original names
+--strong-obfuscate       Maximum privacy: random names for everything
+--password PASSWORD      RAR password (automatically implies --rar)
+--par-profile PROFILE    fast (5%) · balanced (10%) · safe (20%)
+--jobs N                 Parallel uploads for multiple inputs
+--resume                 Resume interrupted upload
+--dry-run                Simulate without sending
+--skip-upload            Generate RAR/PAR2/NFO without uploading
+--each                   Each file in folder = separate release
+--season                 Like --each + single season NZB
+--watch                  Daemon: automatically process new items
 ```
 
-`upapasta --help` lista todas as opções com descrições completas.
+`upapasta --help` lists all options with full descriptions.
 
 ---
 
-## Histórico e estatísticas
+## History and statistics
 
 ```bash
-# Últimos 5 uploads
+# Last 5 uploads
 tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool
 
-# Estatísticas agregadas
+# Aggregated statistics
 upapasta --stats
 
-# NZBs arquivados (hardlinks por timestamp)
+# Archived NZBs (hardlinks by timestamp)
 ls -la ~/.config/upapasta/nzb/
 ```
 
 ---
 
-## Webhooks e hooks
+## Webhooks and hooks
 
-Configure notificações pós-upload no `.env`:
+Configure post-upload notifications in `.env`:
 
 ```ini
-# Discord, Slack, Telegram ou qualquer endpoint que aceite POST JSON
+# Discord, Slack, Telegram or any endpoint accepting POST JSON
 WEBHOOK_URL=https://discord.com/api/webhooks/...
 
-# Script externo (recebe variáveis UPAPASTA_*)
-POST_UPLOAD_SCRIPT=/home/user/notificar.sh
+# External script (receives UPAPASTA_* variables)
+POST_UPLOAD_SCRIPT=/home/user/notify.sh
 ```
 
-Veja [DOCS.md § Hooks e webhooks](DOCS.md#hooks-e-webhooks) para a lista completa de variáveis.
+See [DOCS.md § Hooks and webhooks](DOCS.md#10-hooks-and-webhooks) for the full list of variables.
 
 ---
 
-## Documentação
+## Documentation
 
-- **[DOCS.md](DOCS.md)** — referência completa: configuração, pipeline, flags, ofuscação, PAR2, múltiplos servidores, resume, catálogo, hooks
-- **[docs/FAQ.md](docs/FAQ.md)** — erros frequentes e respostas diretas
-- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — diagnóstico por sintoma
-- **[INSTALL.md](INSTALL.md)** — instalação de dependências por plataforma
-- **[CHANGELOG.md](CHANGELOG.md)** — histórico de versões
+- **[DOCS.md](DOCS.md)** — full reference: configuration, pipeline, flags, obfuscation, PAR2, multiple servers, resume, catalog, hooks
+- **[docs/FAQ.md](docs/FAQ.md)** — frequent errors and direct answers
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — symptom-based diagnosis
+- **[INSTALL.md](INSTALL.md)** — dependency installation per platform
+- **[CHANGELOG.md](CHANGELOG.md)** — version history
 
 ---
 
-## Licença
+## License
 
-MIT — veja [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
 
-Desenvolvido por **franzopl**.
+Developed by **franzopl**.
