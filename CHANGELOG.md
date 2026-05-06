@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.25.0 - 2026-05-06
+
+### Novas funcionalidades
+
+- **Múltiplos inputs posicionais** (`upapasta a b c`): processa em sequência ou `--jobs N` em paralelo usando `concurrent.futures.ThreadPoolExecutor`.
+- **Workflow de publicação no PyPI** (`.github/workflows/publish.yml`): on `gh release create` → build → `pypa/gh-action-pypi-publish` via OIDC Trusted Publisher (sem token no repositório).
+
+### Melhorias
+
+- `pyproject.toml`: classifiers, keywords e urls adicionados para melhor visibilidade no PyPI.
+
 ## 0.24.2 - 2026-05-05
 
 ### Correções

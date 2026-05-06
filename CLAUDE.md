@@ -19,7 +19,7 @@
 
 **UpaPasta** é uma ferramenta CLI Python que automatiza o pipeline completo de upload para Usenet com o mínimo de configuração possível.
 
-Versão atual: **0.24.3** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
+Versão atual: **0.25.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
 
 Pipeline padrão executado por `UpaPastaOrchestrator.run()`:
 
