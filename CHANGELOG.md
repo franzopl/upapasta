@@ -2,389 +2,415 @@
 
 All notable changes to this project will be documented in this file.
 
+Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
+
 ## 0.25.1 - 2026-05-06
 
-### Correções
+### Fixes
 
-- **mypy `--strict`**: corrigido erro `arg-type` em `ui.py` — `_ThreadDispatchTeeStream` agora aceita `io.TextIOBase` (em vez de `TextIOWrapper`) e usa `cast` no call-site para `sys.__stdout__`. Remove `type: ignore` desnecessário.
+- **mypy `--strict`**: fixed `arg-type` error in `ui.py` — `_ThreadDispatchTeeStream` now accepts `io.TextIOBase` (instead of `TextIOWrapper`) and uses `cast` at the call-site for `sys.__stdout__`. Removes unnecessary `type: ignore`.
 
 ## 0.25.0 - 2026-05-06
 
-### Novas funcionalidades
+### New Features
 
-- **Múltiplos inputs posicionais** (`upapasta a b c`): processa em sequência ou `--jobs N` em paralelo usando `concurrent.futures.ThreadPoolExecutor`.
-- **Workflow de publicação no PyPI** (`.github/workflows/publish.yml`): on `gh release create` → build → `pypa/gh-action-pypi-publish` via OIDC Trusted Publisher (sem token no repositório).
+- **Multiple positional inputs** (`upapasta a b c`): processes in sequence or `--jobs N` in parallel using `concurrent.futures.ThreadPoolExecutor`.
+- **PyPI publication workflow** (`.github/workflows/publish.yml`): on `gh release create` → build → `pypa/gh-action-pypi-publish` via OIDC Trusted Publisher (no token in the repository).
 
-### Melhorias
+### Improvements
 
-- `pyproject.toml`: classifiers, keywords e urls adicionados para melhor visibilidade no PyPI.
+- `pyproject.toml`: classifiers, keywords, and URLs added for better visibility on PyPI.
 
 ## 0.24.2 - 2026-05-05
 
-### Correções
+### Fixes
 
-- **`--rar` em arquivo único**: a flag `--rar` agora é sempre honrada para arquivos únicos, mesmo sem `--obfuscate` ou `--password`. Antes, o orchestrator ignorava a flag e forçava `skip_rar=True` nesses casos.
-- **`revert_obfuscation` após cleanup**: quando o hardlink já foi removido pelo cleanup, o original (mesmo inode) é corretamente removido usando o `obfuscated_map`.
-- **`will_create_rar` simplificado**: condição reduzida para `not self.skip_rar` (correto após refatoração do significado de `skip_rar`).
+- **`--rar` on single file**: the `--rar` flag is now always honored for single files, even without `--obfuscate` or `--password`. Previously, the orchestrator ignored the flag and forced `skip_rar=True` in these cases.
+- **`revert_obfuscation` after cleanup**: when the hardlink has already been removed by cleanup, the original (same inode) is correctly removed using the `obfuscated_map`.
+- **Simplified `will_create_rar`**: condition reduced to `not self.skip_rar` (correct after refactoring the meaning of `skip_rar`).
 
-### Testes
+### Tests
 
-- `test_orchestrator_file_skip_rar_sets_input_target_and_skip_flag`: corrigido para passar `skip_rar=True` (padrão sem `--rar`).
-- `test_orchestrator_file_with_rar_flag_creates_rar`: novo teste verificando que `--rar` explícito cria RAR em arquivo único.
-- `test_rar_only_file_creates_rar`: atualizado para refletir comportamento correto (RAR criado com `--rar` explícito).
+- `test_orchestrator_file_skip_rar_sets_input_target_and_skip_flag`: fixed to pass `skip_rar=True` (default without `--rar`).
+- `test_orchestrator_file_with_rar_flag_creates_rar`: new test verifying that explicit `--rar` creates RAR on a single file.
+- `test_rar_only_file_creates_rar`: updated to reflect correct behavior (RAR created with explicit `--rar`).
 
 ## 0.24.1 - 2026-05-04
 
-### Correções
+### Fixes
 
-- **`--dry-run` com `--password`/`--rar`**: path sugerido do RAR mostrava extensão dupla (`arquivo.mkv.rar`). Corrigido para usar `stem` em vez de `name`, gerando o caminho correto (`arquivo.rar`).
+- **`--dry-run` with `--password`/`--rar`**: suggested RAR path showed double extension (`file.mkv.rar`). Fixed to use `stem` instead of `name`, generating the correct path (`file.rar`).
 
-### Testes
+### Tests
 
-- Adicionado `tests/test_password_flag.py` (6 testes) cobrindo todas as combinações de `--password`: sem argumento (senha aleatória de 16 chars), com senha explícita, ativação implícita de `--rar`, e unicidade entre gerações consecutivas.
+- Added `tests/test_password_flag.py` (6 tests) covering all combinations of `--password`: no argument (random 16-char password), with explicit password, implicit `--rar` activation, and uniqueness between consecutive generations.
 
 ## 0.24.0 - 2026-05-04
 
-### Novas Features
+### New Features
 
-- **F2.9 — Múltiplos servidores NNTP com failover**: configure `NNTP_HOST_2`, `NNTP_HOST_3` ... `NNTP_HOST_9` no `.env` para failover automático. Em caso de falha, o próximo servidor da lista é tentado na próxima retry. Campos não definidos (porta, user, pass, SSL) herdam do servidor primário. Atualizado `.env.example` com exemplo comentado.
-- **F2.10 — `--resume` / upload parcial**: retoma upload interrompido via Ctrl+C ou falha de rede. Antes de iniciar, salva `.upapasta-state.json` junto ao NZB. Em `--resume`, detecta arquivos já postados via NZB parcial existente, faz upload apenas dos restantes, mescla os NZBs e remove o state file ao final.
-- **F2.12 — NFO multi-track**: o NFO de pastas agora exibe faixas de áudio e legendas para arquivos `.mkv`/`.mp4` com múltiplos idiomas (ex: `Audio: POR, ENG | Legendas: POR`). Também exibido por arquivo na árvore de diretórios. Usa `ffprobe -of json` para uma única chamada (consolidado com F2.11).
+- **F2.9 — Multiple NNTP servers with failover**: configure `NNTP_HOST_2`, `NNTP_HOST_3` ... `NNTP_HOST_9` in `.env` for automatic failover. In case of failure, the next server in the list is tried on the next retry. Unset fields (port, user, pass, SSL) inherit from the primary server. Updated `.env.example` with commented example.
+- **F2.10 — `--resume` / partial upload**: resumes interrupted upload via Ctrl+C or network failure. Before starting, saves `.upapasta-state.json` next to the NZB. In `--resume`, detects files already posted via existing partial NZB, uploads only the remaining ones, merges NZBs, and removes the state file at the end.
+- **F2.12 — Multi-track NFO**: folder NFO now displays audio tracks and subtitles for `.mkv`/`.mp4` files with multiple languages (e.g., `Audio: POR, ENG | Subtitles: POR`). Also displayed per file in the directory tree. Uses `ffprobe -of json` for a single call (consolidated with F2.11).
 
-### Testes
+### Tests
 
-- 14 novos testes em `test_phase2.py` cobrindo F2.9 (`_build_server_list`), F2.10 (`_get_uploaded_files_from_nzb`, `_save_upload_state`, `_load_upload_state`) e F2.12 (`_get_video_info` com monkeypatch do ffprobe JSON).
+- 14 new tests in `test_phase2.py` covering F2.9 (`_build_server_list`), F2.10 (`_get_uploaded_files_from_nzb`, `_save_upload_state`, `_load_upload_state`), and F2.12 (`_get_video_info` with ffprobe JSON monkeypatch).
 - Total: 293 passed, 1 skipped.
 
 ## 0.23.1 - 2026-05-04
 
-### Correções (CI/Linting)
+### Fixes (CI/Linting)
 
-- **Linting ruff**: Corrigidos 150+ erros de ruff (imports desordenados, variáveis não utilizadas, tabs vs espaços).
-  - Reorganizados imports em ordem correta (stdlib → terceiros → locais) em todos os módulos de teste.
-  - Removidas variáveis atribuídas mas nunca usadas (`quiet`, `log_time`, `check_connections`, etc.) em `upfolder.py`.
-  - Convertidos tabs para espaços em `makerar.py` (W191).
-  - Corrigidos nomes ambíguos de variáveis (`l` → `line`).
-- **CI/GitHub Actions**: Testes agora passam 100% em Python 3.9, 3.11, 3.12. Ruff check ✅, mypy ✅, pytest ✅ (252 passed, 1 skipped).
+- **Ruff linting**: Fixed 150+ ruff errors (unsorted imports, unused variables, tabs vs spaces).
+  - Reorganized imports in correct order (stdlib → third-party → local) in all test modules.
+  - Removed variables assigned but never used (`quiet`, `log_time`, `check_connections`, etc.) in `upfolder.py`.
+  - Converted tabs to spaces in `makerar.py` (W191).
+  - Fixed ambiguous variable names (`l` → `line`).
+- **CI/GitHub Actions**: Tests now pass 100% on Python 3.9, 3.11, 3.12. Ruff check ✅, mypy ✅, pytest ✅ (252 passed, 1 skipped).
 
 ## 0.23.0 - 2026-05-04
 
-### Novas Features
+### New Features
 
-- **`--strong-obfuscate`**: novo flag para máxima privacidade — mantém nomes aleatórios também dentro do NZB (ninguém em indexadores sabe o conteúdo). Diferente de `--obfuscate` (reversível), requer renomeação manual ou via PAR2 após download. Implica automaticamente `--obfuscate`. Use para releases privados ou conteúdo sensível.
+- **`--strong-obfuscate`**: new flag for maximum privacy — keeps random names also inside the NZB (nobody on indexers knows the content). Unlike `--obfuscate` (reversible), requires manual renaming or via PAR2 after download. Automatically implies `--obfuscate`. Use for private releases or sensitive content.
 
-### Melhorias
+### Improvements
 
-- **Ofuscação reversível bem documentada**: DOCS.md e README.md agora explicam claramente a diferença entre `--obfuscate` (proteção DMCA + conveniência) e `--strong-obfuscate` (privacidade máxima).
-- **CLAUDE.md atualizado**: seção "Comportamentos Sutis" documenta a implementação de ofuscação em `fix_nzb_subjects` e fluxo em `obfuscate_and_par`.
+- **Well-documented reversible obfuscation**: `DOCS.md` and `README.md` now clearly explain the difference between `--obfuscate` (DMCA protection + convenience) and `--strong-obfuscate` (maximum privacy).
+- **Updated `CLAUDE.md`**: "Subtle Behaviors" section documents obfuscation implementation in `fix_nzb_subjects` and `obfuscate_and_par` flow.
 
 ## 0.22.3 - 2026-05-04
 
-### Correções (Bugfix)
+### Fixes (Bugfix)
 
-- **Ofuscação de Assuntos e Extensões**: Corrigido bug onde o nome original vazava no NZB e extensões eram mal identificadas em uploads ofuscados.
-  - Substituído uso de `-s` (subject) por `-t` (comment) no `nyuu` para preservar formatação padrão de assuntos com nomes de arquivos.
-  - Refatorada a função `fix_nzb_subjects` para extrair nomes de arquivos diretamente dos assuntos do NZB, eliminando erros de mapeamento por ordem.
-  - Adicionado suporte a deofuscação de arquivos `.par2` e volumes `.volNN+MM.par2` no NZB.
-  - Corrigido bug onde arquivos `.par2` não recebiam o prefixo de pasta em uploads de temporada (`--season`).
+- **Subject and Extension Obfuscation**: Fixed bug where the original name leaked in the NZB and extensions were misidentified in obfuscated uploads.
+  - Replaced use of `-s` (subject) with `-t` (comment) in `nyuu` to preserve default subject formatting with filenames.
+  - Refactored `fix_nzb_subjects` function to extract filenames directly from NZB subjects, eliminating order-based mapping errors.
+  - Added support for de-obfuscation of `.par2` files and `.volNN+MM.par2` volumes in the NZB.
+  - Fixed bug where `.par2` files did not receive the folder prefix in season uploads (`--season`).
 
 ## 0.22.2 - 2026-05-04
 
-### Correções (Bugfix)
+### Fixes (Bugfix)
 
-- **`--obfuscate` sem `--password`**: corrigido bug onde arquivo único com ofuscação criava RAR automaticamente (gerava senha aleatória). Agora segue a filosofia de 2026: `--obfuscate` sem `--password` = ofuscação + PAR2 direto, sem RAR. Apenas `--password` (explícito) presume `--rar` automaticamente.
-- **Barra de progresso do nyuu**: restaurada exibição da barra de progresso durante upload. O stderr do nyuu agora vai para o terminal normalmente (estava sendo redirecionado para captura de erros).
+- **`--obfuscate` without `--password`**: fixed bug where single file with obfuscation automatically created RAR (generated random password). Now follows 2026 philosophy: `--obfuscate` without `--password` = obfuscation + direct PAR2, no RAR. Only explicit `--password` automatically presumes `--rar`.
+- **nyuu progress bar**: restored progress bar display during upload. nyuu's stderr now goes to the terminal normally (it was being redirected for error capture).
 
 ## 0.22.1 - 2026-05-04
 
-### Correções (Bugfix)
+### Fixes (Bugfix)
 
-- **Ofuscação de arquivo único**: corrigido bug onde parpar era executado com arquivo original em vez de ofuscado, causando inconsistência de nomes no NZB (Part #1 com nome original, PAR2s com ofuscado). Agora metadados do PAR2 são consistentes com nomes ofuscados.
+- **Single file obfuscation**: fixed bug where parpar was executed with the original file instead of the obfuscated one, causing name inconsistency in the NZB (Part #1 with original name, PAR2s with obfuscated). Now PAR2 metadata is consistent with obfuscated names.
 
 ## 0.22.0 - 2026-05-04
 
-### Refatorações internas (sem quebra de API)
+### Internal Refactorings (no API break)
 
-- **`_pipeline.py`** (novo módulo, 601 linhas): extrai `DependencyChecker`, `PathResolver` e `PipelineReporter` de `orchestrator.py`; funções auxiliares standalone `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources`.
-- **`orchestrator.py`**: 1087 → 599 linhas (Single Responsibility — delega validação, resolução de caminhos e relatório às novas classes).
-- **`makepar.py::obfuscate_and_par`**: 195 → 76 linhas; extraídas subfunções `_obfuscate_folder`, `_obfuscate_rar_vol_set`, `_obfuscate_single_file`, `_rename_par2_files`, `_cleanup_on_par_failure`.
-- **33 testes novos** em `tests/test_pipeline.py` (252 testes no total).
+- **`_pipeline.py`** (new module, 601 lines): extracts `DependencyChecker`, `PathResolver`, and `PipelineReporter` from `orchestrator.py`; standalone helper functions `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources`.
+- **`orchestrator.py`**: 1087 → 599 lines (Single Responsibility — delegates validation, path resolution, and reporting to new classes).
+- **`makepar.py::obfuscate_and_par`**: 195 → 76 lines; extracted subfunctions `_obfuscate_folder`, `_obfuscate_rar_vol_set`, `_obfuscate_single_file`, `_rename_par2_files`, `_cleanup_on_par_failure`.
+- **33 new tests** in `tests/test_pipeline.py` (252 tests total).
 
 ## 0.21.0 - 2026-05-04
 
-### Novas Features
+### New Features
 
-- **ETA pré-pipeline**: estimativa de tempo de upload exibida antes do início do pipeline, calculada por conexões NNTP (500 KB/s por conexão).
-- **Validação antecipada**: `orchestrator.validate()` verifica espaço em disco (≥2× tamanho da fonte) e permissões de leitura antes de iniciar o pipeline.
-- **`--insecure` em `--test-connection`**: desativa verificação de certificado CA para servidores com certificados auto-assinados.
-- **CA certs por padrão** em `--test-connection`: usa `ssl.create_default_context()` com verificação completa de cadeia.
+- **Pre-pipeline ETA**: upload time estimate displayed before the pipeline starts, calculated by NNTP connections (500 KB/s per connection).
+- **Early validation**: `orchestrator.validate()` checks disk space (≥2× source size) and read permissions before starting the pipeline.
+- **`--insecure` in `--test-connection`**: disables CA certificate verification for servers with self-signed certificates.
+- **CA certs by default** in `--test-connection`: uses `ssl.create_default_context()` with full chain verification.
 
-### Melhorias
+### Improvements
 
-- **`_progress.py`** (novo módulo): extrai `_read_output` e `_process_output` de `makerar.py` e `makepar.py`, eliminando duplicação.
-- **`nfo._get_video_info()`**: uma única chamada `ffprobe` substitui `_get_video_duration` + `_get_video_metadata` (menos subprocessos).
-- **`resources.get_total_size`**: cache `@lru_cache(maxsize=64)` evita re-walk do filesystem durante o pipeline.
-- **Retry com backoff exponencial**: uploads repetem com delays 30s→90s→270s + jitter ±10%; stderr do nyuu lido em thread separada para não bloquear retry.
-- **Tradução de erros nyuu** em `upfolder._parse_nyuu_stderr()`: mapeia códigos 401, 502, timeout, SSL e ECONNREFUSED para mensagens legíveis.
-- **Limpeza de PAR2 parciais** em `obfuscate_and_par`: bloco `finally` remove `random_base*.par2` e `orig*.par2` em caso de falha.
-- **Timestamp ISO** nos logs: handler de stream exibe timestamp quando `--verbose`; handler de arquivo sempre exibe.
+- **`_progress.py`** (new module): extracts `_read_output` and `_process_output` from `makerar.py` and `makepar.py`, eliminating duplication.
+- **`nfo._get_video_info()`**: a single `ffprobe` call replaces `_get_video_duration` + `_get_video_metadata` (fewer subprocesses).
+- **`resources.get_total_size`**: `@lru_cache(maxsize=64)` avoids re-walking the filesystem during the pipeline.
+- **Retry with exponential backoff**: uploads retry with delays 30s→90s→270s + jitter ±10%; nyuu's stderr read in a separate thread to not block retry.
+- **nyuu error translation** in `upfolder._parse_nyuu_stderr()`: maps codes 401, 502, timeout, SSL, and ECONNREFUSED to readable messages.
+- **Partial PAR2 cleanup** in `obfuscate_and_par`: `finally` block removes `random_base*.par2` and `orig*.par2` in case of failure.
+- **ISO Timestamp** in logs: stream handler displays timestamp when `--verbose`; file handler always displays.
 
-### Testes
+### Tests
 
-- `tests/test_phase2.py` (389 linhas, 219 testes verdes): cobertura de validação, ETA, retry, tradução de erros, cache de recursos, limpeza PAR2, e refatoração de progress.
-- `tests/test_ui.py` (241 linhas): 27 testes para `PhaseBar`, `_TeeStream` e `format_time` (cobertura zero anterior).
-- `tests/test_resources.py` (184 linhas): cobertura de `calculate_optimal_resources` e `get_total_size`.
-- `tests/test_watch.py`: testes para `_item_size` (arquivo/pasta/inexistente) e `_watch_loop` com mock.
+- `tests/test_phase2.py` (389 lines, 219 green tests): coverage for validation, ETA, retry, error translation, resource cache, PAR2 cleanup, and progress refactoring.
+- `tests/test_ui.py` (241 lines): 27 tests for `PhaseBar`, `_TeeStream`, and `format_time` (previously zero coverage).
+- `tests/test_resources.py` (184 lines): coverage for `calculate_optimal_resources` and `get_total_size`.
+- `tests/test_watch.py`: tests for `_item_size` (file/folder/non-existent) and `_watch_loop` with mock.
 
-### Correções
+### Fixes
 
-- **`scripts/check_header.py`**: removida dependência `python-dotenv`; usa `config.load_env_file` + `ssl.create_default_context` (stdlib-only).
-- **`--season` integração**: testes de integração suspensos temporariamente (mock de round-trip pendente).
+- **`scripts/check_header.py`**: removed `python-dotenv` dependency; uses `config.load_env_file` + `ssl.create_default_context` (stdlib-only).
+- **`--season` integration**: integration tests temporarily suspended (mock round-trip pending).
 
-### Documentação
+### Documentation
 
-- **README.md**: seção "Hooks Pós-Upload" expandida com tabela completa de variáveis `UPAPASTA_*` e referência a `examples/`.
-- **`examples/post_upload_debug.sh`**: exemplo de hook adicionado ao repositório.
+- **README.md**: "Post-Upload Hooks" section expanded with complete `UPAPASTA_*` variables table and reference to `examples/`.
+- **`examples/post_upload_debug.sh`**: hook example added to the repository.
 
 ## 0.16.1 - 2026-04-30
 
-### Correções (Fixes)
+### Fixes
 
-- **Caminho de saída da Temporada**: corrigido erro onde o NZB e NFO consolidados de uma temporada eram salvos no diretório de instalação do script (ex: `~/.local/bin`) em vez do diretório atual de execução.
+- **Season output path**: fixed error where consolidated NZB and NFO for a season were saved in the script installation directory (e.g., `~/.local/bin`) instead of the current execution directory.
 
 ## 0.16.0 - 2026-04-30
 
-### Novas Features (New Features)
+### New Features
 
-- **Modo `--season`**: upload individual de cada episódio (como o `--each`), mas ao final gera um NZB e um NFO consolidados para a temporada inteira, sem realizar novos uploads. Ideal para organização de séries onde se deseja tanto os episódios avulsos quanto o pack completo.
+- **`--season` mode**: individual upload of each episode (like `--each`), but at the end generates consolidated NZB and NFO for the entire season without performing new uploads. Ideal for organizing series where both individual episodes and the complete pack are desired.
 
 ## 0.14.2 - 2026-04-29
 
-### Melhorias (Improvements)
+### Improvements
 
-- **Ofuscação via Hardlinks**: agora o UpaPasta utiliza hardlinks para ofuscação in-place (fluxo `--skip-rar`). Isso evita que o cliente de torrent perca o acesso aos arquivos originais durante o upload, permitindo continuar o seeding sem interrupções.
-- **Fallback de Ofuscação**: caso o sistema de arquivos não suporte hardlinks (ex: cross-device), o sistema reverte automaticamente para a renomeação física (com aviso ao usuário).
+- **Obfuscation via Hardlinks**: UpaPasta now uses hardlinks for in-place obfuscation (`--skip-rar` flow). This prevents the torrent client from losing access to the original files during upload, allowing seeding to continue without interruption.
+- **Obfuscation Fallback**: if the filesystem does not support hardlinks (e.g., cross-device), the system automatically reverts to physical renaming (with a user warning).
 
 ## 0.14.1 - 2026-04-29
 
-### Correções (Fixes)
+### Fixes
 
-- **Correção na reversão de ofuscação in-place**: no fluxo `--skip-rar --obfuscate`, a pasta original era renomeada permanentemente para o nome ofuscado. Adicionado mecanismo de reversão automática que restaura o nome original após upload bem-sucedido, em falhas de upload, ou quando `--skip-upload` é utilizado.
+- **In-place obfuscation reversion fix**: in the `--skip-rar --obfuscate` flow, the original folder was permanently renamed to the obfuscated name. Added automatic reversion mechanism that restores the original name after successful upload, on upload failure, or when `--skip-upload` is used.
 
 ## 0.14.0 - 2026-04-29
 
-### Novas Features
+### New Features
 
-- **Aviso de pastas vazias em `--skip-rar`**: o orchestrator detecta diretórios vazios em runtime e imprime aviso explicando que NNTP/PAR2 não preservam diretórios sem arquivos, sugerindo remover `--skip-rar` (RAR preserva) ou usar arquivo sentinela.
+- **Empty folders warning in `--skip-rar`**: the orchestrator detects empty directories at runtime and prints a warning explaining that NNTP/PAR2 do not preserve directories without files, suggesting removing `--skip-rar` (RAR preserves) or using a sentinel file.
 
-### Documentação
+### Documentation
 
-- Nova seção em `DOCS.md` documentando a limitação de pastas vazias e o workaround com RAR.
-- Corrigida nota obsoleta sobre `--skip-rar` em pastas com subpastas (hoje é o fluxo recomendado com parpar `-f common`).
+- New section in `DOCS.md` documenting empty folder limitation and RAR workaround.
+- Fixed obsolete note about `--skip-rar` in folders with subfolders (now recommended flow with parpar `-f common`).
 
-### Testes
+### Tests
 
-- Nova suíte `tests/test_nested_paths.py` (8 testes) cobrindo: profundidade extrema (5+ níveis), unicode/espaços/caracteres especiais, pastas vazias, arquivos ocultos, symlinks, obfuscate combinado com nested upload, e round-trip de `--rename-extensionless` em subdiretórios profundos.
+- New suite `tests/test_nested_paths.py` (8 tests) covering: extreme depth (5+ levels), unicode/spaces/special characters, empty folders, hidden files, symlinks, obfuscate combined with nested upload, and round-trip of `--rename-extensionless` in deep subdirectories.
 
 ## 0.12.1 - 2026-04-22
 
-### Melhorias
+### Improvements
 
-- **Resolução de caminhos NZB**: Melhoria na inteligência de caminhos de saída. Agora o UpaPasta aceita apenas uma pasta no `NZB_OUT` e anexa automaticamente o template `{filename}.nzb`, facilitando a configuração para integração com outras ferramentas.
+- **NZB path resolution**: Improved output path intelligence. UpaPasta now accepts just a folder in `NZB_OUT` and automatically appends the `{filename}.nzb` template, simplifying configuration for integration with other tools.
 
 ## 0.12.0 - 2026-04-22
 
-### Novas Features
+### New Features
 
-- **Catálogo de uploads (`catalog.py`)**: arquivo JSONL append-only em `~/.config/upapasta/history.jsonl` criado automaticamente. Registra a cada upload bem-sucedido: timestamp, nome original, nome ofuscado, senha RAR, tamanho, categoria detectada, grupo Usenet efetivo, servidor NNTP, redundância PAR2, duração, número de volumes RAR e caminho do NZB. NZBs são arquivados em `~/.config/upapasta/nzb/` via hardlink — recuperáveis mesmo que o arquivo físico seja movido ou apagado.
-- **Detecção automática de categoria**: analisa o nome do arquivo para inferir `Anime` (`[SubGroup] Título - 01`), `TV` (`S01E01`, `1x01`, `Season 2`), `Movie` (ano 19xx/20xx isolado no título) ou `Generic`. Sem flags manuais.
-- **Hook pós-upload (`POST_UPLOAD_SCRIPT`)**: configure um script externo no `.env`. O UpaPasta o executa após cada upload bem-sucedido passando informações via variáveis de ambiente `UPAPASTA_*` (NZB, NFO, senha, nome original/ofuscado, tamanho, grupo). Timeout de 60s; falha no hook não afeta o código de saída principal.
+- **Upload catalog (`catalog.py`)**: append-only JSONL file in `~/.config/upapasta/history.jsonl` created automatically. Records for each successful upload: timestamp, original name, obfuscated name, RAR password, size, detected category, effective Usenet group, NNTP server, PAR2 redundancy, duration, number of RAR volumes, and NZB path. NZBs are archived in `~/.config/upapasta/nzb/` via hardlink — recoverable even if the physical file is moved or deleted.
+- **Automatic category detection**: analyzes the filename to infer `Anime` (`[SubGroup] Title - 01`), `TV` (`S01E01`, `1x01`, `Season 2`), `Movie` (isolated year 19xx/20xx in title), or `Generic`. No manual flags needed.
+- **Post-upload hook (`POST_UPLOAD_SCRIPT`)**: configure an external script in `.env`. UpaPasta executes it after each successful upload passing information via `UPAPASTA_*` environment variables (NZB, NFO, password, original/obfuscated name, size, group). 60s timeout; hook failure does not affect the main exit code.
 
-### Melhorias Internas
+### Internal Improvements
 
-- `UpaPastaOrchestrator.from_args()`: classmethod que centraliza o mapeamento `args → UpaPastaOrchestrator`. Elimina duplicação entre `main.py` e `watch.py` — novos parâmetros precisam ser adicionados em apenas um lugar.
+- `UpaPastaOrchestrator.from_args()`: classmethod that centralizes `args → UpaPastaOrchestrator` mapping. Eliminates duplication between `main.py` and `watch.py` — new parameters need to be added in only one place.
 
 ## 0.11.0 - 2026-04-22
 
-### Novas Features
+### New Features
 
-- **Pool de Grupos Usenet**: Suporte a listas de grupos de notícias (pool) com seleção aleatória por upload. Isso aumenta a obfuscação e redundância, evitando que todos os posts fiquem concentrados em um único grupo. O assistente de configuração agora sugere uma pool padrão de 10 grupos populares.
-- **Melhoria no NFO**: O módulo de upload (`upfolder.py`) agora é capaz de gerar arquivos NFO tecnicamente descritivos de forma independente para uploads de arquivos únicos.
+- **Usenet Group Pool**: Support for newsgroup lists (pool) with random selection per upload. This increases obfuscation and redundancy, avoiding all posts being concentrated in a single group. The configuration wizard now suggests a default pool of 10 popular groups.
+- **NFO Improvement**: The upload module (`upfolder.py`) is now capable of independently generating technically descriptive NFO files for single-file uploads.
 
-### Refatoração
+### Refactoring
 
-- **Arquitetura Modular**: Grande desmembramento do `main.py` (anteriormente com >1400 linhas) em módulos especializados:
-  - `cli.py`: Gerenciamento de argumentos e dependências.
-  - `orchestrator.py`: Lógica central do workflow.
-  - `ui.py`: Interface de usuário, barras de progresso e logging.
-  - `watch.py`: Lógica do modo daemon/monitoramento.
-  - `main.py`: Ponto de entrada simplificado.
+- **Modular Architecture**: Major breakup of `main.py` (previously >1400 lines) into specialized modules:
+  - `cli.py`: Argument and dependency management.
+  - `orchestrator.py`: Central workflow logic.
+  - `ui.py`: User interface, progress bars, and logging.
+  - `watch.py`: Daemon/monitoring mode logic.
+  - `main.py`: Simplified entry point.
 
 ## 0.10.5 - 2026-04-22
 
-### Melhorias
+### Improvements
 
-- **UX em `--watch`**: Adição de um cabeçalho estruturado ao iniciar o modo monitoramento.
-- **Spinner Interativo**: Substituição de mensagens ociosas repetitivas por um spinner animado (`|`, `/`, `-`, `\`) em uma única linha, mantendo o terminal limpo e indicando atividade sem poluir arquivos de log.
-- **Feedback de Processamento**: Mensagens mais claras ao detectar novos itens, verificar estabilidade de tamanho e concluir o processamento de cada tarefa.
+- **UX in `--watch`**: Added a structured header when starting monitoring mode.
+- **Interactive Spinner**: Replaced repetitive idle messages with an animated spinner (`|`, `/`, `-`, `\`) on a single line, keeping the terminal clean and indicating activity without polluting log files.
+- **Processing Feedback**: Clearer messages when detecting new items, verifying size stability, and completing the processing of each task.
 
 ## 0.10.4 - 2026-04-22
 
-### Novas Features
+### New Features
 
-- **`--watch`**: modo daemon que monitora um diretório e processa automaticamente cada novo item (arquivo ou pasta) que aparecer. Usa polling via stdlib (sem dependências externas). Cada item detectado passa pelo pipeline completo (RAR → PAR2 → upload → NZB). Compatível com `--obfuscate`, `--password`, `--dry-run`. Ctrl+C encerra graciosamente.
-- **`--watch-interval N`**: intervalo de varredura em segundos (padrão: 30).
-- **`--watch-stable N`**: segundos que o tamanho do item deve permanecer estável antes de processar — evita processar arquivos ainda sendo copiados (padrão: 60).
+- **`--watch`**: daemon mode that monitors a directory and automatically processes each new item (file or folder) that appears. Uses polling via stdlib (no external dependencies). Each detected item goes through the full pipeline (RAR → PAR2 → upload → NZB). Compatible with `--obfuscate`, `--password`, `--dry-run`. Ctrl+C exits gracefully.
+- **`--watch-interval N`**: scan interval in seconds (default: 30).
+- **`--watch-stable N`**: seconds that item size must remain stable before processing — avoids processing files still being copied (default: 60).
 
 ## 0.10.3 - 2026-04-22
 
-### Correções
+### Fixes
 
-- Fix: PhaseBar da fase RAR permanecia em `⬜` (pending) em arquivo único com `--obfuscate`/`--password`, mesmo com o RAR sendo criado. A condição de ativação da barra agora considera corretamente os casos onde RAR é gerado automaticamente.
+- Fix: RAR phase PhaseBar remained `⬜` (pending) on a single file with `--obfuscate`/`--password`, even with RAR being created. The bar activation condition now correctly considers cases where RAR is automatically generated.
 
 ## 0.10.2 - 2026-04-22
 
-### Correções
+### Fixes
 
-- Fix: `--obfuscate` volta a gerar senha aleatória automaticamente quando `--password` não é fornecida. Ofuscar nome sem proteger conteúdo é proteção pela metade — a senha é injetada no NZB e extraída automaticamente por SABnzbd/NZBGet.
+- Fix: `--obfuscate` reverts to generating random password automatically when `--password` is not provided. Obfuscating name without protecting content is half-protection — the password is injected into the NZB and automatically extracted by SABnzbd/NZBGet.
 
 ## 0.10.1 - 2026-04-22
 
-### Correções
+### Fixes
 
-- Fix: PhaseBar mostrava RAR como `⏭ skipped` em arquivo único com `--obfuscate`/`--password`, mesmo quando o RAR era criado automaticamente
-- Fix: Sumário final mostrava "Arquivo: ...mkv" em vez de "RAR: nome_ofuscado.rar" porque checava `os.path.exists` após o cleanup já ter removido o arquivo
+- Fix: PhaseBar showed RAR as `⏭ skipped` on single file with `--obfuscate`/`--password`, even when RAR was automatically created.
+- Fix: Final summary showed "File: ...mkv" instead of "RAR: obfuscated_name.rar" because it checked `os.path.exists` after cleanup had already removed the file.
 
 ## 0.10.0 - 2026-04-22
 
-### Novas Features
+### New Features
 
-- **`--each`**: processa cada arquivo de uma pasta individualmente — cada arquivo vira um release separado com seu próprio NZB. Ideal para temporadas de séries.
-- **RAR automático para arquivo único**: ao usar `--obfuscate` ou `--password` com um arquivo único, o UpaPasta agora cria o RAR automaticamente (ofuscação real requer container; senha requer container).
-- **`make_rar` aceita arquivo único**: `makerar.py` suporta arquivo único além de pastas, sem volume splitting.
-- **Sem argumentos**: `upapasta` sem argumentos exibe mensagem de uso amigável em vez do erro do argparse.
+- **`--each`**: processes each file in a folder individually — each file becomes a separate release with its own NZB. Ideal for series seasons.
+- **Automatic RAR for single file**: when using `--obfuscate` or `--password` with a single file, UpaPasta now automatically creates the RAR (real obfuscation requires container; password requires container).
+- **`make_rar` accepts single file**: `makerar.py` supports single file in addition to folders, without volume splitting.
+- **No arguments**: `upapasta` without arguments displays a friendly usage message instead of the argparse error.
 
-### Mudanças de Comportamento
+### Behavioral Changes
 
-- **`--obfuscate` e `--password` são independentes**: removida a geração automática de senha ao usar `--obfuscate`. Cada flag tem efeito exclusivo — obfuscate renomeia arquivos, password protege o conteúdo.
-- **Aviso de subpastas com `--skip-rar`**: ao usar `--skip-rar` em pasta com subpastas, exibe aviso sobre risco de estrutura quebrada após download.
-- **`--skip-rar + --password` é erro fatal**: combinação incompatível encerra com mensagem clara.
-- **`--skip-rar + --obfuscate`**: exibe aviso de ofuscação parcial e aguarda 3s antes de continuar.
+- **`--obfuscate` and `--password` are independent**: removed automatic password generation when using `--obfuscate`. Each flag has an exclusive effect — obfuscate renames files, password protects content.
+- **Subfolders warning with `--skip-rar`**: when using `--skip-rar` in a folder with subfolders, displays a warning about the risk of broken structure after download.
+- **`--skip-rar + --password` is fatal error**: incompatible combination exits with a clear message.
+- **`--skip-rar + --obfuscate`**: displays partial obfuscation warning and waits 3s before continuing.
 
 ### CLI
 
-- `--help` reescrito com grupos de argumentos (essenciais / ajuste / avançadas), exemplos e seção de comportamento padrão no epilog.
-- Grupos de argumentos no help: opções essenciais, opções de ajuste, opções avançadas.
+- `--help` rewritten with argument groups (essential / adjustment / advanced), examples, and default behavior section in epilog.
+- Argument groups in help: essential options, adjustment options, advanced options.
 
 ### Docs
 
-- README reescrito com foco na simplicidade: tabela de comportamento padrão, exemplos por caso de uso, regras de auto-RAR, explicação do modo store `-m0`.
-- CLAUDE.md atualizado: `_process.py` documentado, regras OBRIGATÓRIO para `managed_popen` e `UpaPastaSession`, seção de Logging.
-- TODO.md revisado: itens implementados removidos, novos desafios adicionados, meta v1.0.0 definida.
+- README rewritten with focus on simplicity: default behavior table, examples by use case, auto-RAR rules, explanation of store mode `-m0`.
+- CLAUDE.md updated: `_process.py` documented, MANDATORY rules for `managed_popen` and `UpaPastaSession`, Logging section.
+- TODO.md revised: implemented items removed, new challenges added, v1.0.0 goal defined.
 
 ## 0.9.0 - 2026-04-21
 
-### Segurança / Correções Críticas
+### Security / Critical Fixes
 
-- **Fix [CRÍTICO]**: `upfolder.py` — eliminada a cópia de dados para `/tmp` com `shutil.copytree` antes do upload de pastas. O nyuu agora é invocado com `cwd=input_path` e caminhos relativos construídos via `os.path.relpath`, zerando o I/O extra (era fatal para pastas de dezenas de GB)
-- **Fix [ALTO]**: Graceful shutdown em todos os subprocessos (`rar`, `parpar`, `par2`, `nyuu`) — novo módulo `_process.py` com `managed_popen` context manager que garante `SIGTERM → SIGKILL` no processo filho em qualquer saída, incluindo `KeyboardInterrupt` (Ctrl+C). Elimina processos zumbi
-- **Fix [ALTO]**: Proteção de dados na ofuscação — `obfuscate_and_par` reescrito com `try/finally` blindado. Novo helper `_revert_obfuscation` com mensagens explícitas de progresso e instruções manuais de fallback. A reversão dos renames do usuário agora é garantida mesmo em Ctrl+C durante a geração do PAR2
-- **Fix [MÉDIO]**: Compatibilidade real com Python 3.8 — `from __future__ import annotations` adicionado a todos os módulos; sintaxe `X | Y` em anotações de função substituída por `Optional[X]` / `Tuple[X, Y]` de `typing`. A sintaxe `X | Y` só é válida em runtime no Python 3.10+
+- **Fix [CRITICAL]**: `upfolder.py` — eliminated data copying to `/tmp` with `shutil.copytree` before folder upload. nyuu is now invoked with `cwd=input_path` and relative paths built via `os.path.relpath`, zeroing extra I/O (fatal for tens of GB folders).
+- **Fix [HIGH]**: Graceful shutdown in all subprocesses (`rar`, `parpar`, `par2`, `nyuu`) — new module `_process.py` with `managed_popen` context manager that ensures `SIGTERM → SIGKILL` on child process on any exit, including `KeyboardInterrupt` (Ctrl+C). Eliminates zombie processes.
+- **Fix [HIGH]**: Data protection in obfuscation — `obfuscate_and_par` rewritten with shielded `try/finally`. New `_revert_obfuscation` helper with explicit progress messages and manual fallback instructions. Reversion of user renames is now guaranteed even on Ctrl+C during PAR2 generation.
+- **Fix [MEDIUM]**: Real compatibility with Python 3.8 — `from __future__ import annotations` added to all modules; `X | Y` syntax in function annotations replaced by `Optional[X]` / `Tuple[X, Y]` from `typing`. `X | Y` syntax is only valid at runtime in Python 3.10+.
 
-### Novas Features Internas
+### Internal New Features
 
-- `upapasta/_process.py`: novo módulo com `managed_popen()` e `_terminate_process()` compartilhados por makerar, makepar e upfolder
-- `makepar._revert_obfuscation()`: função centralizada de reversão da ofuscação com feedback detalhado e instruções de recuperação manual
+- `upapasta/_process.py`: new module with `managed_popen()` and `_terminate_process()` shared by makerar, makepar, and upfolder.
+- `makepar._revert_obfuscation()`: centralized obfuscation reversion function with detailed feedback and manual recovery instructions.
 
+## 0.8.2 - 2026-04-21
 
-- Feat: questionário inicial reformulado — exibe cabeçalho, duas seções (Servidor / Upload), valida porta e campos obrigatórios, aceita Enter para confirmar defaults e exibe resumo antes de salvar
-- Feat: `.env` gerado automaticamente na primeira execução contém todas as variáveis configuráveis com comentários explicativos (igual ao `.env.example`)
-- Docs: `.env.example` atualizado — comentários mais descritivos, grupo padrão alterado para `alt.binaries.boneless`, `DUMP_FAILED_POSTS` vazio por padrão
-- Docs: README — seção Configuração reescrita com exemplo do questionário e tabela de variáveis principais
+### Improvements
+
+- **Refactored Initial Setup**: initial questionnaire redesigned — displays header, two sections (Server / Upload), validates port and mandatory fields, accepts Enter to confirm defaults, and displays summary before saving.
+- **Auto-generated `.env`**: `.env` automatically generated on first run contains all configurable variables with explanatory comments (same as `.env.example`).
+
+### Documentation
+
+- **`.env.example` updated**: more descriptive comments, default group changed to `alt.binaries.boneless`, `DUMP_FAILED_POSTS` empty by default.
+- **README**: Configuration section rewritten with questionnaire example and main variables table.
 
 ## 0.8.1 - 2026-04-19
-- Fix: nome do NZB preserva tags completas (ex: `.DUAL-EcK`) — `splitext()` era aplicado duplamente sobre o basename já sem extensão no `obfuscated_map`
+
+- Fix: NZB name preserves full tags (e.g., `.DUAL-EcK`) — `splitext()` was applied twice on the basename already without extension in `obfuscated_map`.
 
 ## 0.8.0 - 2026-04-19
-- Feat: ofuscação real — RAR/PAR2 são renomeados fisicamente no disco com nomes aleatórios de 12 caracteres (`--obfuscate`); NZB salvo com o nome original preservado
-- Feat: suporte a volume sets — todos os arquivos `nome.part*.rar` são renomeados atomicamente para `random.part*.rar`; PAR2 gerado depois da renomeação
-- Feat: senha RAR automática — com `--obfuscate`, senha segura de 16 caracteres gerada via `secrets` e aplicada com `-hp` (cifra conteúdo E nomes internos)
-- Feat: `--password SENHA` para senha RAR customizável (funciona com ou sem `--obfuscate`)
-- Feat: senha injetada no `.nzb` como `<meta type="password">` para extração automática por SABnzbd, NZBGet e outros clientes
-- Feat: senha e nome ofuscado exibidos no cabeçalho e no sumário final do workflow
-- Fix: revert automático da renomeação em caso de falha na geração do PAR2
+
+- Feature: real obfuscation — RAR/PAR2 are physically renamed on disk with random 12-character names (`--obfuscate`); NZB saved with original name preserved.
+- Feature: volume set support — all `file.part*.rar` files are renamed atomically to `random.part*.rar`; PAR2 generated after renaming.
+- Feature: automatic RAR password — with `--obfuscate`, a secure 16-character password generated via `secrets` and applied with `-hp` (encrypts both content AND internal names).
+- Feature: `--password PASSWORD` for customizable RAR password (works with or without `--obfuscate`).
+- Feature: password injected into `.nzb` as `<meta type="password">` for automatic extraction by SABnzbd, NZBGet, and other clients.
+- Feature: password and obfuscated name displayed in header and final summary of the workflow.
+- Fix: automatic rename reversion in case of PAR2 generation failure.
 
 ## 0.7.0 - 2026-04-18
-- Feat: logging estruturado com `setup_logging()` e flag `--verbose` para nível DEBUG
-- Feat: `--par-slice-size` para override manual do tamanho de slice PAR2
-- Feat: `--upload-timeout` passa timeout de conexão ao nyuu (`--timeout N`)
-- Feat: `--upload-retries` implementa retry automático em falha de upload (N tentativas extras)
-- Feat: verificação pós-upload do NZB gerado (existência, tamanho > 0, elemento `<file>` via XML)
-- Fix: error handling diferenciado — `FileNotFoundError`, `PermissionError`, `OSError` em vez de `except Exception` genérico em makerar, makepar e upfolder
-- Docs: heurística `target_slices=4` em makepar.py documentada com exemplos e orientação para arquivos grandes
-- Tests: +17 testes cobrindo cleanup, multivolume RAR, keep-files, error paths de RAR/PAR2, verificação de NZB e retry de upload
+
+- Feature: structured logging with `setup_logging()` and `--verbose` flag for DEBUG level.
+- Feature: `--par-slice-size` for manual override of PAR2 slice size.
+- Feature: `--upload-timeout` passes connection timeout to nyuu (`--timeout N`).
+- Feature: `--upload-retries` implements automatic retry on upload failure (N extra attempts).
+- Feature: post-upload verification of generated NZB (existence, size > 0, `<file>` element via XML).
+- Fix: differentiated error handling — `FileNotFoundError`, `PermissionError`, `OSError` instead of generic `except Exception` in makerar, makepar, and upfolder.
+- Docs: `target_slices=4` heuristic in `makepar.py` documented with examples and guidance for large files.
+- Tests: +17 tests covering cleanup, multivolume RAR, keep-files, RAR/PAR2 error paths, NZB verification, and upload retry.
 
 ## 0.6.8 - 2026-04-18
-- Fix: RAR volume thresholds ajustados — arquivos até 10 GB geram RAR único; acima disso volumes de no mínimo 1 GB (antes: split a partir de 200 MB com partes de 50 MB)
+
+- Fix: RAR volume thresholds adjusted — files up to 10 GB generate single RAR; above that volumes of at least 1 GB (previously: split from 200 MB with 50 MB parts).
 
 ## 0.6.7 - 2026-04-18
-- Fix: cleanup now deletes all RAR volumes and PAR2 files after successful upload — previously only the first 2 files were removed due to incorrect .partXX suffix stripping (only 2-digit parts were handled, but rar generates 3-digit parts like .part001)
+
+- Fix: cleanup now deletes all RAR volumes and PAR2 files after successful upload — previously only the first 2 files were removed due to incorrect .partXX suffix stripping (only 2-digit parts were handled, but rar generates 3-digit parts like .part001).
 
 ## 0.6.6 - 2026-04-18
-- Fix: make_rar() now returns generated RAR path to fix part001.rar detection for large archives (>99 parts)
-- Fix: Added force mode to remove existing partial RAR volumes before creating new ones
-- Fix: Improved RAR volume detection to handle both part01.rar and part001.rar naming schemes
+
+- Fix: `make_rar()` now returns generated RAR path to fix `part001.rar` detection for large archives (>99 parts).
+- Fix: Added force mode to remove existing partial RAR volumes before creating new ones.
+- Fix: Improved RAR volume detection to handle both `part01.rar` and `part001.rar` naming schemes.
 
 ## 0.6.5 - 2026-04-18
-- Feat: series folders (SXX / SXXEXX pattern) generate NFO using mediainfo of the first episode; generic folders keep the tree+stats layout
+
+- Feature: series folders (`SXX / SXXEXX` pattern) generate NFO using mediainfo of the first episode; generic folders keep the tree+stats layout.
 
 ## 0.6.4 - 2026-04-18
-- Feat: new NFO banner — clean ASCII art "UPAPASTA" with border, fits 80 columns, pure ASCII (compatible with all NFO viewers)
+
+- Feature: new NFO banner — clean ASCII art "UPAPASTA" with border, fits 80 columns, pure ASCII (compatible with all NFO viewers).
 
 ## 0.6.3 - 2026-04-18
-- Fix: NFO and NZB filenames now match the source folder name exactly (no _content suffix)
-- Fix: NZB basename for RAR volume sets strips the .partXX suffix correctly
+
+- Fix: NFO and NZB filenames now match the source folder name exactly (no `_content` suffix).
+- Fix: NZB basename for RAR volume sets strips the `.partXX` suffix correctly.
 
 ## 0.6.2 - 2026-04-18
-- Fix: PAR2 generation now covers all RAR volumes in a set (not just part01.rar)
-- Fix: upload now sends all RAR volume parts + their PAR2 files
-- Fix: PAR2 filename uses the set base name (without .part01 suffix)
+
+- Fix: PAR2 generation now covers all RAR volumes in a set (not just `part01.rar`).
+- Fix: upload now sends all RAR volume parts + their PAR2 files.
+- Fix: PAR2 filename uses the set base name (without `.part01` suffix).
 
 ## 0.6.1 - 2026-04-18
-- Fix: detect RAR volumes (part01.rar…partNN.rar) after creation — single-file check was failing for multi-part sets
-- Fix: cleanup now removes all RAR volume parts, not just the first file
-- Fix: summary stats now sum all RAR volumes for correct total size display
+
+- Fix: detect RAR volumes (`part01.rar…partNN.rar`) after creation — single-file check was failing for multi-part sets.
+- Fix: cleanup now removes all RAR volume parts, not just the first file.
+- Fix: summary stats now sum all RAR volumes for correct total size display.
 
 ## 0.6.0 - 2026-04-18
-- Feature: Automatic RAR volume splitting for Usenet best practices — folders < 200 MB generate a single RAR; larger folders are split into volumes (min 50 MB each, max 100 parts)
-- Docs: Rewrite README with prerequisites table, all CLI options documented, and RAR volume logic explained
+
+- Feature: Automatic RAR volume splitting for Usenet best practices — folders < 200 MB generate a single RAR; larger folders are split into volumes (min 50 MB each, max 100 parts).
+- Docs: Rewrite README with prerequisites table, all CLI options documented, and RAR volume logic explained.
 
 ## 0.5.0 - 2025-12-18
-- Feature: Add configurable ASCII art banner for folder .nfo files via NFO_BANNER env variable
-- Feature: Enhanced folder .nfo generation with detailed statistics, tree structure, and video metadata
-- Feature: Extract video duration, resolution, codec, and bitrate using ffprobe for rich .nfo content
-- Feature: Default UpaPasta ASCII banner when custom banner not configured
-- Fix: Sanitize mediainfo "Complete name" field to show only filename for video files
-- Docs: Update README with NFO configuration options and ffmpeg dependency information
+
+- Feature: Add configurable ASCII art banner for folder `.nfo` files via `NFO_BANNER` env variable.
+- Feature: Enhanced folder `.nfo` generation with detailed statistics, tree structure, and video metadata.
+- Feature: Extract video duration, resolution, codec, and bitrate using `ffprobe` for rich `.nfo` content.
+- Feature: Default UpaPasta ASCII banner when custom banner not configured.
+- Fix: Sanitize mediainfo "Complete name" field to show only filename for video files.
+- Docs: Update README with NFO configuration options and ffmpeg dependency information.
 
 ## 0.4.0 - 2025-12-17
-- Feature: Implement obfuscated upload feature with subject obfuscation
-- Feature: Add NZB conflict handling (--nzb-conflict option)
-- Fix: Move .nfo generation to workflow start for better organization
+
+- Feature: Implement obfuscated upload feature with subject obfuscation.
+- Feature: Add NZB conflict handling (`--nzb-conflict` option).
+- Fix: Move `.nfo` generation to workflow start for better organization.
 
 ## 0.3.4 - 2025-12-14
-- Fix: Early NZB conflict detection before processing to avoid wasted work
-- Fix: Automatic cleanup of temporary PAR2 files when errors occur
-- Performance: Skip PAR2 generation when NZB conflict is detected with 'fail' mode
+
+- Fix: Early NZB conflict detection before processing to avoid wasted work.
+- Fix: Automatic cleanup of temporary PAR2 files when errors occur.
+- Performance: Skip PAR2 generation when NZB conflict is detected with 'fail' mode.
 
 ## 0.3.3 - 2025-12-14
+
 - Fix: Correct NZB filename for folders processed with `--skip-rar` flag (remove unwanted "_content" suffix).
 
 ## 0.3.2 - 2025-12-14
+
 - Feature: Add NZB conflict handling with `--nzb-conflict` option (rename|overwrite|fail) to control behavior when NZB file already exists.
 - Docs: Add example for sequential uploads using `--nzb-conflict fail`.
 
 ## 0.3.1 - 2025-12-14
+
 - Fix: Prevent duplicate `.nfo` file creation in dry-run for single-file uploads.
 - Feature: Accept single-file uploads (skip RAR by default) and generate PAR2, PAR2 generation improvements.
 - Feature: Generate `.nfo` for single-file uploads using `mediainfo` and save to NZB_OUT folder; `.nfo` not uploaded to Usenet.
