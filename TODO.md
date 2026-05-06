@@ -253,7 +253,7 @@ Order by impact (most visible strings first):
 - [x] I2.6 · `nzb.py` + `nfo.py` + `catalog.py` — conflict messages, hook, category (~30 strings) ✅ Completed (commit 42a7757)
 - [x] I2.7 · `config.py` + `main.py` + `watch.py` + `nntp_test.py` — wizard, daemon, NNTP (~25 strings) ✅ Completed (commit to be generated)
 
-### ~~I3 · English documentation `v0.27.0`~~ ✅ Completed (v0.27.0)
+### ~~I3 · English documentation `0.26.1`~~ ✅ Completed (0.26.1)
 
 - [x] I3.1 · `README.md` → English; current content → `README.pt-BR.md`; mutual link at the top
 - [x] I3.2 · `DOCS.md` → English; create `docs/pt-BR/DOCS.md`

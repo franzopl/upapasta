@@ -4,6 +4,25 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.26.1 - 2026-05-06
+
+### Melhorias
+
+- **Documentação**: Tradução do README, INSTALL, CHANGELOG e TODO para inglês.
+- **CI**: Adição de validação automatizada de headers e integridade de i18n.
+
+### Correções
+
+- **Linting**: Corrigido shadowing de variáveis (`_` → `_d`) para evitar conflitos com gettext.
+- **Typing**: Resolvidos problemas remanescentes de mypy strict.
+
+## 0.26.0 - 2026-05-06
+
+### Novas funcionalidades
+
+- **Infraestrutura i18n**: Suporte completo para internacionalização usando gettext.
+- **Detecção de Locale**: Seleção automática de idioma via `UPAPASTA_LANG` ou configurações do sistema.
+
 ## 0.25.1 - 2026-05-06
 
 ### Correções

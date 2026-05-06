@@ -1,7 +1,7 @@
 # Português (Brasil) — upapasta
 msgid ""
 msgstr ""
-"Project-Id-Version: upapasta 0.26.0\n"
+"Project-Id-Version: upapasta 0.26.1\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-05-06 12:59-0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
