@@ -22,6 +22,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Optional
 
+from .i18n import _
 from .resources import calculate_optimal_resources, get_total_size
 
 # ── Funções utilitárias de extensão (re-exportadas por orchestrator) ─────────
@@ -77,11 +78,11 @@ class DependencyChecker:
     def validate(input_path: Path, dry_run: bool) -> bool:
         """Verifica existência, permissões de leitura e espaço em disco."""
         if not input_path.exists():
-            print(f"Erro: arquivo ou pasta '{input_path}' não existe.")
+            print(_("Erro: arquivo ou pasta '{input_path}' não existe.").format(input_path=input_path))
             return False
 
         if not input_path.is_dir() and not input_path.is_file():
-            print(f"Erro: '{input_path}' não é um arquivo nem um diretório.")
+            print(_("Erro: '{input_path}' não é um arquivo nem um diretório.").format(input_path=input_path))
             return False
 
         unreadable = []
@@ -95,11 +96,11 @@ class DependencyChecker:
                     if not os.access(fp, os.R_OK):
                         unreadable.append(fp)
         if unreadable:
-            print(f"Erro: {len(unreadable)} arquivo(s) sem permissão de leitura:")
+            print(_("Erro: {count} arquivo(s) sem permissão de leitura:").format(count=len(unreadable)))
             for p in unreadable[:5]:
                 print(f"  {p}")
             if len(unreadable) > 5:
-                print(f"  ... e mais {len(unreadable) - 5}")
+                print(_("  ... e mais {count}").format(count=len(unreadable) - 5))
             return False
 
         if not dry_run:
@@ -111,11 +112,11 @@ class DependencyChecker:
                     free_gb = stat.free / (1024 ** 3)
                     needed_gb = needed / (1024 ** 3)
                     source_gb = source_size / (1024 ** 3)
-                    print(
-                        f"Erro: espaço insuficiente em disco.\n"
-                        f"  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | Livre: {free_gb:.2f} GB\n"
-                        f"  Libere espaço ou use --dry-run para simular."
-                    )
+                    print(_(
+                        "Erro: espaço insuficiente em disco.\n"
+                        "  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | Livre: {free_gb:.2f} GB\n"
+                        "  Libere espaço ou use --dry-run para simular."
+                    ).format(source_gb=source_gb, needed_gb=needed_gb, free_gb=free_gb))
                     return False
             except OSError:
                 pass
@@ -226,22 +227,23 @@ class PipelineReporter:
         from .ui import format_time as _ft  # noqa: F401 — evita import circular no topo
         mem_gb = res["max_memory_mb"] / 1024
         print("\n" + "=" * 60)
-        print("🚀 UpaPasta — Workflow Completo de Upload para Usenet")
+        print(_("🚀 UpaPasta — Workflow Completo de Upload para Usenet"))
         print("=" * 60)
-        print(f"📁 Entrada:     {input_path.name}")
-        print(f"📦 Tamanho:     {res['total_gb']} GB")
-        print(f"⏱  ETA upload:  ~{eta_str} @ {nntp_connections} conexões (estimativa)")
-        print(f"🎯 Perfil PAR2: {par_profile}")
-        print(f"📊 Post-size:   {post_size or '(do perfil)'}")
-        print(f"✉️  Subject:     {subject}")
-        print(f"⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})")
-        print(f"🧠 Memória PAR: {mem_gb:.1f} GB")
+        print(_("📁 Entrada:     {name}").format(name=input_path.name))
+        print(_("📦 Tamanho:     {size} GB").format(size=res['total_gb']))
+        print(_("⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)").format(eta=eta_str, conn=nntp_connections))
+        print(_("🎯 Perfil PAR2: {profile}").format(profile=par_profile))
+        print(_("📊 Post-size:   {size}").format(size=post_size or _("(do perfil)")))
+        print(_("✉️  Subject:     {subject}").format(subject=subject))
+        print(_("⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})").format(
+            rar_threads=rar_threads, rar_src=rar_src, par_threads=par_threads, par_src=par_src))
+        print(_("🧠 Memória PAR: {mem:.1f} GB").format(mem=mem_gb))
         if obfuscate:
-            print("🔒 Ofuscação:   ativada")
+            print(_("🔒 Ofuscação:   ativada"))
             if rar_password:
-                print(f"🔑 Senha RAR:   {rar_password}")
+                print(_("🔑 Senha RAR:   {password}").format(password=rar_password))
         if dry_run:
-            print("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado")
+            print(_("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado"))
 
     @staticmethod
     def collect_stats(
@@ -303,40 +305,40 @@ class PipelineReporter:
         from .ui import format_time
 
         print("=" * 60)
-        print("🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉")
+        print(_("🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉"))
         print("=" * 60)
-        print("\n📊 RESUMO DA OPERAÇÃO:")
+        print(_("\n📊 RESUMO DA OPERAÇÃO:"))
         print("-" * 25)
-        print(f"  » Entrada de Origem: {input_path.name}")
+        print(_("  » Entrada de Origem: {name}").format(name=input_path.name))
         if obfuscate:
-            print(f"  » Nome Ofuscado:    {subject}")
+            print(_("  » Nome Ofuscado:    {subject}").format(subject=subject))
         if rar_password:
-            print(f"  » Senha RAR:        {rar_password}")
+            print(_("  » Senha RAR:        {password}").format(password=rar_password))
         if not skip_upload:
-            raw_group = group or env_vars.get("USENET_GROUP") or "(Não especificado)"
+            raw_group = group or env_vars.get("USENET_GROUP") or _("(Não especificado)")
             display_group = (
-                f"Pool ({len(raw_group.split(','))} grupos)" if "," in raw_group else raw_group
+                _("Pool ({count} grupos)").format(count=len(raw_group.split(','))) if "," in raw_group else raw_group
             )
-            print(f"  » Subject da Postagem: {subject}")
-            print(f"  » Grupo Usenet: {display_group}")
+            print(_("  » Subject da Postagem: {subject}").format(subject=subject))
+            print(_("  » Grupo Usenet: {group}").format(group=display_group))
 
-        print("\n📦 ARQUIVOS GERADOS:")
+        print(_("\n📦 ARQUIVOS GERADOS:"))
         print("-" * 25)
         if nfo_file and os.path.exists(nfo_file):
-            print(f"  » NFO: {os.path.basename(nfo_file)}")
+            print(_("  » NFO: {name}").format(name=os.path.basename(nfo_file)))
         rar_display = os.path.basename(rar_file) if rar_file else None
         if stats["rar_size_mb"] > 0:
             if rar_display:
-                print(f"  » RAR: {rar_display} ({stats['rar_size_mb']:.2f} MB)")
+                print(_("  » RAR: {name} ({size:.2f} MB)").format(name=rar_display, size=stats['rar_size_mb']))
             elif os.path.isdir(str(input_path)):
-                print(f"  » Pasta: {input_path.name} ({stats['rar_size_mb']:.2f} MB)")
+                print(_("  » Pasta: {name} ({size:.2f} MB)").format(name=input_path.name, size=stats['rar_size_mb']))
             else:
-                print(f"  » Arquivo: {input_path.name} ({stats['rar_size_mb']:.2f} MB)")
+                print(_("  » Arquivo: {name} ({size:.2f} MB)").format(name=input_path.name, size=stats['rar_size_mb']))
         if stats["par2_file_count"] > 0:
-            print(f"  » PAR2: {stats['par2_file_count']} arquivo(s) ({stats['par2_size_mb']:.2f} MB)")
+            print(_("  » PAR2: {count} arquivo(s) ({size:.2f} MB)").format(count=stats['par2_file_count'], size=stats['par2_size_mb']))
         total_size = stats["rar_size_mb"] + stats["par2_size_mb"]
-        print(f"  » Total: {total_size:.2f} MB")
-        print(f"\n  » Tempo total: {format_time(int(elapsed))}")
+        print(_("  » Total: {size:.2f} MB").format(size=total_size))
+        print(_("\n  » Tempo total: {time}").format(time=format_time(int(elapsed))))
         print("\n" + "=" * 60 + "\n")
 
     @staticmethod
@@ -396,7 +398,7 @@ class PipelineReporter:
                 subject=subject,
             )
         except Exception as e:
-            print(f"⚠️  Falha ao registrar no catálogo: {e}")
+            print(_("⚠️  Falha ao registrar no catálogo: {error}").format(error=e))
 
         if not skip_upload:
             run_post_upload_hook(
@@ -435,12 +437,12 @@ def do_cleanup_files(
 ) -> None:
     """Remove arquivos RAR e PAR2 gerados pelo pipeline."""
     if on_error:
-        print("\n🧹 Limpando arquivos temporários devido a erro...")
+        print(_("\n🧹 Limpando arquivos temporários devido a erro..."))
     else:
         if keep_files:
-            print("\n⚡ [--keep-files] Mantendo arquivos RAR e PAR2.")
+            print(_("\n⚡ [--keep-files] Mantendo arquivos RAR e PAR2."))
             return
-        print("\n🧹 Limpando arquivos temporários...")
+        print(_("\n🧹 Limpando arquivos temporários..."))
 
     candidates: list[str] = []
     base_name: Optional[str] = None
@@ -467,16 +469,16 @@ def do_cleanup_files(
             if os.path.exists(file_path):
                 if os.path.isdir(file_path):
                     shutil.rmtree(file_path)
-                    print(f"  ✓ Removido diretório: {os.path.basename(file_path)}")
+                    print(_("  ✓ Removido diretório: {name}").format(name=os.path.basename(file_path)))
                 else:
                     os.remove(file_path)
-                    print(f"  ✓ Removido: {os.path.basename(file_path)}")
+                    print(_("  ✓ Removido: {name}").format(name=os.path.basename(file_path)))
                 deleted_count += 1
         except Exception as e:
-            print(f"  ✗ Erro ao remover {file_path}: {e}")
+            print(_("  ✗ Erro ao remover {path}: {error}").format(path=file_path, error=e))
 
     if deleted_count > 0:
-        print(f"\n✅ {deleted_count} arquivo(s) removido(s) com sucesso")
+        print(_("\n✅ {count} arquivo(s) removido(s) com sucesso").format(count=deleted_count))
     print()
 
 
@@ -502,7 +504,7 @@ def revert_obfuscation(
 
     if obfuscate_was_linked:
         if keep_files:
-            print(f"⚡ [--keep-files] Mantendo links de ofuscação: {os.path.basename(input_target)}")
+            print(_("⚡ [--keep-files] Mantendo links de ofuscação: {name}").format(name=os.path.basename(input_target)))
             return input_target
         if not os.path.exists(input_target):
             # hardlink já removido pelo cleanup; o original (mesmo inode) pode ainda existir
@@ -520,29 +522,29 @@ def revert_obfuscation(
                 for cand in candidates:
                     try:
                         os.remove(cand)
-                        print(f"🧹 Removido original após cleanup do hardlink: {os.path.basename(cand)}")
+                        print(_("🧹 Removido original após cleanup do hardlink: {name}").format(name=os.path.basename(cand)))
                     except OSError as e:
-                        print(f"⚠️  Falha ao remover original '{os.path.basename(cand)}': {e}")
+                        print(_("⚠️  Falha ao remover original '{name}': {error}").format(name=os.path.basename(cand), error=e))
             return input_target
-        print(f"🧹 Removendo links temporários de ofuscação: {os.path.basename(input_target)}")
+        print(_("🧹 Removendo links temporários de ofuscação: {name}").format(name=os.path.basename(input_target)))
         try:
             if os.path.isdir(input_target):
                 shutil.rmtree(input_target)
             else:
                 os.remove(input_target)
         except OSError as e:
-            print(f"⚠️  Falha ao remover links de ofuscação: {e}")
+            print(_("⚠️  Falha ao remover links de ofuscação: {error}").format(error=e))
         return input_target
 
     if not os.path.exists(input_target) or os.path.exists(original):
         return input_target
     try:
         os.rename(input_target, original)
-        print(f"↩️  Nome original restaurado: {input_path.name}")
+        print(_("↩️  Nome original restaurado: {name}").format(name=input_path.name))
         input_target = original
     except OSError as e:
-        print(f"⚠️  Falha ao restaurar nome original ('{input_target}' → '{original}'): {e}")
-        print(f"    AÇÃO MANUAL: renomeie '{os.path.basename(input_target)}' de volta para '{input_path.name}'")
+        print(_("⚠️  Falha ao restaurar nome original ('{input}' → '{original}'): {error}").format(input=input_target, original=original, error=e))
+        print(_("    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'").format(input=os.path.basename(input_target), original=input_path.name))
         return input_target
 
     obf_base = os.path.basename(input_target)
@@ -567,14 +569,14 @@ def print_skip_rar_hints(input_path: Path, filepath_format: str, backend: str) -
     if backend == "parpar":
         has_subdirs = any(e.is_dir() for e in input_path.iterdir())
         if has_subdirs:
-            print(
-                f"✅ Pasta com subpastas + parpar (filepath-format={filepath_format}): "
+            print(_(
+                "✅ Pasta com subpastas + parpar (filepath-format={fmt}): "
                 "estrutura será preservada via PAR2."
-            )
-            print(
+            ).format(fmt=filepath_format))
+            print(_(
                 "   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip internos\n"
                 "   e revise 'Unwanted Extensions' (use --rename-extensionless se houver arquivos sem extensão)."
-            )
+            ))
             empty_dirs = [
                 os.path.relpath(dp, input_path)
                 for dp, _, files in os.walk(input_path)
@@ -582,16 +584,16 @@ def print_skip_rar_hints(input_path: Path, filepath_format: str, backend: str) -
                 and not any(os.scandir(dp))
             ]
             if empty_dirs:
-                print(
-                    f"⚠️  {len(empty_dirs)} diretório(s) vazio(s) detectado(s) — não serão preservados no upload.\n"
-                    f"    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem no destino.\n"
-                    f"    Se a estrutura vazia for relevante, remova --skip-rar para empacotar em RAR."
-                )
+                print(_(
+                    "⚠️  {count} diretório(s) vazio(s) detectado(s) — não serão preservados no upload.\n"
+                    "    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem no destino.\n"
+                    "    Se a estrutura vazia for relevante, remova --skip-rar para empacotar em RAR."
+                ).format(count=len(empty_dirs)))
     elif backend == "par2":
-        print(
+        print(_(
             "⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva hierarquia.\n"
             "    Considere --backend parpar (recomendado) ou remova --skip-rar."
-        )
+        ))
 
 
 def print_rar_hints(
@@ -605,11 +607,11 @@ def print_rar_hints(
         and not obfuscate
         and any(e.is_dir() for e in input_path.iterdir())
     ):
-        print(
+        print(_(
             "💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
             "   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
             "   downloaders modernos reconstroem a árvore. Menos overhead, mesmo resultado."
-        )
+        ))
 
 
 def recalculate_resources(
@@ -625,7 +627,7 @@ def recalculate_resources(
         user_threads=user_rar_threads if user_rar_threads == user_par_threads else None,
         user_memory_mb=user_memory_mb,
     )
-    conservative_tag = " (conservador)" if res["conservative_mode"] else ""
-    rar_src = "manual" if user_rar_threads is not None else f"auto{conservative_tag}"
-    par_src = "manual" if user_par_threads is not None else f"auto{conservative_tag}"
+    conservative_tag = _(" (conservador)") if res["conservative_mode"] else ""
+    rar_src = _("manual") if user_rar_threads is not None else f"auto{conservative_tag}"
+    par_src = _("manual") if user_par_threads is not None else f"auto{conservative_tag}"
     return res, rar_src, par_src

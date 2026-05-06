@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: upapasta 0.26.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 10:39-0300\n"
+"POT-Creation-Date: 2026-05-06 10:55-0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: \n"
 "Language: pt_BR\n"
@@ -35,6 +35,24 @@ msgid ""
 "\n"
 "  Para ajuda completa:  upapasta --help\n"
 msgstr ""
+"UpaPasta — uploader automatizado para Usenet\n"
+"\n"
+"  Uso:  upapasta <caminho> [<caminho2> ...]  [opções]\n"
+"\n"
+"  Exemplos rápidos:\n"
+"    upapasta Filme.2024/ --rar              pasta inteira como um release"
+" (RAR + PAR2)\n"
+"    upapasta Episodio.S01E01.mkv            arquivo único sem RAR\n"
+"    upapasta A.mkv B.mkv C.mkv             múltiplos arquivos em "
+"sequência\n"
+"    upapasta Pasta1/ Pasta2/ --jobs 2      duas pastas em paralelo\n"
+"    upapasta Temporada.1/ --each           cada arquivo da pasta vira um "
+"release separado\n"
+"    upapasta Pasta/ --obfuscate            release com nomes ofuscados\n"
+"    upapasta Pasta/ --password abc --rar   release com senha no RAR\n"
+"    upapasta Pasta/ --dry-run              simula sem enviar nada\n"
+"\n"
+"  Para ajuda completa:  upapasta --help\n"
 
 #: upapasta/cli.py:34
 msgid "UpaPasta — uploader automatizado para Usenet"
@@ -84,12 +102,55 @@ msgid ""
 "--rar automaticamente)\n"
 "  upapasta Pasta/ --filepath-format keep     preserva caminho completo\n"
 msgstr ""
+"COMPORTAMENTO PADRÃO\n"
+"  Pasta   → PAR2 (balanced) + upload direto (sem RAR) → NZB + NFO\n"
+"  Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO\n"
+"  Com --rar: cria RAR primeiro, depois PAR2 + upload\n"
+"\n"
+"  --obfuscate: nomes aleatórios (sem RAR por padrão; proteção via parpar "
+"+ ofuscação).\n"
+"  --obfuscate --password abc: nomes aleatórios + RAR com senha.\n"
+"  --password sozinho: presume --rar automaticamente (precisa de RAR para "
+"proteger).\n"
+"  Arquivo único com --obfuscate ou --password: cria RAR automaticamente.\n"
+"\n"
+"FLUXO RECOMENDADO 2026 (padrão moderno)\n"
+"  upapasta Pasta/ --obfuscate --backend parpar \\\n"
+"      --filepath-format common --par-profile safe\n"
+"\n"
+"  Por quê: parpar grava a estrutura de pastas nos .par2; SABnzbd/NZBGet\n"
+"  recentes reconstroem a árvore no download. RAR é opcional — ofuscação\n"
+"  forte + PAR2 já protege contra scans automáticos de copyright. Use "
+"--rar\n"
+"  apenas se precisar do RAR-com-senha (casos legados).\n"
+"\n"
+"  No SABnzbd: desative \"Recursive Unpacking\" e revise \"Unwanted "
+"Extensions\".\n"
+"  Use --rename-extensionless se houver arquivos sem extensão (evita .txt "
+"do SAB).\n"
+"\n"
+"EXEMPLOS\n"
+"  upapasta Pasta/ --obfuscate                 fluxo moderno (recomendado)"
+"\n"
+"  upapasta Filme.2024/ --rar                  pasta como release único "
+"(com RAR)\n"
+"  upapasta Episodio.S01E01.mkv               arquivo único, sem RAR\n"
+"  upapasta A.mkv B.mkv C.mkv                múltiplos arquivos, "
+"processamento sequencial\n"
+"  upapasta Pasta1/ Pasta2/ --jobs 2          duas pastas em paralelo\n"
+"  upapasta Temporada.1/ --each               cada arquivo da pasta "
+"separado\n"
+"  upapasta Pasta/ --password \"abc123\"         RAR com senha (presume "
+"--rar automaticamente)\n"
+"  upapasta Pasta/ --filepath-format keep     preserva caminho completo\n"
 
 #: upapasta/cli.py:81
 msgid ""
 "Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em "
 "sequência (ou paralelo com --jobs)."
 msgstr ""
+"Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em "
+"sequência (ou paralelo com --jobs)."
 
 #: upapasta/cli.py:86
 msgid "Abre o wizard de configuração (permite reconfigurar credenciais e opções)"
@@ -108,6 +169,8 @@ msgid ""
 "Desativa verificação de certificado SSL em --test-connection (use apenas "
 "para testes)"
 msgstr ""
+"Desativa verificação de certificado SSL em --test-connection (use apenas "
+"para testes)"
 
 #: upapasta/cli.py:104
 msgid "opções essenciais"
@@ -122,18 +185,24 @@ msgid ""
 "Modo daemon: monitora <input> continuamente e processa novos itens "
 "automaticamente. Incompatível com --each/--season. Ctrl+C encerra."
 msgstr ""
+"Modo daemon: monitora <input> continuamente e processa novos itens "
+"automaticamente. Incompatível com --each/--season. Ctrl+C encerra."
 
 #: upapasta/cli.py:123
 msgid ""
 "Processa cada arquivo da pasta individualmente. Ideal para temporadas: "
 "cada episódio vira um release separado com seu próprio NZB."
 msgstr ""
+"Processa cada arquivo da pasta individualmente. Ideal para temporadas: "
+"cada episódio vira um release separado com seu próprio NZB."
 
 #: upapasta/cli.py:131
 msgid ""
 "Similar ao --each: upload individual de cada episódio, mas ao final gera "
 "um NZB único contendo toda a temporada, além dos NZBs individuais."
 msgstr ""
+"Similar ao --each: upload individual de cada episódio, mas ao final gera "
+"um NZB único contendo toda a temporada, além dos NZBs individuais."
 
 #: upapasta/cli.py:139
 msgid ""
@@ -141,6 +210,9 @@ msgid ""
 "automaticamente. Em arquivo único, cria RAR automaticamente. Use "
 "--password junto para definir a senha manualmente."
 msgstr ""
+"Release privado: nomes aleatórios no RAR/PAR2 + senha gerada "
+"automaticamente. Em arquivo único, cria RAR automaticamente. Use "
+"--password junto para definir a senha manualmente."
 
 #: upapasta/cli.py:148
 msgid ""
@@ -148,6 +220,9 @@ msgid ""
 "nome original visível em indexadores). Requer renomeação manual ou via "
 "PAR2 após download. Implica --obfuscate."
 msgstr ""
+"Ofuscação máxima: nomes aleatórios no RAR/PAR2 E dentro do NZB (nenhum "
+"nome original visível em indexadores). Requer renomeação manual ou via "
+"PAR2 após download. Implica --obfuscate."
 
 #: upapasta/cli.py:157
 msgid "SENHA"
@@ -160,12 +235,18 @@ msgid ""
 "proteger com senha). Sem argumento, gera uma senha aleatória de 16 "
 "caracteres."
 msgstr ""
+"Senha para o RAR (injetada no NZB para extração automática por "
+"SABnzbd/NZBGet). Presume automaticamente --rar (precisa de RAR para "
+"proteger com senha). Sem argumento, gera uma senha aleatória de 16 "
+"caracteres."
 
 #: upapasta/cli.py:167
 msgid ""
 "Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão"
 " com PAR2)."
 msgstr ""
+"Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão"
+" com PAR2)."
 
 #: upapasta/cli.py:173
 msgid "[DEPRECATED: use ausência de --rar] Não cria RAR."
@@ -190,6 +271,8 @@ msgid ""
 "Número de uploads paralelos quando múltiplos inputs são fornecidos "
 "(padrão: 1 = sequencial)"
 msgstr ""
+"Número de uploads paralelos quando múltiplos inputs são fornecidos "
+"(padrão: 1 = sequencial)"
 
 #: upapasta/cli.py:194
 #, python-format
@@ -308,6 +391,10 @@ msgid ""
 "completo; basename=descarta paths (flat); outrel=relativo à saída. "
 "Ignorado quando backend=par2."
 msgstr ""
+"Como o parpar grava paths nos .par2 (default: common). common=descarta "
+"prefixo comum (preserva subpastas relativas); keep=preserva o caminho "
+"completo; basename=descarta paths (flat); outrel=relativo à saída. "
+"Ignorado quando backend=par2."
 
 #: upapasta/cli.py:340 upapasta/cli.py:349
 msgid "STR"
@@ -318,24 +405,32 @@ msgid ""
 "Args extras repassados ao parpar, ex: --parpar-args \"--noindex "
 "--foo=bar\". Tokenizado via shlex. Ignorado quando backend=par2."
 msgstr ""
+"Args extras repassados ao parpar, ex: --parpar-args \"--noindex "
+"--foo=bar\". Tokenizado via shlex. Ignorado quando backend=par2."
 
 #: upapasta/cli.py:351
 msgid ""
 "Args extras repassados ao nyuu, ex: --nyuu-args \"--article-threads=8 "
 "--queue=20\". Tokenizado via shlex."
 msgstr ""
+"Args extras repassados ao nyuu, ex: --nyuu-args \"--article-threads=8 "
+"--queue=20\". Tokenizado via shlex."
 
 #: upapasta/cli.py:359
 msgid ""
 "Renomeia arquivos sem extensão para .bin antes do upload (reverte ao "
 "final). Evita que o SABnzbd adicione .txt em arquivos sem extensão."
 msgstr ""
+"Renomeia arquivos sem extensão para .bin antes do upload (reverte ao "
+"final). Evita que o SABnzbd adicione .txt em arquivos sem extensão."
 
 #: upapasta/cli.py:367
 msgid ""
 "Retoma upload interrompido: detecta arquivos já postados via NZB parcial "
 "e faz upload apenas dos restantes, mesclando os NZBs ao final."
 msgstr ""
+"Retoma upload interrompido: detecta arquivos já postados via NZB parcial "
+"e faz upload apenas dos restantes, mesclando os NZBs ao final."
 
 #: upapasta/cli.py:387
 msgid "❌ Dependências não encontradas:"
@@ -351,6 +446,8 @@ msgid ""
 "\n"
 "   Por favor, instale as dependências e tente novamente."
 msgstr ""
+"\n"
+"   Por favor, instale as dependências e tente novamente."
 
 #: upapasta/cli.py:391
 msgid "   Você pode encontrar instruções de instalação em INSTALL.md"
@@ -425,4 +522,549 @@ msgid ""
 "✅ Fluxo moderno: --obfuscate (sem RAR).\n"
 "   Nomes externos ofuscados; estrutura preservada via parpar."
 msgstr ""
+"✅ Fluxo moderno: --obfuscate (sem RAR).\n"
+"   Nomes externos ofuscados; estrutura preservada via parpar."
+
+#: upapasta/orchestrator.py:50
+msgid ""
+"\n"
+"⚠️  Interrompido pelo usuário (Ctrl+C)."
+msgstr ""
+"\n"
+"⚠️  Interrompido pelo usuário (Ctrl+C)."
+
+#: upapasta/orchestrator.py:215
+#, python-brace-format
+msgid "  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nzb_dir})"
+msgstr "  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nzb_dir})"
+
+#: upapasta/orchestrator.py:220
+#, python-brace-format
+msgid ""
+"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: "
+"{nzb_dir})"
+msgstr ""
+"  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: "
+"{nzb_dir})"
+
+#: upapasta/orchestrator.py:226
+msgid "📦 Arquivo único com senha: criando RAR automaticamente."
+msgstr "📦 Arquivo único com senha: criando RAR automaticamente."
+
+#: upapasta/orchestrator.py:228
+msgid "📦 Arquivo único com ofuscação e --rar: criando RAR."
+msgstr "📦 Arquivo único com ofuscação e --rar: criando RAR."
+
+#: upapasta/orchestrator.py:232
+#, python-brace-format
+msgid "✅ Arquivo único com ofuscação: {name} (upload direto ofuscado + PAR2)"
+msgstr "✅ Arquivo único com ofuscação: {name} (upload direto ofuscado + PAR2)"
+
+#: upapasta/orchestrator.py:234
+#, python-brace-format
+msgid "✅ Arquivo único: {name} (upload direto, sem RAR)"
+msgstr "✅ Arquivo único: {name} (upload direto, sem RAR)"
+
+#: upapasta/orchestrator.py:241
+#, fuzzy
+msgid "pasta"
+msgstr "PATH"
+
+#: upapasta/orchestrator.py:241
+msgid "arquivo"
+msgstr "arquivo"
+
+#: upapasta/orchestrator.py:242
+#, python-brace-format
+msgid "✅ Modo upload de {label}: {name}"
+msgstr "✅ Modo upload de {label}: {name}"
+
+#: upapasta/orchestrator.py:246
+msgid "📦 ETAPA 1: Criar arquivo RAR"
+msgstr "📦 ETAPA 1: Criar arquivo RAR"
+
+#: upapasta/orchestrator.py:253
+msgid "[DRY-RUN] pularia a criação do RAR."
+msgstr "[DRY-RUN] pularia a criação do RAR."
+
+#: upapasta/orchestrator.py:254
+#, python-brace-format
+msgid "[DRY-RUN] RAR seria criado em: {path}"
+msgstr "[DRY-RUN] RAR seria criado em: {path}"
+
+#: upapasta/orchestrator.py:257
+#, python-brace-format
+msgid "📥 Compactando {name}..."
+msgstr "📥 Compactando {name}..."
+
+#: upapasta/orchestrator.py:266
+#, python-brace-format
+msgid ""
+"\n"
+"❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})"
+msgstr ""
+"\n"
+"❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})"
+
+#: upapasta/orchestrator.py:269
+msgid "binário 'rar' não encontrado no PATH"
+msgstr "binário 'rar' não encontrado no PATH"
+
+#: upapasta/orchestrator.py:270
+#, python-brace-format
+msgid "❌ Erro ao criar RAR: {label}"
+msgstr "❌ Erro ao criar RAR: {label}"
+
+#: upapasta/orchestrator.py:275 upapasta/orchestrator.py:403
+msgid "Erro: caminho de entrada não definido."
+msgstr "Erro: caminho de entrada não definido."
+
+#: upapasta/orchestrator.py:289
+#, python-brace-format
+msgid "✅ Usando paridade existente: {size:.2f} MB"
+msgstr "✅ Usando paridade existente: {size:.2f} MB"
+
+#: upapasta/orchestrator.py:291
+#, python-brace-format
+msgid "❌ Erro: --skip-par mas arquivo {path} não existe."
+msgstr "❌ Erro: --skip-par mas arquivo {path} não existe."
+
+#: upapasta/orchestrator.py:295
+msgid "🛡️  ETAPA 2: Gerar arquivo de paridade PAR2"
+msgstr "🛡️  ETAPA 2: Gerar arquivo de paridade PAR2"
+
+#: upapasta/orchestrator.py:303
+msgid "🔐 Ofuscando arquivos e gerando paridade..."
+msgstr "🔐 Ofuscando arquivos e gerando paridade..."
+
+#: upapasta/orchestrator.py:322 upapasta/orchestrator.py:377
+msgid "binário de paridade não encontrado"
+msgstr "binário de paridade não encontrado"
+
+#: upapasta/orchestrator.py:323
+#, python-brace-format
+msgid "❌ Erro ao ofuscar/gerar paridade: {label}"
+msgstr "❌ Erro ao ofuscar/gerar paridade: {label}"
+
+#: upapasta/orchestrator.py:328
+#, python-brace-format
+msgid ""
+"\n"
+"❌ Erro ao ofuscar/gerar paridade (código {rc})."
+msgstr ""
+"\n"
+"❌ Erro ao ofuscar/gerar paridade (código {rc})."
+
+#: upapasta/orchestrator.py:342
+#, python-brace-format
+msgid "✨ Subject ofuscado: {subject}"
+msgstr "✨ Subject ofuscado: {subject}"
+
+#: upapasta/orchestrator.py:348
+msgid "❌ Erro: Arquivo de paridade não encontrado após ofuscação."
+msgstr "❌ Erro: Arquivo de paridade não encontrado após ofuscação."
+
+#: upapasta/orchestrator.py:352
+#, python-brace-format
+msgid "🔐 Gerando paridade (perfil: {profile})..."
+msgstr "🔐 Gerando paridade (perfil: {profile})..."
+
+#: upapasta/orchestrator.py:378
+#, python-brace-format
+msgid "❌ Erro ao gerar paridade: {label}"
+msgstr "❌ Erro ao gerar paridade: {label}"
+
+#: upapasta/orchestrator.py:383
+#, python-brace-format
+msgid ""
+"\n"
+"❌ Erro ao gerar paridade (código {rc})."
+msgstr ""
+"\n"
+"❌ Erro ao gerar paridade (código {rc})."
+
+#: upapasta/orchestrator.py:406
+#, fuzzy
+msgid "📤 ETAPA 3: Upload para Usenet"
+msgstr "Pula upload para Usenet"
+
+#: upapasta/orchestrator.py:431
+#, python-brace-format
+msgid ""
+"\n"
+"❌ Erro durante upload: {error}"
+msgstr ""
+"\n"
+"❌ Erro durante upload: {error}"
+
+#: upapasta/orchestrator.py:450
+#, python-brace-format
+msgid "↩️  Restauradas {count} extensões originais"
+msgstr "↩️  Restauradas {count} extensões originais"
+
+#: upapasta/orchestrator.py:515
+msgid "Atenção: falha ao gerar .nfo, mas continuando..."
+msgstr "Atenção: falha ao gerar .nfo, mas continuando..."
+
+#: upapasta/orchestrator.py:543
+#, python-brace-format
+msgid "🔧 Normalizadas {count} extensões → .bin"
+msgstr "🔧 Normalizadas {count} extensões → .bin"
+
+#: upapasta/orchestrator.py:572
+msgid ""
+"\n"
+"⏭️  [--skip-upload] Upload foi pulado."
+msgstr ""
+"\n"
+"⏭️  [--skip-upload] Upload foi pulado."
+
+#: upapasta/_pipeline.py:81
+#, python-brace-format
+msgid "Erro: arquivo ou pasta '{input_path}' não existe."
+msgstr "Erro: arquivo ou pasta '{input_path}' não existe."
+
+#: upapasta/_pipeline.py:85
+#, python-brace-format
+msgid "Erro: '{input_path}' não é um arquivo nem um diretório."
+msgstr "Erro: '{input_path}' não é um arquivo nem um diretório."
+
+#: upapasta/_pipeline.py:99
+#, python-brace-format
+msgid "Erro: {count} arquivo(s) sem permissão de leitura:"
+msgstr "Erro: {count} arquivo(s) sem permissão de leitura:"
+
+#: upapasta/_pipeline.py:103
+#, python-brace-format
+msgid "  ... e mais {count}"
+msgstr "  ... e mais {count}"
+
+#: upapasta/_pipeline.py:116
+#, python-brace-format
+msgid ""
+"Erro: espaço insuficiente em disco.\n"
+"  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | "
+"Livre: {free_gb:.2f} GB\n"
+"  Libere espaço ou use --dry-run para simular."
+msgstr ""
+"Erro: espaço insuficiente em disco.\n"
+"  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | "
+"Livre: {free_gb:.2f} GB\n"
+"  Libere espaço ou use --dry-run para simular."
+
+#: upapasta/_pipeline.py:230
+#, fuzzy
+msgid "🚀 UpaPasta — Workflow Completo de Upload para Usenet"
+msgstr "UpaPasta — uploader automatizado para Usenet"
+
+#: upapasta/_pipeline.py:232
+#, python-brace-format
+msgid "📁 Entrada:     {name}"
+msgstr "📁 Entrada:     {name}"
+
+#: upapasta/_pipeline.py:233
+#, python-brace-format
+msgid "📦 Tamanho:     {size} GB"
+msgstr "📦 Tamanho:     {size} GB"
+
+#: upapasta/_pipeline.py:234
+#, python-brace-format
+msgid "⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)"
+msgstr "⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)"
+
+#: upapasta/_pipeline.py:235
+#, python-brace-format
+msgid "🎯 Perfil PAR2: {profile}"
+msgstr "🎯 Perfil PAR2: {profile}"
+
+#: upapasta/_pipeline.py:236
+#, python-brace-format
+msgid "📊 Post-size:   {size}"
+msgstr "📊 Post-size:   {size}"
+
+#: upapasta/_pipeline.py:236
+msgid "(do perfil)"
+msgstr "(do perfil)"
+
+#: upapasta/_pipeline.py:237
+#, python-brace-format
+msgid "✉️  Subject:     {subject}"
+msgstr "✉️  Subject:     {subject}"
+
+#: upapasta/_pipeline.py:238
+#, python-brace-format
+msgid "⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})"
+msgstr "⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})"
+
+#: upapasta/_pipeline.py:240
+#, python-brace-format
+msgid "🧠 Memória PAR: {mem:.1f} GB"
+msgstr "🧠 Memória PAR: {mem:.1f} GB"
+
+#: upapasta/_pipeline.py:242
+msgid "🔒 Ofuscação:   ativada"
+msgstr "🔒 Ofuscação:   ativada"
+
+#: upapasta/_pipeline.py:244
+#, fuzzy, python-brace-format
+msgid "🔑 Senha RAR:   {password}"
+msgstr "🔑  Senha gerada automaticamente: {password}"
+
+#: upapasta/_pipeline.py:246
+msgid "⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado"
+msgstr "⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado"
+
+#: upapasta/_pipeline.py:308
+msgid "🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉"
+msgstr "🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉"
+
+#: upapasta/_pipeline.py:310
+msgid ""
+"\n"
+"📊 RESUMO DA OPERAÇÃO:"
+msgstr ""
+"\n"
+"📊 RESUMO DA OPERAÇÃO:"
+
+#: upapasta/_pipeline.py:312
+#, python-brace-format
+msgid "  » Entrada de Origem: {name}"
+msgstr "  » Entrada de Origem: {name}"
+
+#: upapasta/_pipeline.py:314
+#, python-brace-format
+msgid "  » Nome Ofuscado:    {subject}"
+msgstr "  » Nome Ofuscado:    {subject}"
+
+#: upapasta/_pipeline.py:316
+#, python-brace-format
+msgid "  » Senha RAR:        {password}"
+msgstr "  » Senha RAR:        {password}"
+
+#: upapasta/_pipeline.py:318
+msgid "(Não especificado)"
+msgstr "(Não especificado)"
+
+#: upapasta/_pipeline.py:320
+#, python-brace-format
+msgid "Pool ({count} grupos)"
+msgstr "Pool ({count} grupos)"
+
+#: upapasta/_pipeline.py:322
+#, python-brace-format
+msgid "  » Subject da Postagem: {subject}"
+msgstr "  » Subject da Postagem: {subject}"
+
+#: upapasta/_pipeline.py:323
+#, python-brace-format
+msgid "  » Grupo Usenet: {group}"
+msgstr "  » Grupo Usenet: {group}"
+
+#: upapasta/_pipeline.py:325
+msgid ""
+"\n"
+"📦 ARQUIVOS GERADOS:"
+msgstr ""
+"\n"
+"📦 ARQUIVOS GERADOS:"
+
+#: upapasta/_pipeline.py:328
+#, python-brace-format
+msgid "  » NFO: {name}"
+msgstr "  » NFO: {name}"
+
+#: upapasta/_pipeline.py:332
+#, python-brace-format
+msgid "  » RAR: {name} ({size:.2f} MB)"
+msgstr "  » RAR: {name} ({size:.2f} MB)"
+
+#: upapasta/_pipeline.py:334
+#, python-brace-format
+msgid "  » Pasta: {name} ({size:.2f} MB)"
+msgstr "  » Pasta: {name} ({size:.2f} MB)"
+
+#: upapasta/_pipeline.py:336
+#, python-brace-format
+msgid "  » Arquivo: {name} ({size:.2f} MB)"
+msgstr "  » Arquivo: {name} ({size:.2f} MB)"
+
+#: upapasta/_pipeline.py:338
+#, python-brace-format
+msgid "  » PAR2: {count} arquivo(s) ({size:.2f} MB)"
+msgstr "  » PAR2: {count} arquivo(s) ({size:.2f} MB)"
+
+#: upapasta/_pipeline.py:340
+#, python-brace-format
+msgid "  » Total: {size:.2f} MB"
+msgstr "  » Total: {size:.2f} MB"
+
+#: upapasta/_pipeline.py:341
+#, python-brace-format
+msgid ""
+"\n"
+"  » Tempo total: {time}"
+msgstr ""
+"\n"
+"  » Tempo total: {time}"
+
+#: upapasta/_pipeline.py:401
+#, python-brace-format
+msgid "⚠️  Falha ao registrar no catálogo: {error}"
+msgstr "⚠️  Falha ao registrar no catálogo: {error}"
+
+#: upapasta/_pipeline.py:440
+msgid ""
+"\n"
+"🧹 Limpando arquivos temporários devido a erro..."
+msgstr ""
+"\n"
+"🧹 Limpando arquivos temporários devido a erro..."
+
+#: upapasta/_pipeline.py:443
+msgid ""
+"\n"
+"⚡ [--keep-files] Mantendo arquivos RAR e PAR2."
+msgstr ""
+"\n"
+"⚡ [--keep-files] Mantendo arquivos RAR e PAR2."
+
+#: upapasta/_pipeline.py:445
+msgid ""
+"\n"
+"🧹 Limpando arquivos temporários..."
+msgstr ""
+"\n"
+"🧹 Limpando arquivos temporários..."
+
+#: upapasta/_pipeline.py:472
+#, python-brace-format
+msgid "  ✓ Removido diretório: {name}"
+msgstr "  ✓ Removido diretório: {name}"
+
+#: upapasta/_pipeline.py:475
+#, python-brace-format
+msgid "  ✓ Removido: {name}"
+msgstr "  ✓ Removido: {name}"
+
+#: upapasta/_pipeline.py:478
+#, python-brace-format
+msgid "  ✗ Erro ao remover {path}: {error}"
+msgstr "  ✗ Erro ao remover {path}: {error}"
+
+#: upapasta/_pipeline.py:481
+#, python-brace-format
+msgid ""
+"\n"
+"✅ {count} arquivo(s) removido(s) com sucesso"
+msgstr ""
+"\n"
+"✅ {count} arquivo(s) removido(s) com sucesso"
+
+#: upapasta/_pipeline.py:507
+#, python-brace-format
+msgid "⚡ [--keep-files] Mantendo links de ofuscação: {name}"
+msgstr "⚡ [--keep-files] Mantendo links de ofuscação: {name}"
+
+#: upapasta/_pipeline.py:525
+#, python-brace-format
+msgid "🧹 Removido original após cleanup do hardlink: {name}"
+msgstr "🧹 Removido original após cleanup do hardlink: {name}"
+
+#: upapasta/_pipeline.py:527
+#, python-brace-format
+msgid "⚠️  Falha ao remover original '{name}': {error}"
+msgstr "⚠️  Falha ao remover original '{name}': {error}"
+
+#: upapasta/_pipeline.py:529
+#, python-brace-format
+msgid "🧹 Removendo links temporários de ofuscação: {name}"
+msgstr "🧹 Removendo links temporários de ofuscação: {name}"
+
+#: upapasta/_pipeline.py:536
+#, python-brace-format
+msgid "⚠️  Falha ao remover links de ofuscação: {error}"
+msgstr "⚠️  Falha ao remover links de ofuscação: {error}"
+
+#: upapasta/_pipeline.py:543
+#, python-brace-format
+msgid "↩️  Nome original restaurado: {name}"
+msgstr "↩️  Nome original restaurado: {name}"
+
+#: upapasta/_pipeline.py:546
+#, python-brace-format
+msgid "⚠️  Falha ao restaurar nome original ('{input}' → '{original}'): {error}"
+msgstr "⚠️  Falha ao restaurar nome original ('{input}' → '{original}'): {error}"
+
+#: upapasta/_pipeline.py:547
+#, python-brace-format
+msgid "    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'"
+msgstr "    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'"
+
+#: upapasta/_pipeline.py:573
+#, python-brace-format
+msgid ""
+"✅ Pasta com subpastas + parpar (filepath-format={fmt}): estrutura será "
+"preservada via PAR2."
+msgstr ""
+"✅ Pasta com subpastas + parpar (filepath-format={fmt}): estrutura será "
+"preservada via PAR2."
+
+#: upapasta/_pipeline.py:577
+msgid ""
+"   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip "
+"internos\n"
+"   e revise 'Unwanted Extensions' (use --rename-extensionless se houver "
+"arquivos sem extensão)."
+msgstr ""
+"   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip "
+"internos\n"
+"   e revise 'Unwanted Extensions' (use --rename-extensionless se houver "
+"arquivos sem extensão)."
+
+#: upapasta/_pipeline.py:588
+#, python-brace-format
+msgid ""
+"⚠️  {count} diretório(s) vazio(s) detectado(s) — não serão preservados no"
+" upload.\n"
+"    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem "
+"no destino.\n"
+"    Se a estrutura vazia for relevante, remova --skip-rar para empacotar "
+"em RAR."
+msgstr ""
+"⚠️  {count} diretório(s) vazio(s) detectado(s) — não serão preservados no"
+" upload.\n"
+"    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem "
+"no destino.\n"
+"    Se a estrutura vazia for relevante, remova --skip-rar para empacotar "
+"em RAR."
+
+#: upapasta/_pipeline.py:594
+msgid ""
+"⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva "
+"hierarquia.\n"
+"    Considere --backend parpar (recomendado) ou remova --skip-rar."
+msgstr ""
+"⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva "
+"hierarquia.\n"
+"    Considere --backend parpar (recomendado) ou remova --skip-rar."
+
+#: upapasta/_pipeline.py:611
+msgid ""
+"💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
+"   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
+"   downloaders modernos reconstroem a árvore. Menos overhead, mesmo "
+"resultado."
+msgstr ""
+"💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
+"   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
+"   downloaders modernos reconstroem a árvore. Menos overhead, mesmo "
+"resultado."
+
+#: upapasta/_pipeline.py:630
+msgid " (conservador)"
+msgstr " (conservador)"
+
+#: upapasta/_pipeline.py:631 upapasta/_pipeline.py:632
+msgid "manual"
+msgstr "manual"
 
