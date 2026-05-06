@@ -59,22 +59,21 @@ Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas v
 |---|---|---|
 | `__init__.py` | 1 | Marcador de package |
 | `_process.py` | 89 | **OBRIGATÓRIO**: `managed_popen` (context manager SIGTERM→SIGKILL para todo subprocess externo) |
-| `nntp_test.py` | 84 | `--test-connection`: handshake CONNECT/LOGIN/QUIT via `nntplib` (gracefully degraded em Python 3.14+) |
-| `resources.py` | 112 | `calculate_optimal_resources` (threads + memória escalonadas por tamanho da fonte e CPUs); leitura de `/proc/meminfo` |
-| `watch.py` | 134 | Modo daemon `--watch` (polling + janela de estabilidade) |
-| `ui.py` | 156 | `PhaseBar` (5 fases NFO→RAR→PAR2→UPLOAD→DONE), `_TeeStream` (logging dual stdout+arquivo, strip ANSI), `setup_logging` / `setup_session_log` / `teardown_session_log` |
-| `catalog.py` | 188 | **JSONL** local (`~/.config/upapasta/history.jsonl`) + arquivamento de NZB via hardlink em `~/.config/upapasta/nzb/`; detecção de categoria (Anime/TV/Movie/Generic); `run_post_upload_hook` (timeout 60s, env vars `UPAPASTA_*`) |
-| `main.py` | 224 | Entry point (~150 linhas reais). Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection` ou para o orquestrador via `from_args`; modos `--each`/`--season`/`--watch` |
-| `nfo.py` | 302 | mediainfo (single file) + tree/stats/ffprobe (folder). Detecção de pasta de série via regex `S\d{2}` |
-| `config.py` | 304 | `PROFILES` PAR2 (fast/balanced/safe), `REQUIRED_CRED_KEYS`, `DEFAULT_GROUP_POOL` (10 grupos), `prompt_for_credentials`, `load_env_file`, `render_template`, `resolve_env_file(profile)` |
-| `makerar.py` | 343 | RAR5 com progresso ao vivo; volumes dinâmicos (≤10 GB → único; senão ≥1 GB por volume, máx 100 partes, redondo a 5 MB); flags `-m0 -ma5 -hp$PASSWORD`; aceita arquivo único e pasta |
-| `nzb.py` | 405 | `resolve_nzb_template`, `resolve_nzb_basename`, `resolve_nzb_out`, `handle_nzb_conflict` (rename/overwrite/fail), `inject_nzb_password` (`<meta type="password">`), `fix_nzb_subjects` (deofuscação + path), `fix_season_nzb_subjects`, `merge_nzbs`, `collect_season_nzbs` |
-| `cli.py` | 407 | `argparse` com 3 grupos (essenciais/ajuste/avançadas), `_USAGE_SHORT`, `_DESCRIPTION`, `_EPILOG`, `check_dependencies`, `_validate_flags` |
-| `upfolder.py` | 457 | `upload_to_usenet`: nyuu **sem cópia para /tmp** (paths relativos preservam subpastas); pool de grupos via `random.choice`; uploader anônimo aleatório; retry automático; verificação XML do NZB; injeção de senha pós-upload |
-| `makepar.py` | 853 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `make_parity` aceita `filepath_format` e `parpar_extra_args`; `obfuscate_and_par` refatorado em subfunções (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure); `handle_par_failure` (retry conservador automático) |
-| `_pipeline.py` | 601 | Classes auxiliares do orchestrator: `DependencyChecker` (valida entrada/disco), `PathResolver` (NZB/NFO/PAR2 paths), `PipelineReporter` (banner/stats/sumário/catálogo); funções standalone: `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources` |
-| `orchestrator.py` | 599 | `UpaPastaOrchestrator` (workflow completo, delegando às classes de `_pipeline.py`) + `UpaPastaSession` (context manager de cleanup); `from_args` classmethod |
-| `orchestrator.py` | 1026 | `UpaPastaOrchestrator` (workflow completo) + `UpaPastaSession` (context manager OBRIGATÓRIO de cleanup); `from_args` classmethod; `run_generate_nfo`, `run_makerar`, `run_makepar`, `run_upload`, `_cleanup_on_error`, `_revert_obfuscation`; helpers `normalize_extensionless` / `revert_extensionless` |
+| `nntp_test.py` | 93 | `--test-connection`: handshake CONNECT/LOGIN/QUIT via `nntplib` (gracefully degraded em Python 3.14+) |
+| `resources.py` | 118 | `calculate_optimal_resources` (threads + memória escalonadas por tamanho da fonte e CPUs); leitura de `/proc/meminfo` |
+| `watch.py` | 141 | Modo daemon `--watch` (polling + janela de estabilidade) |
+| `ui.py` | 255 | `PhaseBar` (5 fases NFO→RAR→PAR2→UPLOAD→DONE), `_TeeStream` (logging dual stdout+arquivo, strip ANSI), `setup_logging` / `setup_session_log` / `teardown_session_log` |
+| `catalog.py` | 269 | **JSONL** local (`~/.config/upapasta/history.jsonl`) + arquivamento de NZB via hardlink em `~/.config/upapasta/nzb/`; detecção de categoria (Anime/TV/Movie/Generic); `run_post_upload_hook` (timeout 60s, env vars `UPAPASTA_*`) |
+| `main.py` | 303 | Entry point (~150 linhas reais). Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection` ou para o orquestrador via `from_args`; modos `--each`/`--season`/`--watch` |
+| `nfo.py` | 341 | mediainfo (single file) + tree/stats/ffprobe (folder). Detecção de pasta de série via regex `S\d{2}` |
+| `config.py` | 287 | `PROFILES` PAR2 (fast/balanced/safe), `REQUIRED_CRED_KEYS`, `DEFAULT_GROUP_POOL` (10 grupos), `prompt_for_credentials`, `load_env_file`, `render_template`, `resolve_env_file(profile)` |
+| `makerar.py` | 237 | RAR5 com progresso ao vivo; volumes dinâmicos (≤10 GB → único; senão ≥1 GB por volume, máx 100 partes, redondo a 5 MB); flags `-m0 -ma5 -hp$PASSWORD`; aceita arquivo único e pasta |
+| `nzb.py` | 491 | `resolve_nzb_template`, `resolve_nzb_basename`, `resolve_nzb_out`, `handle_nzb_conflict` (rename/overwrite/fail), `inject_nzb_password` (`<meta type="password">`), `fix_nzb_subjects` (deofuscação + path), `fix_season_nzb_subjects`, `merge_nzbs`, `collect_season_nzbs` |
+| `cli.py` | 476 | `argparse` com 3 grupos (essenciais/ajuste/avançadas), `_USAGE_SHORT`, `_DESCRIPTION`, `_EPILOG`, `check_dependencies`, `_validate_flags` |
+| `upfolder.py` | 664 | `upload_to_usenet`: nyuu **sem cópia para /tmp** (paths relativos preservam subpastas); pool de grupos via `random.choice`; uploader anônimo aleatório; retry automático; verificação XML do NZB; injeção de senha pós-upload |
+| `makepar.py` | 856 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `make_parity` aceita `filepath_format` e `parpar_extra_args`; `obfuscate_and_par` refatorado em subfunções (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure); `handle_par_failure` (retry conservador automático) |
+| `_pipeline.py` | 633 | Classes auxiliares do orchestrator: `DependencyChecker` (valida entrada/disco), `PathResolver` (NZB/NFO/PAR2 paths), `PipelineReporter` (banner/stats/sumário/catálogo); funções standalone: `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources` |
+| `orchestrator.py` | 602 | `UpaPastaOrchestrator` (workflow completo, delegando às classes de `_pipeline.py`) + `UpaPastaSession` (context manager de cleanup); `from_args` classmethod |
 
 ---
 
@@ -219,7 +218,7 @@ upapasta/
 ├── upapasta/                    # Pacote Python (16 módulos)
 ├── tests/                       # Suíte pytest (~146 testes em 22 arquivos)
 ├── scripts/                     # Utilitários standalone (NÃO integrados ao pacote)
-│   ├── check_header.py          # ⚠️ usa python-dotenv (não declarado em pyproject)
+│   ├── check_header.py          # stdlib-only (sem dependências)
 │   ├── post_upload_nzbfelipe.sh # ignorado via .gitignore
 │   └── usenet_backup3-skip-rar.py  # script legado de 15 KB
 ├── examples/

@@ -205,9 +205,9 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 - ≥ 75% global
 - Priority gaps: `--season` end-to-end (L1), `handle_par_failure` retry (L7), corrupted JSONL catalog (L9), `_validate_flags` matrix (L12)
 
-### 3.14 · Complete documentation (man page, FAQ, troubleshooting) `High · Medium effort` ← depends on 3.x
-- `man upapasta`, `docs/FAQ.md`, `docs/TROUBLESHOOTING.md`
-
+### ~~3.14 · Complete documentation (man page, FAQ, troubleshooting)~~ ✅ Completed
+- `man upapasta`, `docs/FAQ.md`, `docs/TROUBLESHOOTING.md` in English and Portuguese.
+- All recent features (resume, stats, multiple inputs, webhooks) documented.
 ### ~~3.15 · PyPI publication with automated workflow~~ ✅ Completed
 - `.github/workflows/publish.yml`: on release published → build → pypa/gh-action-pypi-publish via OIDC
 - Package already exists on PyPI (v0.24.3); classifiers + urls added to `pyproject.toml`
@@ -284,9 +284,10 @@ Order by impact (most visible strings first):
 - [x] Coverage ≥ 90% in core modules (F3.13) ✅
 - [x] Functional `--resume` (F2.10) ✅
 - [x] Multiple NNTP servers (F2.9) ✅
-- [ ] Complete and updated documentation (F3.14) ← **only remaining blocker**
+- [x] Complete and updated documentation (F3.14) ✅
 - [x] PyPI published (F3.15) ✅
 - [x] Zero external Python dependencies ✅
+- [x] Internationalization (i18n) complete (I1-I5) ✅
 
 ---
 
