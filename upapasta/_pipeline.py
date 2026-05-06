@@ -98,7 +98,7 @@ class DependencyChecker:
         if unreadable:
             print(_("Erro: {count} arquivo(s) sem permissão de leitura:").format(count=len(unreadable)))
             for p in unreadable[:5]:
-                print(f"  {p}")
+                print(_("  {p}").format(p=p))
             if len(unreadable) > 5:
                 print(_("  ... e mais {count}").format(count=len(unreadable) - 5))
             return False

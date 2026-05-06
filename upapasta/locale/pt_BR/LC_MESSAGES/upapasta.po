@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: upapasta 0.26.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 11:04-0300\n"
+"POT-Creation-Date: 2026-05-06 12:00-0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: \n"
 "Language: pt_BR\n"
@@ -529,6 +529,170 @@ msgstr ""
 "✅ Fluxo moderno: --obfuscate (sem RAR).\n"
 "   Nomes externos ofuscados; estrutura preservada via parpar."
 
+#: upapasta/makepar.py:246
+#, fuzzy, python-brace-format
+msgid "  Removendo hardlinks temporários de ofuscação..."
+msgstr "🧹 Removendo links temporários de ofuscação: {name}"
+
+#: upapasta/makepar.py:257
+msgid "  ✓ Hardlinks removidos."
+msgstr ""
+
+#: upapasta/makepar.py:259
+#, fuzzy, python-brace-format
+msgid "  ✗ Falha ao remover hardlinks: {error}"
+msgstr "⚠️  Falha ao remover links de ofuscação: {error}"
+
+#: upapasta/makepar.py:262
+msgid "  Revertendo ofuscação para restaurar nomes originais..."
+msgstr ""
+
+#: upapasta/makepar.py:266
+#, fuzzy, python-brace-format
+msgid "  ✓ Pasta restaurada: {name}"
+msgstr "↩️  Nome original restaurado: {name}"
+
+#: upapasta/makepar.py:268
+#, fuzzy, python-brace-format
+msgid "  ✗ Falha ao reverter pasta '{obfuscated}' → '{input}': {error}"
+msgstr "⚠️  Falha ao remover links de ofuscação: {error}"
+
+#: upapasta/makepar.py:269 upapasta/makepar.py:293
+#, fuzzy, python-brace-format
+msgid "    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'"
+msgstr "    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'"
+
+#: upapasta/makepar.py:282
+#, fuzzy, python-brace-format
+msgid "  ✗ Falha ao reverter '{vol}' → '{original}': {error}"
+msgstr "⚠️  Falha ao remover original '{name}': {error}"
+
+#: upapasta/makepar.py:283
+msgid "    AÇÃO MANUAL: renomeie o arquivo manualmente."
+msgstr ""
+
+#: upapasta/makepar.py:285
+#, python-brace-format
+msgid "  ✓ {count} volume(s) RAR restaurado(s): {base}.part*.rar"
+msgstr ""
+
+#: upapasta/makepar.py:290
+#, fuzzy, python-brace-format
+msgid "  ✓ Arquivo restaurado: {name}"
+msgstr "↩️  Nome original restaurado: {name}"
+
+#: upapasta/makepar.py:292
+#, fuzzy, python-brace-format
+msgid "  ✗ Falha ao reverter '{obfuscated}' → '{input}': {error}"
+msgstr "⚠️  Falha ao remover original '{name}': {error}"
+
+#: upapasta/makepar.py:301
+#, python-brace-format
+msgid "Ofuscando pasta (hardlink): {base} → {random}"
+msgstr ""
+
+#: upapasta/makepar.py:306
+msgid ""
+"  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode"
+" quebrar)."
+msgstr ""
+
+#: upapasta/makepar.py:318
+#, python-brace-format
+msgid "Ofuscando volumes RAR (hardlink): {orig}.part*.rar → {random}.part*.rar"
+msgstr ""
+
+#: upapasta/makepar.py:325 upapasta/makepar.py:351
+msgid "  ⚠️ Hardlink falhou. Usando rename."
+msgstr ""
+
+#: upapasta/makepar.py:346
+#, python-brace-format
+msgid "Ofuscando (hardlink): {base} → {obfuscated}"
+msgstr ""
+
+#: upapasta/makerar.py:103
+#, fuzzy, python-brace-format
+msgid "Erro: '{path}' não existe ou não é um arquivo/diretório."
+msgstr "Erro: '{input_path}' não é um arquivo nem um diretório."
+
+#: upapasta/makerar.py:119
+#, python-brace-format
+msgid ""
+"Erro: '{rar}' ou volumes parciais já existem. Use --force para "
+"sobrescrever."
+msgstr ""
+
+#: upapasta/makerar.py:136
+msgid ""
+"Erro: utilitário 'rar' não encontrado. Instale-o (ex: sudo apt install "
+"rar)"
+msgstr ""
+
+#: upapasta/makerar.py:157
+#, python-brace-format
+msgid ""
+"Criando '{rar}' em volumes de {size} MB (~{count} partes, {total} MB "
+"total)..."
+msgstr ""
+
+#: upapasta/makerar.py:161
+#, python-brace-format
+msgid "Criando '{rar}' a partir de '{input}' (usando {threads} threads)..."
+msgstr ""
+
+#: upapasta/makerar.py:171
+#, python-brace-format
+msgid "Criando '{rar}' a partir de '{target}' (usando {threads} threads)..."
+msgstr ""
+
+#: upapasta/makerar.py:205
+#, fuzzy, python-brace-format
+msgid "Arquivo .rar criado com sucesso."
+msgstr ""
+"\n"
+"✅ {count} arquivo(s) removido(s) com sucesso"
+
+#: upapasta/makerar.py:212
+msgid "Aviso: volumes RAR não encontrados, usando arquivo único."
+msgstr ""
+
+#: upapasta/makerar.py:215
+#, fuzzy, python-brace-format
+msgid "Erro: 'rar' retornou código {rc}."
+msgstr ""
+"\n"
+"❌ Erro ao gerar paridade (código {rc})."
+
+#: upapasta/makerar.py:221
+#, fuzzy
+msgid "Erro: binário 'rar' não encontrado no PATH."
+msgstr "binário 'rar' não encontrado no PATH"
+
+#: upapasta/makerar.py:224
+#, fuzzy, python-brace-format
+msgid "Erro de permissão ao executar 'rar': {error}"
+msgstr "  ✗ Erro ao remover {path}: {error}"
+
+#: upapasta/makerar.py:227
+#, fuzzy, python-brace-format
+msgid "Erro de I/O ao executar 'rar': {error}"
+msgstr "  ✗ Erro ao remover {path}: {error}"
+
+#: upapasta/makerar.py:232
+msgid "Cria um .rar de uma pasta com o mesmo nome"
+msgstr ""
+
+#: upapasta/makerar.py:233
+#, fuzzy
+msgid "Caminho para a pasta a ser compactada"
+msgstr "Caminho para o arquivo .rar a fazer upload"
+
+#: upapasta/makerar.py:234
+#, fuzzy
+msgid "Sobrescrever .rar existente"
+msgstr "Sobrescreve RAR/PAR2 existentes"
+
 #: upapasta/orchestrator.py:50
 msgid ""
 "\n"
@@ -641,6 +805,11 @@ msgstr "🛡️  ETAPA 2: Gerar arquivo de paridade PAR2"
 msgid "🔐 Ofuscando arquivos e gerando paridade..."
 msgstr "🔐 Ofuscando arquivos e gerando paridade..."
 
+#: upapasta/orchestrator.py:305 upapasta/orchestrator.py:354
+#: upapasta/orchestrator.py:384 upapasta/orchestrator.py:410
+msgid "input_target não foi configurado"
+msgstr "input_target não foi configurado"
+
 #: upapasta/orchestrator.py:322 upapasta/orchestrator.py:377
 msgid "binário de paridade não encontrado"
 msgstr "binário de paridade não encontrado"
@@ -659,10 +828,18 @@ msgstr ""
 "\n"
 "❌ Erro ao ofuscar/gerar paridade (código {rc})."
 
+#: upapasta/orchestrator.py:331
+msgid "obfuscated_path não definido"
+msgstr "obfuscated_path não definido"
+
 #: upapasta/orchestrator.py:342
 #, python-brace-format
 msgid "✨ Subject ofuscado: {subject}"
 msgstr "✨ Subject ofuscado: {subject}"
+
+#: upapasta/orchestrator.py:344
+msgid "input_target não foi configurado após ofuscação"
+msgstr "input_target não foi configurado após ofuscação"
 
 #: upapasta/orchestrator.py:348
 msgid "❌ Erro: Arquivo de paridade não encontrado após ofuscação."
@@ -706,6 +883,10 @@ msgstr ""
 msgid "↩️  Restauradas {count} extensões originais"
 msgstr "↩️  Restauradas {count} extensões originais"
 
+#: upapasta/orchestrator.py:501
+msgid "N/A"
+msgstr "N/D"
+
 #: upapasta/orchestrator.py:515
 msgid "Atenção: falha ao gerar .nfo, mas continuando..."
 msgstr "Atenção: falha ao gerar .nfo, mas continuando..."
@@ -737,6 +918,11 @@ msgstr "Erro: '{input_path}' não é um arquivo nem um diretório."
 #, python-brace-format
 msgid "Erro: {count} arquivo(s) sem permissão de leitura:"
 msgstr "Erro: {count} arquivo(s) sem permissão de leitura:"
+
+#: upapasta/_pipeline.py:101
+#, python-brace-format
+msgid "  {p}"
+msgstr "  {p}"
 
 #: upapasta/_pipeline.py:103
 #, python-brace-format

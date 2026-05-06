@@ -302,7 +302,7 @@ class UpaPastaOrchestrator:
     def _run_makepar_obfuscated(self, resolver: PathResolver) -> bool:
         print(_("🔐 Ofuscando arquivos e gerando paridade..."))
         print("-" * 60)
-        assert self.input_target is not None, "input_target não foi configurado"
+        assert self.input_target is not None, _("input_target não foi configurado")
         try:
             rc, obfuscated_path, obf_map, was_linked = obfuscate_and_par(
                 self.input_target,
@@ -328,7 +328,7 @@ class UpaPastaOrchestrator:
             print(_("\n❌ Erro ao ofuscar/gerar paridade (código {rc}).").format(rc=rc))
             return False
 
-        assert obfuscated_path is not None, "obfuscated_path não definido"
+        assert obfuscated_path is not None, _("obfuscated_path não definido")
         self.obfuscated_map = obf_map
         self.obfuscate_was_linked = was_linked
         self.input_target = obfuscated_path
@@ -341,7 +341,7 @@ class UpaPastaOrchestrator:
         self.subject = obf_base_no_ext
         print(_("✨ Subject ofuscado: {subject}").format(subject=self.subject))
 
-        assert self.input_target is not None, "input_target não foi configurado após ofuscação"
+        assert self.input_target is not None, _("input_target não foi configurado após ofuscação")
         self.par_file = resolver.par_file_path(self.input_target)
         if os.path.exists(self.par_file):
             return True
@@ -351,7 +351,7 @@ class UpaPastaOrchestrator:
     def _run_makepar_plain(self, resolver: PathResolver) -> bool:
         print(_("🔐 Gerando paridade (perfil: {profile})...").format(profile=self.par_profile))
         print("-" * 60)
-        assert self.input_target is not None, "input_target não foi configurado"
+        assert self.input_target is not None, _("input_target não foi configurado")
         self.par_file = (
             os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
             if os.path.isdir(self.input_target)
@@ -381,7 +381,7 @@ class UpaPastaOrchestrator:
         if rc != 0:
             print("-" * 60)
             print(_("\n❌ Erro ao gerar paridade (código {rc}).").format(rc=rc))
-            assert self.input_target is not None, "input_target não foi configurado"
+            assert self.input_target is not None, _("input_target não foi configurado")
             return handle_par_failure(
                 input_target=self.input_target,
                 original_rc=rc,
@@ -407,7 +407,7 @@ class UpaPastaOrchestrator:
         print("=" * 60)
 
         try:
-            assert self.input_target is not None, "input_target não foi configurado"
+            assert self.input_target is not None, _("input_target não foi configurado")
             if self.nzb_conflict:
                 self.env_vars['NZB_CONFLICT'] = self.nzb_conflict
             rc = upload_to_usenet(
@@ -498,7 +498,7 @@ class UpaPastaOrchestrator:
         nntp_connections = int(self.env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "10"))
         total_bytes = get_total_size(str(self.input_path))
         eta_s = int(total_bytes / (nntp_connections * 500 * 1024))
-        eta_str = format_time(eta_s) if eta_s > 0 else "N/A"
+        eta_str = format_time(eta_s) if eta_s > 0 else _("N/A")
 
         PipelineReporter.print_header(
             self.input_path, res, self.subject, self.par_profile, self.post_size,
