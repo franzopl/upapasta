@@ -32,6 +32,7 @@ import threading
 from queue import Queue
 from typing import Optional, Tuple
 
+from .i18n import _
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
 
@@ -99,7 +100,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
     is_dir = os.path.isdir(input_path)
 
     if not is_file and not is_dir:
-        print(f"Erro: '{input_path}' não existe ou não é um arquivo/diretório.")
+        print(_("Erro: '{path}' não existe ou não é um arquivo/diretório.").format(path=input_path))
         return 2, None
 
     parent = os.path.dirname(input_path)
@@ -115,7 +116,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
     out_rar = os.path.join(parent, base + ".rar")
     existing_parts = glob.glob(os.path.join(parent, glob.escape(base) + ".part*.rar"))
     if (os.path.exists(out_rar) or existing_parts) and not force:
-        print(f"Erro: '{out_rar}' ou volumes parciais já existem. Use --force para sobrescrever.")
+        print(_("Erro: '{rar}' ou volumes parciais já existem. Use --force para sobrescrever.").format(rar=out_rar))
         return 3, None
     if force:
         if os.path.exists(out_rar):
@@ -132,7 +133,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
     rar_exec = find_rar()
     if not rar_exec:
         print(
-            "Erro: utilitário 'rar' não encontrado. Instale-o (ex: sudo apt install rar)"
+            _("Erro: utilitário 'rar' não encontrado. Instale-o (ex: sudo apt install rar)")
         )
         return 4, None
 
@@ -153,11 +154,11 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
             cmd.append(f"-v{vol_bytes}b")
             num_vols = max(1, -(-total_bytes // vol_bytes))  # ceil division
             print(
-                f"Criando '{out_rar}' em volumes de {vol_bytes // (1024*1024)} MB"
-                f" (~{num_vols} partes, {total_bytes // (1024*1024)} MB total)..."
+                _("Criando '{rar}' em volumes de {size} MB (~{count} partes, {total} MB total)...")
+                .format(rar=out_rar, size=vol_bytes // (1024*1024), count=num_vols, total=total_bytes // (1024*1024))
             )
         else:
-            print(f"Criando '{out_rar}' a partir de '{input_path}' (usando {num_threads} threads)...")
+            print(_("Criando '{rar}' a partir de '{input}' (usando {threads} threads)...").format(rar=out_rar, input=input_path, threads=num_threads))
     else:
         # Arquivo único: sem volume splitting, sem flag -r
         total_bytes = os.path.getsize(input_path)
@@ -167,7 +168,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
             cmd.append(f"-hp{password}")
         if force:
             cmd.append("-o+")
-        print(f"Criando '{out_rar}' a partir de '{archive_target}' (usando {num_threads} threads)...")
+        print(_("Criando '{rar}' a partir de '{target}' (usando {threads} threads)...").format(rar=out_rar, target=archive_target, threads=num_threads))
 
     cmd += [out_rar, archive_target]
 
@@ -201,36 +202,36 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
             rc = proc.wait()
 
         if rc == 0:
-            print("Arquivo .rar criado com sucesso.")
+            print(_("Arquivo .rar criado com sucesso."))
             if vol_bytes is None:
                 return 0, out_rar
             matches = glob.glob(os.path.join(parent, glob.escape(base) + ".part*.rar"))
             if matches:
                 return 0, sorted(matches)[0]
             # Volumes esperados mas não encontrados — rar gerou arquivo único
-            print("Aviso: volumes RAR não encontrados, usando arquivo único.")
+            print(_("Aviso: volumes RAR não encontrados, usando arquivo único."))
             return 0, out_rar
         else:
-            print(f"Erro: 'rar' retornou código {rc}.")
+            print(_("Erro: 'rar' retornou código {rc}.").format(rc=rc))
             return 5, None
     except KeyboardInterrupt:
-        # managed_popen já terminou o filho; propaga para o orquestrador
+        # managed_popen ya terminó al hijo; se propaga al orquestador
         raise
     except FileNotFoundError:
-        print("Erro: binário 'rar' não encontrado no PATH.")
+        print(_("Erro: binário 'rar' não encontrado no PATH."))
         return 4, None
     except PermissionError as e:
-        print(f"Erro de permissão ao executar 'rar': {e}")
+        print(_("Erro de permissão ao executar 'rar': {error}").format(error=e))
         return 5, None
     except OSError as e:
-        print(f"Erro de I/O ao executar 'rar': {e}")
+        print(_("Erro de I/O ao executar 'rar': {error}").format(error=e))
         return 5, None
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Cria um .rar de uma pasta com o mesmo nome")
-    p.add_argument("folder", help="Caminho para a pasta a ser compactada")
-    p.add_argument("-f", "--force", action="store_true", help="Sobrescrever .rar existente")
+    p = argparse.ArgumentParser(description=_("Cria um .rar de uma pasta com o mesmo nome"))
+    p.add_argument("folder", help=_("Caminho para a pasta a ser compactada"))
+    p.add_argument("-f", "--force", action="store_true", help=_("Sobrescrever .rar existente"))
     return p.parse_args()
 
 

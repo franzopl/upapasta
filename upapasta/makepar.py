@@ -44,6 +44,7 @@ import threading
 from queue import Queue
 from typing import Optional, Tuple
 
+from .i18n import _
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
 from .profiles import DEFAULT_PROFILE, PROFILES
@@ -242,7 +243,7 @@ def _revert_obfuscation(
     exceção Python, ou KeyboardInterrupt.
     """
     if was_linked:
-        print("  Removendo hardlinks temporários de ofuscação...")
+        print(_("  Removendo hardlinks temporários de ofuscação..."))
         try:
             if is_folder:
                 shutil.rmtree(obfuscated_path)
@@ -253,19 +254,19 @@ def _revert_obfuscation(
                     os.remove(v)
             else:
                 os.remove(obfuscated_path)
-            print("  ✓ Hardlinks removidos.")
+            print(_("  ✓ Hardlinks removidos."))
         except OSError as e:
-            print(f"  ✗ Falha ao remover hardlinks: {e}")
+            print(_("  ✗ Falha ao remover hardlinks: {error}").format(error=e))
         return
 
-    print("  Revertendo ofuscação para restaurar nomes originais...")
+    print(_("  Revertendo ofuscação para restaurar nomes originais..."))
     if is_folder:
         try:
             os.rename(obfuscated_path, input_path)
-            print(f"  ✓ Pasta restaurada: {os.path.basename(input_path)}")
+            print(_("  ✓ Pasta restaurada: {name}").format(name=os.path.basename(input_path)))
         except OSError as e:
-            print(f"  ✗ Falha ao reverter pasta '{obfuscated_path}' → '{input_path}': {e}")
-            print(f"    AÇÃO MANUAL: renomeie '{obfuscated_path}' de volta para '{input_path}'")
+            print(_("  ✗ Falha ao reverter pasta '{obfuscated}' → '{input}': {error}").format(obfuscated=obfuscated_path, input=input_path, error=e))
+            print(_("    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'").format(obfuscated=obfuscated_path, input=input_path))
 
     elif is_rar_vol_set and obfuscated_map:
         orig_base = list(obfuscated_map.values())[0]
@@ -278,18 +279,18 @@ def _revert_obfuscation(
                 os.rename(vol, original)
                 ok += 1
             except OSError as e:
-                print(f"  ✗ Falha ao reverter '{os.path.basename(vol)}' → '{orig_base + suffix}': {e}")
-                print("    AÇÃO MANUAL: renomeie o arquivo manualmente.")
+                print(_("  ✗ Falha ao reverter '{vol}' → '{original}': {error}").format(vol=os.path.basename(vol), original=orig_base + suffix, error=e))
+                print(_("    AÇÃO MANUAL: renomeie o arquivo manualmente."))
         if ok:
-            print(f"  ✓ {ok} volume(s) RAR restaurado(s): {orig_base}.part*.rar")
+            print(_("  ✓ {count} volume(s) RAR restaurado(s): {base}.part*.rar").format(count=ok, base=orig_base))
 
     else:
         try:
             os.rename(obfuscated_path, input_path)
-            print(f"  ✓ Arquivo restaurado: {os.path.basename(input_path)}")
+            print(_("  ✓ Arquivo restaurado: {name}").format(name=os.path.basename(input_path)))
         except OSError as e:
-            print(f"  ✗ Falha ao reverter '{obfuscated_path}' → '{input_path}': {e}")
-            print(f"    AÇÃO MANUAL: renomeie '{os.path.basename(obfuscated_path)}' de volta para '{os.path.basename(input_path)}'")
+            print(_("  ✗ Falha ao reverter '{obfuscated}' → '{input}': {error}").format(obfuscated=obfuscated_path, input=input_path, error=e))
+            print(_("    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'").format(obfuscated=os.path.basename(obfuscated_path), input=os.path.basename(input_path)))
 
 
 def _obfuscate_folder(
@@ -297,12 +298,12 @@ def _obfuscate_folder(
 ) -> Tuple[str, dict[str, str], bool, str]:
     """Cria visão ofuscada de uma pasta via hardlinks (ou rename fallback)."""
     obfuscated_path = os.path.join(parent_dir, random_base)
-    print(f"Ofuscando pasta (hardlink): {base} → {random_base}")
+    print(_("Ofuscando pasta (hardlink): {base} → {random}").format(base=base, random=random_base))
     try:
         link_tree(input_path, obfuscated_path)
         was_linked = True
     except OSError:
-        print("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar).")
+        print(_("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar)."))
         os.rename(input_path, obfuscated_path)
         was_linked = False
     return obfuscated_path, {random_base: base}, was_linked, obfuscated_path
@@ -314,14 +315,14 @@ def _obfuscate_rar_vol_set(
     """Cria visão ofuscada de um conjunto de volumes RAR."""
     original_base = name_no_ext.rsplit(".part", 1)[0]
     volumes = sorted(glob.glob(os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar"))) or [input_path]
-    print(f"Ofuscando volumes RAR (hardlink): {original_base}.part*.rar → {random_base}.part*.rar")
+    print(_("Ofuscando volumes RAR (hardlink): {orig}.part*.rar → {random}.part*.rar").format(orig=original_base, random=random_base))
     try:
         for vol in volumes:
             suffix = os.path.basename(vol)[len(original_base):]
             os.link(vol, os.path.join(parent_dir, random_base + suffix))
         was_linked = True
     except OSError:
-        print("  ⚠️ Hardlink falhou. Usando rename.")
+        print(_("  ⚠️ Hardlink falhou. Usando rename."))
         for v in glob.glob(os.path.join(parent_dir, random_base + ".part*.rar")):
             try:
                 os.remove(v)
@@ -342,12 +343,12 @@ def _obfuscate_single_file(
     """Cria visão ofuscada de um arquivo único."""
     name_no_ext, ext = os.path.splitext(base)
     obfuscated_path = os.path.join(parent_dir, random_base + ext)
-    print(f"Ofuscando (hardlink): {base} → {os.path.basename(obfuscated_path)}")
+    print(_("Ofuscando (hardlink): {base} → {obfuscated}").format(base=base, obfuscated=os.path.basename(obfuscated_path)))
     try:
         os.link(input_path, obfuscated_path)
         was_linked = True
     except OSError:
-        print("  ⚠️ Hardlink falhou. Usando rename.")
+        print(_("  ⚠️ Hardlink falhou. Usando rename."))
         os.rename(input_path, obfuscated_path)
         was_linked = False
     return obfuscated_path, {random_base: name_no_ext}, was_linked, obfuscated_path

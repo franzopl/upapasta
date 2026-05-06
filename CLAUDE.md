@@ -95,7 +95,7 @@ Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas v
 
 ---
 
-## 5. Estado da Versão (0.18.0 — 2026-05-04)
+## 5. Estado da Versão (0.25.0 — 2026-05-06)
 
 ### Histórico recente (últimas releases relevantes)
 
