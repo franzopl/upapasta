@@ -262,7 +262,7 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
     print(_("  NZB out   : {nzb}").format(nzb=nzb_out))
     print()
 
-    save_env_file(env_file, values)
+    _write_full_env(env_file, values)
     print(_("✅ Configuration saved to '{path}'.").format(path=env_file))
     print(_("   Edit this file at any time to adjust settings."))
     print()

@@ -1,7 +1,6 @@
 """Tests for upapasta.i18n — locale detection and gettext fallback."""
 from __future__ import annotations
 
-import locale
 from unittest.mock import patch
 
 import pytest
@@ -33,6 +32,7 @@ class TestDetectLang:
 class TestFallbackToNullTranslations:
     def test_missing_mo_returns_null_translations(self) -> None:
         import gettext
+
         from upapasta.i18n import _load_translation
 
         t = _load_translation("zz_ZZ")  # non-existent locale

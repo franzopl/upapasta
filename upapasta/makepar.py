@@ -44,9 +44,9 @@ import threading
 from queue import Queue
 from typing import Optional, Tuple
 
-from .i18n import _
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
+from .i18n import _
 from .profiles import DEFAULT_PROFILE, PROFILES
 
 # ── Helpers de tamanho ────────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ def get_parpar_memory_limit() -> Optional[str]:
 def generate_random_name(length: int = 12) -> str:
     """Gera um nome de arquivo aleatório com letras e dígitos."""
     chars = string.ascii_lowercase + string.digits
-    return "".join(random.choice(chars) for _ in range(length))
+    return "".join(random.choice(chars) for _i in range(length))
 
 
 
@@ -637,7 +637,7 @@ def make_parity(
     # ── Coleta de arquivos de entrada ─────────────────────────────────────────
     if is_folder:
         files_to_process = []
-        for root, _, files in os.walk(rar_path):
+        for root, _d, files in os.walk(rar_path):
             for f in files:
                 files_to_process.append(os.path.join(root, f))
         if not files_to_process:

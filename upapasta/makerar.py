@@ -32,9 +32,9 @@ import threading
 from queue import Queue
 from typing import Optional, Tuple
 
-from .i18n import _
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
+from .i18n import _
 
 
 def find_rar() -> str | None:
@@ -54,7 +54,7 @@ _MAX_VOLUMES = 100
 def _folder_size(path: str) -> int:
     """Retorna o tamanho total em bytes de todos os arquivos sob path."""
     total = 0
-    for dirpath, _, filenames in os.walk(path):
+    for dirpath, _d, filenames in os.walk(path):
         for fname in filenames:
             try:
                 total += os.path.getsize(os.path.join(dirpath, fname))

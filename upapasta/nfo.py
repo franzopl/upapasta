@@ -179,7 +179,7 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
     mediainfo_path = find_mediainfo()
     if not mediainfo_path:
         print(_("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo."))
-        return None
+        return False
 
     try:
         proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
@@ -212,7 +212,7 @@ def _is_series_folder(folder_name: str) -> bool:
 def _find_first_episode(folder_path: str) -> str | None:
     video_exts = {".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".ts", ".webm"}
     candidates = []
-    for root, _, files in os.walk(folder_path):
+    for root, _d, files in os.walk(folder_path):
         for f in files:
             if os.path.splitext(f)[1].lower() in video_exts:
                 candidates.append(os.path.join(root, f))

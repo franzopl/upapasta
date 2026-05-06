@@ -24,8 +24,8 @@ from ._pipeline import (
     revert_extensionless,
     revert_obfuscation,
 )
-from .i18n import _
 from .config import check_or_prompt_credentials
+from .i18n import _
 from .makepar import handle_par_failure, make_parity, obfuscate_and_par
 from .makerar import make_rar
 from .resources import get_total_size

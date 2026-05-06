@@ -1,17 +1,17 @@
 import os
-import sys
 import re
-import time
 import shutil
 import subprocess
-import requests
 import threading
+import time
+
+import requests
 from dotenv import load_dotenv
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from qbittorrentapi import Client
 from requests_toolbelt import MultipartEncoder, MultipartEncoderMonitor
 from tqdm import tqdm
-from qbittorrentapi import Client
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -175,7 +175,7 @@ def capylabs_upload_arquivo(torrent_id: int, file_path: str) -> bool:
                 files = {"file": (nome, reader, "application/octet-stream")}
                 r = requests.post(url, files=files, headers=headers, timeout=120)
         if r.status_code == 200:
-            print(f"  ✅ Upload CapyLabs OK!")
+            print("  ✅ Upload CapyLabs OK!")
             return True
         print(f"  ❌ Falha {r.status_code}: {r.text}")
     except: print("  ❌ Erro na conexão com CapyLabs")
@@ -201,7 +201,7 @@ def process_folder(folder, is_retry=False):
     dest_nfo = os.path.join(NZB_DIR, nfo_name)
 
     if not is_retry or not os.path.exists(dest_nzb):
-        print(f"[*] Rodando upapasta...")
+        print("[*] Rodando upapasta...")
         try:
             subprocess.run(["upapasta", folder_path, "--skip-rar"], check=True)
         except Exception as e:
@@ -253,7 +253,7 @@ def process_folder(folder, is_retry=False):
         if not ok_nzb:
             with open(error_file, "w") as f:
                 f.write("Erro ao fazer upload do NZB para o CapyLabs.")
-            print(f"  ❌ Erro de upload no CapyLabs. Erro salvo. Retentando depois.")
+            print("  ❌ Erro de upload no CapyLabs. Erro salvo. Retentando depois.")
             return
 
         print("\n  " + "─" * 30)
@@ -322,8 +322,8 @@ def send_telegram_with_progress(file_path, link_torrent, metadata=None):
                 "document": (file_name, f_obj, "application/octet-stream")
             })
             monitor = MultipartEncoderMonitor(encoder, callback)
-            r = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument", 
-                              data=monitor, 
+            r = requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument",
+                              data=monitor,
                               headers={'Content-Type': monitor.content_type},
                               timeout=120)
             progresso.close()

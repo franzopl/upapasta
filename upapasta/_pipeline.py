@@ -579,7 +579,7 @@ def print_skip_rar_hints(input_path: Path, filepath_format: str, backend: str) -
             ))
             empty_dirs = [
                 os.path.relpath(dp, input_path)
-                for dp, _, files in os.walk(input_path)
+                for dp, _d, files in os.walk(input_path)
                 if not files and dp != str(input_path)
                 and not any(os.scandir(dp))
             ]

@@ -38,10 +38,10 @@ import time
 import xml.etree.ElementTree as ET
 from typing import Optional
 
-from .i18n import _
 from upapasta import nfo
 
 from ._process import managed_popen
+from .i18n import _
 from .nzb import (
     fix_nzb_subjects,
     handle_nzb_conflict,
@@ -304,7 +304,7 @@ def upload_to_usenet(
 
         # Caminhos relativos de todos os arquivos dentro da pasta
         files_to_upload: list[str] = []
-        for root, _, files in os.walk(input_path):
+        for root, _d, files in os.walk(input_path):
             for file in sorted(files):
                 abs_file = os.path.join(root, file)
                 rel_path = os.path.relpath(abs_file, input_path)

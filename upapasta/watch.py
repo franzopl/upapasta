@@ -78,7 +78,7 @@ def _watch_loop(args: argparse.Namespace, folder: Path, interval: int, stable_se
                 spinner_idx += 1
 
             # Divide o intervalo em pequenos passos para o spinner ser fluido
-            for _ in range(max(1, interval * 2)):
+            for _i in range(max(1, interval * 2)):
                 if list(folder.iterdir()) != list(current): # Pequena otimização: checa se algo mudou antes do sleep total
                     break
                 time.sleep(0.5)

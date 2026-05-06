@@ -13,8 +13,8 @@ import os
 import re
 import xml.etree.ElementTree as ET
 
-from .i18n import _
 from .config import render_template
+from .i18n import _
 
 
 def resolve_nzb_template(env_vars: dict[str, str], is_folder: bool, skip_rar: bool) -> str:
