@@ -153,8 +153,8 @@
 
 **Meta: features diferenciadoras; ferramenta autoexplicativa; suporte cross-platform.**
 
-### 3.1 · Múltiplas entradas posicionais: `upapasta a b c` `Média · Médio esforço` ← depende de 2.6
-- Processar em sequência ou `--jobs N` em paralelo
+### ~~3.1 · Múltiplas entradas posicionais: `upapasta a b c`~~ ✅ Concluído (commit 2b1be9a)
+- Múltiplos inputs posicionais processados em sequência ou `--jobs N` em paralelo
 
 ### 3.2 · Compressor alternativo: `--compressor 7z` (novo `make7z.py`) `Média · Alto esforço` ← depende de 2.6
 - RAR continua default; 7z gera `.7z.001` etc. (livre, sem licença comercial)
@@ -206,9 +206,10 @@
 ### 3.14 · Documentação completa (man page, FAQ, troubleshooting) `Alta · Médio esforço` ← depende de 3.x
 - `man upapasta`, `docs/FAQ.md`, `docs/TROUBLESHOOTING.md`
 
-### 3.15 · Publicação no PyPI com workflow automatizado `Alta · Médio esforço` ← depende de 3.13
-- `gh release create` dispara `pypa/gh-action-pypi-publish`
-- Confirmar se já existe no PyPI ou se README.md precisa ser corrigido (README.md:103-104)
+### ~~3.15 · Publicação no PyPI com workflow automatizado~~ ✅ Concluído
+- `.github/workflows/publish.yml`: on release published → build → pypa/gh-action-pypi-publish via OIDC
+- Pacote já existe no PyPI (v0.24.3); classifiers + urls adicionados ao `pyproject.toml`
+- Para publicar: criar Trusted Publisher no PyPI (environment: `pypi`) e `gh release create vX.Y.Z`
 
 ### 3.16 · Migrar para Python 3.10+ no `requires-python` (pós-v1.0) `Baixa · Baixo esforço`
 - Permite `match/case`, `tomllib`
@@ -227,7 +228,7 @@
 - [ ] `--resume` funcional (F2.10)
 - [ ] Múltiplos servidores NNTP (F2.9)
 - [ ] Documentação completa e atualizada (F3.14)
-- [ ] PyPI publicado (F3.15)
+- [x] PyPI publicado (F3.15) ✅
 - [ ] Zero dependências Python externas (manter atual)
 
 ---
@@ -249,5 +250,5 @@
 6. ~~F3.11~~ ✅ `profiles.py` separado de `config.py`
 7. ~~F3.12~~ ✅ `mypy --strict` no CI (84 erros corrigidos, 20 arquivos)
 8. ~~F3.13~~ ✅ Cobertura ≥ 90% nos módulos core (207 testes; cli=100%, nfo=97%, nzb=94%, orchestrator=91%, makerar=91%, makepar=90%, catalog=90%, upfolder=90%; global=82%)
-9. **F3.1** — Múltiplas entradas posicionais (`upapasta a b c`)
-10. **F3.15** — Publicação no PyPI
+9. ~~F3.1~~ ✅ Múltiplas entradas posicionais (`upapasta a b c`)
+10. ~~F3.15~~ ✅ Publicação no PyPI (workflow automatizado)
