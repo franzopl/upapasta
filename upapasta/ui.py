@@ -16,6 +16,8 @@ import time
 from datetime import datetime
 from typing import Optional, cast
 
+from .i18n import _
+
 logger = logging.getLogger("upapasta")
 
 _ANSI_RE = re.compile(r'\x1b\[[0-9;]*[mABCDEFGHJKSTfhilmns]')
@@ -156,7 +158,8 @@ def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple[
     log_path = os.path.join(log_dir, f"{ts}_{safe_name}.log")
 
     log_fh = open(log_path, "w", encoding="utf-8", buffering=1)
-    log_fh.write(f"# UpaPasta — log de sessão\n# Início: {datetime.now().isoformat()}\n# Entrada: {input_name}\n\n")
+    log_fh.write(_("# UpaPasta — log de sessão\n# Início: {start}\n# Entrada: {name}\n\n").format(
+        start=datetime.now().isoformat(), name=input_name))
 
     # Instala o dispatcher global uma única vez (proteção com lock)
     with _dispatch_lock:
@@ -173,11 +176,11 @@ def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple[
 def teardown_session_log(log_fh: Optional[io.TextIOBase], log_path: str) -> None:
     """Desregistra esta thread do dispatcher e fecha o arquivo de log."""
     if log_fh:
-        log_fh.write(f"\n# Fim: {datetime.now().isoformat()}\n")
+        log_fh.write(_("\n# Fim: {end}\n").format(end=datetime.now().isoformat()))
         log_fh.close()
     # Remove log file desta thread; futuros prints vão apenas para o terminal
     _thread_local.log_fh = None
-    print(f"📄 Log salvo em: {log_path}")
+    print(_("📄 Log salvo em: {path}").format(path=log_path))
 
 
 def format_time(seconds: int) -> str:
@@ -228,15 +231,25 @@ class PhaseBar:
     def _fmt(self, phase: str) -> str:
         state = self._state[phase]
         icon = self._ICONS.get(state, "⬜")
+        display_phase = _(phase)
         if state == "done":
             t = int(self._elapsed.get(phase, 0))
-            return f"[{icon} {phase} {t // 60:02d}:{t % 60:02d}]"
+            return f"[{icon} {display_phase} {t // 60:02d}:{t % 60:02d}]"
         if state == "active":
-            return f"[{icon} {phase}...]"
+            return f"[{icon} {display_phase}...]"
         if state in ("skipped", "error"):
-            return f"[{icon} {phase}]"
-        return f"[{icon} {phase}]"
+            return f"[{icon} {display_phase}]"
+        return f"[{icon} {display_phase}]"
 
     def _render(self) -> None:
         bar = "  ".join(self._fmt(p) for p in self.PHASES)
         print(f"\n{bar}")
+
+
+# Mensagens para extração (i18n)
+def _extract_msgs() -> None:
+    _("NFO")
+    _("RAR")
+    _("PAR2")
+    _("UPLOAD")
+    _("DONE")

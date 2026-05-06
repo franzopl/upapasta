@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: upapasta 0.26.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 10:55-0300\n"
+"POT-Creation-Date: 2026-05-06 11:00-0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: \n"
 "Language: pt_BR\n"
@@ -1067,4 +1067,51 @@ msgstr " (conservador)"
 #: upapasta/_pipeline.py:631 upapasta/_pipeline.py:632
 msgid "manual"
 msgstr "manual"
+
+#: upapasta/ui.py:161
+#, python-brace-format
+msgid ""
+"# UpaPasta — log de sessão\n"
+"# Início: {start}\n"
+"# Entrada: {name}\n"
+"\n"
+msgstr ""
+"# UpaPasta — log de sessão\n"
+"# Início: {start}\n"
+"# Entrada: {name}\n"
+"\n"
+
+#: upapasta/ui.py:179
+#, python-brace-format
+msgid ""
+"\n"
+"# Fim: {end}\n"
+msgstr ""
+"\n"
+"# Fim: {end}\n"
+
+#: upapasta/ui.py:183
+#, python-brace-format
+msgid "📄 Log salvo em: {path}"
+msgstr "📄 Log salvo em: {path}"
+
+#: upapasta/ui.py:251
+msgid "NFO"
+msgstr "NFO"
+
+#: upapasta/ui.py:252
+msgid "RAR"
+msgstr "RAR"
+
+#: upapasta/ui.py:253
+msgid "PAR2"
+msgstr "PAR2"
+
+#: upapasta/ui.py:254
+msgid "UPLOAD"
+msgstr "UPLOAD"
+
+#: upapasta/ui.py:255
+msgid "DONE"
+msgstr "DONE"
 
