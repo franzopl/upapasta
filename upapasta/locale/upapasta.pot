@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-06 11:00-0300\n"
+"POT-Creation-Date: 2026-05-06 11:04-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -957,5 +957,226 @@ msgstr ""
 
 #: upapasta/ui.py:255
 msgid "DONE"
+msgstr ""
+
+#: upapasta/upfolder.py:54
+msgid "Erro de autenticação (401/403): verifique usuário e senha no .env"
+msgstr ""
+
+#: upapasta/upfolder.py:55
+msgid "Servidor indisponível (502): tente novamente mais tarde"
+msgstr ""
+
+#: upapasta/upfolder.py:56
+msgid "Artigo rejeitado pelo servidor (441): verifique permissões da conta"
+msgstr ""
+
+#: upapasta/upfolder.py:57
+msgid "Timeout de conexão: verifique host/porta e sua conexão de internet"
+msgstr ""
+
+#: upapasta/upfolder.py:58
+msgid "Conexão recusada: verifique NNTP_HOST e NNTP_PORT"
+msgstr ""
+
+#: upapasta/upfolder.py:59
+msgid "Host não encontrado: verifique NNTP_HOST no .env"
+msgstr ""
+
+#: upapasta/upfolder.py:60
+msgid "Erro de certificado SSL: use NNTP_IGNORE_CERT=true para contornar"
+msgstr ""
+
+#: upapasta/upfolder.py:146
+#, python-brace-format
+msgid "Aviso: não foi possível salvar estado de upload: {error}"
+msgstr ""
+
+#: upapasta/upfolder.py:206
+msgid "Upload de .rar + .par2 para Usenet com nyuu"
+msgstr ""
+
+#: upapasta/upfolder.py:208
+msgid "Caminho para o arquivo .rar a fazer upload"
+msgstr ""
+
+#: upapasta/upfolder.py:212
+msgid "Mostra comando nyuu sem executar"
+msgstr ""
+
+#: upapasta/upfolder.py:217
+msgid "Caminho para executável nyuu (padrão: detecta em PATH)"
+msgstr ""
+
+#: upapasta/upfolder.py:222
+msgid "Subject da postagem (padrão: nome do arquivo .rar)"
+msgstr ""
+
+#: upapasta/upfolder.py:227
+msgid "Newsgroup (pode sobrescrever variável USENET_GROUP do .env)"
+msgstr ""
+
+#: upapasta/upfolder.py:232
+msgid "Caminho para arquivo .env (padrão: ~/.config/upapasta/.env)"
+msgstr ""
+
+#: upapasta/upfolder.py:280
+#, python-brace-format
+msgid "Erro: '{path}' não existe."
+msgstr ""
+
+#: upapasta/upfolder.py:285
+#, python-brace-format
+msgid "Erro: '{path}' não é um arquivo nem pasta."
+msgstr ""
+
+#: upapasta/upfolder.py:343
+#, python-brace-format
+msgid "Erro: nenhum arquivo de paridade encontrado para '{path}'."
+msgstr ""
+
+#: upapasta/upfolder.py:344
+msgid "Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2"
+msgstr ""
+
+#: upapasta/upfolder.py:350
+msgid "Erro: NNTP_HOST não configurado."
+msgstr ""
+
+#: upapasta/upfolder.py:385
+msgid "Erro: credenciais incompletas. Configure .env com:"
+msgstr ""
+
+#: upapasta/upfolder.py:386
+msgid "  NNTP_HOST=<seu_servidor>"
+msgstr ""
+
+#: upapasta/upfolder.py:387
+msgid "  NNTP_PORT=119"
+msgstr ""
+
+#: upapasta/upfolder.py:388
+msgid "  NNTP_USER=<seu_usuario>"
+msgstr ""
+
+#: upapasta/upfolder.py:389
+msgid "  NNTP_PASS=<sua_senha>"
+msgstr ""
+
+#: upapasta/upfolder.py:390
+msgid "  USENET_GROUP=<seu_grupo>"
+msgstr ""
+
+#: upapasta/upfolder.py:394
+#, python-brace-format
+msgid "  Servidores NNTP:  {count} configurados (failover ativo)"
+msgstr ""
+
+#: upapasta/upfolder.py:399
+#, python-brace-format
+msgid "Erro: nyuu não encontrado em '{path}'"
+msgstr ""
+
+#: upapasta/upfolder.py:404
+msgid "Erro: nyuu não encontrado. Instale-o (https://github.com/Piorosen/nyuu)"
+msgstr ""
+
+#: upapasta/upfolder.py:442
+#, python-brace-format
+msgid "  ↩️  Resume: {skipped} arquivo(s) já postados, {remaining} restante(s)"
+msgstr ""
+
+#: upapasta/upfolder.py:444
+msgid "  ✅ Todos os arquivos já foram postados. Upload completo."
+msgstr ""
+
+#: upapasta/upfolder.py:452
+#, python-brace-format
+msgid "Aviso: não foi possível salvar NZB parcial: {error}"
+msgstr ""
+
+#: upapasta/upfolder.py:455
+msgid "  Aviso: NZB existente está vazio. Reiniciando upload completo."
+msgstr ""
+
+#: upapasta/upfolder.py:457
+msgid ""
+"  Aviso: encontrado estado de upload anterior. Use --resume para retomar "
+"ou ignore para reiniciar."
+msgstr ""
+
+#: upapasta/upfolder.py:499
+msgid "  Upload para Usenet"
+msgstr ""
+
+#: upapasta/upfolder.py:528
+msgid "Comando nyuu (dry-run):"
+msgstr ""
+
+#: upapasta/upfolder.py:554
+#, python-brace-format
+msgid ""
+"\n"
+"⏳ Aguardando {wait}s antes da tentativa {attempt}/{max}..."
+msgstr ""
+
+#: upapasta/upfolder.py:559
+#, python-brace-format
+msgid ""
+"\n"
+"Tentativa {attempt}/{max} — servidor: {host}"
+msgstr ""
+
+#: upapasta/upfolder.py:561
+#, python-brace-format
+msgid ""
+"\n"
+"Tentativa {attempt}/{max} de upload..."
+msgstr ""
+
+#: upapasta/upfolder.py:599
+#, python-brace-format
+msgid ""
+"\n"
+"Erro: nyuu retornou código {rc} no servidor {host}."
+msgstr ""
+
+#: upapasta/upfolder.py:603
+#, python-brace-format
+msgid ""
+"\n"
+"Erro: nyuu não encontrado em '{path}'."
+msgstr ""
+
+#: upapasta/upfolder.py:606
+#, python-brace-format
+msgid ""
+"\n"
+"Erro de I/O ao executar nyuu: {error}"
+msgstr ""
+
+#: upapasta/upfolder.py:616
+msgid "  ↩️  NZBs parciais mesclados com sucesso."
+msgstr ""
+
+#: upapasta/upfolder.py:618
+#, python-brace-format
+msgid "  Aviso: falha ao mesclar NZBs. NZB parcial original em '{path}'."
+msgstr ""
+
+#: upapasta/upfolder.py:656
+msgid "Senha injetada no NZB."
+msgstr ""
+
+#: upapasta/upfolder.py:660
+#, python-brace-format
+msgid ""
+"Aviso: NZB gerado em '{path}' está ausente, vazio ou não contém elementos"
+" <file>."
+msgstr ""
+
+#: upapasta/upfolder.py:662
+#, python-brace-format
+msgid "NZB verificado: {name}"
 msgstr ""
 

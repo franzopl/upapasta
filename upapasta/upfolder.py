@@ -38,6 +38,7 @@ import time
 import xml.etree.ElementTree as ET
 from typing import Optional
 
+from .i18n import _
 from upapasta import nfo
 
 from ._process import managed_popen
@@ -50,13 +51,13 @@ from .nzb import (
 )
 
 _NYUU_ERRORS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"40[13]", re.I), "Erro de autenticação (401/403): verifique usuário e senha no .env"),
-    (re.compile(r"502", re.I), "Servidor indisponível (502): tente novamente mais tarde"),
-    (re.compile(r"441", re.I), "Artigo rejeitado pelo servidor (441): verifique permissões da conta"),
-    (re.compile(r"timeout", re.I), "Timeout de conexão: verifique host/porta e sua conexão de internet"),
-    (re.compile(r"ECONNREFUSED|connection refused", re.I), "Conexão recusada: verifique NNTP_HOST e NNTP_PORT"),
-    (re.compile(r"ENOTFOUND|getaddrinfo", re.I), "Host não encontrado: verifique NNTP_HOST no .env"),
-    (re.compile(r"certificate|SSL|TLS", re.I), "Erro de certificado SSL: use NNTP_IGNORE_CERT=true para contornar"),
+    (re.compile(r"40[13]", re.I), _("Erro de autenticação (401/403): verifique usuário e senha no .env")),
+    (re.compile(r"502", re.I), _("Servidor indisponível (502): tente novamente mais tarde")),
+    (re.compile(r"441", re.I), _("Artigo rejeitado pelo servidor (441): verifique permissões da conta")),
+    (re.compile(r"timeout", re.I), _("Timeout de conexão: verifique host/porta e sua conexão de internet")),
+    (re.compile(r"ECONNREFUSED|connection refused", re.I), _("Conexão recusada: verifique NNTP_HOST e NNTP_PORT")),
+    (re.compile(r"ENOTFOUND|getaddrinfo", re.I), _("Host não encontrado: verifique NNTP_HOST no .env")),
+    (re.compile(r"certificate|SSL|TLS", re.I), _("Erro de certificado SSL: use NNTP_IGNORE_CERT=true para contornar")),
 ]
 
 
@@ -142,7 +143,7 @@ def _save_upload_state(state_path: str, files: list[str], par2_files: list[str],
         with open(state_path, "w", encoding="utf-8") as fh:
             _json.dump(state, fh, indent=2)
     except Exception as e:
-        print(f"Aviso: não foi possível salvar estado de upload: {e}")
+        print(_("Aviso: não foi possível salvar estado de upload: {error}").format(error=e))
 
 
 def _load_upload_state(state_path: str) -> dict[str, object] | None:
@@ -202,33 +203,33 @@ def find_nyuu() -> Optional[str]:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Upload de .rar + .par2 para Usenet com nyuu"
+        description=_("Upload de .rar + .par2 para Usenet com nyuu")
     )
-    p.add_argument("rarfile", help="Caminho para o arquivo .rar a fazer upload")
+    p.add_argument("rarfile", help=_("Caminho para o arquivo .rar a fazer upload"))
     p.add_argument(
         "--dry-run",
         action="store_true",
-        help="Mostra comando nyuu sem executar",
+        help=_("Mostra comando nyuu sem executar"),
     )
     p.add_argument(
         "--nyuu-path",
         default=None,
-        help="Caminho para executável nyuu (padrão: detecta em PATH)",
+        help=_("Caminho para executável nyuu (padrão: detecta em PATH)"),
     )
     p.add_argument(
         "--subject",
         default=None,
-        help="Subject da postagem (padrão: nome do arquivo .rar)",
+        help=_("Subject da postagem (padrão: nome do arquivo .rar)"),
     )
     p.add_argument(
         "--group",
         default=None,
-        help="Newsgroup (pode sobrescrever variável USENET_GROUP do .env)",
+        help=_("Newsgroup (pode sobrescrever variável USENET_GROUP do .env)"),
     )
     p.add_argument(
         "--env-file",
         default=os.path.expanduser("~/.config/upapasta/.env"),
-        help="Caminho para arquivo .env (padrão: ~/.config/upapasta/.env)",
+        help=_("Caminho para arquivo .env (padrão: ~/.config/upapasta/.env)"),
     )
     return p.parse_args()
 
@@ -276,12 +277,12 @@ def upload_to_usenet(
 
     # Validar entrada
     if not os.path.exists(input_path):
-        print(f"Erro: '{input_path}' não existe.")
+        print(_("Erro: '{path}' não existe.").format(path=input_path))
         return 1
 
     is_folder = os.path.isdir(input_path)
     if not is_folder and not os.path.isfile(input_path):
-        print(f"Erro: '{input_path}' não é um arquivo nem pasta.")
+        print(_("Erro: '{path}' não é um arquivo nem pasta.").format(path=input_path))
         return 1
 
     # ── Construir lista de arquivos e working_dir ────────────────────────────
@@ -339,14 +340,14 @@ def upload_to_usenet(
         par2_files = [os.path.basename(f) for f in par2_files]
 
     if not par2_files:
-        print(f"Erro: nenhum arquivo de paridade encontrado para '{input_path}'.")
-        print("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2")
+        print(_("Erro: nenhum arquivo de paridade encontrado para '{path}'.").format(path=input_path))
+        print(_("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2"))
         return 3
 
     # Carrega servidores NNTP (primário + opcionais failover)
     servers = _build_server_list(env_vars)
     if not servers or not servers[0]["host"]:
-        print("Erro: NNTP_HOST não configurado.")
+        print(_("Erro: NNTP_HOST não configurado."))
         return 2
     # Extrai credenciais do primário para validação e exibição
     nntp_host = servers[0]["host"]
@@ -381,26 +382,26 @@ def upload_to_usenet(
         return 6
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
-        print("Erro: credenciais incompletas. Configure .env com:")
-        print("  NNTP_HOST=<seu_servidor>")
-        print("  NNTP_PORT=119")
-        print("  NNTP_USER=<seu_usuario>")
-        print("  NNTP_PASS=<sua_senha>")
-        print("  USENET_GROUP=<seu_grupo>")
+        print(_("Erro: credenciais incompletas. Configure .env com:"))
+        print(_("  NNTP_HOST=<seu_servidor>"))
+        print(_("  NNTP_PORT=119"))
+        print(_("  NNTP_USER=<seu_usuario>"))
+        print(_("  NNTP_PASS=<sua_senha>"))
+        print(_("  USENET_GROUP=<seu_grupo>"))
         return 2
 
     if len(servers) > 1:
-        print(f"  Servidores NNTP:  {len(servers)} configurados (failover ativo)")
+        print(_("  Servidores NNTP:  {count} configurados (failover ativo)").format(count=len(servers)))
 
     # Encontra nyuu
     if nyuu_path:
         if not os.path.exists(nyuu_path):
-            print(f"Erro: nyuu não encontrado em '{nyuu_path}'")
+            print(_("Erro: nyuu não encontrado em '{path}'").format(path=nyuu_path))
             return 4
     else:
         nyuu_path = find_nyuu()
         if not nyuu_path:
-            print("Erro: nyuu não encontrado. Instale-o (https://github.com/Piorosen/nyuu)")
+            print(_("Erro: nyuu não encontrado. Instale-o (https://github.com/Piorosen/nyuu)"))
             return 4
 
     # Define subject
@@ -438,9 +439,9 @@ def upload_to_usenet(
             remaining_par2 = [p for p in par2_files if os.path.basename(p) not in uploaded]
             skipped = len(files_to_upload) + len(par2_files) - len(remaining_files) - len(remaining_par2)
             total_remaining = len(remaining_files) + len(remaining_par2)
-            print(f"  ↩️  Resume: {skipped} arquivo(s) já postados, {total_remaining} restante(s)")
+            print(_("  ↩️  Resume: {skipped} arquivo(s) já postados, {remaining} restante(s)").format(skipped=skipped, remaining=total_remaining))
             if total_remaining == 0:
-                print("  ✅ Todos os arquivos já foram postados. Upload completo.")
+                print(_("  ✅ Todos os arquivos já foram postados. Upload completo."))
                 return 0
             # Salva backup do NZB parcial; o novo upload vai escrever em nzb_out_abs
             partial_nzb_backup = nzb_out_abs + ".partial.nzb"
@@ -448,12 +449,12 @@ def upload_to_usenet(
                 import shutil as _shutil
                 _shutil.copy2(nzb_out_abs, partial_nzb_backup)
             except Exception as e:
-                print(f"Aviso: não foi possível salvar NZB parcial: {e}")
+                print(_("Aviso: não foi possível salvar NZB parcial: {error}").format(error=e))
                 partial_nzb_backup = None
         else:
-            print("  Aviso: NZB existente está vazio. Reiniciando upload completo.")
+            print(_("  Aviso: NZB existente está vazio. Reiniciando upload completo."))
     elif state_path and not resume and os.path.exists(state_path):
-        print("  Aviso: encontrado estado de upload anterior. Use --resume para retomar ou ignore para reiniciar.")
+        print(_("  Aviso: encontrado estado de upload anterior. Use --resume para retomar ou ignore para reiniciar."))
 
     # ── Calcular tamanho total para exibição ─────────────────────────────────
     def format_size(size_bytes: int) -> str:
@@ -495,7 +496,7 @@ def upload_to_usenet(
 
     label_w = max(len(r[0]) for r in rows)
     print(sep)
-    print("  Upload para Usenet")
+    print(_("  Upload para Usenet"))
     print(sep)
     for label, value in rows:
         print(f"  {label:<{label_w}}  {value}")
@@ -524,7 +525,7 @@ def upload_to_usenet(
             cmd_dry.extend(nyuu_extra_args)
         cmd_dry.extend(remaining_files)
         cmd_dry.extend(remaining_par2)
-        print("Comando nyuu (dry-run):")
+        print(_("Comando nyuu (dry-run):"))
         print(" ".join(str(x) for x in cmd_dry))
         return 0
 
@@ -550,14 +551,14 @@ def upload_to_usenet(
             delay = _BACKOFF_BASE * (3 ** (attempt - 2))
             jitter = int(delay * 0.10 * (random.random() * 2 - 1))
             wait = max(1, delay + jitter)
-            print(f"\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max_attempts}...")
+            print(_("\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max}...").format(wait=wait, attempt=attempt, max=max_attempts))
             time.sleep(wait)
 
         srv = servers[(attempt - 1) % len(servers)]
         if len(servers) > 1:
-            print(f"\nTentativa {attempt}/{max_attempts} — servidor: {srv['host']}")
+            print(_("\nTentativa {attempt}/{max} — servidor: {host}").format(attempt=attempt, max=max_attempts, host=srv['host']))
         elif attempt > 1:
-            print(f"\nTentativa {attempt}/{max_attempts} de upload...")
+            print(_("\nTentativa {attempt}/{max} de upload...").format(attempt=attempt, max=max_attempts))
 
         cmd = [
             nyuu_path,
@@ -595,14 +596,14 @@ def upload_to_usenet(
                 last_rc = proc.wait()  # type: ignore[attr-defined]
             if last_rc == 0:
                 break
-            print(f"\nErro: nyuu retornou código {last_rc} no servidor {srv['host']}.")
+            print(_("\nErro: nyuu retornou código {rc} no servidor {host}.").format(rc=last_rc, host=srv['host']))
         except KeyboardInterrupt:
             raise
         except FileNotFoundError:
-            print(f"\nErro: nyuu não encontrado em '{nyuu_path}'.")
+            print(_("\nErro: nyuu não encontrado em '{path}'.").format(path=nyuu_path))
             return 4
         except OSError as e:
-            print(f"\nErro de I/O ao executar nyuu: {e}")
+            print(_("\nErro de I/O ao executar nyuu: {error}").format(error=e))
             last_rc = 5
 
     if last_rc != 0:
@@ -612,9 +613,9 @@ def upload_to_usenet(
     if partial_nzb_backup and nzb_out_abs and os.path.exists(nzb_out_abs):
         if merge_nzbs([partial_nzb_backup, nzb_out_abs], nzb_out_abs):
             os.remove(partial_nzb_backup)
-            print("  ↩️  NZBs parciais mesclados com sucesso.")
+            print(_("  ↩️  NZBs parciais mesclados com sucesso."))
         else:
-            print(f"  Aviso: falha ao mesclar NZBs. NZB parcial original em '{partial_nzb_backup}'.")
+            print(_("  Aviso: falha ao mesclar NZBs. NZB parcial original em '{path}'.").format(path=partial_nzb_backup))
 
     # ── Remover state file após upload completo ───────────────────────────────
     if state_path and os.path.exists(state_path):
@@ -652,12 +653,12 @@ def upload_to_usenet(
 
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password and not skip_rar:
         inject_nzb_password(nzb_out_abs, password)
-        print("Senha injetada no NZB.")
+        print(_("Senha injetada no NZB."))
 
     if nzb_out_abs:
         if not _verify_nzb(nzb_out_abs):
-            print(f"Aviso: NZB gerado em '{nzb_out_abs}' está ausente, vazio ou não contém elementos <file>.")
+            print(_("Aviso: NZB gerado em '{path}' está ausente, vazio ou não contém elementos <file>.").format(path=nzb_out_abs))
         else:
-            print(f"NZB verificado: {os.path.basename(nzb_out_abs)}")
+            print(_("NZB verificado: {name}").format(name=os.path.basename(nzb_out_abs)))
 
     return 0
