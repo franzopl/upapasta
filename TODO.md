@@ -1,6 +1,6 @@
 # TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Última revisão: 2026-05-06 (fase 3 em andamento: v0.25.0, testes verdes, 1 skipped)
+> Última revisão: 2026-05-06 (i18n I1 concluída: v0.26.0, 549 testes verdes, 1 skipped)
 > Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
