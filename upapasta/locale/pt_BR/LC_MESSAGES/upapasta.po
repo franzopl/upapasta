@@ -144,6 +144,10 @@ msgstr ""
 "--rar automaticamente)\n"
 "  upapasta Pasta/ --filepath-format keep     preserva caminho completo\n"
 
+#: upapasta/cli.py:80
+msgid "input"
+msgstr "entrada"
+
 #: upapasta/cli.py:81
 msgid ""
 "Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em "

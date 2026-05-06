@@ -77,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "inputs",
         nargs="*",
-        metavar="input",
+        metavar=_("input"),
         help=_("Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em sequência (ou paralelo com --jobs)."),
     )
     p.add_argument(
