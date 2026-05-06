@@ -223,7 +223,7 @@
 
 - [ ] Todas as Fases 1 e 2 concluídas
 - [ ] CI verde (pytest + mypy + ruff) via GitHub Actions
-- [ ] Cobertura ≥ 90% nos módulos core (F3.13)
+- [x] Cobertura ≥ 90% nos módulos core (F3.13) ✅
 - [ ] `--resume` funcional (F2.10)
 - [ ] Múltiplos servidores NNTP (F2.9)
 - [ ] Documentação completa e atualizada (F3.14)
@@ -248,6 +248,6 @@
 5. ~~F3.7~~ ✅ `upapasta --stats` (histórico agregado)
 6. ~~F3.11~~ ✅ `profiles.py` separado de `config.py`
 7. ~~F3.12~~ ✅ `mypy --strict` no CI (84 erros corrigidos, 20 arquivos)
-8. **F3.13** — Cobertura ≥ 90% nos módulos core
+8. ~~F3.13~~ ✅ Cobertura ≥ 90% nos módulos core (207 testes; cli=100%, nfo=97%, nzb=94%, orchestrator=91%, makerar=91%, makepar=90%, catalog=90%, upfolder=90%; global=82%)
 9. **F3.1** — Múltiplas entradas posicionais (`upapasta a b c`)
 10. **F3.15** — Publicação no PyPI

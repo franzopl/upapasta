@@ -9,7 +9,6 @@ from __future__ import annotations
 import re
 import shutil
 import sys
-from io import TextIOWrapper
 from queue import Queue
 from typing import IO, Optional
 

@@ -412,8 +412,8 @@ class PipelineReporter:
 
             webhook_url = env_vars.get("WEBHOOK_URL") or os.environ.get("WEBHOOK_URL")
             if webhook_url:
-                from .catalog import detect_category
                 from ._webhook import send_webhook
+                from .catalog import detect_category
                 categoria = detect_category(input_path.name)
                 send_webhook(
                     webhook_url,

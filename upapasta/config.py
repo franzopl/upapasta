@@ -10,6 +10,8 @@ import getpass
 import os
 from typing import Callable, Optional
 
+from .profiles import DEFAULT_PROFILE, PROFILES  # noqa: E402
+
 CONFIG_DIR = os.path.expanduser("~/.config/upapasta")
 DEFAULT_ENV_FILE = os.path.join(CONFIG_DIR, ".env")
 
@@ -157,8 +159,6 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
     os.makedirs(os.path.dirname(env_file), exist_ok=True)
     with open(env_file, "w") as f:
         f.write("\n".join(lines))
-
-from .profiles import DEFAULT_PROFILE, PROFILES
 
 __all__ = ["DEFAULT_PROFILE", "PROFILES"]
 
