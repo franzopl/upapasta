@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.25.1 - 2026-05-06
+
+### Correções
+
+- **mypy `--strict`**: corrigido erro `arg-type` em `ui.py` — `_ThreadDispatchTeeStream` agora aceita `io.TextIOBase` (em vez de `TextIOWrapper`) e usa `cast` no call-site para `sys.__stdout__`. Remove `type: ignore` desnecessário.
+
 ## 0.25.0 - 2026-05-06
 
 ### Novas funcionalidades
