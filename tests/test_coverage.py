@@ -1811,6 +1811,10 @@ class TestUpfolderAdditional:
         par2 = tmp_path / "minha_pasta.par2"
         par2.write_text("fake par2")
 
+        fake_nyuu = tmp_path / "nyuu"
+        fake_nyuu.write_text("#!/bin/sh\nexit 0")
+        fake_nyuu.chmod(0o755)
+
         nzb_path = str(tmp_path / "minha_pasta.nzb")
         mock_proc = self._make_mock_popen_that_creates_nzb(nzb_path)
 
@@ -1823,7 +1827,7 @@ class TestUpfolderAdditional:
                 env_vars=env,
                 dry_run=False,
                 skip_rar=True,
-                nyuu_path="/usr/bin/nyuu",
+                nyuu_path=str(fake_nyuu),
                 folder_name="MinhasSeries",
             )
         assert rc == 0
@@ -1837,6 +1841,10 @@ class TestUpfolderAdditional:
         f.write_text("fake rar")
         (tmp_path / "video.par2").write_text("fake par2")
 
+        fake_nyuu = tmp_path / "nyuu"
+        fake_nyuu.write_text("#!/bin/sh\nexit 0")
+        fake_nyuu.chmod(0o755)
+
         nzb_path = str(tmp_path / "video.nzb")
         mock_proc = self._make_mock_popen_that_creates_nzb(nzb_path)
 
@@ -1849,7 +1857,7 @@ class TestUpfolderAdditional:
                 env_vars=env,
                 dry_run=False,
                 skip_rar=False,
-                nyuu_path="/usr/bin/nyuu",
+                nyuu_path=str(fake_nyuu),
                 password="senha123",
             )
         assert rc == 0

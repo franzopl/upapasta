@@ -43,6 +43,7 @@ class TestStats:
     def test_print_stats_empty(self, tmp_path, monkeypatch):
         from upapasta.catalog import print_stats
         monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
         # diretório de config não existe → sem histórico
         out = StringIO()
         with patch("builtins.print", side_effect=lambda *a, **kw: out.write(" ".join(str(x) for x in a) + "\n")):
@@ -78,6 +79,7 @@ class TestStats:
                 f.write(json.dumps(r) + "\n")
 
         monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
         lines: list[str] = []
         with patch("builtins.print", side_effect=lambda *a, **kw: lines.append(" ".join(str(x) for x in a))):
             print_stats()
