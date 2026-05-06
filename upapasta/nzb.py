@@ -13,6 +13,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 
+from .i18n import _
 from .config import render_template
 
 
@@ -108,9 +109,9 @@ def handle_nzb_conflict(
 
     if nzb_conflict == "overwrite":
         nzb_overwrite = True
-        print(f"Aviso: arquivo NZB já existe: {nzb_out_abs} - sobrescrevendo por solicitação (overwrite)")
+        print(_("Aviso: arquivo NZB já existe: {path} - sobrescrevendo por solicitação (overwrite)").format(path=nzb_out_abs))
     elif nzb_conflict == "fail":
-        print(f"Erro: arquivo NZB já existe: {nzb_out_abs}. Parando por configuração 'fail'.")
+        print(_("Erro: arquivo NZB já existe: {path}. Parando por configuração 'fail'.").format(path=nzb_out_abs))
         return nzb_out, nzb_out_abs, nzb_overwrite, False
     else:  # rename
         base, ext = os.path.splitext(nzb_out_abs)
@@ -127,7 +128,7 @@ def handle_nzb_conflict(
         else:
             nzb_out = os.path.basename(candidate)
         nzb_out_abs = candidate
-        print(f"Aviso: arquivo NZB já existe - usando novo nome: {os.path.basename(candidate)}")
+        print(_("Aviso: arquivo NZB já existe - usando novo nome: {name}").format(name=os.path.basename(candidate)))
 
     return nzb_out, nzb_out_abs, nzb_overwrite, True
 
@@ -156,7 +157,7 @@ def inject_nzb_password(nzb_path: str, password: str) -> None:
 
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
     except Exception as e:
-        print(f"Aviso: não foi possível injetar senha no NZB: {e}")
+        print(_("Aviso: não foi possível injetar senha no NZB: {error}").format(error=e))
 
 
 def _parse_subject(subject: str) -> tuple[str, str, str]:
@@ -328,9 +329,9 @@ def fix_nzb_subjects(
             file_elem.set("subject", new_subject)
 
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
-        print("NZB corrigido: subjects dos arquivos de dados atualizados.")
+        print(_("NZB corrigido: subjects dos arquivos de dados atualizados."))
     except Exception as e:
-        print(f"Aviso: não foi possível corrigir o NZB: {e}")
+        print(_("Aviso: não foi possível corrigir o NZB: {error}").format(error=e))
 
 
 def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, str]]) -> None:
@@ -353,7 +354,7 @@ def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, 
                 if subj:
                     subject_to_ep[subj] = ep_name
         except Exception as e:
-            print(f"Aviso: não foi possível ler NZB do episódio '{ep_name}': {e}")
+            print(_("Aviso: não foi possível ler NZB do episódio '{name}': {error}").format(name=ep_name, error=e))
 
     if not subject_to_ep:
         return
@@ -389,9 +390,9 @@ def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, 
             file_elem.set("subject", new_subj)
 
         tree.write(season_nzb_path, encoding="UTF-8", xml_declaration=True)
-        print("NZB da temporada corrigido: subjects atualizados com nomes dos episódios.")
+        print(_("NZB da temporada corrigido: subjects atualizados com nomes dos episódios."))
     except Exception as e:
-        print(f"Erro ao corrigir subjects do NZB da temporada: {e}")
+        print(_("Erro ao corrigir subjects do NZB da temporada: {error}").format(error=e))
 
 
 def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
@@ -421,7 +422,7 @@ def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
         first_tree.write(output_path, encoding="UTF-8", xml_declaration=True)
         return True
     except Exception as e:
-        print(f"Erro ao mesclar NZBs: {e}")
+        print(_("Erro ao mesclar NZBs: {error}").format(error=e))
         return False
 
 
@@ -480,7 +481,8 @@ def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str
                         ep_name = Path(nzb_path).stem
                     break
         except Exception as e:
-            print(f"Aviso: não foi possível ler episódio de {Path(nzb_path).name}: {e}")
+            print(_("Aviso: não foi possível ler episódio de {name}: {error}").format(
+                name=Path(nzb_path).name, error=e))
             continue
 
         if ep_name:

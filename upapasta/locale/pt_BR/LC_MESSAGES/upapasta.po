@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: upapasta 0.26.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 12:05-0300\n"
+"POT-Creation-Date: 2026-05-06 12:16-0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: \n"
 "Language: pt_BR\n"
@@ -13,6 +13,71 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
+
+#: upapasta/catalog.py:149
+msgid "Nenhum upload registrado ainda."
+msgstr "Nenhum upload registrado ainda."
+
+#: upapasta/catalog.py:163
+msgid "Histórico vazio."
+msgstr "Histórico vazio."
+
+#: upapasta/catalog.py:196
+#, python-brace-format
+msgid "  Uploads totais : {count}"
+msgstr "  Uploads totais : {count}"
+
+#: upapasta/catalog.py:197
+#, python-brace-format
+msgid "  Volume total   : {size:.2f} GB"
+msgstr "  Volume total   : {size:.2f} GB"
+
+#: upapasta/catalog.py:200
+#, python-brace-format
+msgid "  Duração média  : {m}m {s:02d}s"
+msgstr "  Duração média  : {m}m {s:02d}s"
+
+#: upapasta/catalog.py:203
+msgid "  Categorias:"
+msgstr "  Categorias:"
+
+#: upapasta/catalog.py:205
+#, python-brace-format
+msgid "    {cat:<20} {count:>5} upload(s)"
+msgstr "    {cat:<20} {count:>5} upload(s)"
+
+#: upapasta/catalog.py:210
+#, python-brace-format
+msgid "  Grupo mais usado: {group} ({count} upload(s))"
+msgstr "  Grupo mais usado: {group} ({count} upload(s))"
+
+#: upapasta/catalog.py:215
+msgid "  Volume por mês (últimos 6):"
+msgstr "  Volume por mês (últimos 6):"
+
+#: upapasta/catalog.py:218
+#, python-brace-format
+msgid "    {month}  {size:>7.2f} GB"
+msgstr "    {month}  {size:>7.2f} GB"
+
+#: upapasta/catalog.py:243
+#, python-brace-format
+msgid "⚠️  POST_UPLOAD_SCRIPT não encontrado: {path}"
+msgstr "⚠️  POST_UPLOAD_SCRIPT não encontrado: {path}"
+
+#: upapasta/catalog.py:265
+#, python-brace-format
+msgid "⚠️  POST_UPLOAD_SCRIPT saiu com código {rc}"
+msgstr "⚠️  POST_UPLOAD_SCRIPT saiu com código {rc}"
+
+#: upapasta/catalog.py:267
+msgid "⚠️  POST_UPLOAD_SCRIPT ultrapassou o timeout de 60s"
+msgstr "⚠️  POST_UPLOAD_SCRIPT ultrapassou o timeout de 60s"
+
+#: upapasta/catalog.py:269
+#, python-brace-format
+msgid "⚠️  Falha ao executar POST_UPLOAD_SCRIPT: {error}"
+msgstr "⚠️  Falha ao executar POST_UPLOAD_SCRIPT: {error}"
 
 #: upapasta/cli.py:16
 msgid ""
@@ -692,6 +757,77 @@ msgstr "Caminho para o arquivo .rar a fazer upload"
 #, fuzzy
 msgid "Sobrescrever .rar existente"
 msgstr "Sobrescreve RAR/PAR2 existentes"
+
+#: upapasta/nfo.py:181
+msgid "Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo."
+msgstr "Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo."
+
+#: upapasta/nfo.py:204
+#, python-brace-format
+msgid "Atenção: falha ao gerar NFO com mediainfo: {error}"
+msgstr "Atenção: falha ao gerar NFO com mediainfo: {error}"
+
+#: upapasta/nfo.py:340
+#, python-brace-format
+msgid "Atenção: falha ao gerar NFO de pasta: {error}"
+msgstr "Atenção: falha ao gerar NFO de pasta: {error}"
+
+#: upapasta/nzb.py:112
+#, python-brace-format
+msgid ""
+"Aviso: arquivo NZB já existe: {path} - sobrescrevendo por solicitação "
+"(overwrite)"
+msgstr ""
+"Aviso: arquivo NZB já existe: {path} - sobrescrevendo por solicitação "
+"(overwrite)"
+
+#: upapasta/nzb.py:114
+#, python-brace-format
+msgid "Erro: arquivo NZB já existe: {path}. Parando por configuração 'fail'."
+msgstr "Erro: arquivo NZB já existe: {path}. Parando por configuração 'fail'."
+
+#: upapasta/nzb.py:131
+#, python-brace-format
+msgid "Aviso: arquivo NZB já existe - usando novo nome: {name}"
+msgstr "Aviso: arquivo NZB já existe - usando novo nome: {name}"
+
+#: upapasta/nzb.py:160
+#, python-brace-format
+msgid "Aviso: não foi possível injetar senha no NZB: {error}"
+msgstr "Aviso: não foi possível injetar senha no NZB: {error}"
+
+#: upapasta/nzb.py:332
+msgid "NZB corrigido: subjects dos arquivos de dados atualizados."
+msgstr "NZB corrigido: subjects dos arquivos de dados atualizados."
+
+#: upapasta/nzb.py:334
+#, python-brace-format
+msgid "Aviso: não foi possível corrigir o NZB: {error}"
+msgstr "Aviso: não foi possível corrigir o NZB: {error}"
+
+#: upapasta/nzb.py:357
+#, python-brace-format
+msgid "Aviso: não foi possível ler NZB do episódio '{name}': {error}"
+msgstr "Aviso: não foi possível ler NZB do episódio '{name}': {error}"
+
+#: upapasta/nzb.py:393
+msgid "NZB da temporada corrigido: subjects atualizados com nomes dos episódios."
+msgstr "NZB da temporada corrigido: subjects atualizados com nomes dos episódios."
+
+#: upapasta/nzb.py:395
+#, python-brace-format
+msgid "Erro ao corrigir subjects do NZB da temporada: {error}"
+msgstr "Erro ao corrigir subjects do NZB da temporada: {error}"
+
+#: upapasta/nzb.py:425
+#, python-brace-format
+msgid "Erro ao mesclar NZBs: {error}"
+msgstr "Erro ao mesclar NZBs: {error}"
+
+#: upapasta/nzb.py:484
+#, python-brace-format
+msgid "Aviso: não foi possível ler episódio de {name}: {error}"
+msgstr "Aviso: não foi possível ler episódio de {name}: {error}"
 
 #: upapasta/orchestrator.py:50
 msgid ""

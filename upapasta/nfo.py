@@ -15,6 +15,8 @@ import re
 import subprocess
 from typing import Any
 
+from .i18n import _
+
 
 def find_mediainfo() -> str | None:
     import shutil
@@ -176,8 +178,8 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
     """Gera .nfo com saída do mediainfo para um arquivo único."""
     mediainfo_path = find_mediainfo()
     if not mediainfo_path:
-        print("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo.")
-        return False
+        print(_("Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo."))
+        return None
 
     try:
         proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
@@ -199,7 +201,7 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
             f.write(output)
         return True
     except Exception as e:
-        print(f"Atenção: falha ao gerar NFO com mediainfo: {e}")
+        print(_("Atenção: falha ao gerar NFO com mediainfo: {error}").format(error=e))
         return False
 
 
@@ -335,5 +337,5 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
             nfo_fh.write("\n".join(lines))
         return True
     except Exception as e:
-        print(f"Atenção: falha ao gerar NFO de pasta: {e}")
+        print(_("Atenção: falha ao gerar NFO de pasta: {error}").format(error=e))
         return False

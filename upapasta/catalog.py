@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from .i18n import _
+
 # ── Detecção de categoria ────────────────────────────────────────────────────
 
 _ANIME_RE = re.compile(
@@ -144,7 +146,7 @@ def print_stats() -> None:
     """Lê history.jsonl e imprime estatísticas agregadas."""
     path = _history_path()
     if not os.path.exists(path):
-        print("Nenhum upload registrado ainda.")
+        print(_("Nenhum upload registrado ainda."))
         return
 
     records = []
@@ -158,7 +160,7 @@ def print_stats() -> None:
                     pass
 
     if not records:
-        print("Histórico vazio.")
+        print(_("Histórico vazio."))
         return
 
     total = len(records)
@@ -191,28 +193,29 @@ def print_stats() -> None:
 
     sep = "─" * 50
     print(sep)
-    print(f"  Uploads totais : {total}")
-    print(f"  Volume total   : {total_gb:.2f} GB")
+    print(_("  Uploads totais : {count}").format(count=total))
+    print(_("  Volume total   : {size:.2f} GB").format(size=total_gb))
     if avg_dur is not None:
         mins, secs = divmod(int(avg_dur), 60)
-        print(f"  Duração média  : {mins}m {secs:02d}s")
+        print(_("  Duração média  : {m}m {s:02d}s").format(m=mins, s=secs))
     print()
 
-    print("  Categorias:")
+    print(_("  Categorias:"))
     for cat, count in sorted(cat_counts.items(), key=lambda x: -x[1]):
-        print(f"    {cat:<20} {count:>5} upload(s)")
+        print(_("    {cat:<20} {count:>5} upload(s)").format(cat=cat, count=count))
     print()
 
     if group_counts:
         top_group = max(group_counts, key=lambda k: group_counts[k])
-        print(f"  Grupo mais usado: {top_group} ({group_counts[top_group]} upload(s))")
+        print(_("  Grupo mais usado: {group} ({count} upload(s))").format(
+            group=top_group, count=group_counts[top_group]))
         print()
 
     if month_bytes:
-        print("  Volume por mês (últimos 6):")
+        print(_("  Volume por mês (últimos 6):"))
         for month in sorted(month_bytes)[-6:]:
             gb = month_bytes[month] / (1024 ** 3)
-            print(f"    {month}  {gb:>7.2f} GB")
+            print(_("    {month}  {size:>7.2f} GB").format(month=month, size=gb))
 
     print(sep)
 
@@ -236,9 +239,9 @@ def run_post_upload_hook(
         return
 
     script = os.path.expanduser(script)
-    if not os.path.isfile(script):
-        print(f"⚠️  POST_UPLOAD_SCRIPT não encontrado: {script}")
-        return
+    if not os.path.exists(script):
+        print(_("⚠️  POST_UPLOAD_SCRIPT não encontrado: {path}").format(path=script))
+        return None
 
     hook_env = os.environ.copy()
     hook_env.update({
@@ -259,8 +262,8 @@ def run_post_upload_hook(
             check=False,
         )
         if result.returncode != 0:
-            print(f"⚠️  POST_UPLOAD_SCRIPT saiu com código {result.returncode}")
+            print(_("⚠️  POST_UPLOAD_SCRIPT saiu com código {rc}").format(rc=result.returncode))
     except subprocess.TimeoutExpired:
-        print("⚠️  POST_UPLOAD_SCRIPT ultrapassou o timeout de 60s")
+        print(_("⚠️  POST_UPLOAD_SCRIPT ultrapassou o timeout de 60s"))
     except OSError as e:
-        print(f"⚠️  Falha ao executar POST_UPLOAD_SCRIPT: {e}")
+        print(_("⚠️  Falha ao executar POST_UPLOAD_SCRIPT: {error}").format(error=e))
