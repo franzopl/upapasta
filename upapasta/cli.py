@@ -11,8 +11,9 @@ import shutil
 from pathlib import Path
 
 from .config import DEFAULT_ENV_FILE
+from .i18n import _
 
-_USAGE_SHORT = """\
+_USAGE_SHORT = _("""\
 UpaPasta — uploader automatizado para Usenet
 
   Uso:  upapasta <caminho> [<caminho2> ...]  [opções]
@@ -28,11 +29,11 @@ UpaPasta — uploader automatizado para Usenet
     upapasta Pasta/ --dry-run              simula sem enviar nada
 
   Para ajuda completa:  upapasta --help
-"""
+""")
 
-_DESCRIPTION = "UpaPasta — uploader automatizado para Usenet"
+_DESCRIPTION = _("UpaPasta — uploader automatizado para Usenet")
 
-_EPILOG = """\
+_EPILOG = _("""\
 COMPORTAMENTO PADRÃO
   Pasta   → PAR2 (balanced) + upload direto (sem RAR) → NZB + NFO
   Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
@@ -64,7 +65,7 @@ EXEMPLOS
   upapasta Temporada.1/ --each               cada arquivo da pasta separado
   upapasta Pasta/ --password "abc123"         RAR com senha (presume --rar automaticamente)
   upapasta Pasta/ --filepath-format keep     preserva caminho completo
-"""
+""")
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,40 +78,40 @@ def parse_args() -> argparse.Namespace:
         "inputs",
         nargs="*",
         metavar="input",
-        help="Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em sequência (ou paralelo com --jobs).",
+        help=_("Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em sequência (ou paralelo com --jobs)."),
     )
     p.add_argument(
         "--config",
         action="store_true",
-        help="Abre o wizard de configuração (permite reconfigurar credenciais e opções)",
+        help=_("Abre o wizard de configuração (permite reconfigurar credenciais e opções)"),
     )
     p.add_argument(
         "--stats",
         action="store_true",
-        help="Exibe estatísticas agregadas do histórico de uploads (history.jsonl)",
+        help=_("Exibe estatísticas agregadas do histórico de uploads (history.jsonl)"),
     )
     p.add_argument(
         "--test-connection",
         action="store_true",
-        help="Testa conectividade com o servidor NNTP (valida host, porta e credenciais)",
+        help=_("Testa conectividade com o servidor NNTP (valida host, porta e credenciais)"),
     )
     p.add_argument(
         "--insecure",
         action="store_true",
-        help="Desativa verificação de certificado SSL em --test-connection (use apenas para testes)",
+        help=_("Desativa verificação de certificado SSL em --test-connection (use apenas para testes)"),
     )
     # ── Opções essenciais ────────────────────────────────────────────────────
-    essential = p.add_argument_group("opções essenciais")
+    essential = p.add_argument_group(_("opções essenciais"))
     essential.add_argument(
         "--profile",
         type=str,
         default=None,
-        help="Usa um perfil de configuração nomeado (~/.config/upapasta/<profile>.env)",
+        help=_("Usa um perfil de configuração nomeado (~/.config/upapasta/<profile>.env)"),
     )
     essential.add_argument(
         "--watch",
         action="store_true",
-        help=(
+        help=_(
             "Modo daemon: monitora <input> continuamente e processa novos itens automaticamente. "
             "Incompatível com --each/--season. Ctrl+C encerra."
         ),
@@ -118,7 +119,7 @@ def parse_args() -> argparse.Namespace:
     essential.add_argument(
         "--each",
         action="store_true",
-        help=(
+        help=_(
             "Processa cada arquivo da pasta individualmente. "
             "Ideal para temporadas: cada episódio vira um release separado com seu próprio NZB."
         ),
@@ -126,7 +127,7 @@ def parse_args() -> argparse.Namespace:
     essential.add_argument(
         "--season",
         action="store_true",
-        help=(
+        help=_(
             "Similar ao --each: upload individual de cada episódio, mas ao final "
             "gera um NZB único contendo toda a temporada, além dos NZBs individuais."
         ),
@@ -134,7 +135,7 @@ def parse_args() -> argparse.Namespace:
     essential.add_argument(
         "--obfuscate",
         action="store_true",
-        help=(
+        help=_(
             "Release privado: nomes aleatórios no RAR/PAR2 + senha gerada automaticamente. "
             "Em arquivo único, cria RAR automaticamente. "
             "Use --password junto para definir a senha manualmente."
@@ -143,7 +144,7 @@ def parse_args() -> argparse.Namespace:
     essential.add_argument(
         "--strong-obfuscate",
         action="store_true",
-        help=(
+        help=_(
             "Ofuscação máxima: nomes aleatórios no RAR/PAR2 E dentro do NZB (nenhum nome original visível em indexadores). "
             "Requer renomeação manual ou via PAR2 após download. Implica --obfuscate."
         ),
@@ -153,8 +154,8 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         const="__random__",
         default=None,
-        metavar="SENHA",
-        help=(
+        metavar=_("SENHA"),
+        help=_(
             "Senha para o RAR (injetada no NZB para extração automática por SABnzbd/NZBGet). "
             "Presume automaticamente --rar (precisa de RAR para proteger com senha). "
             "Sem argumento, gera uma senha aleatória de 16 caracteres."
@@ -163,170 +164,170 @@ def parse_args() -> argparse.Namespace:
     essential.add_argument(
         "--rar",
         action="store_true",
-        help="Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão com PAR2).",
+        help=_("Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão com PAR2)."),
     )
     essential.add_argument(
         "--skip-rar",
         action="store_true",
         dest="skip_rar_deprecated",
-        help="[DEPRECATED: use ausência de --rar] Não cria RAR.",
+        help=_("[DEPRECATED: use ausência de --rar] Não cria RAR."),
     )
     essential.add_argument(
         "--dry-run",
         action="store_true",
-        help="Simula todo o processo sem criar ou enviar arquivos.",
+        help=_("Simula todo o processo sem criar ou enviar arquivos."),
     )
 
     # ── Opções de ajuste ─────────────────────────────────────────────────────
-    tuning = p.add_argument_group("opções de ajuste")
+    tuning = p.add_argument_group(_("opções de ajuste"))
     tuning.add_argument(
         "--jobs",
         type=int,
         default=1,
-        metavar="N",
-        help="Número de uploads paralelos quando múltiplos inputs são fornecidos (padrão: 1 = sequencial)",
+        metavar=_("N"),
+        help=_("Número de uploads paralelos quando múltiplos inputs são fornecidos (padrão: 1 = sequencial)"),
     )
     tuning.add_argument(
         "--par-profile",
         choices=("fast", "balanced", "safe"),
         default="balanced",
-        help="Perfil PAR2: fast=5%%, balanced=10%% (padrão), safe=20%%",
+        help=_("Perfil PAR2: fast=5%%, balanced=10%% (padrão), safe=20%%"),
     )
     tuning.add_argument(
         "-r", "--redundancy",
         type=int,
         default=None,
-        metavar="PERCENT",
-        help="Redundância PAR2 em %% (sobrescreve --par-profile)",
+        metavar=_("PERCENT"),
+        help=_("Redundância PAR2 em %% (sobrescreve --par-profile)"),
     )
     tuning.add_argument(
         "--keep-files",
         action="store_true",
-        help="Mantém RAR e PAR2 após o upload",
+        help=_("Mantém RAR e PAR2 após o upload"),
     )
     tuning.add_argument(
         "--log-file",
         default=None,
-        metavar="PATH",
-        help="Grava log completo da sessão em arquivo",
+        metavar=_("PATH"),
+        help=_("Grava log completo da sessão em arquivo"),
     )
     tuning.add_argument(
         "--upload-retries",
         type=int,
         default=0,
-        metavar="N",
-        help="Tentativas extras de upload em caso de falha (padrão: 0)",
+        metavar=_("N"),
+        help=_("Tentativas extras de upload em caso de falha (padrão: 0)"),
     )
     tuning.add_argument(
         "--verbose",
         action="store_true",
-        help="Ativa log de debug detalhado",
+        help=_("Ativa log de debug detalhado"),
     )
     tuning.add_argument(
         "--watch-interval",
         type=int,
         default=30,
-        metavar="N",
-        help="Intervalo de varredura do --watch em segundos (padrão: 30)",
+        metavar=_("N"),
+        help=_("Intervalo de varredura do --watch em segundos (padrão: 30)"),
     )
     tuning.add_argument(
         "--watch-stable",
         type=int,
         default=60,
-        metavar="N",
-        help="Segundos que o tamanho deve ser estável antes de processar (padrão: 60)",
+        metavar=_("N"),
+        help=_("Segundos que o tamanho deve ser estável antes de processar (padrão: 60)"),
     )
 
     # ── Opções avançadas ─────────────────────────────────────────────────────
-    advanced = p.add_argument_group("opções avançadas")
+    advanced = p.add_argument_group(_("opções avançadas"))
     advanced.add_argument(
         "--backend",
         choices=("parpar", "par2"),
         default="parpar",
-        help="Backend PAR2: parpar (padrão) ou par2",
+        help=_("Backend PAR2: parpar (padrão) ou par2"),
     )
     advanced.add_argument(
         "--post-size",
         default=None,
-        metavar="SIZE",
-        help="Tamanho alvo de post (ex: 20M, 700K — sobrescreve perfil)",
+        metavar=_("SIZE"),
+        help=_("Tamanho alvo de post (ex: 20M, 700K — sobrescreve perfil)"),
     )
     advanced.add_argument(
         "--par-slice-size",
         default=None,
-        metavar="SIZE",
-        help="Override manual do slice PAR2 (ex: 512K, 1M, 2M)",
+        metavar=_("SIZE"),
+        help=_("Override manual do slice PAR2 (ex: 512K, 1M, 2M)"),
     )
     advanced.add_argument(
         "--rar-threads",
         type=int,
         default=None,
-        metavar="N",
-        help="Threads para RAR (padrão: CPUs disponíveis)",
+        metavar=_("N"),
+        help=_("Threads para RAR (padrão: CPUs disponíveis)"),
     )
     advanced.add_argument(
         "--par-threads",
         type=int,
         default=None,
-        metavar="N",
-        help="Threads para PAR2 (padrão: CPUs disponíveis)",
+        metavar=_("N"),
+        help=_("Threads para PAR2 (padrão: CPUs disponíveis)"),
     )
     advanced.add_argument(
         "--max-memory",
         type=int,
         default=None,
-        metavar="MB",
-        help="Limite de memória para PAR2 em MB (padrão: automático)",
+        metavar=_("MB"),
+        help=_("Limite de memória para PAR2 em MB (padrão: automático)"),
     )
     advanced.add_argument(
         "-s", "--subject",
         default=None,
-        help="Assunto da postagem (padrão: nome do arquivo/pasta)",
+        help=_("Assunto da postagem (padrão: nome do arquivo/pasta)"),
     )
     advanced.add_argument(
         "-g", "--group",
         default=None,
-        help="Newsgroup (padrão: do .env)",
+        help=_("Newsgroup (padrão: do .env)"),
     )
     advanced.add_argument(
         "--nzb-conflict",
         choices=("rename", "overwrite", "fail"),
         default=None,
-        help="Comportamento quando .nzb já existe: rename (padrão), overwrite, fail",
+        help=_("Comportamento quando .nzb já existe: rename (padrão), overwrite, fail"),
     )
     advanced.add_argument(
         "--env-file",
         default=DEFAULT_ENV_FILE,
-        metavar="PATH",
-        help="Caminho alternativo para o .env (padrão: ~/.config/upapasta/.env)",
+        metavar=_("PATH"),
+        help=_("Caminho alternativo para o .env (padrão: ~/.config/upapasta/.env)"),
     )
     advanced.add_argument(
         "--upload-timeout",
         type=int,
         default=None,
-        metavar="N",
-        help="Timeout de conexão para nyuu em segundos",
+        metavar=_("N"),
+        help=_("Timeout de conexão para nyuu em segundos"),
     )
     advanced.add_argument(
         "-f", "--force",
         action="store_true",
-        help="Sobrescreve RAR/PAR2 existentes",
+        help=_("Sobrescreve RAR/PAR2 existentes"),
     )
     advanced.add_argument(
         "--skip-par",
         action="store_true",
-        help="Pula geração de paridade",
+        help=_("Pula geração de paridade"),
     )
     advanced.add_argument(
         "--skip-upload",
         action="store_true",
-        help="Pula upload para Usenet",
+        help=_("Pula upload para Usenet"),
     )
     advanced.add_argument(
         "--filepath-format",
         choices=("common", "keep", "basename", "outrel"),
         default="common",
-        help=(
+        help=_(
             "Como o parpar grava paths nos .par2 (default: common). "
             "common=descarta prefixo comum (preserva subpastas relativas); "
             "keep=preserva o caminho completo; basename=descarta paths (flat); "
@@ -336,8 +337,8 @@ def parse_args() -> argparse.Namespace:
     advanced.add_argument(
         "--parpar-args",
         default=None,
-        metavar="STR",
-        help=(
+        metavar=_("STR"),
+        help=_(
             "Args extras repassados ao parpar, ex: --parpar-args \"--noindex --foo=bar\". "
             "Tokenizado via shlex. Ignorado quando backend=par2."
         ),
@@ -345,8 +346,8 @@ def parse_args() -> argparse.Namespace:
     advanced.add_argument(
         "--nyuu-args",
         default=None,
-        metavar="STR",
-        help=(
+        metavar=_("STR"),
+        help=_(
             "Args extras repassados ao nyuu, ex: --nyuu-args \"--article-threads=8 --queue=20\". "
             "Tokenizado via shlex."
         ),
@@ -354,7 +355,7 @@ def parse_args() -> argparse.Namespace:
     advanced.add_argument(
         "--rename-extensionless",
         action="store_true",
-        help=(
+        help=_(
             "Renomeia arquivos sem extensão para .bin antes do upload (reverte ao final). "
             "Evita que o SABnzbd adicione .txt em arquivos sem extensão."
         ),
@@ -362,7 +363,7 @@ def parse_args() -> argparse.Namespace:
     advanced.add_argument(
         "--resume",
         action="store_true",
-        help=(
+        help=_(
             "Retoma upload interrompido: detecta arquivos já postados via NZB parcial "
             "e faz upload apenas dos restantes, mesclando os NZBs ao final."
         ),
@@ -383,21 +384,21 @@ def check_dependencies(rar_needed: bool = True) -> bool:
             missing_commands.append(cmd)
 
     if missing_commands:
-        print("❌ Dependências não encontradas:")
+        print(_("❌ Dependências não encontradas:"))
         for cmd in missing_commands:
-            print(f"  - '{cmd}' não está instalado ou não está no PATH.")
-        print("\n   Por favor, instale as dependências e tente novamente.")
-        print("   Você pode encontrar instruções de instalação em INSTALL.md")
+            print(_("  - '{cmd}' não está instalado ou não está no PATH.").format(cmd=cmd))
+        print(_("\n   Por favor, instale as dependências e tente novamente."))
+        print(_("   Você pode encontrar instruções de instalação em INSTALL.md"))
         return False
 
     # Verificação de dependências opcionais (para NFO)
     optional_commands = ["mediainfo", "ffprobe"]
     missing_optional = [cmd for cmd in optional_commands if not shutil.which(cmd)]
     if missing_optional:
-        print(f"⚠️  Dependências opcionais ausentes: {', '.join(missing_optional)}")
-        print("   A geração de arquivos .nfo será limitada ou ignorada.")
+        print(_("⚠️  Dependências opcionais ausentes: {missing}").format(missing=', '.join(missing_optional)))
+        print(_("   A geração de arquivos .nfo será limitada ou ignorada."))
     else:
-        print("✅ Todas as dependências (incluindo opcionais) foram encontradas.")
+        print(_("✅ Todas as dependências (incluindo opcionais) foram encontradas."))
 
     return True
 
@@ -410,8 +411,8 @@ def _validate_flags(args: argparse.Namespace) -> bool:
 
     # Backward compatibility: --skip-rar → sem --rar
     if getattr(args, 'skip_rar_deprecated', False):
-        print("⚠️  --skip-rar está deprecado. O padrão já é sem RAR.")
-        print("   Para usar RAR, adicione --rar explicitamente.")
+        print(_("⚠️  --skip-rar está deprecado. O padrão já é sem RAR."))
+        print(_("   Para usar RAR, adicione --rar explicitamente."))
         args.rar = False
 
     # --password sem argumento gera senha aleatória
@@ -420,46 +421,46 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         import string
         chars = string.ascii_letters + string.digits
         args.password = "".join(secrets.choice(chars) for _ in range(16))
-        print(f"🔑  Senha gerada automaticamente: {args.password}")
+        print(_("🔑  Senha gerada automaticamente: {password}").format(password=args.password))
 
     # --password presume --rar (precisa de RAR para proteger com senha)
     if args.password and not args.rar:
-        print("ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger).")
+        print(_("ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger)."))
         args.rar = True
 
     # --strong-obfuscate presume --obfuscate
     if getattr(args, 'strong_obfuscate', False):
         args.obfuscate = True
-        print("ℹ️  --strong-obfuscate ativa --obfuscate automaticamente.")
+        print(_("ℹ️  --strong-obfuscate ativa --obfuscate automaticamente."))
 
     # --jobs requer múltiplos inputs
     jobs = getattr(args, "jobs", 1)
     if jobs < 1:
-        print("❌  --jobs deve ser ≥ 1.")
+        print(_("❌  --jobs deve ser ≥ 1."))
         return False
     if jobs > 1 and len(inputs) < 2:
-        print("⚠️  --jobs > 1 é ignorado com apenas um input.")
+        print(_("⚠️  --jobs > 1 é ignorado com apenas um input."))
 
     # --each, --season e --watch requerem exatamente um input
     if args.each or args.season:
         if len(inputs) > 1:
             mode = "--each" if args.each else "--season"
-            print(f"❌  {mode} requer exatamente um input (pasta).")
+            print(_("❌  {mode} requer exatamente um input (pasta).").format(mode=mode))
             return False
         if not args.input or not Path(args.input).is_dir():
             mode = "--each" if args.each else "--season"
-            print(f"❌  {mode} requer uma pasta como entrada.")
+            print(_("❌  {mode} requer uma pasta como entrada.").format(mode=mode))
             return False
 
     if args.watch:
         if len(inputs) > 1:
-            print("❌  --watch requer exatamente um input (pasta).")
+            print(_("❌  --watch requer exatamente um input (pasta)."))
             return False
         if not args.input or not Path(args.input).is_dir():
-            print("❌  --watch requer uma pasta como entrada.")
+            print(_("❌  --watch requer uma pasta como entrada."))
             return False
         if args.each or args.season:
-            print("❌  --watch é incompatível com --each e --season.")
+            print(_("❌  --watch é incompatível com --each e --season."))
             return False
 
     if args.obfuscate and not args.rar:
@@ -467,9 +468,9 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         # vão para os headers NNTP + paths preservados dentro dos .par2 pelo
         # parpar (filepath-format). Não há ofuscação "parcial" — a estrutura
         # interna fica protegida pelo próprio mecanismo do parpar.
-        print(
+        print(_(
             "✅ Fluxo moderno: --obfuscate (sem RAR).\n"
             "   Nomes externos ofuscados; estrutura preservada via parpar."
-        )
+        ))
 
     return True

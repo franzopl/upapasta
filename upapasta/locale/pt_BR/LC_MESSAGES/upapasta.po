@@ -3,12 +3,426 @@ msgid ""
 msgstr ""
 "Project-Id-Version: upapasta 0.26.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 00:00+0000\n"
+"POT-Creation-Date: 2026-05-06 10:39-0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: \n"
-"Language-Team: Portuguese (Brazil)\n"
 "Language: pt_BR\n"
-"MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
-"Content-Transfer-Encoding: 8bit\n"
+"Language-Team: Portuguese (Brazil)\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: upapasta/cli.py:16
+msgid ""
+"UpaPasta — uploader automatizado para Usenet\n"
+"\n"
+"  Uso:  upapasta <caminho> [<caminho2> ...]  [opções]\n"
+"\n"
+"  Exemplos rápidos:\n"
+"    upapasta Filme.2024/ --rar              pasta inteira como um release"
+" (RAR + PAR2)\n"
+"    upapasta Episodio.S01E01.mkv            arquivo único sem RAR\n"
+"    upapasta A.mkv B.mkv C.mkv             múltiplos arquivos em "
+"sequência\n"
+"    upapasta Pasta1/ Pasta2/ --jobs 2      duas pastas em paralelo\n"
+"    upapasta Temporada.1/ --each           cada arquivo da pasta vira um "
+"release separado\n"
+"    upapasta Pasta/ --obfuscate            release com nomes ofuscados\n"
+"    upapasta Pasta/ --password abc --rar   release com senha no RAR\n"
+"    upapasta Pasta/ --dry-run              simula sem enviar nada\n"
+"\n"
+"  Para ajuda completa:  upapasta --help\n"
+msgstr ""
+
+#: upapasta/cli.py:34
+msgid "UpaPasta — uploader automatizado para Usenet"
+msgstr "UpaPasta — uploader automatizado para Usenet"
+
+#: upapasta/cli.py:36
+msgid ""
+"COMPORTAMENTO PADRÃO\n"
+"  Pasta   → PAR2 (balanced) + upload direto (sem RAR) → NZB + NFO\n"
+"  Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO\n"
+"  Com --rar: cria RAR primeiro, depois PAR2 + upload\n"
+"\n"
+"  --obfuscate: nomes aleatórios (sem RAR por padrão; proteção via parpar "
+"+ ofuscação).\n"
+"  --obfuscate --password abc: nomes aleatórios + RAR com senha.\n"
+"  --password sozinho: presume --rar automaticamente (precisa de RAR para "
+"proteger).\n"
+"  Arquivo único com --obfuscate ou --password: cria RAR automaticamente.\n"
+"\n"
+"FLUXO RECOMENDADO 2026 (padrão moderno)\n"
+"  upapasta Pasta/ --obfuscate --backend parpar \\\n"
+"      --filepath-format common --par-profile safe\n"
+"\n"
+"  Por quê: parpar grava a estrutura de pastas nos .par2; SABnzbd/NZBGet\n"
+"  recentes reconstroem a árvore no download. RAR é opcional — ofuscação\n"
+"  forte + PAR2 já protege contra scans automáticos de copyright. Use "
+"--rar\n"
+"  apenas se precisar do RAR-com-senha (casos legados).\n"
+"\n"
+"  No SABnzbd: desative \"Recursive Unpacking\" e revise \"Unwanted "
+"Extensions\".\n"
+"  Use --rename-extensionless se houver arquivos sem extensão (evita .txt "
+"do SAB).\n"
+"\n"
+"EXEMPLOS\n"
+"  upapasta Pasta/ --obfuscate                 fluxo moderno (recomendado)"
+"\n"
+"  upapasta Filme.2024/ --rar                  pasta como release único "
+"(com RAR)\n"
+"  upapasta Episodio.S01E01.mkv               arquivo único, sem RAR\n"
+"  upapasta A.mkv B.mkv C.mkv                múltiplos arquivos, "
+"processamento sequencial\n"
+"  upapasta Pasta1/ Pasta2/ --jobs 2          duas pastas em paralelo\n"
+"  upapasta Temporada.1/ --each               cada arquivo da pasta "
+"separado\n"
+"  upapasta Pasta/ --password \"abc123\"         RAR com senha (presume "
+"--rar automaticamente)\n"
+"  upapasta Pasta/ --filepath-format keep     preserva caminho completo\n"
+msgstr ""
+
+#: upapasta/cli.py:81
+msgid ""
+"Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em "
+"sequência (ou paralelo com --jobs)."
+msgstr ""
+
+#: upapasta/cli.py:86
+msgid "Abre o wizard de configuração (permite reconfigurar credenciais e opções)"
+msgstr "Abre o wizard de configuração (permite reconfigurar credenciais e opções)"
+
+#: upapasta/cli.py:91
+msgid "Exibe estatísticas agregadas do histórico de uploads (history.jsonl)"
+msgstr "Exibe estatísticas agregadas do histórico de uploads (history.jsonl)"
+
+#: upapasta/cli.py:96
+msgid "Testa conectividade com o servidor NNTP (valida host, porta e credenciais)"
+msgstr "Testa conectividade com o servidor NNTP (valida host, porta e credenciais)"
+
+#: upapasta/cli.py:101
+msgid ""
+"Desativa verificação de certificado SSL em --test-connection (use apenas "
+"para testes)"
+msgstr ""
+
+#: upapasta/cli.py:104
+msgid "opções essenciais"
+msgstr "opções essenciais"
+
+#: upapasta/cli.py:109
+msgid "Usa um perfil de configuração nomeado (~/.config/upapasta/<profile>.env)"
+msgstr "Usa um perfil de configuração nomeado (~/.config/upapasta/<profile>.env)"
+
+#: upapasta/cli.py:115
+msgid ""
+"Modo daemon: monitora <input> continuamente e processa novos itens "
+"automaticamente. Incompatível com --each/--season. Ctrl+C encerra."
+msgstr ""
+
+#: upapasta/cli.py:123
+msgid ""
+"Processa cada arquivo da pasta individualmente. Ideal para temporadas: "
+"cada episódio vira um release separado com seu próprio NZB."
+msgstr ""
+
+#: upapasta/cli.py:131
+msgid ""
+"Similar ao --each: upload individual de cada episódio, mas ao final gera "
+"um NZB único contendo toda a temporada, além dos NZBs individuais."
+msgstr ""
+
+#: upapasta/cli.py:139
+msgid ""
+"Release privado: nomes aleatórios no RAR/PAR2 + senha gerada "
+"automaticamente. Em arquivo único, cria RAR automaticamente. Use "
+"--password junto para definir a senha manualmente."
+msgstr ""
+
+#: upapasta/cli.py:148
+msgid ""
+"Ofuscação máxima: nomes aleatórios no RAR/PAR2 E dentro do NZB (nenhum "
+"nome original visível em indexadores). Requer renomeação manual ou via "
+"PAR2 após download. Implica --obfuscate."
+msgstr ""
+
+#: upapasta/cli.py:157
+msgid "SENHA"
+msgstr "SENHA"
+
+#: upapasta/cli.py:159
+msgid ""
+"Senha para o RAR (injetada no NZB para extração automática por "
+"SABnzbd/NZBGet). Presume automaticamente --rar (precisa de RAR para "
+"proteger com senha). Sem argumento, gera uma senha aleatória de 16 "
+"caracteres."
+msgstr ""
+
+#: upapasta/cli.py:167
+msgid ""
+"Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão"
+" com PAR2)."
+msgstr ""
+
+#: upapasta/cli.py:173
+msgid "[DEPRECATED: use ausência de --rar] Não cria RAR."
+msgstr "[DEPRECATED: use ausência de --rar] Não cria RAR."
+
+#: upapasta/cli.py:178
+msgid "Simula todo o processo sem criar ou enviar arquivos."
+msgstr "Simula todo o processo sem criar ou enviar arquivos."
+
+#: upapasta/cli.py:182
+msgid "opções de ajuste"
+msgstr "opções de ajuste"
+
+#: upapasta/cli.py:187 upapasta/cli.py:218 upapasta/cli.py:230
+#: upapasta/cli.py:237 upapasta/cli.py:265 upapasta/cli.py:272
+#: upapasta/cli.py:308
+msgid "N"
+msgstr "N"
+
+#: upapasta/cli.py:188
+msgid ""
+"Número de uploads paralelos quando múltiplos inputs são fornecidos "
+"(padrão: 1 = sequencial)"
+msgstr ""
+
+#: upapasta/cli.py:194
+#, python-format
+msgid "Perfil PAR2: fast=5%%, balanced=10%% (padrão), safe=20%%"
+msgstr "Perfil PAR2: fast=5%%, balanced=10%% (padrão), safe=20%%"
+
+#: upapasta/cli.py:200
+msgid "PERCENT"
+msgstr "PERCENT"
+
+#: upapasta/cli.py:201
+#, python-format
+msgid "Redundância PAR2 em %% (sobrescreve --par-profile)"
+msgstr "Redundância PAR2 em %% (sobrescreve --par-profile)"
+
+#: upapasta/cli.py:206
+msgid "Mantém RAR e PAR2 após o upload"
+msgstr "Mantém RAR e PAR2 após o upload"
+
+#: upapasta/cli.py:211 upapasta/cli.py:301
+msgid "PATH"
+msgstr "PATH"
+
+#: upapasta/cli.py:212
+msgid "Grava log completo da sessão em arquivo"
+msgstr "Grava log completo da sessão em arquivo"
+
+#: upapasta/cli.py:219
+msgid "Tentativas extras de upload em caso de falha (padrão: 0)"
+msgstr "Tentativas extras de upload em caso de falha (padrão: 0)"
+
+#: upapasta/cli.py:224
+msgid "Ativa log de debug detalhado"
+msgstr "Ativa log de debug detalhado"
+
+#: upapasta/cli.py:231
+msgid "Intervalo de varredura do --watch em segundos (padrão: 30)"
+msgstr "Intervalo de varredura do --watch em segundos (padrão: 30)"
+
+#: upapasta/cli.py:238
+msgid "Segundos que o tamanho deve ser estável antes de processar (padrão: 60)"
+msgstr "Segundos que o tamanho deve ser estável antes de processar (padrão: 60)"
+
+#: upapasta/cli.py:242
+msgid "opções avançadas"
+msgstr "opções avançadas"
+
+#: upapasta/cli.py:247
+msgid "Backend PAR2: parpar (padrão) ou par2"
+msgstr "Backend PAR2: parpar (padrão) ou par2"
+
+#: upapasta/cli.py:252 upapasta/cli.py:258
+msgid "SIZE"
+msgstr "SIZE"
+
+#: upapasta/cli.py:253
+msgid "Tamanho alvo de post (ex: 20M, 700K — sobrescreve perfil)"
+msgstr "Tamanho alvo de post (ex: 20M, 700K — sobrescreve perfil)"
+
+#: upapasta/cli.py:259
+msgid "Override manual do slice PAR2 (ex: 512K, 1M, 2M)"
+msgstr "Override manual do slice PAR2 (ex: 512K, 1M, 2M)"
+
+#: upapasta/cli.py:266
+msgid "Threads para RAR (padrão: CPUs disponíveis)"
+msgstr "Threads para RAR (padrão: CPUs disponíveis)"
+
+#: upapasta/cli.py:273
+msgid "Threads para PAR2 (padrão: CPUs disponíveis)"
+msgstr "Threads para PAR2 (padrão: CPUs disponíveis)"
+
+#: upapasta/cli.py:279
+msgid "MB"
+msgstr "MB"
+
+#: upapasta/cli.py:280
+msgid "Limite de memória para PAR2 em MB (padrão: automático)"
+msgstr "Limite de memória para PAR2 em MB (padrão: automático)"
+
+#: upapasta/cli.py:285
+msgid "Assunto da postagem (padrão: nome do arquivo/pasta)"
+msgstr "Assunto da postagem (padrão: nome do arquivo/pasta)"
+
+#: upapasta/cli.py:290
+msgid "Newsgroup (padrão: do .env)"
+msgstr "Newsgroup (padrão: do .env)"
+
+#: upapasta/cli.py:296
+msgid "Comportamento quando .nzb já existe: rename (padrão), overwrite, fail"
+msgstr "Comportamento quando .nzb já existe: rename (padrão), overwrite, fail"
+
+#: upapasta/cli.py:302
+msgid "Caminho alternativo para o .env (padrão: ~/.config/upapasta/.env)"
+msgstr "Caminho alternativo para o .env (padrão: ~/.config/upapasta/.env)"
+
+#: upapasta/cli.py:309
+msgid "Timeout de conexão para nyuu em segundos"
+msgstr "Timeout de conexão para nyuu em segundos"
+
+#: upapasta/cli.py:314
+msgid "Sobrescreve RAR/PAR2 existentes"
+msgstr "Sobrescreve RAR/PAR2 existentes"
+
+#: upapasta/cli.py:319
+msgid "Pula geração de paridade"
+msgstr "Pula geração de paridade"
+
+#: upapasta/cli.py:324
+msgid "Pula upload para Usenet"
+msgstr "Pula upload para Usenet"
+
+#: upapasta/cli.py:331
+msgid ""
+"Como o parpar grava paths nos .par2 (default: common). common=descarta "
+"prefixo comum (preserva subpastas relativas); keep=preserva o caminho "
+"completo; basename=descarta paths (flat); outrel=relativo à saída. "
+"Ignorado quando backend=par2."
+msgstr ""
+
+#: upapasta/cli.py:340 upapasta/cli.py:349
+msgid "STR"
+msgstr "STR"
+
+#: upapasta/cli.py:342
+msgid ""
+"Args extras repassados ao parpar, ex: --parpar-args \"--noindex "
+"--foo=bar\". Tokenizado via shlex. Ignorado quando backend=par2."
+msgstr ""
+
+#: upapasta/cli.py:351
+msgid ""
+"Args extras repassados ao nyuu, ex: --nyuu-args \"--article-threads=8 "
+"--queue=20\". Tokenizado via shlex."
+msgstr ""
+
+#: upapasta/cli.py:359
+msgid ""
+"Renomeia arquivos sem extensão para .bin antes do upload (reverte ao "
+"final). Evita que o SABnzbd adicione .txt em arquivos sem extensão."
+msgstr ""
+
+#: upapasta/cli.py:367
+msgid ""
+"Retoma upload interrompido: detecta arquivos já postados via NZB parcial "
+"e faz upload apenas dos restantes, mesclando os NZBs ao final."
+msgstr ""
+
+#: upapasta/cli.py:387
+msgid "❌ Dependências não encontradas:"
+msgstr "❌ Dependências não encontradas:"
+
+#: upapasta/cli.py:389
+#, python-brace-format
+msgid "  - '{cmd}' não está instalado ou não está no PATH."
+msgstr "  - '{cmd}' não está instalado ou não está no PATH."
+
+#: upapasta/cli.py:390
+msgid ""
+"\n"
+"   Por favor, instale as dependências e tente novamente."
+msgstr ""
+
+#: upapasta/cli.py:391
+msgid "   Você pode encontrar instruções de instalação em INSTALL.md"
+msgstr "   Você pode encontrar instruções de instalação em INSTALL.md"
+
+#: upapasta/cli.py:398
+#, python-brace-format
+msgid "⚠️  Dependências opcionais ausentes: {missing}"
+msgstr "⚠️  Dependências opcionais ausentes: {missing}"
+
+#: upapasta/cli.py:399
+msgid "   A geração de arquivos .nfo será limitada ou ignorada."
+msgstr "   A geração de arquivos .nfo será limitada ou ignorada."
+
+#: upapasta/cli.py:401
+msgid "✅ Todas as dependências (incluindo opcionais) foram encontradas."
+msgstr "✅ Todas as dependências (incluindo opcionais) foram encontradas."
+
+#: upapasta/cli.py:414
+msgid "⚠️  --skip-rar está deprecado. O padrão já é sem RAR."
+msgstr "⚠️  --skip-rar está deprecado. O padrão já é sem RAR."
+
+#: upapasta/cli.py:415
+msgid "   Para usar RAR, adicione --rar explicitamente."
+msgstr "   Para usar RAR, adicione --rar explicitamente."
+
+#: upapasta/cli.py:424
+#, python-brace-format
+msgid "🔑  Senha gerada automaticamente: {password}"
+msgstr "🔑  Senha gerada automaticamente: {password}"
+
+#: upapasta/cli.py:428
+msgid "ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger)."
+msgstr "ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger)."
+
+#: upapasta/cli.py:434
+msgid "ℹ️  --strong-obfuscate ativa --obfuscate automaticamente."
+msgstr "ℹ️  --strong-obfuscate ativa --obfuscate automaticamente."
+
+#: upapasta/cli.py:439
+msgid "❌  --jobs deve ser ≥ 1."
+msgstr "❌  --jobs deve ser ≥ 1."
+
+#: upapasta/cli.py:442
+msgid "⚠️  --jobs > 1 é ignorado com apenas um input."
+msgstr "⚠️  --jobs > 1 é ignorado com apenas um input."
+
+#: upapasta/cli.py:448
+#, python-brace-format
+msgid "❌  {mode} requer exatamente um input (pasta)."
+msgstr "❌  {mode} requer exatamente um input (pasta)."
+
+#: upapasta/cli.py:452
+#, python-brace-format
+msgid "❌  {mode} requer uma pasta como entrada."
+msgstr "❌  {mode} requer uma pasta como entrada."
+
+#: upapasta/cli.py:457
+msgid "❌  --watch requer exatamente um input (pasta)."
+msgstr "❌  --watch requer exatamente um input (pasta)."
+
+#: upapasta/cli.py:460
+msgid "❌  --watch requer uma pasta como entrada."
+msgstr "❌  --watch requer uma pasta como entrada."
+
+#: upapasta/cli.py:463
+msgid "❌  --watch é incompatível com --each e --season."
+msgstr "❌  --watch é incompatível com --each e --season."
+
+#: upapasta/cli.py:472
+msgid ""
+"✅ Fluxo moderno: --obfuscate (sem RAR).\n"
+"   Nomes externos ofuscados; estrutura preservada via parpar."
+msgstr ""
+
