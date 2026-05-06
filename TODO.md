@@ -1,6 +1,6 @@
 # TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Última revisão: 2026-05-06 (i18n I1 concluída: v0.26.0, 549 testes verdes, 1 skipped)
+> Última revisão: 2026-05-06 (i18n I2 concluída: extração de strings completa, 549 testes verdes)
 > Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
@@ -249,7 +249,7 @@ Ordem por impacto (mais strings visíveis primeiro):
 - [x] I2.4 · `upfolder.py` — `_parse_nyuu_stderr`, mensagens de retry/backoff (~30 strings) ✅ Concluído (commit bcc74ee)
 - [x] I2.5 · `makepar.py` + `makerar.py` — progresso, erros de execução (~40 strings) ✅ Concluído (commit 0bf1f60)
 - [x] I2.6 · `nzb.py` + `nfo.py` + `catalog.py` — mensagens de conflito, hook, categoria (~30 strings) ✅ Concluído (commit 42a7757)
-- [ ] I2.7 · `config.py` + `main.py` + `watch.py` + `nntp_test.py` — wizard, daemon, NNTP (~25 strings)
+- [x] I2.7 · `config.py` + `main.py` + `watch.py` + `nntp_test.py` — wizard, daemon, NNTP (~25 strings) ✅ Concluído (commit a ser gerado)
 
 ### I3 · Documentação em inglês `v0.27.0` `Alta · Alto esforço` — pode rodar em paralelo com I2
 

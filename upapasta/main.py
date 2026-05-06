@@ -15,6 +15,7 @@ from typing import Any
 from .catalog import print_stats
 from .cli import _USAGE_SHORT, _validate_flags, check_dependencies, parse_args
 from .config import check_or_prompt_credentials, load_env_file, resolve_env_file
+from .i18n import _
 from .nfo import generate_nfo_folder
 from .nntp_test import test_nntp_connection
 from .nzb import collect_season_nzbs, fix_season_nzb_subjects, merge_nzbs
@@ -47,7 +48,8 @@ def _run_single_input(args: Any, item_path: str, env_file: str) -> int:
 def _run_multi_input(args: Any, inputs: list[str], env_file: str, jobs: int) -> int:
     """Processa múltiplos inputs em sequência (jobs=1) ou em paralelo (jobs>1)."""
     total = len(inputs)
-    print(f"📦 Multi-input: {total} item(s) — {'paralelo ×' + str(jobs) if jobs > 1 else 'sequencial'}")
+    mode = _("parallel ×{jobs}").format(jobs=jobs) if jobs > 1 else _("sequential")
+    print(_("📦 Multi-input: {total} item(s) — {mode}").format(total=total, mode=mode))
     failed: list[str] = []
 
     if jobs <= 1:
@@ -58,7 +60,7 @@ def _run_multi_input(args: Any, inputs: list[str], env_file: str, jobs: int) -> 
             try:
                 rc = _run_single_input(args, item_path, env_file)
             except KeyboardInterrupt:
-                print("\n⚠️  Interrompido pelo usuário.")
+                print(_("\n⚠️  Interrupted by user."))
                 return 130
             if rc != 0:
                 failed.append(Path(item_path).name)
@@ -79,19 +81,19 @@ def _run_multi_input(args: Any, inputs: list[str], env_file: str, jobs: int) -> 
                 item_path, rc = future.result()
                 if rc == 130:
                     executor.shutdown(wait=False, cancel_futures=True)
-                    print("\n⚠️  Interrompido pelo usuário.")
+                    print(_("\n⚠️  Interrupted by user."))
                     return 130
                 if rc != 0:
                     with lock_print:
                         failed.append(Path(item_path).name)
 
     if failed:
-        print(f"\n❌  {len(failed)}/{total} item(s) com falha:")
+        print(_("\n❌  {failed_count}/{total} item(s) failed:").format(failed_count=len(failed), total=total))
         for name in failed:
             print(f"    • {name}")
         return 1
 
-    print(f"\n✅  {total}/{total} item(s) concluídos com sucesso.")
+    print(_("\n✅  {total}/{total} item(s) completed successfully.").format(total=total))
     return 0
 
 
@@ -120,7 +122,7 @@ def main() -> None:
     if getattr(args, "test_connection", False):
         env_vars = load_env_file(env_file)
         if not all(env_vars.get(k) for k in ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS"]):
-            print("❌ Credenciais incompletas. Execute 'upapasta --config' primeiro.")
+            print(_("❌ Incomplete credentials. Run 'upapasta --config' first."))
             sys.exit(1)
         success, message = test_nntp_connection(
             host=env_vars["NNTP_HOST"],
@@ -182,11 +184,11 @@ def main() -> None:
             items = sorted(f for f in folder.iterdir() if not f.name.startswith('.') and not should_skip(f))
 
         if not items:
-            print(f"❌  Nenhum item encontrado em: {folder}")
+            print(_("❌  No items found in: {folder}").format(folder=folder))
             sys.exit(1)
 
         mode_name = "--each" if args.each else "--season"
-        print(f"📂 Modo {mode_name}: {len(items)} item(ns) em {folder.name}")
+        print(_("📂 Mode {mode}: {count} item(s) in {folder}").format(mode=mode_name, count=len(items), folder=folder.name))
         failed: list[str] = []
 
         for i, item_path in enumerate(items, 1):
@@ -211,7 +213,7 @@ def main() -> None:
             except KeyboardInterrupt:
                 rc = 130
                 teardown_session_log(log_fh, log_path)
-                print("\n⚠️  Interrompido pelo usuário.")
+                print(_("\n⚠️  Interrupted by user."))
                 sys.exit(rc)
             except Exception:
                 import traceback
@@ -224,14 +226,14 @@ def main() -> None:
 
         # No --each, falhas são fatais
         if args.each and failed:
-            print(f"\n❌  {len(failed)} item(s) com falha:")
+            print(_("\n❌  {count} item(s) failed:").format(count=len(failed)))
             for name in failed:
                 print(f"    • {name}")
             sys.exit(1)
 
         # No --season, falhas parciais são toleradas; geramos NZB com os que sucederam
         if args.season and failed:
-            print(f"\n⚠️  {len(failed)} item(s) com falha (continuando com NZB da temporada):")
+            print(_("\n⚠️  {count} item(s) failed (continuing with season NZB):").format(count=len(failed)))
             for name in failed:
                 print(f"    • {name}")
 
@@ -252,7 +254,7 @@ def main() -> None:
 
             if episode_data:
                 print(f"\n{'='*60}")
-                print(f"🌟 Finalizando Temporada: {folder.name}")
+                print(_("🌟 Finalizing Season: {folder}").format(folder=folder.name))
                 print("=" * 60)
 
                 # O nome do NZB da temporada é o nome da pasta
@@ -260,23 +262,23 @@ def main() -> None:
                 season_nzb_path = working_dir_path / season_nzb_name
 
                 nzb_paths = [p for p, _ in episode_data]
-                print(f"📦 Mesclando {len(nzb_paths)} NZBs em: {season_nzb_name}")
+                print(_("📦 Merging {count} NZBs into: {name}").format(count=len(nzb_paths), name=season_nzb_name))
                 if merge_nzbs(nzb_paths, str(season_nzb_path)):
                     fix_season_nzb_subjects(str(season_nzb_path), episode_data)
-                    print("✅ NZB da temporada gerado com sucesso!")
+                    print(_("✅ Season NZB generated successfully!"))
                 else:
-                    print("❌ Falha ao gerar NZB da temporada.")
+                    print(_("❌ Failed to generate season NZB."))
 
                 # Geração do NFO da temporada
                 season_nfo_path = season_nzb_path.with_suffix(".nfo")
                 banner = env_vars.get("NFO_BANNER")
-                print("📄 Gerando NFO da temporada...")
+                print(_("📄 Generating season NFO..."))
                 if generate_nfo_folder(str(folder), str(season_nfo_path), banner=banner):
-                    print(f"✅ NFO da temporada gerado: {season_nfo_path.name}")
+                    print(_("✅ Season NFO generated: {name}").format(name=season_nfo_path.name))
                 else:
-                    print("⚠️  Falha ao gerar NFO da temporada.")
+                    print(_("⚠️  Failed to generate season NFO."))
             elif not failed:
-                print(f"⚠️  Nenhum NZB de episódio encontrado em {working_dir_path}")
+                print(_("⚠️  No episode NZBs found in {path}").format(path=working_dir_path))
 
         sys.exit(0)
 
@@ -285,7 +287,7 @@ def main() -> None:
         try:
             _watch_loop(args, Path(args.input), args.watch_interval, args.watch_stable)
         except KeyboardInterrupt:
-            print("\n👁  --watch encerrado pelo usuário.")
+            print(_("\n👁  --watch closed by user."))
         sys.exit(0)
 
     # ── Modo normal: um único input ──────────────────────────────────────────

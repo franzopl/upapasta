@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-06 11:04-0300\n"
+"POT-Creation-Date: 2026-05-06 12:59-0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,387 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
+
+#: upapasta/_pipeline.py:81
+#, python-brace-format
+msgid "Erro: arquivo ou pasta '{input_path}' não existe."
+msgstr ""
+
+#: upapasta/_pipeline.py:85
+#, python-brace-format
+msgid "Erro: '{input_path}' não é um arquivo nem um diretório."
+msgstr ""
+
+#: upapasta/_pipeline.py:99
+#, python-brace-format
+msgid "Erro: {count} arquivo(s) sem permissão de leitura:"
+msgstr ""
+
+#: upapasta/_pipeline.py:101
+#, python-brace-format
+msgid "  {p}"
+msgstr ""
+
+#: upapasta/_pipeline.py:103
+#, python-brace-format
+msgid "  ... e mais {count}"
+msgstr ""
+
+#: upapasta/_pipeline.py:116
+#, python-brace-format
+msgid ""
+"Erro: espaço insuficiente em disco.\n"
+"  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | "
+"Livre: {free_gb:.2f} GB\n"
+"  Libere espaço ou use --dry-run para simular."
+msgstr ""
+
+#: upapasta/_pipeline.py:230
+msgid "🚀 UpaPasta — Workflow Completo de Upload para Usenet"
+msgstr ""
+
+#: upapasta/_pipeline.py:232
+#, python-brace-format
+msgid "📁 Entrada:     {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:233
+#, python-brace-format
+msgid "📦 Tamanho:     {size} GB"
+msgstr ""
+
+#: upapasta/_pipeline.py:234
+#, python-brace-format
+msgid "⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)"
+msgstr ""
+
+#: upapasta/_pipeline.py:235
+#, python-brace-format
+msgid "🎯 Perfil PAR2: {profile}"
+msgstr ""
+
+#: upapasta/_pipeline.py:236
+#, python-brace-format
+msgid "📊 Post-size:   {size}"
+msgstr ""
+
+#: upapasta/_pipeline.py:236
+msgid "(do perfil)"
+msgstr ""
+
+#: upapasta/_pipeline.py:237
+#, python-brace-format
+msgid "✉️  Subject:     {subject}"
+msgstr ""
+
+#: upapasta/_pipeline.py:238
+#, python-brace-format
+msgid "⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})"
+msgstr ""
+
+#: upapasta/_pipeline.py:240
+#, python-brace-format
+msgid "🧠 Memória PAR: {mem:.1f} GB"
+msgstr ""
+
+#: upapasta/_pipeline.py:242
+msgid "🔒 Ofuscação:   ativada"
+msgstr ""
+
+#: upapasta/_pipeline.py:244
+#, python-brace-format
+msgid "🔑 Senha RAR:   {password}"
+msgstr ""
+
+#: upapasta/_pipeline.py:246
+msgid "⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado"
+msgstr ""
+
+#: upapasta/_pipeline.py:308
+msgid "🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉"
+msgstr ""
+
+#: upapasta/_pipeline.py:310
+msgid ""
+"\n"
+"📊 RESUMO DA OPERAÇÃO:"
+msgstr ""
+
+#: upapasta/_pipeline.py:312
+#, python-brace-format
+msgid "  » Entrada de Origem: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:314
+#, python-brace-format
+msgid "  » Nome Ofuscado:    {subject}"
+msgstr ""
+
+#: upapasta/_pipeline.py:316
+#, python-brace-format
+msgid "  » Senha RAR:        {password}"
+msgstr ""
+
+#: upapasta/_pipeline.py:318
+msgid "(Não especificado)"
+msgstr ""
+
+#: upapasta/_pipeline.py:320
+#, python-brace-format
+msgid "Pool ({count} grupos)"
+msgstr ""
+
+#: upapasta/_pipeline.py:322
+#, python-brace-format
+msgid "  » Subject da Postagem: {subject}"
+msgstr ""
+
+#: upapasta/_pipeline.py:323
+#, python-brace-format
+msgid "  » Grupo Usenet: {group}"
+msgstr ""
+
+#: upapasta/_pipeline.py:325
+msgid ""
+"\n"
+"📦 ARQUIVOS GERADOS:"
+msgstr ""
+
+#: upapasta/_pipeline.py:328
+#, python-brace-format
+msgid "  » NFO: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:332
+#, python-brace-format
+msgid "  » RAR: {name} ({size:.2f} MB)"
+msgstr ""
+
+#: upapasta/_pipeline.py:334
+#, python-brace-format
+msgid "  » Pasta: {name} ({size:.2f} MB)"
+msgstr ""
+
+#: upapasta/_pipeline.py:336
+#, python-brace-format
+msgid "  » Arquivo: {name} ({size:.2f} MB)"
+msgstr ""
+
+#: upapasta/_pipeline.py:338
+#, python-brace-format
+msgid "  » PAR2: {count} arquivo(s) ({size:.2f} MB)"
+msgstr ""
+
+#: upapasta/_pipeline.py:340
+#, python-brace-format
+msgid "  » Total: {size:.2f} MB"
+msgstr ""
+
+#: upapasta/_pipeline.py:341
+#, python-brace-format
+msgid ""
+"\n"
+"  » Tempo total: {time}"
+msgstr ""
+
+#: upapasta/_pipeline.py:401
+#, python-brace-format
+msgid "⚠️  Falha ao registrar no catálogo: {error}"
+msgstr ""
+
+#: upapasta/_pipeline.py:440
+msgid ""
+"\n"
+"🧹 Limpando arquivos temporários devido a erro..."
+msgstr ""
+
+#: upapasta/_pipeline.py:443
+msgid ""
+"\n"
+"⚡ [--keep-files] Mantendo arquivos RAR e PAR2."
+msgstr ""
+
+#: upapasta/_pipeline.py:445
+msgid ""
+"\n"
+"🧹 Limpando arquivos temporários..."
+msgstr ""
+
+#: upapasta/_pipeline.py:472
+#, python-brace-format
+msgid "  ✓ Removido diretório: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:475
+#, python-brace-format
+msgid "  ✓ Removido: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:478
+#, python-brace-format
+msgid "  ✗ Erro ao remover {path}: {error}"
+msgstr ""
+
+#: upapasta/_pipeline.py:481
+#, python-brace-format
+msgid ""
+"\n"
+"✅ {count} arquivo(s) removido(s) com sucesso"
+msgstr ""
+
+#: upapasta/_pipeline.py:507
+#, python-brace-format
+msgid "⚡ [--keep-files] Mantendo links de ofuscação: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:525
+#, python-brace-format
+msgid "🧹 Removido original após cleanup do hardlink: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:527
+#, python-brace-format
+msgid "⚠️  Falha ao remover original '{name}': {error}"
+msgstr ""
+
+#: upapasta/_pipeline.py:529
+#, python-brace-format
+msgid "🧹 Removendo links temporários de ofuscação: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:536
+#, python-brace-format
+msgid "⚠️  Falha ao remover links de ofuscação: {error}"
+msgstr ""
+
+#: upapasta/_pipeline.py:543
+#, python-brace-format
+msgid "↩️  Nome original restaurado: {name}"
+msgstr ""
+
+#: upapasta/_pipeline.py:546
+#, python-brace-format
+msgid "⚠️  Falha ao restaurar nome original ('{input}' → '{original}'): {error}"
+msgstr ""
+
+#: upapasta/_pipeline.py:547
+#, python-brace-format
+msgid "    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'"
+msgstr ""
+
+#: upapasta/_pipeline.py:573
+#, python-brace-format
+msgid ""
+"✅ Pasta com subpastas + parpar (filepath-format={fmt}): estrutura será "
+"preservada via PAR2."
+msgstr ""
+
+#: upapasta/_pipeline.py:577
+msgid ""
+"   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip "
+"internos\n"
+"   e revise 'Unwanted Extensions' (use --rename-extensionless se houver "
+"arquivos sem extensão)."
+msgstr ""
+
+#: upapasta/_pipeline.py:588
+#, python-brace-format
+msgid ""
+"⚠️  {count} diretório(s) vazio(s) detectado(s) — não serão preservados no"
+" upload.\n"
+"    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem "
+"no destino.\n"
+"    Se a estrutura vazia for relevante, remova --skip-rar para empacotar "
+"em RAR."
+msgstr ""
+
+#: upapasta/_pipeline.py:594
+msgid ""
+"⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva "
+"hierarquia.\n"
+"    Considere --backend parpar (recomendado) ou remova --skip-rar."
+msgstr ""
+
+#: upapasta/_pipeline.py:611
+msgid ""
+"💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
+"   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
+"   downloaders modernos reconstroem a árvore. Menos overhead, mesmo "
+"resultado."
+msgstr ""
+
+#: upapasta/_pipeline.py:630
+msgid " (conservador)"
+msgstr ""
+
+#: upapasta/_pipeline.py:631 upapasta/_pipeline.py:632
+msgid "manual"
+msgstr ""
+
+#: upapasta/catalog.py:149
+msgid "Nenhum upload registrado ainda."
+msgstr ""
+
+#: upapasta/catalog.py:163
+msgid "Histórico vazio."
+msgstr ""
+
+#: upapasta/catalog.py:196
+#, python-brace-format
+msgid "  Uploads totais : {count}"
+msgstr ""
+
+#: upapasta/catalog.py:197
+#, python-brace-format
+msgid "  Volume total   : {size:.2f} GB"
+msgstr ""
+
+#: upapasta/catalog.py:200
+#, python-brace-format
+msgid "  Duração média  : {m}m {s:02d}s"
+msgstr ""
+
+#: upapasta/catalog.py:203
+msgid "  Categorias:"
+msgstr ""
+
+#: upapasta/catalog.py:205
+#, python-brace-format
+msgid "    {cat:<20} {count:>5} upload(s)"
+msgstr ""
+
+#: upapasta/catalog.py:210
+#, python-brace-format
+msgid "  Grupo mais usado: {group} ({count} upload(s))"
+msgstr ""
+
+#: upapasta/catalog.py:215
+msgid "  Volume por mês (últimos 6):"
+msgstr ""
+
+#: upapasta/catalog.py:218
+#, python-brace-format
+msgid "    {month}  {size:>7.2f} GB"
+msgstr ""
+
+#: upapasta/catalog.py:243
+#, python-brace-format
+msgid "⚠️  POST_UPLOAD_SCRIPT não encontrado: {path}"
+msgstr ""
+
+#: upapasta/catalog.py:265
+#, python-brace-format
+msgid "⚠️  POST_UPLOAD_SCRIPT saiu com código {rc}"
+msgstr ""
+
+#: upapasta/catalog.py:267
+msgid "⚠️  POST_UPLOAD_SCRIPT ultrapassou o timeout de 60s"
+msgstr ""
+
+#: upapasta/catalog.py:269
+#, python-brace-format
+msgid "⚠️  Falha ao executar POST_UPLOAD_SCRIPT: {error}"
+msgstr ""
 
 #: upapasta/cli.py:16
 msgid ""
@@ -86,6 +467,10 @@ msgid ""
 "  upapasta Pasta/ --password \"abc123\"         RAR com senha (presume "
 "--rar automaticamente)\n"
 "  upapasta Pasta/ --filepath-format keep     preserva caminho completo\n"
+msgstr ""
+
+#: upapasta/cli.py:80
+msgid "input"
 msgstr ""
 
 #: upapasta/cli.py:81
@@ -429,6 +814,529 @@ msgid ""
 "   Nomes externos ofuscados; estrutura preservada via parpar."
 msgstr ""
 
+#: upapasta/config.py:51 upapasta/config.py:53
+#, python-brace-format
+msgid "  {prompt}{hint}: "
+msgstr ""
+
+#: upapasta/config.py:57
+msgid "    Required value. Try again."
+msgstr ""
+
+#: upapasta/config.py:66
+msgid "    Invalid port. Use a number between 1 and 65535."
+msgstr ""
+
+#: upapasta/config.py:195
+msgid "║         UpaPasta Reconfiguration                     ║"
+msgstr ""
+
+#: upapasta/config.py:196
+msgid "║  Press Enter to keep current value                   ║"
+msgstr ""
+
+#: upapasta/config.py:200
+msgid "║         UpaPasta Initial Setup                       ║"
+msgstr ""
+
+#: upapasta/config.py:203
+msgid "NNTP server credentials not found."
+msgstr ""
+
+#: upapasta/config.py:204
+#, python-brace-format
+msgid "Configuration file: {path}"
+msgstr ""
+
+#: upapasta/config.py:207
+msgid "── NNTP Server ───────────────────────────────────────"
+msgstr ""
+
+#: upapasta/config.py:208
+msgid "NNTP Server (ex: news.eweka.nl)"
+msgstr ""
+
+#: upapasta/config.py:208
+msgid "    Invalid address."
+msgstr ""
+
+#: upapasta/config.py:209
+msgid "NNTP Port"
+msgstr ""
+
+#: upapasta/config.py:210
+msgid "Use SSL/TLS?"
+msgstr ""
+
+#: upapasta/config.py:210
+msgid "    Type true or false."
+msgstr ""
+
+#: upapasta/config.py:211
+msgid "NNTP User"
+msgstr ""
+
+#: upapasta/config.py:216
+msgid "  NNTP Password [****]: "
+msgstr ""
+
+#: upapasta/config.py:219
+msgid "NNTP Password"
+msgstr ""
+
+#: upapasta/config.py:222
+msgid "── Upload ────────────────────────────────────────────"
+msgstr ""
+
+#: upapasta/config.py:223
+msgid "  Hint: You can provide a single group or a comma-separated list."
+msgstr ""
+
+#: upapasta/config.py:224
+msgid "  If a list is provided, UpaPasta will pick a random group per upload."
+msgstr ""
+
+#: upapasta/config.py:225
+msgid "Usenet Group (or Pool)"
+msgstr ""
+
+#: upapasta/config.py:226
+msgid "Simultaneous connections (check your plan limit)"
+msgstr ""
+
+#: upapasta/config.py:227
+msgid "Article size"
+msgstr ""
+
+#: upapasta/config.py:228
+msgid "Output path for .nzb ({{filename}} = upload name)"
+msgstr ""
+
+#: upapasta/config.py:257
+msgid "── Summary ───────────────────────────────────────────"
+msgstr ""
+
+#: upapasta/config.py:258
+#, python-brace-format
+msgid "  Server    : {host}"
+msgstr ""
+
+#: upapasta/config.py:259
+#, python-brace-format
+msgid "  User      : {user}"
+msgstr ""
+
+#: upapasta/config.py:260
+#, python-brace-format
+msgid "  Group     : {group}"
+msgstr ""
+
+#: upapasta/config.py:261
+#, python-brace-format
+msgid "  Conns     : {connections}  Article: {size}"
+msgstr ""
+
+#: upapasta/config.py:262
+#, python-brace-format
+msgid "  NZB out   : {nzb}"
+msgstr ""
+
+#: upapasta/config.py:266
+#, python-brace-format
+msgid "✅ Configuration saved to '{path}'."
+msgstr ""
+
+#: upapasta/config.py:267
+msgid "   Edit this file at any time to adjust settings."
+msgstr ""
+
+#: upapasta/config.py:286
+msgid "✅ Usenet credentials loaded."
+msgstr ""
+
+#: upapasta/main.py:51
+#, python-brace-format
+msgid "parallel ×{jobs}"
+msgstr ""
+
+#: upapasta/main.py:51
+msgid "sequential"
+msgstr ""
+
+#: upapasta/main.py:52
+#, python-brace-format
+msgid "📦 Multi-input: {total} item(s) — {mode}"
+msgstr ""
+
+#: upapasta/main.py:63 upapasta/main.py:84 upapasta/main.py:216
+msgid ""
+"\n"
+"⚠️  Interrupted by user."
+msgstr ""
+
+#: upapasta/main.py:91
+#, python-brace-format
+msgid ""
+"\n"
+"❌  {failed_count}/{total} item(s) failed:"
+msgstr ""
+
+#: upapasta/main.py:96
+#, python-brace-format
+msgid ""
+"\n"
+"✅  {total}/{total} item(s) completed successfully."
+msgstr ""
+
+#: upapasta/main.py:125
+msgid "❌ Incomplete credentials. Run 'upapasta --config' first."
+msgstr ""
+
+#: upapasta/main.py:187
+#, python-brace-format
+msgid "❌  No items found in: {folder}"
+msgstr ""
+
+#: upapasta/main.py:191
+#, python-brace-format
+msgid "📂 Mode {mode}: {count} item(s) in {folder}"
+msgstr ""
+
+#: upapasta/main.py:229
+#, python-brace-format
+msgid ""
+"\n"
+"❌  {count} item(s) failed:"
+msgstr ""
+
+#: upapasta/main.py:236
+#, python-brace-format
+msgid ""
+"\n"
+"⚠️  {count} item(s) failed (continuing with season NZB):"
+msgstr ""
+
+#: upapasta/main.py:257
+#, python-brace-format
+msgid "🌟 Finalizing Season: {folder}"
+msgstr ""
+
+#: upapasta/main.py:265
+#, python-brace-format
+msgid "📦 Merging {count} NZBs into: {name}"
+msgstr ""
+
+#: upapasta/main.py:268
+msgid "✅ Season NZB generated successfully!"
+msgstr ""
+
+#: upapasta/main.py:270
+msgid "❌ Failed to generate season NZB."
+msgstr ""
+
+#: upapasta/main.py:275
+msgid "📄 Generating season NFO..."
+msgstr ""
+
+#: upapasta/main.py:277
+#, python-brace-format
+msgid "✅ Season NFO generated: {name}"
+msgstr ""
+
+#: upapasta/main.py:279
+msgid "⚠️  Failed to generate season NFO."
+msgstr ""
+
+#: upapasta/main.py:281
+#, python-brace-format
+msgid "⚠️  No episode NZBs found in {path}"
+msgstr ""
+
+#: upapasta/main.py:290
+msgid ""
+"\n"
+"👁  --watch closed by user."
+msgstr ""
+
+#: upapasta/makepar.py:246
+msgid "  Removendo hardlinks temporários de ofuscação..."
+msgstr ""
+
+#: upapasta/makepar.py:257
+msgid "  ✓ Hardlinks removidos."
+msgstr ""
+
+#: upapasta/makepar.py:259
+#, python-brace-format
+msgid "  ✗ Falha ao remover hardlinks: {error}"
+msgstr ""
+
+#: upapasta/makepar.py:262
+msgid "  Revertendo ofuscação para restaurar nomes originais..."
+msgstr ""
+
+#: upapasta/makepar.py:266
+#, python-brace-format
+msgid "  ✓ Pasta restaurada: {name}"
+msgstr ""
+
+#: upapasta/makepar.py:268
+#, python-brace-format
+msgid "  ✗ Falha ao reverter pasta '{obfuscated}' → '{input}': {error}"
+msgstr ""
+
+#: upapasta/makepar.py:269 upapasta/makepar.py:293
+#, python-brace-format
+msgid "    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'"
+msgstr ""
+
+#: upapasta/makepar.py:282
+#, python-brace-format
+msgid "  ✗ Falha ao reverter '{vol}' → '{original}': {error}"
+msgstr ""
+
+#: upapasta/makepar.py:283
+msgid "    AÇÃO MANUAL: renomeie o arquivo manualmente."
+msgstr ""
+
+#: upapasta/makepar.py:285
+#, python-brace-format
+msgid "  ✓ {count} volume(s) RAR restaurado(s): {base}.part*.rar"
+msgstr ""
+
+#: upapasta/makepar.py:290
+#, python-brace-format
+msgid "  ✓ Arquivo restaurado: {name}"
+msgstr ""
+
+#: upapasta/makepar.py:292
+#, python-brace-format
+msgid "  ✗ Falha ao reverter '{obfuscated}' → '{input}': {error}"
+msgstr ""
+
+#: upapasta/makepar.py:301
+#, python-brace-format
+msgid "Ofuscando pasta (hardlink): {base} → {random}"
+msgstr ""
+
+#: upapasta/makepar.py:306
+msgid ""
+"  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode"
+" quebrar)."
+msgstr ""
+
+#: upapasta/makepar.py:318
+#, python-brace-format
+msgid "Ofuscando volumes RAR (hardlink): {orig}.part*.rar → {random}.part*.rar"
+msgstr ""
+
+#: upapasta/makepar.py:325 upapasta/makepar.py:351
+msgid "  ⚠️ Hardlink falhou. Usando rename."
+msgstr ""
+
+#: upapasta/makepar.py:346
+#, python-brace-format
+msgid "Ofuscando (hardlink): {base} → {obfuscated}"
+msgstr ""
+
+#: upapasta/makerar.py:103
+#, python-brace-format
+msgid "Erro: '{path}' não existe ou não é um arquivo/diretório."
+msgstr ""
+
+#: upapasta/makerar.py:119
+#, python-brace-format
+msgid ""
+"Erro: '{rar}' ou volumes parciais já existem. Use --force para "
+"sobrescrever."
+msgstr ""
+
+#: upapasta/makerar.py:136
+msgid ""
+"Erro: utilitário 'rar' não encontrado. Instale-o (ex: sudo apt install "
+"rar)"
+msgstr ""
+
+#: upapasta/makerar.py:157
+#, python-brace-format
+msgid ""
+"Criando '{rar}' em volumes de {size} MB (~{count} partes, {total} MB "
+"total)..."
+msgstr ""
+
+#: upapasta/makerar.py:161
+#, python-brace-format
+msgid "Criando '{rar}' a partir de '{input}' (usando {threads} threads)..."
+msgstr ""
+
+#: upapasta/makerar.py:171
+#, python-brace-format
+msgid "Criando '{rar}' a partir de '{target}' (usando {threads} threads)..."
+msgstr ""
+
+#: upapasta/makerar.py:205
+msgid "Arquivo .rar criado com sucesso."
+msgstr ""
+
+#: upapasta/makerar.py:212
+msgid "Aviso: volumes RAR não encontrados, usando arquivo único."
+msgstr ""
+
+#: upapasta/makerar.py:215
+#, python-brace-format
+msgid "Erro: 'rar' retornou código {rc}."
+msgstr ""
+
+#: upapasta/makerar.py:221
+msgid "Erro: binário 'rar' não encontrado no PATH."
+msgstr ""
+
+#: upapasta/makerar.py:224
+#, python-brace-format
+msgid "Erro de permissão ao executar 'rar': {error}"
+msgstr ""
+
+#: upapasta/makerar.py:227
+#, python-brace-format
+msgid "Erro de I/O ao executar 'rar': {error}"
+msgstr ""
+
+#: upapasta/makerar.py:232
+msgid "Cria um .rar de uma pasta com o mesmo nome"
+msgstr ""
+
+#: upapasta/makerar.py:233
+msgid "Caminho para a pasta a ser compactada"
+msgstr ""
+
+#: upapasta/makerar.py:234
+msgid "Sobrescrever .rar existente"
+msgstr ""
+
+#: upapasta/nfo.py:181
+msgid "Atenção: 'mediainfo' não encontrado. Pulando geração de .nfo."
+msgstr ""
+
+#: upapasta/nfo.py:204
+#, python-brace-format
+msgid "Atenção: falha ao gerar NFO com mediainfo: {error}"
+msgstr ""
+
+#: upapasta/nfo.py:340
+#, python-brace-format
+msgid "Atenção: falha ao gerar NFO de pasta: {error}"
+msgstr ""
+
+#: upapasta/nntp_test.py:40
+msgid ""
+"❌ nntplib not available in Python 3.14+. The module was removed from "
+"stdlib. Use Python 3.13 or lower for --test-connection."
+msgstr ""
+
+#: upapasta/nntp_test.py:44
+msgid "❌ nntplib not available in your environment."
+msgstr ""
+
+#: upapasta/nntp_test.py:71
+#, python-brace-format
+msgid "✅ Successfully connected to {host}:{port}"
+msgstr ""
+
+#: upapasta/nntp_test.py:75
+#, python-brace-format
+msgid "❌ Authentication error: {error}"
+msgstr ""
+
+#: upapasta/nntp_test.py:76
+#, python-brace-format
+msgid "❌ Permanent server error: {error}"
+msgstr ""
+
+#: upapasta/nntp_test.py:79
+#, python-brace-format
+msgid "❌ Temporary server error: {error}"
+msgstr ""
+
+#: upapasta/nntp_test.py:82
+#, python-brace-format
+msgid "❌ Timeout connecting to {host}:{port} (check if server is available)"
+msgstr ""
+
+#: upapasta/nntp_test.py:85
+#, python-brace-format
+msgid "❌ Connection refused at {host}:{port}"
+msgstr ""
+
+#: upapasta/nntp_test.py:89
+#, python-brace-format
+msgid "❌ Host not resolvable: {host}"
+msgstr ""
+
+#: upapasta/nntp_test.py:90
+#, python-brace-format
+msgid "❌ Connection error: {error}"
+msgstr ""
+
+#: upapasta/nntp_test.py:93
+#, python-brace-format
+msgid "❌ Unexpected error: {error}"
+msgstr ""
+
+#: upapasta/nzb.py:112
+#, python-brace-format
+msgid ""
+"Aviso: arquivo NZB já existe: {path} - sobrescrevendo por solicitação "
+"(overwrite)"
+msgstr ""
+
+#: upapasta/nzb.py:114
+#, python-brace-format
+msgid "Erro: arquivo NZB já existe: {path}. Parando por configuração 'fail'."
+msgstr ""
+
+#: upapasta/nzb.py:131
+#, python-brace-format
+msgid "Aviso: arquivo NZB já existe - usando novo nome: {name}"
+msgstr ""
+
+#: upapasta/nzb.py:160
+#, python-brace-format
+msgid "Aviso: não foi possível injetar senha no NZB: {error}"
+msgstr ""
+
+#: upapasta/nzb.py:332
+msgid "NZB corrigido: subjects dos arquivos de dados atualizados."
+msgstr ""
+
+#: upapasta/nzb.py:334
+#, python-brace-format
+msgid "Aviso: não foi possível corrigir o NZB: {error}"
+msgstr ""
+
+#: upapasta/nzb.py:357
+#, python-brace-format
+msgid "Aviso: não foi possível ler NZB do episódio '{name}': {error}"
+msgstr ""
+
+#: upapasta/nzb.py:393
+msgid "NZB da temporada corrigido: subjects atualizados com nomes dos episódios."
+msgstr ""
+
+#: upapasta/nzb.py:395
+#, python-brace-format
+msgid "Erro ao corrigir subjects do NZB da temporada: {error}"
+msgstr ""
+
+#: upapasta/nzb.py:425
+#, python-brace-format
+msgid "Erro ao mesclar NZBs: {error}"
+msgstr ""
+
+#: upapasta/nzb.py:484
+#, python-brace-format
+msgid "Aviso: não foi possível ler episódio de {name}: {error}"
+msgstr ""
+
 #: upapasta/orchestrator.py:50
 msgid ""
 "\n"
@@ -534,6 +1442,11 @@ msgstr ""
 msgid "🔐 Ofuscando arquivos e gerando paridade..."
 msgstr ""
 
+#: upapasta/orchestrator.py:305 upapasta/orchestrator.py:354
+#: upapasta/orchestrator.py:384 upapasta/orchestrator.py:410
+msgid "input_target não foi configurado"
+msgstr ""
+
 #: upapasta/orchestrator.py:322 upapasta/orchestrator.py:377
 msgid "binário de paridade não encontrado"
 msgstr ""
@@ -550,9 +1463,17 @@ msgid ""
 "❌ Erro ao ofuscar/gerar paridade (código {rc})."
 msgstr ""
 
+#: upapasta/orchestrator.py:331
+msgid "obfuscated_path não definido"
+msgstr ""
+
 #: upapasta/orchestrator.py:342
 #, python-brace-format
 msgid "✨ Subject ofuscado: {subject}"
+msgstr ""
+
+#: upapasta/orchestrator.py:344
+msgid "input_target não foi configurado após ofuscação"
 msgstr ""
 
 #: upapasta/orchestrator.py:348
@@ -592,6 +1513,10 @@ msgstr ""
 msgid "↩️  Restauradas {count} extensões originais"
 msgstr ""
 
+#: upapasta/orchestrator.py:501
+msgid "N/A"
+msgstr ""
+
 #: upapasta/orchestrator.py:515
 msgid "Atenção: falha ao gerar .nfo, mas continuando..."
 msgstr ""
@@ -605,317 +1530,6 @@ msgstr ""
 msgid ""
 "\n"
 "⏭️  [--skip-upload] Upload foi pulado."
-msgstr ""
-
-#: upapasta/_pipeline.py:81
-#, python-brace-format
-msgid "Erro: arquivo ou pasta '{input_path}' não existe."
-msgstr ""
-
-#: upapasta/_pipeline.py:85
-#, python-brace-format
-msgid "Erro: '{input_path}' não é um arquivo nem um diretório."
-msgstr ""
-
-#: upapasta/_pipeline.py:99
-#, python-brace-format
-msgid "Erro: {count} arquivo(s) sem permissão de leitura:"
-msgstr ""
-
-#: upapasta/_pipeline.py:103
-#, python-brace-format
-msgid "  ... e mais {count}"
-msgstr ""
-
-#: upapasta/_pipeline.py:116
-#, python-brace-format
-msgid ""
-"Erro: espaço insuficiente em disco.\n"
-"  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | "
-"Livre: {free_gb:.2f} GB\n"
-"  Libere espaço ou use --dry-run para simular."
-msgstr ""
-
-#: upapasta/_pipeline.py:230
-msgid "🚀 UpaPasta — Workflow Completo de Upload para Usenet"
-msgstr ""
-
-#: upapasta/_pipeline.py:232
-#, python-brace-format
-msgid "📁 Entrada:     {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:233
-#, python-brace-format
-msgid "📦 Tamanho:     {size} GB"
-msgstr ""
-
-#: upapasta/_pipeline.py:234
-#, python-brace-format
-msgid "⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)"
-msgstr ""
-
-#: upapasta/_pipeline.py:235
-#, python-brace-format
-msgid "🎯 Perfil PAR2: {profile}"
-msgstr ""
-
-#: upapasta/_pipeline.py:236
-#, python-brace-format
-msgid "📊 Post-size:   {size}"
-msgstr ""
-
-#: upapasta/_pipeline.py:236
-msgid "(do perfil)"
-msgstr ""
-
-#: upapasta/_pipeline.py:237
-#, python-brace-format
-msgid "✉️  Subject:     {subject}"
-msgstr ""
-
-#: upapasta/_pipeline.py:238
-#, python-brace-format
-msgid "⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})"
-msgstr ""
-
-#: upapasta/_pipeline.py:240
-#, python-brace-format
-msgid "🧠 Memória PAR: {mem:.1f} GB"
-msgstr ""
-
-#: upapasta/_pipeline.py:242
-msgid "🔒 Ofuscação:   ativada"
-msgstr ""
-
-#: upapasta/_pipeline.py:244
-#, python-brace-format
-msgid "🔑 Senha RAR:   {password}"
-msgstr ""
-
-#: upapasta/_pipeline.py:246
-msgid "⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado"
-msgstr ""
-
-#: upapasta/_pipeline.py:308
-msgid "🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉"
-msgstr ""
-
-#: upapasta/_pipeline.py:310
-msgid ""
-"\n"
-"📊 RESUMO DA OPERAÇÃO:"
-msgstr ""
-
-#: upapasta/_pipeline.py:312
-#, python-brace-format
-msgid "  » Entrada de Origem: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:314
-#, python-brace-format
-msgid "  » Nome Ofuscado:    {subject}"
-msgstr ""
-
-#: upapasta/_pipeline.py:316
-#, python-brace-format
-msgid "  » Senha RAR:        {password}"
-msgstr ""
-
-#: upapasta/_pipeline.py:318
-msgid "(Não especificado)"
-msgstr ""
-
-#: upapasta/_pipeline.py:320
-#, python-brace-format
-msgid "Pool ({count} grupos)"
-msgstr ""
-
-#: upapasta/_pipeline.py:322
-#, python-brace-format
-msgid "  » Subject da Postagem: {subject}"
-msgstr ""
-
-#: upapasta/_pipeline.py:323
-#, python-brace-format
-msgid "  » Grupo Usenet: {group}"
-msgstr ""
-
-#: upapasta/_pipeline.py:325
-msgid ""
-"\n"
-"📦 ARQUIVOS GERADOS:"
-msgstr ""
-
-#: upapasta/_pipeline.py:328
-#, python-brace-format
-msgid "  » NFO: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:332
-#, python-brace-format
-msgid "  » RAR: {name} ({size:.2f} MB)"
-msgstr ""
-
-#: upapasta/_pipeline.py:334
-#, python-brace-format
-msgid "  » Pasta: {name} ({size:.2f} MB)"
-msgstr ""
-
-#: upapasta/_pipeline.py:336
-#, python-brace-format
-msgid "  » Arquivo: {name} ({size:.2f} MB)"
-msgstr ""
-
-#: upapasta/_pipeline.py:338
-#, python-brace-format
-msgid "  » PAR2: {count} arquivo(s) ({size:.2f} MB)"
-msgstr ""
-
-#: upapasta/_pipeline.py:340
-#, python-brace-format
-msgid "  » Total: {size:.2f} MB"
-msgstr ""
-
-#: upapasta/_pipeline.py:341
-#, python-brace-format
-msgid ""
-"\n"
-"  » Tempo total: {time}"
-msgstr ""
-
-#: upapasta/_pipeline.py:401
-#, python-brace-format
-msgid "⚠️  Falha ao registrar no catálogo: {error}"
-msgstr ""
-
-#: upapasta/_pipeline.py:440
-msgid ""
-"\n"
-"🧹 Limpando arquivos temporários devido a erro..."
-msgstr ""
-
-#: upapasta/_pipeline.py:443
-msgid ""
-"\n"
-"⚡ [--keep-files] Mantendo arquivos RAR e PAR2."
-msgstr ""
-
-#: upapasta/_pipeline.py:445
-msgid ""
-"\n"
-"🧹 Limpando arquivos temporários..."
-msgstr ""
-
-#: upapasta/_pipeline.py:472
-#, python-brace-format
-msgid "  ✓ Removido diretório: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:475
-#, python-brace-format
-msgid "  ✓ Removido: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:478
-#, python-brace-format
-msgid "  ✗ Erro ao remover {path}: {error}"
-msgstr ""
-
-#: upapasta/_pipeline.py:481
-#, python-brace-format
-msgid ""
-"\n"
-"✅ {count} arquivo(s) removido(s) com sucesso"
-msgstr ""
-
-#: upapasta/_pipeline.py:507
-#, python-brace-format
-msgid "⚡ [--keep-files] Mantendo links de ofuscação: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:525
-#, python-brace-format
-msgid "🧹 Removido original após cleanup do hardlink: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:527
-#, python-brace-format
-msgid "⚠️  Falha ao remover original '{name}': {error}"
-msgstr ""
-
-#: upapasta/_pipeline.py:529
-#, python-brace-format
-msgid "🧹 Removendo links temporários de ofuscação: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:536
-#, python-brace-format
-msgid "⚠️  Falha ao remover links de ofuscação: {error}"
-msgstr ""
-
-#: upapasta/_pipeline.py:543
-#, python-brace-format
-msgid "↩️  Nome original restaurado: {name}"
-msgstr ""
-
-#: upapasta/_pipeline.py:546
-#, python-brace-format
-msgid "⚠️  Falha ao restaurar nome original ('{input}' → '{original}'): {error}"
-msgstr ""
-
-#: upapasta/_pipeline.py:547
-#, python-brace-format
-msgid "    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'"
-msgstr ""
-
-#: upapasta/_pipeline.py:573
-#, python-brace-format
-msgid ""
-"✅ Pasta com subpastas + parpar (filepath-format={fmt}): estrutura será "
-"preservada via PAR2."
-msgstr ""
-
-#: upapasta/_pipeline.py:577
-msgid ""
-"   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip "
-"internos\n"
-"   e revise 'Unwanted Extensions' (use --rename-extensionless se houver "
-"arquivos sem extensão)."
-msgstr ""
-
-#: upapasta/_pipeline.py:588
-#, python-brace-format
-msgid ""
-"⚠️  {count} diretório(s) vazio(s) detectado(s) — não serão preservados no"
-" upload.\n"
-"    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem "
-"no destino.\n"
-"    Se a estrutura vazia for relevante, remova --skip-rar para empacotar "
-"em RAR."
-msgstr ""
-
-#: upapasta/_pipeline.py:594
-msgid ""
-"⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva "
-"hierarquia.\n"
-"    Considere --backend parpar (recomendado) ou remova --skip-rar."
-msgstr ""
-
-#: upapasta/_pipeline.py:611
-msgid ""
-"💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
-"   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
-"   downloaders modernos reconstroem a árvore. Menos overhead, mesmo "
-"resultado."
-msgstr ""
-
-#: upapasta/_pipeline.py:630
-msgid " (conservador)"
-msgstr ""
-
-#: upapasta/_pipeline.py:631 upapasta/_pipeline.py:632
-msgid "manual"
 msgstr ""
 
 #: upapasta/ui.py:161
@@ -1105,6 +1719,36 @@ msgid ""
 "ou ignore para reiniciar."
 msgstr ""
 
+#: upapasta/upfolder.py:489
+msgid "Host"
+msgstr ""
+
+#: upapasta/upfolder.py:489
+#, python-brace-format
+msgid " + {count} failover(s)"
+msgstr ""
+
+#: upapasta/upfolder.py:490
+msgid "Grupo"
+msgstr ""
+
+#: upapasta/upfolder.py:491
+msgid "Subject"
+msgstr ""
+
+#: upapasta/upfolder.py:492
+msgid "Total"
+msgstr ""
+
+#: upapasta/upfolder.py:492
+#, python-brace-format
+msgid "{size}  ({count} arquivos)"
+msgstr ""
+
+#: upapasta/upfolder.py:495
+msgid "NZB"
+msgstr ""
+
 #: upapasta/upfolder.py:499
 msgid "  Upload para Usenet"
 msgstr ""
@@ -1178,5 +1822,97 @@ msgstr ""
 #: upapasta/upfolder.py:662
 #, python-brace-format
 msgid "NZB verificado: {name}"
+msgstr ""
+
+#: upapasta/watch.py:46
+msgid "👁️  WATCH MODE ACTIVATED"
+msgstr ""
+
+#: upapasta/watch.py:48
+#, python-brace-format
+msgid "📁 Folder:       {path}"
+msgstr ""
+
+#: upapasta/watch.py:49
+#, python-brace-format
+msgid "⏱️  Interval:     {interval}s"
+msgstr ""
+
+#: upapasta/watch.py:50
+#, python-brace-format
+msgid "⚖️  Stability:    {stable}s"
+msgstr ""
+
+#: upapasta/watch.py:51
+#, python-brace-format
+msgid "🚫 Ignored:      {count} existing item(s)"
+msgstr ""
+
+#: upapasta/watch.py:52
+msgid "💡 Hint:         Move files to the folder to start upload"
+msgstr ""
+
+#: upapasta/watch.py:53
+msgid "🛑 Shortcut:     Press Ctrl+C to stop"
+msgstr ""
+
+#: upapasta/watch.py:76
+msgid "Idle: watching for new files...   "
+msgstr ""
+
+#: upapasta/watch.py:95
+#, python-brace-format
+msgid ""
+"\n"
+"{emoji} {count} new item(s) detected!"
+msgstr ""
+
+#: upapasta/watch.py:100
+#, python-brace-format
+msgid ""
+"\n"
+"⚖️  Checking file stability ({stable}s)..."
+msgstr ""
+
+#: upapasta/watch.py:107
+#, python-brace-format
+msgid ""
+"\n"
+"🚀 Starting process: {name}"
+msgstr ""
+
+#: upapasta/watch.py:116
+#, python-brace-format
+msgid ""
+"\n"
+"✅ Successfully completed: {name}"
+msgstr ""
+
+#: upapasta/watch.py:118
+#, python-brace-format
+msgid ""
+"\n"
+"❌ Processing failed (rc={rc}): {name}"
+msgstr ""
+
+#: upapasta/watch.py:123
+#, python-brace-format
+msgid ""
+"\n"
+"💥 Unexpected error processing {name}:"
+msgstr ""
+
+#: upapasta/watch.py:130
+msgid "🔄 Returning to watch mode..."
+msgstr ""
+
+#: upapasta/watch.py:135
+#, python-brace-format
+msgid "⚠️  {name}: empty or inaccessible file, ignoring."
+msgstr ""
+
+#: upapasta/watch.py:138
+#, python-brace-format
+msgid "⏳ {name}: size still changing, waiting for stability..."
 msgstr ""
 

@@ -10,6 +10,8 @@ import ssl
 import sys
 from typing import Any
 
+from .i18n import _
+
 try:
     import nntplib
 except ImportError:
@@ -34,12 +36,12 @@ def test_nntp_connection(
     """
     if nntplib is None:
         if sys.version_info >= (3, 14):
-            return False, (
-                "❌ nntplib não disponível em Python 3.14+. "
-                "O módulo foi removido da stdlib. "
-                "Use Python 3.13 ou inferior para --test-connection."
+            return False, _(
+                "❌ nntplib not available in Python 3.14+. "
+                "The module was removed from stdlib. "
+                "Use Python 3.13 or lower for --test-connection."
             )
-        return False, "❌ nntplib não disponível no seu ambiente."
+        return False, _("❌ nntplib not available in your environment.")
 
     try:
         nntp: Any = None  # noqa: F841
@@ -66,26 +68,26 @@ def test_nntp_connection(
             )
 
         nntp.quit()
-        return True, f"✅ Conexão bem-sucedida com {host}:{port}"
+        return True, _("✅ Successfully connected to {host}:{port}").format(host=host, port=port)
 
     except nntplib.NNTPPermanentError as e:
         if "authentication" in str(e).lower() or "login" in str(e).lower():
-            return False, f"❌ Erro de autenticação: {e}"
-        return False, f"❌ Erro permanente do servidor: {e}"
+            return False, _("❌ Authentication error: {error}").format(error=e)
+        return False, _("❌ Permanent server error: {error}").format(error=e)
 
     except nntplib.NNTPTemporaryError as e:
-        return False, f"❌ Erro temporário do servidor: {e}"
+        return False, _("❌ Temporary server error: {error}").format(error=e)
 
     except TimeoutError:
-        return False, f"❌ Timeout ao conectar em {host}:{port} (verifique se o servidor está disponível)"
+        return False, _("❌ Timeout connecting to {host}:{port} (check if server is available)").format(host=host, port=port)
 
     except ConnectionRefusedError:
-        return False, f"❌ Conexão recusada em {host}:{port}"
+        return False, _("❌ Connection refused at {host}:{port}").format(host=host, port=port)
 
     except OSError as e:
         if "Name or service not known" in str(e):
-            return False, f"❌ Host não resolvível: {host}"
-        return False, f"❌ Erro de conexão: {e}"
+            return False, _("❌ Host not resolvable: {host}").format(host=host)
+        return False, _("❌ Connection error: {error}").format(error=e)
 
     except Exception as e:
-        return False, f"❌ Erro inesperado: {e}"
+        return False, _("❌ Unexpected error: {error}").format(error=e)
