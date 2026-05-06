@@ -557,6 +557,7 @@ class TestParseSubject:
     def test_fix_nzb_subjects_preserves_yenc(self, tmp_path):
         """fix_nzb_subjects preserva yEnc e (N/M) ao substituir filename."""
         import xml.etree.ElementTree as ET
+
         from upapasta.nzb import fix_nzb_subjects
 
         ns = "http://www.newzbin.com/DTD/2003/nzb"
@@ -582,6 +583,7 @@ class TestParseSubject:
     def test_fix_nzb_subjects_unquoted_subject(self, tmp_path):
         """fix_nzb_subjects funciona com subjects sem aspas."""
         import xml.etree.ElementTree as ET
+
         from upapasta.nzb import fix_nzb_subjects
 
         ns = "http://www.newzbin.com/DTD/2003/nzb"

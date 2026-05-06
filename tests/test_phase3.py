@@ -12,15 +12,10 @@ Cobertos:
 from __future__ import annotations
 
 import json
-import os
 from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from upapasta._webhook import _build_payload, send_webhook
-
 
 # ── F3.11 — profiles.py ──────────────────────────────────────────────────────
 
