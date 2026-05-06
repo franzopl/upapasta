@@ -1,222 +1,224 @@
-# Guia de Diagnóstico — UpaPasta
+# Diagnostic Guide — UpaPasta
 
-Diagnóstico por sintoma. Para perguntas frequentes, veja [FAQ.md](FAQ.md).
+[Português (pt-BR)](pt-BR/TROUBLESHOOTING.md)
+
+Diagnosis by symptom. For frequently asked questions, see [FAQ.md](FAQ.md).
 
 ---
 
-## O upload falhou
+## Upload failed
 
 ```
-Upload falhou
+Upload failed
 │
 ├─ "nyuu: command not found"
-│   └─ Instalar nyuu: npm install -g nyuu
-│       Confirmar: nyuu --version
+│   └─ Install nyuu: npm install -g nyuu
+│       Confirm: nyuu --version
 │
-├─ Erro 401 / "Authentication required"
-│   └─ Credenciais inválidas
-│       Verificar NNTP_USER e NNTP_PASS no .env
-│       Testar: upapasta --test-connection
+├─ Error 401 / "Authentication required"
+│   └─ Invalid credentials
+│       Check NNTP_USER and NNTP_PASS in .env
+│       Test: upapasta --test-connection
 │
-├─ Erro 403 / "Access denied"
-│   └─ Conta sem permissão de posting
-│       Contatar o provedor Usenet
+├─ Error 403 / "Access denied"
+│   └─ Account without posting permission
+│       Contact your Usenet provider
 │
-├─ Erro 502 / "Bad Gateway"
-│   └─ Servidor sobrecarregado ou em manutenção
-│       Aguardar alguns minutos e tentar novamente
-│       Configurar --upload-retries 3 para retry automático
-│       Configurar servidor de failover (NNTP_HOST_2 no .env)
+├─ Error 502 / "Bad Gateway"
+│   └─ Server overloaded or under maintenance
+│       Wait a few minutes and try again
+│       Configure --upload-retries 3 for automatic retry
+│       Configure failover server (NNTP_HOST_2 in .env)
 │
 ├─ "Connection refused" / "ECONNREFUSED"
-│   └─ Host ou porta incorretos
-│       Verificar NNTP_HOST e NNTP_PORT no .env
-│       Confirmar: upapasta --test-connection
+│   └─ Incorrect host or port
+│       Check NNTP_HOST and NNTP_PORT in .env
+│       Confirm: upapasta --test-connection
 │
 ├─ SSL handshake error / "certificate verify failed"
-│   └─ Certificado inválido ou autoassinado
-│       Testar: upapasta --test-connection --insecure
-│       Se funcionar com --insecure → definir NNTP_IGNORE_CERT=true no .env
-│       Se não funcionar → host ou porta errados
+│   └─ Invalid or self-signed certificate
+│       Test: upapasta --test-connection --insecure
+│       If it works with --insecure → set NNTP_IGNORE_CERT=true in .env
+│       If it doesn't work → wrong host or port
 │
-├─ Upload para no meio sem erro claro
-│   └─ Provável timeout
-│       Adicionar --upload-timeout 300
-│       Configurar servidor de failover
-│       Verificar: df -h (espaço no disco)
+├─ Upload stops in the middle without clear error
+│   └─ Likely timeout
+│       Add --upload-timeout 300
+│       Configure failover server
+│       Check: df -h (disk space)
 │
-└─ Upload interrompido (Ctrl+C ou queda de rede)
-    └─ Retomar: upapasta Pasta/ --resume (mesmas flags do original)
-        Se "state file não encontrado" → refazer upload completo
+└─ Upload interrupted (Ctrl+C or network drop)
+    └─ Resume: upapasta Folder/ --resume (same flags as original)
+        If "state file not found" → redo full upload
 ```
 
 ---
 
-## A geração de PAR2 falhou
+## PAR2 generation failed
 
 ```
-PAR2 falhou
+PAR2 failed
 │
 ├─ "parpar: command not found"
-│   └─ Instalar: pip install parpar
-│       Alternativa: apt install par2 e usar --backend par2
+│   └─ Install: pip install parpar
+│       Alternative: apt install par2 and use --backend par2
 │
-├─ "par2: command not found" (usando --backend par2)
-│   └─ Instalar: apt install par2  /  brew install par2
+├─ "par2: command not found" (using --backend par2)
+│   └─ Install: apt install par2  /  brew install par2
 │
-├─ Erro de espaço em disco
-│   └─ Verificar: df -h
-│       Precisa de ~2× o tamanho da fonte disponível
-│       Liberar espaço ou mudar diretório de saída
+├─ Disk space error
+│   └─ Check: df -h
+│       Needs ~2× the source size available
+│       Free up space or change output directory
 │
-├─ Erro de memória / processo morto
-│   └─ Limitar: --max-memory 512
-│       Reduzir threads: --par-threads 2
+├─ Memory error / process killed
+│   └─ Limit: --max-memory 512
+│       Reduce threads: --par-threads 2
 │
-├─ Falha na segunda tentativa (retry automático)
-│   └─ O UpaPasta imprime instrução na tela para retomar:
-│       upapasta arquivo.rar --force --par-profile safe
+├─ Failure on second attempt (automatic retry)
+│   └─ UpaPasta prints instruction on screen to resume:
+│       upapasta file.rar --force --par-profile safe
 │
-└─ Subpastas não são preservadas (usando --backend par2)
-    └─ par2 clássico não suporta paths
-        Migrar para parpar (padrão): remover --backend par2
-        upapasta Pasta/ --backend parpar --filepath-format common
+└─ Subfolders are not preserved (using --backend par2)
+    └─ Classic par2 does not support paths
+        Migrate to parpar (default): remove --backend par2
+        upapasta Folder/ --backend parpar --filepath-format common
 ```
 
 ---
 
-## O NZB foi gerado mas o download não funciona
+## NZB generated but download doesn't work
 
 ```
-NZB inválido ou download quebrado
+Invalid NZB or broken download
 │
-├─ SABnzbd/NZBGet reporta artigos faltando
-│   └─ Aumentar paridade: --par-profile safe (20%)
-│       Os artigos podem ter expirado no servidor
-│       Verificar retenção do seu provedor Usenet
+├─ SABnzbd/NZBGet reports missing articles
+│   └─ Increase parity: --par-profile safe (20%)
+│       Articles may have expired on the server
+│       Check your Usenet provider's retention
 │
-├─ Estrutura de pastas não foi reconstruída
-│   ├─ Confirmar que upload foi feito com --filepath-format common (padrão)
-│   └─ No SABnzbd: ativar "Repair Archive" / desativar "Recursive Unpacking"
+├─ Folder structure not rebuilt
+│   ├─ Confirm upload was done with --filepath-format common (default)
+│   └─ In SABnzbd: enable "Repair Archive" / disable "Recursive Unpacking"
 │
-├─ Arquivos chegam com nomes aleatórios
-│   ├─ Se usou --obfuscate: os subjects do NZB devem ter nomes originais
-│   │   Verificar se o NZB foi processado (fix_nzb_subjects)
-│   │   Sintoma: o NZB foi gerado antes do fix → download com nomes aleatórios
-│   └─ Se usou --strong-obfuscate: esperado — renomear manualmente ou via PAR2
+├─ Files arrive with random names
+│   ├─ If --obfuscate was used: NZB subjects should have original names
+│   │   Check if NZB was processed (fix_nzb_subjects)
+│   │   Symptom: NZB was generated before fix → download with random names
+│   └─ If --strong-obfuscate was used: expected — rename manually or via PAR2
 │
-├─ SABnzbd adiciona .txt em arquivos sem extensão
-│   └─ Refazer upload com --rename-extensionless
+├─ SABnzbd adds .txt to files without extension
+│   └─ Re-upload with --rename-extensionless
 │
-└─ Senha não foi detectada pelo SABnzbd/NZBGet
-    └─ A senha é injetada como <meta type="password"> no NZB
-        Verificar: grep "password" arquivo.nzb
-        Se ausente: o upload foi feito sem --password ou --obfuscate + --rar
-        Solução: anotar a senha do catálogo e extrair manualmente
-            grep "NomeDoRelease" ~/.config/upapasta/history.jsonl
-```
-
----
-
-## O UpaPasta não encontra o `.env`
-
-```
-.env não encontrado / credenciais não carregadas
-│
-├─ Primeira execução
-│   └─ Execute upapasta --config para criar o .env interativamente
-│
-├─ .env em local diferente
-│   └─ Usar --env-file /caminho/para/.env
-│       Ou --profile nome (carrega ~/.config/upapasta/nome.env)
-│
-└─ .env existe mas credenciais erradas
-    └─ upapasta --config para reconfigurar (Enter mantém valor atual)
-        Ou editar diretamente: nano ~/.config/upapasta/.env
+└─ Password not detected by SABnzbd/NZBGet
+    └─ Password is injected as <meta type="password"> in the NZB
+        Check: grep "password" file.nzb
+        If absent: upload was done without --password or --obfuscate + --rar
+        Solution: note password from catalog and extract manually
+            grep "ReleaseName" ~/.config/upapasta/history.jsonl
 ```
 
 ---
 
-## Modo `--watch` não processa novos arquivos
+## UpaPasta cannot find `.env`
 
 ```
---watch não processa
+.env not found / credentials not loaded
 │
-├─ Arquivo apareceu mas não foi processado
-│   └─ O arquivo precisa ficar estável por --watch-stable segundos (padrão: 60)
-│       Para testes: --watch-stable 5
-│       Para downloads lentos: --watch-stable 300
+├─ First run
+│   └─ Run upapasta --config to create .env interactively
 │
-├─ --watch com --each ou --season
-│   └─ Combinação inválida — erro fatal esperado
+├─ .env in different location
+│   └─ Use --env-file /path/to/.env
+│       Or --profile name (loads ~/.config/upapasta/name.env)
 │
-└─ Processo encerrado silenciosamente
-    └─ Verificar log: --log-file /tmp/upapasta.log
-        Executar com --verbose para debug detalhado
-```
-
----
-
-## Ofuscação não foi revertida
-
-```
-Arquivos locais com nomes aleatórios após upload
-│
-├─ Reversão falhou durante o processo
-│   └─ O UpaPasta imprime instrução manual na tela
-│       Seguir as instruções impressas para renomear de volta
-│
-├─ Ctrl+C durante a ofuscação
-│   └─ O rollback é garantido via finally — aguardar a mensagem de confirmação
-│       Se o processo foi morto com SIGKILL (kill -9): rollback não executou
-│       Usar o obfuscated_map impresso para reverter manualmente
-│
-└─ Arquivos .par2 com nomes aleatórios persistem
-    └─ Normal após --obfuscate sem --keep-files: são removidos no cleanup
-        Se --keep-files foi usado: remover manualmente os .par2 aleatórios
+└─ .env exists but wrong credentials
+    └─ upapasta --config to reconfigure (Enter keeps current value)
+        Or edit directly: nano ~/.config/upapasta/.env
 ```
 
 ---
 
-## Catálogo / histórico
+## `--watch` mode doesn't process new files
 
 ```
-Problema com histórico
+--watch does not process
 │
-├─ "history.db not found" ou erro sqlite3
-│   └─ O catálogo mudou para JSONL na versão 0.12.0
-│       Arquivo correto: ~/.config/upapasta/history.jsonl
-│       Consultar: tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool
-│       Estatísticas: upapasta --stats
+├─ File appeared but was not processed
+│   └─ File needs to stay stable for --watch-stable seconds (default: 60)
+│       For testing: --watch-stable 5
+│       For slow downloads: --watch-stable 300
 │
-├─ --stats não mostra nada
-│   └─ Nenhum upload registrado ainda (history.jsonl vazio ou inexistente)
+├─ --watch with --each or --season
+│   └─ Invalid combination — fatal error expected
 │
-└─ NZB arquivado não encontrado
-    └─ NZBs são hardlinks em ~/.config/upapasta/nzb/
-        Se o disco foi formatado ou hardlink perdido → usar caminho_nzb do catálogo
+└─ Process ended silently
+    └─ Check log: --log-file /tmp/upapasta.log
+        Run with --verbose for detailed debug
+```
+
+---
+
+## Obfuscation was not reverted
+
+```
+Local files with random names after upload
+│
+├─ Reversion failed during process
+│   └─ UpaPasta prints manual instruction on screen
+│       Follow printed instructions to rename back
+│
+├─ Ctrl+C during obfuscation
+│   └─ Rollback is guaranteed via finally — wait for confirmation message
+│       If process was killed with SIGKILL (kill -9): rollback did not execute
+│       Use the printed obfuscated_map to revert manually
+│
+└─ Randomly named .par2 files persist
+    └─ Normal after --obfuscate without --keep-files: they are removed in cleanup
+        If --keep-files was used: manually remove random .par2 files
+```
+
+---
+
+## Catalog / History
+
+```
+History problem
+│
+├─ "history.db not found" or sqlite3 error
+│   └─ Catalog moved to JSONL in version 0.12.0
+│       Correct file: ~/.config/upapasta/history.jsonl
+│       Query: tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool
+│       Statistics: upapasta --stats
+│
+├─ --stats shows nothing
+│   └─ No uploads recorded yet (history.jsonl empty or non-existent)
+│
+└─ Archived NZB not found
+    └─ NZBs are hardlinks in ~/.config/upapasta/nzb/
+        If disk was formatted or hardlink lost → use caminho_nzb from catalog
         ls -la ~/.config/upapasta/nzb/
 ```
 
 ---
 
-## Coleta de informações para reportar um bug
+## Information collection to report a bug
 
-Se nenhum dos cenários acima resolver, colete as informações abaixo antes de abrir uma issue:
+If none of the above scenarios solve it, collect the following info before opening an issue:
 
 ```bash
-# Versão do UpaPasta
+# UpaPasta version
 upapasta --help | head -1
 
-# Versão do Python
+# Python version
 python3 --version
 
-# Binários disponíveis
+# Available binaries
 which nyuu parpar par2 rar ffprobe mediainfo 2>&1
 
-# Log detalhado da execução que falhou
-upapasta Pasta/ --verbose --log-file /tmp/upapasta_debug.log
-# Compartilhar o conteúdo de /tmp/upapasta_debug.log (remover senhas antes)
+# Detailed log of failed execution
+upapasta Folder/ --verbose --log-file /tmp/upapasta_debug.log
+# Share content of /tmp/upapasta_debug.log (remove passwords first)
 ```
 
-Abrir issue em: https://github.com/franzopl/upapasta/issues
+Open issue at: https://github.com/franzopl/upapasta/issues

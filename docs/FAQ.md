@@ -1,146 +1,148 @@
 # FAQ — UpaPasta
 
-Respostas diretas para as dúvidas mais comuns. Para diagnóstico passo a passo, veja [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+[Português (pt-BR)](pt-BR/FAQ.md)
+
+Direct answers to the most common questions. For step-by-step diagnosis, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ---
 
-## Instalação e configuração
+## Installation and Configuration
 
-**P: `upapasta: command not found` depois de `pip install upapasta`.**
+**Q: `upapasta: command not found` after `pip install upapasta`.**
 
-R: O diretório de scripts do pip não está no PATH. Adicione ao `~/.bashrc` ou `~/.zshrc`:
+A: The pip script directory is not in your PATH. Add it to your `~/.bashrc` or `~/.zshrc`:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
-Depois: `source ~/.bashrc` e tente novamente.
+Then run `source ~/.bashrc` and try again.
 
 ---
 
-**P: `nyuu: command not found`.**
+**Q: `nyuu: command not found`.**
 
-R: Instale via npm: `npm install -g nyuu`. Se o Node não estiver instalado: `apt install nodejs npm`. Confirme com `nyuu --version`.
-
----
-
-**P: `parpar: command not found`.**
-
-R: Instale via pip: `pip install parpar`. Confirme com `parpar --version`.
+A: Install it via npm: `npm install -g nyuu`. If Node is not installed: `apt install nodejs npm`. Confirm with `nyuu --version`.
 
 ---
 
-**P: SSL handshake falha ao conectar no servidor NNTP.**
+**Q: `parpar: command not found`.**
 
-R: Primeiro teste: `upapasta --test-connection`. Se falhar com erro de certificado, seu servidor tem um certificado autoassinado ou expirado. Opções:
-1. Defina `NNTP_IGNORE_CERT=true` no `.env` (apenas em ambiente confiável)
-2. Use `upapasta --test-connection --insecure` para confirmar que é isso antes de alterar o `.env`
+A: Install it via pip: `pip install parpar`. Confirm with `parpar --version`.
 
 ---
 
-**P: `upapasta --config` não atualiza as credenciais.**
+**Q: SSL handshake fails when connecting to the NNTP server.**
 
-R: Enter sem digitar nada **mantém** o valor atual. Para limpar um campo, pressione espaço e Enter (grava espaço) — depois edite o `.env` diretamente com um editor de texto.
+A: First test: `upapasta --test-connection`. If it fails with a certificate error, your server has a self-signed or expired certificate. Options:
+1. Set `NNTP_IGNORE_CERT=true` in `.env` (trusted environments only)
+2. Use `upapasta --test-connection --insecure` to confirm this is the issue before modifying `.env`
+
+---
+
+**Q: `upapasta --config` does not update credentials.**
+
+A: Pressing Enter without typing anything **keeps** the current value. To clear a field, press space and then Enter (it will store a space) — then edit `.env` directly with a text editor.
 
 ---
 
 ## Upload
 
-**P: Erro 401 ou 403 do nyuu.**
+**Q: nyuu error 401 or 403.**
 
-R: Credenciais inválidas. Verifique `NNTP_USER` e `NNTP_PASS` no `.env`. Se usar failover, verifique também `NNTP_USER_2`, `NNTP_PASS_2` etc. Use `upapasta --test-connection` para validar.
-
----
-
-**P: Erro 502 / Bad Gateway do nyuu.**
-
-R: O servidor NNTP está sobrecarregado ou em manutenção. Tente novamente em alguns minutos. Configure `--upload-retries 3` para retry automático com backoff exponencial.
+A: Invalid credentials. Check `NNTP_USER` and `NNTP_PASS` in `.env`. If using failover, also check `NNTP_USER_2`, `NNTP_PASS_2`, etc. Use `upapasta --test-connection` to validate.
 
 ---
 
-**P: Upload para no meio sem mensagem de erro clara.**
+**Q: nyuu error 502 / Bad Gateway.**
 
-R: Provável timeout de conexão. Adicione `--upload-timeout 300` (5 minutos). Se o problema persistir, configure um servidor de failover — veja [DOCS.md § 7](../DOCS.md#7-múltiplos-servidores-nntp).
+A: The NNTP server is overloaded or under maintenance. Try again in a few minutes. Configure `--upload-retries 3` for automatic retry with exponential backoff.
 
 ---
 
-**P: Como retomar um upload que foi interrompido com Ctrl+C?**
+**Q: Upload stops in the middle without a clear error message.**
 
-R: Use `--resume` com as mesmas flags do upload original:
+A: Likely a connection timeout. Add `--upload-timeout 300` (5 minutes). If the problem persists, configure a failover server — see [DOCS.md § 7](DOCS.md#7-multiple-nntp-servers).
+
+---
+
+**Q: How to resume an upload that was interrupted with Ctrl+C?**
+
+A: Use `--resume` with the same flags as the original upload:
 ```bash
-upapasta Pasta/ --resume
-# ou com as flags originais:
-upapasta Pasta/ --obfuscate --par-profile safe --resume
+upapasta Folder/ --resume
+# or with the original flags:
+upapasta Folder/ --obfuscate --par-profile safe --resume
 ```
-O UpaPasta detecta o `.upapasta-state.json` salvo e faz upload apenas dos arquivos restantes.
+UpaPasta detects the saved `.upapasta-state.json` and uploads only the remaining files.
 
 ---
 
-**P: `--resume` diz que não encontrou state file.**
+**Q: `--resume` says state file not found.**
 
-R: O arquivo `.upapasta-state.json` é salvo no mesmo diretório do NZB de saída. Se foi deletado, movido ou nunca foi criado (upload falhou antes de começar), será necessário refazer o upload completo sem `--resume`.
+A: The `.upapasta-state.json` file is saved in the same directory as the output NZB. If it was deleted, moved, or never created (upload failed before starting), you will need to perform a full upload without `--resume`.
 
 ---
 
 ## PAR2
 
-**P: Geração de PAR2 falha com mensagem de erro do parpar.**
+**Q: PAR2 generation fails with an error message from parpar.**
 
-R: Causas mais comuns:
-1. **Espaço em disco:** o UpaPasta precisa de aproximadamente 2× o tamanho da fonte. Verifique com `df -h`.
-2. **Permissões:** o diretório de destino precisa ser gravável.
-3. **Memória insuficiente:** adicione `--max-memory 512` para limitar o uso.
+A: Most common causes:
+1. **Disk space:** UpaPasta needs approximately 2× the source size. Check with `df -h`.
+2. **Permissions:** The destination directory must be writable.
+3. **Insufficient memory:** Add `--max-memory 512` to limit usage.
 
-O UpaPasta tenta automaticamente uma segunda vez com menos threads e perfil `safe`. Se ainda falhar, veja a mensagem de instrução impressa na tela para retomar manualmente.
-
----
-
-**P: `par2: command not found` (usando `--backend par2`).**
-
-R: Instale: `apt install par2` (Debian/Ubuntu) ou `brew install par2` (macOS). Alternativa recomendada: use `--backend parpar` (mais rápido, suporta subpastas).
+UpaPasta automatically tries a second time with fewer threads and the `safe` profile. If it still fails, see the instruction message printed on the screen to resume manually.
 
 ---
 
-**P: SABnzbd não reconstrói a estrutura de pastas depois do download.**
+**Q: `par2: command not found` (using `--backend par2`).**
 
-R: Duas opções:
-1. Certifique-se de ter usado `--filepath-format common` (padrão) ao fazer o upload com `parpar`. O SABnzbd precisa ter "Repair Archive" ativo.
-2. Se o SABnzbd está com "Recursive Unpacking" ativo, **desative** — ele pode desestruturar o conteúdo.
+A: Install it: `apt install par2` (Debian/Ubuntu) or `brew install par2` (macOS). Recommended alternative: use `--backend parpar` (faster, supports subfolders).
 
 ---
 
-## Ofuscação
+**Q: SABnzbd does not rebuild the folder structure after downloading.**
 
-**P: Qual a diferença entre `--obfuscate` e `--strong-obfuscate`?**
+A: Two options:
+1. Ensure you used `--filepath-format common` (default) when uploading with `parpar`. SABnzbd must have "Repair Archive" active.
+2. If SABnzbd has "Recursive Unpacking" active, **disable it** — it may disrupt the structure.
 
-R:
+---
+
+## Obfuscation
+
+**Q: What is the difference between `--obfuscate` and `--strong-obfuscate`?**
+
+A:
 
 | | `--obfuscate` | `--strong-obfuscate` |
 |--|--------------|---------------------|
-| Nomes dos arquivos na Usenet | aleatórios | aleatórios |
-| Subjects no NZB | **nomes originais** | aleatórios |
-| Indexadores veem o conteúdo? | não | não |
-| Downloader vê os nomes? | sim (via NZB) | não (requer PAR2) |
+| Filenames on Usenet | random | random |
+| Subjects in NZB | **original names** | random |
+| Do indexers see content? | no | no |
+| Does downloader see names? | yes (via NZB) | no (requires PAR2) |
 
-Use `--obfuscate` para o uso normal (proteção contra DMCA com conveniência de download). Use `--strong-obfuscate` apenas quando privacidade máxima for crítica.
-
----
-
-**P: Usei `--obfuscate` e os arquivos locais ficaram com nomes aleatórios após o upload.**
-
-R: Isso não deveria acontecer — o rollback é garantido via `finally`. Verifique se o terminal mostrou algum aviso de "reversão falhou". Se sim, a instrução de reversão manual foi impressa na tela. Se não, pode ser um bug — abra uma issue com o log (`--log-file`).
+Use `--obfuscate` for normal use (DMCA protection with download convenience). Use `--strong-obfuscate` only when maximum privacy is critical.
 
 ---
 
-**P: `--password` sem `--rar` funciona?**
+**Q: I used `--obfuscate` and local files kept random names after upload.**
 
-R: `--password` presume `--rar` automaticamente desde a versão 0.18.0. Não é necessário digitar `--rar` separado. A combinação `--skip-rar --password` ainda é erro fatal.
+A: This should not happen — rollback is guaranteed via `finally`. Check if the terminal showed any "reversion failed" warning. If so, manual reversion instructions were printed. If not, it might be a bug — open an issue with the log (`--log-file`).
 
 ---
 
-## Catálogo
+**Q: Does `--password` without `--rar` work?**
 
-**P: `history.db not found` ou erro de sqlite3.**
+A: `--password` automatically implies `--rar` since version 0.18.0. You don't need to type `--rar` separately. The combination `--skip-rar --password` is still a fatal error.
 
-R: O catálogo mudou para JSONL na versão 0.12.0. O arquivo correto é `~/.config/upapasta/history.jsonl`. Não existe mais `history.db`. Para consultar:
+---
+
+## Catalog
+
+**Q: `history.db not found` or sqlite3 error.**
+
+A: The catalog moved to JSONL in version 0.12.0. The correct file is `~/.config/upapasta/history.jsonl`. `history.db` no longer exists. To query:
 ```bash
 tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool
 upapasta --stats
@@ -148,46 +150,46 @@ upapasta --stats
 
 ---
 
-**P: `upapasta --stats` não mostra nada.**
+**Q: `upapasta --stats` shows nothing.**
 
-R: Ainda não há uploads registrados. O arquivo `history.jsonl` é criado na primeira execução com upload bem-sucedido.
+A: There are no recorded uploads yet. The `history.jsonl` file is created on the first successful upload.
 
 ---
 
-**P: Como recuperar a senha de um upload ofuscado?**
+**Q: How to recover the password for an obfuscated upload?**
 
-R: A senha está registrada no campo `senha_rar` do catálogo:
+A: The password is recorded in the `senha_rar` field of the catalog:
 ```bash
-grep "NomeDoRelease" ~/.config/upapasta/history.jsonl | python3 -m json.tool
+grep "ReleaseName" ~/.config/upapasta/history.jsonl | python3 -m json.tool
 ```
-Os NZBs também têm a senha injetada em `<meta type="password">` — SABnzbd e NZBGet a leem automaticamente.
+NZBs also have the password injected in `<meta type="password">` — SABnzbd and NZBGet read it automatically.
 
 ---
 
 ## SABnzbd
 
-**P: SABnzbd adiciona `.txt` em arquivos sem extensão.**
+**Q: SABnzbd adds `.txt` to files without an extension.**
 
-R: Use `--rename-extensionless` ao fazer o upload. O UpaPasta renomeia os arquivos para `.bin` antes do upload e reverte ao final. O SABnzbd recebe os arquivos como `.bin` e não adiciona `.txt`.
-
----
-
-**P: SABnzbd descompacta `.zip` internos que deveriam ser preservados.**
-
-R: Desative "Recursive Unpacking" nas configurações do SABnzbd (`Config → General → Recursive Unpacking`).
+A: Use `--rename-extensionless` when uploading. UpaPasta renames files to `.bin` before upload and reverts at the end. SABnzbd receives files as `.bin` and does not add `.txt`.
 
 ---
 
-## Pastas e estrutura
+**Q: SABnzbd unpacks internal `.zip` files that should be preserved.**
 
-**P: Subpastas vazias somem depois do download.**
-
-R: Usenet e PAR2 só transportam arquivos. Sem RAR, diretórios vazios não existem. Solução:
-- Adicione `--rar` para preservar a estrutura via container RAR
-- Ou coloque um arquivo sentinela (`.keep`) em cada subpasta vazia antes do upload
+A: Disable "Recursive Unpacking" in SABnzbd settings (`Config → General → Recursive Unpacking`).
 
 ---
 
-**P: Tenho uma pasta com um único arquivo. O UpaPasta cria RAR?**
+## Folders and Structure
 
-R: Não por padrão. RAR só é criado com `--rar`, `--password` ou `--obfuscate` em arquivo único. Se não usar nenhuma dessas flags, o arquivo é enviado diretamente.
+**Q: Empty subfolders disappear after downloading.**
+
+A: Usenet and PAR2 only transport files. Without RAR, empty directories do not exist. Solution:
+- Add `--rar` to preserve the structure via a RAR container
+- Or place a sentinel file (`.keep`) in each empty subfolder before uploading
+
+---
+
+**Q: I have a folder with a single file. Does UpaPasta create a RAR?**
+
+A: Not by default. RAR is only created with `--rar`, `--password`, or `--obfuscate` on a single file. If you don't use any of these flags, the file is uploaded directly.
