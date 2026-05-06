@@ -51,6 +51,9 @@ def test_verify_nzb_missing():
 
 def test_upload_retry_on_failure(tmp_path, monkeypatch):
     """upload_to_usenet deve tentar N+1 vezes antes de desistir."""
+    import time
+    monkeypatch.setattr(time, "sleep", lambda x: None)
+
     input_file = tmp_path / "video.mkv"
     input_file.write_text("dummy")
     par2 = tmp_path / "video.par2"
@@ -86,6 +89,9 @@ def test_upload_retry_on_failure(tmp_path, monkeypatch):
 
 def test_upload_retry_succeeds_on_second_try(tmp_path, monkeypatch):
     """upload_to_usenet deve ter sucesso na segunda tentativa."""
+    import time
+    monkeypatch.setattr(time, "sleep", lambda x: None)
+
     input_file = tmp_path / "video.mkv"
     input_file.write_text("dummy")
     par2 = tmp_path / "video.par2"

@@ -10,6 +10,16 @@ import pytest
 from upapasta._process import _terminate_process, managed_popen
 
 
+def wait_for_proc(proc, timeout=1.0):
+    start = time.time()
+    while time.time() - start < timeout:
+        if proc.poll() is None:
+            time.sleep(0.001)
+            # Try to see if it's actually running by checking if it's responsive
+            # for these tests, just ensuring it exists is usually enough
+            continue
+        break
+
 class TestTerminateProcess:
     """Testes para _terminate_process."""
 
@@ -44,7 +54,11 @@ while True:
             stderr=subprocess.PIPE,
         )
 
-        time.sleep(0.1)  # Garante que o processo iniciou
+        # Aguarda o processo estar vivo
+        start = time.time()
+        while proc.poll() is not None and time.time() - start < 1.0:
+            time.sleep(0.001)
+
         _terminate_process(proc, timeout=2)
 
         assert proc.poll() is not None, "Processo não terminou após SIGTERM"
@@ -54,9 +68,10 @@ while True:
         # Script que ignora SIGTERM (vai precisar de SIGKILL)
         script = """
 import signal
+import time
 signal.signal(signal.SIGTERM, signal.SIG_IGN)
 while True:
-    pass
+    time.sleep(0.001)
 """
         proc = subprocess.Popen(
             [sys.executable, "-c", script],
@@ -64,8 +79,12 @@ while True:
             stderr=subprocess.PIPE,
         )
 
-        time.sleep(0.1)
-        _terminate_process(proc, timeout=0.1)  # timeout curto força SIGKILL
+        # Aguarda o processo estar vivo
+        start = time.time()
+        while proc.poll() is not None and time.time() - start < 1.0:
+            time.sleep(0.001)
+
+        _terminate_process(proc, timeout=0.05)  # timeout curto força SIGKILL
 
         assert proc.poll() is not None, "Processo não terminou após SIGKILL"
 
@@ -120,7 +139,7 @@ class TestManagedPopen:
                     [sys.executable, "-c", script],
                     stdout=subprocess.PIPE,
                 ) as _:
-                    time.sleep(0.1)
+                    # Sem sleep fixo, apenas gera a interrupção
                     raise KeyboardInterrupt()
             except KeyboardInterrupt:
                 pass  # Esperado
@@ -136,7 +155,6 @@ class TestManagedPopen:
                 [sys.executable, "-c", script],
                 stdout=subprocess.PIPE,
             ) as _:
-                time.sleep(0.1)
                 raise KeyboardInterrupt()
 
     def test_cleanup_on_exception(self):
@@ -147,7 +165,6 @@ class TestManagedPopen:
                     [sys.executable, "-c", "import time; time.sleep(10)"],
                     stdout=subprocess.PIPE,
                 ) as _:
-                    time.sleep(0.1)
                     raise ValueError("test error")
             except ValueError:
                 pass  # Esperado
@@ -161,7 +178,6 @@ class TestManagedPopen:
                 [sys.executable, "-c", "import time; time.sleep(10)"],
                 stdout=subprocess.PIPE,
             ) as _:
-                time.sleep(0.1)
                 raise ValueError("test error")
 
     def test_early_return_cleanup(self):
@@ -172,7 +188,6 @@ class TestManagedPopen:
                     [sys.executable, "-c", "import time; time.sleep(10)"],
                     stdout=subprocess.PIPE,
                 ) as _:
-                    time.sleep(0.1)
                     return "early"
 
             result = run_with_early_return()
