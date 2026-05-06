@@ -486,13 +486,13 @@ def upload_to_usenet(
     sep = "─" * min(term_columns - 1, 60)
 
     rows = [
-        ("Host",    f"{nntp_host}:{nntp_port}" + (f" + {len(servers)-1} failover(s)" if len(servers) > 1 else "")),
-        ("Grupo",   usenet_group),
-        ("Subject", subject),
-        ("Total",   f"{format_size(total_size_bytes)}  ({all_file_count} arquivos)"),
+        (_("Host"),    f"{nntp_host}:{nntp_port}" + (_(" + {count} failover(s)").format(count=len(servers)-1) if len(servers) > 1 else "")),
+        (_("Grupo"),   usenet_group),
+        (_("Subject"), subject),
+        (_("Total"),   _("{size}  ({count} arquivos)").format(size=format_size(total_size_bytes), count=all_file_count)),
     ]
     if nzb_out:
-        rows.append(("NZB", nzb_out))
+        rows.append((_("NZB"), nzb_out))
 
     label_w = max(len(r[0]) for r in rows)
     print(sep)

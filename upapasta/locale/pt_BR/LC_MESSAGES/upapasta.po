@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: upapasta 0.26.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-06 12:00-0300\n"
+"POT-Creation-Date: 2026-05-06 12:05-0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: \n"
 "Language: pt_BR\n"
@@ -530,7 +530,7 @@ msgstr ""
 "   Nomes externos ofuscados; estrutura preservada via parpar."
 
 #: upapasta/makepar.py:246
-#, fuzzy, python-brace-format
+#, fuzzy
 msgid "  Removendo hardlinks temporários de ofuscação..."
 msgstr "🧹 Removendo links temporários de ofuscação: {name}"
 
@@ -647,7 +647,7 @@ msgid "Criando '{rar}' a partir de '{target}' (usando {threads} threads)..."
 msgstr ""
 
 #: upapasta/makerar.py:205
-#, fuzzy, python-brace-format
+#, fuzzy
 msgid "Arquivo .rar criado com sucesso."
 msgstr ""
 "\n"
@@ -1454,6 +1454,36 @@ msgid ""
 msgstr ""
 "  Aviso: encontrado estado de upload anterior. Use --resume para retomar "
 "ou ignore para reiniciar."
+
+#: upapasta/upfolder.py:489
+msgid "Host"
+msgstr "Host"
+
+#: upapasta/upfolder.py:489
+#, python-brace-format
+msgid " + {count} failover(s)"
+msgstr " + {count} failover(s)"
+
+#: upapasta/upfolder.py:490
+msgid "Grupo"
+msgstr "Grupo"
+
+#: upapasta/upfolder.py:491
+msgid "Subject"
+msgstr "Assunto"
+
+#: upapasta/upfolder.py:492
+msgid "Total"
+msgstr "Total"
+
+#: upapasta/upfolder.py:492
+#, python-brace-format
+msgid "{size}  ({count} arquivos)"
+msgstr "{size}  ({count} arquivos)"
+
+#: upapasta/upfolder.py:495
+msgid "NZB"
+msgstr "NZB"
 
 #: upapasta/upfolder.py:499
 #, fuzzy
