@@ -1,6 +1,6 @@
 # TODO — Upapasta: Roadmap Completo até v1.0.0
 
-> Última revisão: 2026-05-05 (fase 3 em andamento: 319 testes verdes, 1 skipped)
+> Última revisão: 2026-05-06 (fase 3 em andamento: v0.25.0, testes verdes, 1 skipped)
 > Princípio: corrigir primeiro, expandir depois. Estabilidade > novas features.
 
 ---
@@ -222,14 +222,14 @@
 
 ## 🏁 Critérios de v1.0.0
 
-- [ ] Todas as Fases 1 e 2 concluídas
-- [ ] CI verde (pytest + mypy + ruff) via GitHub Actions
+- [x] Todas as Fases 1 e 2 concluídas ✅
+- [x] CI verde (pytest + mypy + ruff) via GitHub Actions ✅ (F1.5)
 - [x] Cobertura ≥ 90% nos módulos core (F3.13) ✅
-- [ ] `--resume` funcional (F2.10)
-- [ ] Múltiplos servidores NNTP (F2.9)
-- [ ] Documentação completa e atualizada (F3.14)
+- [x] `--resume` funcional (F2.10) ✅
+- [x] Múltiplos servidores NNTP (F2.9) ✅
+- [ ] Documentação completa e atualizada (F3.14) ← **único bloqueador restante**
 - [x] PyPI publicado (F3.15) ✅
-- [ ] Zero dependências Python externas (manter atual)
+- [x] Zero dependências Python externas ✅
 
 ---
 
@@ -252,3 +252,6 @@
 8. ~~F3.13~~ ✅ Cobertura ≥ 90% nos módulos core (207 testes; cli=100%, nfo=97%, nzb=94%, orchestrator=91%, makerar=91%, makepar=90%, catalog=90%, upfolder=90%; global=82%)
 9. ~~F3.1~~ ✅ Múltiplas entradas posicionais (`upapasta a b c`)
 10. ~~F3.15~~ ✅ Publicação no PyPI (workflow automatizado)
+11. **F3.14** → documentação completa → **desbloqueador de v1.0.0**
+12. **F3.4** → TMDb (alta prioridade; desbloqueia F3.5 e F3.6)
+13. **F3.8** → TUI `--interactive` (pós-docs)

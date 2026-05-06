@@ -1,0 +1,251 @@
+.TH UPAPASTA 1 "2026-05" "upapasta 0.25.0" "Manual do Usuário"
+.SH NOME
+upapasta \- uploader automatizado para Usenet
+.SH SINOPSE
+.B upapasta
+[\fIOPÇÕES\fR] \fIinput\fR [\fIinput\fR ...]
+.br
+.B upapasta
+\fB\-\-config\fR
+.br
+.B upapasta
+\fB\-\-stats\fR
+.br
+.B upapasta
+\fB\-\-test\-connection\fR
+.SH DESCRIÇÃO
+.B upapasta
+automatiza o pipeline completo de upload para Usenet: geração de NFO, criação
+opcional de RAR5, geração de paridade PAR2, upload via nyuu sem staging em
+/tmp, e pós-processamento do NZB com subjects corrigidos. Zero dependências
+Python \(em apenas binários do sistema.
+.PP
+Na primeira execução, um wizard interativo cria
+.I ~/.config/upapasta/.env
+com as credenciais do servidor NNTP.
+.SH OPÇÕES ESSENCIAIS
+.TP
+.B \-\-profile \fINOME\fR
+Usa
+.I ~/.config/upapasta/<NOME>.env
+como configuração em vez do .env padrão.
+.TP
+.B \-\-watch
+Modo daemon: monitora o diretório de entrada continuamente e processa novos
+itens automaticamente. Encerrar com Ctrl+C. Incompatível com \fB\-\-each\fR e
+\fB\-\-season\fR.
+.TP
+.B \-\-each
+Processa cada arquivo da pasta individualmente. Cada arquivo vira um release
+separado com seu próprio NZB.
+.TP
+.B \-\-season
+Como \fB\-\-each\fR, mas ao final gera também um NZB único contendo toda a
+temporada.
+.TP
+.B \-\-obfuscate
+Ofuscação reversível: nomes aleatórios nos arquivos RAR/PAR2 antes do upload.
+O NZB é processado para restaurar os nomes originais nos subjects.
+.TP
+.B \-\-strong\-obfuscate
+Ofuscação máxima: nomes aleatórios em arquivos, PAR2 e subjects do NZB.
+Implica \fB\-\-obfuscate\fR. Requer renomeação manual ou via PAR2 após download.
+.TP
+.B \-\-password [\fISENHA\fR]
+Senha para o RAR, injetada no NZB para extração automática. Presume
+automaticamente \fB\-\-rar\fR. Sem argumento, gera senha aleatória de 16 caracteres.
+.TP
+.B \-\-rar
+Cria arquivos RAR5 antes do upload. Desativado por padrão.
+.TP
+.B \-\-dry\-run
+Simula todo o processo sem criar ou enviar arquivos.
+.TP
+.B \-\-jobs \fIN\fR
+Número de uploads paralelos quando múltiplos inputs são fornecidos.
+Padrão: 1 (sequencial).
+.SH OPÇÕES DE AJUSTE
+.TP
+.B \-\-par\-profile \fI{fast,balanced,safe}\fR
+Perfil PAR2: fast=5%, balanced=10% (padrão), safe=20%.
+.TP
+.B \-r \fIN\fR, \-\-redundancy \fIN\fR
+Redundância PAR2 em porcentagem. Sobrescreve \fB\-\-par\-profile\fR.
+.TP
+.B \-\-keep\-files
+Mantém RAR e PAR2 após o upload.
+.TP
+.B \-\-log\-file \fIPATH\fR
+Grava log completo da sessão no arquivo especificado.
+.TP
+.B \-\-upload\-retries \fIN\fR
+Tentativas extras de upload em caso de falha, com backoff exponencial. Padrão: 0.
+.TP
+.B \-\-verbose
+Ativa log de debug com timestamps ISO.
+.TP
+.B \-\-resume
+Retoma upload interrompido detectando arquivos já postados via NZB parcial.
+.SH OPÇÕES AVANÇADAS
+.TP
+.B \-\-backend \fI{parpar,par2}\fR
+Backend para geração de PAR2. Padrão: parpar (mais rápido, suporta subpastas).
+.TP
+.B \-\-filepath\-format \fI{common,keep,basename,outrel}\fR
+Como o parpar grava paths nos .par2. \fBcommon\fR (padrão) preserva subpastas
+relativas. Ignorado quando \fB\-\-backend par2\fR.
+.TP
+.B \-\-parpar\-args \fISTR\fR
+Args extras repassados ao parpar, tokenizados via shlex.
+.TP
+.B \-\-nyuu\-args \fISTR\fR
+Args extras repassados ao nyuu, tokenizados via shlex.
+.TP
+.B \-\-rename\-extensionless
+Renomeia arquivos sem extensão para .bin antes do upload (reverte ao final).
+Evita que o SABnzbd adicione .txt nesses arquivos.
+.TP
+.B \-\-skip\-upload
+Gera RAR/PAR2/NFO sem fazer upload para a Usenet.
+.TP
+.B \-\-skip\-par
+Pula a geração de paridade.
+.TP
+.B \-f, \-\-force
+Sobrescreve RAR/PAR2 existentes.
+.TP
+.B \-\-nzb\-conflict \fI{rename,overwrite,fail}\fR
+Comportamento quando um NZB com o mesmo nome já existe. Padrão: rename.
+.TP
+.B \-\-env\-file \fIPATH\fR
+Caminho alternativo para o arquivo .env.
+.SH UTILITÁRIOS
+.TP
+.B \-\-config
+Abre o wizard de configuração interativo. Preserva valores existentes (Enter
+mantém o valor atual).
+.TP
+.B \-\-stats
+Exibe estatísticas agregadas do histórico de uploads: total enviado, categorias,
+GB por mês, duração média.
+.TP
+.B \-\-test\-connection
+Valida a conectividade com o servidor NNTP: handshake CONNECT/LOGIN/QUIT.
+.TP
+.B \-\-insecure
+Desativa verificação de certificado SSL no \fB\-\-test\-connection\fR.
+.SH EXEMPLOS
+.TP
+Upload padrão (fluxo recomendado 2026):
+.B upapasta Pasta/ \-\-obfuscate \-\-backend parpar \-\-filepath\-format common \-\-par\-profile safe
+.TP
+Arquivo único sem RAR:
+.B upapasta Episodio.S01E01.mkv
+.TP
+Múltiplos inputs em paralelo:
+.B upapasta Pasta1/ Pasta2/ Pasta3/ \-\-jobs 3
+.TP
+Temporada com NZB consolidado:
+.B upapasta /tv/The.Boys.S04/ \-\-season \-\-obfuscate
+.TP
+Upload com senha RAR:
+.B upapasta Pasta/ \-\-password "MinhaSenh@"
+.TP
+Daemon monitorando pasta:
+.B upapasta /downloads/ \-\-watch \-\-watch\-stable 120
+.TP
+Retomar upload interrompido:
+.B upapasta Pasta/ \-\-resume
+.TP
+Simular com log de subprocessos:
+.B upapasta Pasta/ \-\-dry\-run \-\-verbose
+.SH ARQUIVOS
+.TP
+.I ~/.config/upapasta/.env
+Configuração principal: credenciais NNTP, grupo, tamanho de artigo e opções.
+.TP
+.I ~/.config/upapasta/<NOME>.env
+Perfil alternativo carregado via \fB\-\-profile <NOME>\fR.
+.TP
+.I ~/.config/upapasta/history.jsonl
+Catálogo de uploads (JSONL append-only). Registra timestamp, nome, senha RAR,
+tamanho, categoria, grupo e caminho do NZB.
+.TP
+.I ~/.config/upapasta/nzb/
+NZBs arquivados via hardlink (organizados por timestamp).
+.TP
+.I ~/.config/upapasta/logs/
+Logs de sessão gerados automaticamente (um por execução).
+.TP
+.I .upapasta-state.json
+State file de resume, salvo junto ao NZB parcial durante o upload.
+.SH VARIÁVEIS DE AMBIENTE
+Variáveis lidas do .env (ou exportadas no shell):
+.TP
+.B NNTP_HOST, NNTP_PORT, NNTP_SSL, NNTP_USER, NNTP_PASS, NNTP_CONNECTIONS
+Configuração do servidor NNTP principal.
+.TP
+.B NNTP_HOST_2 ... NNTP_HOST_9
+Servidores de failover opcionais. Campos ausentes herdam do servidor primário.
+.TP
+.B USENET_GROUP
+Grupo(s) de upload. Vírgula para pool com seleção aleatória.
+.TP
+.B ARTICLE_SIZE
+Tamanho máximo de artigo. Padrão: 700K.
+.TP
+.B NZB_OUT, NZB_OUT_DIR
+Template e diretório de saída do .nzb.
+.TP
+.B POST_UPLOAD_SCRIPT
+Script executado após upload bem-sucedido (recebe variáveis UPAPASTA_*).
+.TP
+.B WEBHOOK_URL
+URL para notificação pós-upload (Discord, Slack, Telegram ou genérico).
+.SH DEPENDÊNCIAS
+.TP
+.B nyuu
+Upload NNTP. Instalar: npm install \-g nyuu
+.TP
+.B parpar
+Geração de PAR2 (recomendado). Instalar: pip install parpar
+.TP
+.B par2
+Alternativa ao parpar. Instalar: apt install par2
+.TP
+.B rar
+RAR5 (necessário apenas com \fB\-\-rar\fR). Instalar: apt install rar
+.TP
+.B ffprobe
+Metadados de vídeo no NFO (opcional). Instalar: apt install ffmpeg
+.TP
+.B mediainfo
+Informações técnicas de mídia no NFO (opcional). Instalar: apt install mediainfo
+.SH CÓDIGO DE SAÍDA
+.TP
+.B 0
+Sucesso.
+.TP
+.B 1
+Erro genérico.
+.TP
+.B 2
+Erro na geração de PAR2.
+.TP
+.B 3
+Erro de upload ou conflito de NZB.
+.TP
+.B 130
+Interrompido pelo usuário (Ctrl+C).
+.SH CONSULTE TAMBÉM
+.BR nyuu (1),
+.BR par2 (1),
+.BR rar (1)
+.PP
+Documentação completa: \fBDOCS.md\fR no repositório.
+FAQ e troubleshooting: \fBdocs/FAQ.md\fR e \fBdocs/TROUBLESHOOTING.md\fR.
+.SH BUGS
+Reportar em: https://github.com/franzopl/upapasta/issues
+.SH AUTOR
+Desenvolvido por \fBfranzopl\fR.
+Licença MIT.

@@ -1,270 +1,168 @@
 # UpaPasta
 
-**UpaPasta** automatiza o upload completo para Usenet em um único comando. Cria RAR5, gera paridade PAR2, faz o upload via nyuu e entrega o NZB pronto — tudo com o mínimo de configuração.
+**Uploader automatizado para Usenet.** Um comando, pipeline completo: PAR2 → upload → NZB pronto.
 
 ```bash
-upapasta /caminho/para/pasta
+upapasta /tv/Night.of.the.Living.Dead.S01/
 ```
 
-→ **[Documentação completa](DOCS.md)** · **[CHANGELOG](CHANGELOG.md)**
+[![PyPI](https://img.shields.io/pypi/v/upapasta)](https://pypi.org/project/upapasta/)
+[![CI](https://github.com/franzopl/upapasta/actions/workflows/ci.yml/badge.svg)](https://github.com/franzopl/upapasta/actions)
+[![Python](https://img.shields.io/pypi/pyversions/upapasta)](https://pypi.org/project/upapasta/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+---
 
 ## O que faz
 
-1. **(Opcional)** Cria arquivos RAR5 a partir de pastas
-2. **Gera PAR2** com perfis fast/balanced/safe e backends parpar (padrão) ou par2
-3. **Faz upload** via nyuu sem cópia temporária — paths diretos
-4. **Gera NZB + NFO** com metadados de vídeo
-5. **Registra tudo** em `~/.config/upapasta/history.db` com senha, NZB e metadados
+- Gera PAR2 com perfis de redundância (5 / 10 / 20%)
+- Faz upload via nyuu sem staging em `/tmp` (paths diretos)
+- Entrega NZB + NFO com metadados de vídeo
+- (Opcional) Cria RAR5 com senha antes do upload
+- Registra tudo em `~/.config/upapasta/history.jsonl`
 
-## Fluxo Recomendado 2026
+Zero dependências Python — apenas binários do sistema.
 
-Para pastas com subpastas, descarte o RAR e confie no parpar para preservar a hierarquia:
-
-```bash
-upapasta Pasta/ --backend parpar --obfuscate \
-    --filepath-format common --par-profile safe
-```
-
-**Por quê?** SABnzbd/NZBGet recentes reconstroem a árvore no download. Sem RAR (padrão), a proteção vem de:
-- Nomes aleatórios no subject e headers
-- Estrutura de pastas preservada apenas nos .par2 (invisível em scans básicos)
-- RAR-com-senha é opcional, para casos legados ou quando realmente necessário
-
-## Casos de Uso
-
-| Caso | Comando |
-|------|---------|
-| Pasta com subpastas | `upapasta Pasta/ --backend parpar` (sem RAR por padrão) |
-| Arquivo único | `upapasta arquivo.mkv` (sem RAR automaticamente) |
-| Ofuscado | `upapasta Pasta/ --obfuscate` |
-| Monitoramento automático | `upapasta /downloads/ --watch` |
-| Cada arquivo separado | `upapasta /tv/ --each` |
-| Episódios + NZB da temporada | `upapasta /tv/Show.S04/ --season` |
-| Teste sem upload | `upapasta Pasta/ --dry-run` |
-
-## Uso Rápido
-
-### Básico
-```bash
-upapasta /tv/Night.of.the.Living.Dead.S01/
-upapasta /movies/Nosferatu.1922.mkv
-upapasta /courses/'Learn Python'
-```
-
-### Com Obfuscação
-```bash
-# Pasta: obfuscação moderna (sem RAR): nomes aleatórios + parpar
-upapasta /tv/Night.of.the.Living.Dead.S01/ --obfuscate
-
-# Pasta: obfuscação + RAR com senha automática
-upapasta /tv/Night.of.the.Living.Dead.S01/ --obfuscate --rar
-
-# Pasta: obfuscação + RAR com senha manual
-upapasta /tv/Show.S01/ --obfuscate --rar --password "abc123"
-
-# Arquivo: obfuscação (sem RAR): apenas nomes aleatórios
-upapasta /movies/Nosferatu.1922.mkv --obfuscate
-
-# Arquivo: cria RAR com senha (não obfusca nomes)
-upapasta /movies/Nosferatu.1922.mkv --password "xyz789"
-
-# Máxima privacidade: nomes aleatórios em TUDO (indexadores não veem nada)
-upapasta /files/Confidential/ --strong-obfuscate
-```
-
-### Modo Watch (Daemon)
-```bash
-upapasta /downloads/ --watch
-upapasta /files/ --watch --obfuscate
-```
-
-### Modo Season
-```bash
-upapasta /tv/The.Boys.S04/ --season --obfuscate
-```
-
-### Upload Individual de Arquivos
-```bash
-upapasta /movies/ --each
-upapasta /tv/Show.S01/ --each --obfuscate
-```
-
-## Pré-requisitos
-
-**Obrigatórios:**
-- `nyuu` — upload para NNTP
-- `parpar` ou `par2` — geração de paridade (parpar recomendado)
-- `rar` — compressão RAR5 (se usar RAR; é omitido com `--skip-rar`)
-
-**Opcionais:**
-- `ffmpeg` / `ffprobe` — metadados de vídeo em NFO
-- `mediainfo` — informações detalhadas de mídia em NFO
+---
 
 ## Instalação
 
-### Via pip
 ```bash
 pip install upapasta
 ```
 
-### Desenvolvimento
-```bash
-git clone https://github.com/franzopl/upapasta.git
-cd upapasta
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
+**Dependências do sistema:**
 
-Na primeira execução, um assistente configura o servidor NNTP e salva em `~/.config/upapasta/.env`:
+| Binário | Função | Instalar |
+|---------|--------|----------|
+| `nyuu` | Upload NNTP | `npm install -g nyuu` |
+| `parpar` | Geração de PAR2 (recomendado) | `pip install parpar` |
+| `par2` | Alternativa ao parpar | `apt install par2` |
+| `rar` | RAR5 (apenas com `--rar`) | `apt install rar` |
+| `ffprobe` | Metadados de vídeo no NFO | `apt install ffmpeg` |
+| `mediainfo` | Info técnica de mídia no NFO | `apt install mediainfo` |
 
-```bash
-$ upapasta /path/to/folder
-? Endereço NNTP (ex: news.provider.com): news.example.com
-? Porta (padrão 119):
-? Usuário: user@example.com
-? Senha: ••••••••
-```
+Veja [INSTALL.md](INSTALL.md) para instruções detalhadas por plataforma.
 
-## Opções Principais
+---
 
-**Compressão e Paridade:**
-```
---rar                   Cria RAR antes do upload (padrão desativado)
---backend {parpar,par2} Backend de paridade (parpar é padrão)
---par-profile {fast,balanced,safe}  Perfil de redundância (safe = 20%)
---filepath-format       Formato de paths em PAR2: common=relativo, keep=absoluto, basename=flat
-```
+## Configuração
 
-**Ofuscação e Proteção:**
-```
---obfuscate             Nomes aleatórios; NZB restaura nomes originais (ofuscação reversível)
---strong-obfuscate      Máxima privacidade: nomes aleatórios também no NZB (implica --obfuscate)
---password SENHA        Define senha RAR manualmente (presume --rar automaticamente)
-```
-
-**Modos de Upload:**
-```
---watch                 Modo daemon: monitora e processa automaticamente
---each                  Cada arquivo = um release separado
---season                Episódios individuais + NZB único da temporada
-```
-
-**Outros:**
-```
---dry-run               Testa tudo sem fazer upload real
---resume                Retoma upload interrompido (detecta arquivos já postados no NZB parcial)
---log-file ARQUIVO      Salva log completo da sessão
---rename-extensionless  Renomeia arquivos sem extensão para .bin (evita .txt do SAB)
-```
-
-## Múltiplos Servidores NNTP (Failover)
-
-Configure servidores adicionais no `.env` para failover automático em caso de falha:
-
-```ini
-# Servidor primário (obrigatório)
-NNTP_HOST=news.primary.com
-NNTP_USER=usuario
-NNTP_PASS=senha
-
-# Servidor de failover (opcional — campos ausentes herdam do primário)
-NNTP_HOST_2=news.backup.com
-NNTP_CONNECTIONS_2=20
-
-# Até NNTP_HOST_9
-```
-
-Em caso de falha, a próxima tentativa de upload usa automaticamente o servidor seguinte.
-
-## Upload Parcial / Resume
-
-Se um upload for interrompido (Ctrl+C, queda de rede), retome com `--resume`:
+Na primeira execução, um wizard interativo cria `~/.config/upapasta/.env`:
 
 ```bash
-upapasta Pasta/ --resume      # mesmas flags do upload original
+upapasta --config
 ```
 
-O UpaPasta detecta quais arquivos já foram postados via NZB parcial existente, faz upload apenas dos restantes e mescla os NZBs ao final. O state file (`.upapasta-state.json`) é removido automaticamente após conclusão.
+Para configurar failover com múltiplos servidores NNTP, edite o `.env` diretamente — veja [DOCS.md § Múltiplos servidores NNTP](DOCS.md#múltiplos-servidores-nntp).
 
-## Histórico
+---
 
-Todos os uploads são registrados em `~/.config/upapasta/history.jsonl` (JSONL, append-only):
-- Caminho original
-- Senha (se aplicável)
-- NZB gerado (arquivado em `~/.config/upapasta/nzb/` via hardlink)
-- Metadados (data, tamanho, backend usado)
-- Categoria (detectada automaticamente)
+## Casos de uso
+
+| Caso | Comando |
+|------|---------|
+| Pasta inteira | `upapasta Pasta/` |
+| Arquivo único | `upapasta Episodio.S01E01.mkv` |
+| Múltiplos inputs | `upapasta A/ B/ C/` |
+| Paralelo | `upapasta A/ B/ C/ --jobs 3` |
+| Ofuscação reversível | `upapasta Pasta/ --obfuscate` |
+| Máxima privacidade | `upapasta Pasta/ --strong-obfuscate` |
+| Senha RAR | `upapasta Pasta/ --password "abc123"` |
+| Cada arquivo = release | `upapasta /tv/Show.S04/ --each` |
+| Temporada + NZB único | `upapasta /tv/Show.S04/ --season` |
+| Daemon (monitorar pasta) | `upapasta /downloads/ --watch` |
+| Sem upload (só gera arquivos) | `upapasta Pasta/ --skip-upload` |
+| Simular sem enviar | `upapasta Pasta/ --dry-run` |
+| Retomar upload interrompido | `upapasta Pasta/ --resume` |
+
+---
+
+## Fluxo recomendado 2026
+
+RAR não é mais necessário para a maioria dos casos. O parpar grava a hierarquia de pastas nos `.par2` e SABnzbd/NZBGet recentes reconstroem a árvore no download:
 
 ```bash
-# Inspecionar os últimos 5 uploads
+upapasta Pasta/ --obfuscate --backend parpar \
+    --filepath-format common --par-profile safe
+```
+
+Use `--rar` apenas quando precisar de senha (casos legados) ou quando o downloader não suporta reconstrução via PAR2.
+
+### Níveis de ofuscação
+
+| Flag | O que ofusca | NZB mostra nome original? |
+|------|-------------|--------------------------|
+| (nenhuma) | nada | sim |
+| `--obfuscate` | arquivos + PAR2 | sim (reversível) |
+| `--strong-obfuscate` | arquivos + PAR2 + subjects do NZB | não |
+
+---
+
+## Opções principais
+
+```
+--rar                    Cria RAR5 antes do upload
+--obfuscate              Nomes aleatórios; NZB restaura nomes originais
+--strong-obfuscate       Máxima privacidade: nomes aleatórios em tudo
+--password SENHA         Senha RAR (presume --rar automaticamente)
+--par-profile PERFIL     fast (5%) · balanced (10%) · safe (20%)
+--jobs N                 Uploads paralelos quando múltiplos inputs
+--resume                 Retoma upload interrompido
+--dry-run                Simula sem enviar
+--skip-upload            Gera RAR/PAR2/NFO sem fazer upload
+--each                   Cada arquivo da pasta = release separado
+--season                 Como --each + NZB único da temporada
+--watch                  Daemon: processa automaticamente novos itens
+```
+
+`upapasta --help` lista todas as opções com descrições completas.
+
+---
+
+## Histórico e estatísticas
+
+```bash
+# Últimos 5 uploads
 tail -5 ~/.config/upapasta/history.jsonl | python3 -m json.tool
+
+# Estatísticas agregadas
+upapasta --stats
 
 # NZBs arquivados (hardlinks por timestamp)
 ls -la ~/.config/upapasta/nzb/
 ```
 
-Recuperável mesmo que os arquivos sejam movidos ou deletados.
+---
 
-## Hooks Pós-Upload
+## Webhooks e hooks
 
-Configure `POST_UPLOAD_SCRIPT` em `~/.config/upapasta/.env` para executar um script após cada upload bem-sucedido:
+Configure notificações pós-upload no `.env`:
 
-```bash
-# ~/.config/upapasta/.env
-POST_UPLOAD_SCRIPT=/home/user/meus_scripts/notificar.sh
+```ini
+# Discord, Slack, Telegram ou qualquer endpoint que aceite POST JSON
+WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Script externo (recebe variáveis UPAPASTA_*)
+POST_UPLOAD_SCRIPT=/home/user/notificar.sh
 ```
 
-O script recebe as seguintes variáveis de ambiente:
+Veja [DOCS.md § Hooks e webhooks](DOCS.md#hooks-e-webhooks) para a lista completa de variáveis.
 
-| Variável | Descrição |
-|---|---|
-| `UPAPASTA_NZB` | Caminho completo do arquivo NZB gerado |
-| `UPAPASTA_NFO` | Caminho completo do arquivo NFO gerado |
-| `UPAPASTA_SENHA` | Senha RAR (vazia se não houver) |
-| `UPAPASTA_NOME_ORIGINAL` | Nome original da entrada (antes de ofuscação) |
-| `UPAPASTA_NOME_OFUSCADO` | Nome ofuscado usado no upload (igual ao original se sem `--obfuscate`) |
-| `UPAPASTA_TAMANHO` | Tamanho total em bytes |
-| `UPAPASTA_GRUPO` | Grupo Usenet usado no upload |
+---
 
-O script tem timeout de 60 segundos. Se retornar código diferente de 0, o upapasta imprime um aviso mas **não** aborta.
+## Documentação
 
-Para depurar o que é recebido, use o exemplo incluído no repositório:
+- **[DOCS.md](DOCS.md)** — referência completa: configuração, pipeline, flags, ofuscação, PAR2, múltiplos servidores, resume, catálogo, hooks
+- **[docs/FAQ.md](docs/FAQ.md)** — erros frequentes e respostas diretas
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** — diagnóstico por sintoma
+- **[INSTALL.md](INSTALL.md)** — instalação de dependências por plataforma
+- **[CHANGELOG.md](CHANGELOG.md)** — histórico de versões
 
-```bash
-# Imprime todas as variáveis UPAPASTA_* recebidas pelo hook
-POST_UPLOAD_SCRIPT=/caminho/para/upapasta/examples/post_upload_debug.sh
-```
-
-O arquivo `examples/post_upload_debug.sh` pode ser usado como ponto de partida para scripts personalizados (notificações Telegram, Discord, indexadores, etc.).
-
-## Notas Importantes
-
-**Obfuscação e Senha:**
-- `--obfuscate` (padrão): ofuscação reversível — nomes aleatórios nos arquivos, mas NZB restaura nomes originais
-- `--strong-obfuscate`: máxima privacidade — nomes aleatórios em TUDO (arquivos, estrutura, NZB subjects)
-  - Requer renomeação manual ou via PAR2 após download (não é conveniente para uso regular)
-  - Use apenas quando privacidade máxima for crítica (releases privados, conteúdo sensível)
-- `--obfuscate` gera uma senha automaticamente, MAS ela só é injetada no NZB se houver RAR (use `--obfuscate --rar`)
-- `--password` presume automaticamente `--rar` (proteger com senha requer RAR)
-- Fluxo moderno (sem RAR): proteção via nomes aleatórios + parpar apenas
-- Arquivo único com `--obfuscate`: upload direto com nomes aleatórios (sem RAR por padrão)
-- Arquivo único com `--password`: cria RAR automaticamente com senha
-
-**Pastas e Estrutura:**
-- Pastas vazias não são preservadas sem RAR (NNTP carrega apenas arquivos)
-- Use `--rename-extensionless` ou `.keep` sentinela nas pastas vazias
-- `--filepath-format common` (padrão) preserva subpastas relativas nos .par2
-
-**SABnzbd:**
-- Desative "Recursive Unpacking" para preservar `.zip` internos
-- Use `--rename-extensionless` se houver arquivos sem extensão (evita .txt do SABnzbd)
-
-**Interrupção:**
-- Ctrl+C durante `--obfuscate`: rollback garantido — nomes revertidos automaticamente via `finally`
+---
 
 ## Licença
 
 MIT — veja [LICENSE](LICENSE).
 
-Desenvolvido por **franzopl**. Contribuições via *issue* ou *pull request* são bem-vindas.
+Desenvolvido por **franzopl**.

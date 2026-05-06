@@ -105,16 +105,10 @@ Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas v
 - **0.15.x** — Deep obfuscation para pastas em `--skip-rar`; ofuscação via hardlinks (preserva seeding); restauração automática do nome original; aviso de pastas vazias.
 - **0.14.x** — Hardlink fallback; reversão garantida em `--skip-rar`; cobertura de paths nested (8 testes em `test_nested_paths.py`).
 - **0.13.x** — Compatibilidade `nntplib` Python 3.14+ (graceful import).
-- **0.12.x** — Catálogo (originalmente SQLite, **migrado para JSONL** sem atualizar docs); detecção automática de categoria; hook pós-upload via `POST_UPLOAD_SCRIPT` + variáveis `UPAPASTA_*`; `from_args` classmethod centralizado.
+- **0.12.x** — Catálogo JSONL (`history.jsonl`); detecção automática de categoria; hook pós-upload via `POST_UPLOAD_SCRIPT` + variáveis `UPAPASTA_*`; `from_args` classmethod centralizado.
 - **0.11.x** — Pool de grupos Usenet aleatório; refatoração modular (main.py de 1400 linhas → cli/orchestrator/ui/watch).
 - **0.10.x** — `--each`, `--watch`, `--watch-interval`, `--watch-stable`; RAR automático para arquivo único quando há `--obfuscate`/`--password`.
 - **0.9.0** — `_process.py` (managed_popen) + upload sem cópia em /tmp.
-
-### Inconsistência crítica de docs
-
-- `CHANGELOG.md` 0.12.0, `DOCS.md`, `README.md` ainda mencionam **SQLite** (`history.db`).
-- O código atual em `catalog.py` usa **JSONL** (`history.jsonl`) + arquivamento de NZB como hardlink em `~/.config/upapasta/nzb/`.
-- Os exemplos de `sqlite3 ... history.db` em `DOCS.md` e `README.md` **não funcionam**.
 
 ### Mapa de Features
 
@@ -229,19 +223,19 @@ upapasta/
 │   ├── post_upload_nzbfelipe.sh # ignorado via .gitignore
 │   └── usenet_backup3-skip-rar.py  # script legado de 15 KB
 ├── examples/
-│   └── post_upload_debug.sh     # exemplo de hook (não documentado em README)
-├── CHANGELOG.md                 # ⚠️ 0.12.0 menciona SQLite (na verdade é JSONL)
+│   └── post_upload_debug.sh     # exemplo de hook
+├── docs/
+│   ├── FAQ.md                   # perguntas frequentes
+│   ├── TROUBLESHOOTING.md       # diagnóstico por sintoma
+│   └── man/upapasta.1           # man page em troff
+├── CHANGELOG.md                 # histórico de versões
 ├── CLAUDE.md                    # este arquivo
-├── DOCS.md                      # ⚠️ exemplos sqlite3 não funcionam mais
-├── GEMINI.md                    # ⚠️ desatualizado (versão 0.9.0 listada como current)
-├── INSTALL.md                   # guia de instalação
-├── README.md                    # ⚠️ menciona history.db (deveria ser .jsonl)
-├── TODO.md                      # roadmap interno (parcialmente atualizado)
-├── pyproject.toml               # version=0.18.0, requires-python>=3.9, mypy/ruff configurados
+├── DOCS.md                      # referência completa
+├── INSTALL.md                   # instalação por plataforma
+├── README.md                    # vitrine pública
+├── TODO.md                      # roadmap interno
+├── pyproject.toml               # version=0.25.0, requires-python>=3.9, mypy/ruff configurados
 ├── .env.example                 # template completo do .env
 ├── .gitignore
 └── LICENSE                      # MIT
 ```
-
-Arquivos órfãos no root (lixo de testes manuais, considerar `.gitignore` mais agressivo):
-`Episode01.nzb`, `MySeries.nfo`, `original_file.txt.nfo`, `test_folder_obfuscation_dir.nfo`, `test_hardlinks_dir.nfo`, `test_revert_skip_upload.nfo`.
