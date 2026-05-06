@@ -11,7 +11,10 @@ Cobertos:
 
 from __future__ import annotations
 
+import argparse
 import json
+import sys
+import threading
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
@@ -195,11 +198,6 @@ class TestSendWebhook:
 
 # ── F3.1 — Múltiplas entradas posicionais ───────────────────────────────────
 
-import argparse
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
 
 class TestMultiInput:
     """Testa suporte a múltiplos inputs posicionais (F3.1)."""
@@ -272,7 +270,6 @@ class TestMultiInput:
     def test_run_multi_input_sequencial(self, tmp_path):
         from upapasta.main import _run_multi_input
 
-        resultados: list[int] = [0, 0, 0]
         chamados: list[str] = []
 
         def fake_run_single(args, item_path, env_file):
@@ -317,7 +314,6 @@ class TestMultiInput:
 
     def test_run_multi_input_paralelo(self):
         from upapasta.main import _run_multi_input
-        import threading
 
         chamados: list[str] = []
         lock = threading.Lock()
