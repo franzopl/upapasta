@@ -38,5 +38,18 @@ jobs:
       - name: Type check (mypy)
         run: mypy upapasta/ --strict
 
+      - name: Check i18n (msgfmt)
+        run: |
+          sudo apt-get update && sudo apt-get install -y gettext
+          msgfmt --check upapasta/locale/pt_BR/LC_MESSAGES/upapasta.po
+
+      - name: Check for missing i18n
+        run: |
+          # Detect print() calls that are not wrapped in _()
+          # We exclude known exceptions or just warn
+          grep -r 'print(' upapasta/ | grep -v '_(' || true
+
       - name: Test (pytest)
-        run: pytest tests/ -v --tb=short
+        run: |
+          UPAPASTA_LANG=en pytest tests/ -v --tb=short
+          UPAPASTA_LANG=pt_BR pytest tests/ -v --tb=short

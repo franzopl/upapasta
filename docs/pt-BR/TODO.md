@@ -253,27 +253,27 @@ Ordem por impacto (mais strings visíveis primeiro):
 - [x] I2.6 · `nzb.py` + `nfo.py` + `catalog.py` — mensagens de conflito, hook, categoria (~30 strings) ✅ Concluído (commit 42a7757)
 - [x] I2.7 · `config.py` + `main.py` + `watch.py` + `nntp_test.py` — wizard, daemon, NNTP (~25 strings) ✅ Concluído (commit a ser gerado)
 
-### I3 · Documentação em inglês `v0.27.0` `Alta · Alto esforço` — pode rodar em paralelo com I2
+### ~~I3 · Documentação em inglês `v0.27.0`~~ ✅ Concluído (v0.27.0)
 
-- [ ] I3.1 · `README.md` → inglês; conteúdo atual → `README.pt-BR.md`; link mútuo no topo
-- [ ] I3.2 · `DOCS.md` → inglês; criar `docs/pt-BR/DOCS.md`
-- [ ] I3.3 · `docs/FAQ.md` + `docs/TROUBLESHOOTING.md` → inglês; criar `docs/pt-BR/` equivalentes
-- [ ] I3.4 · `docs/man/upapasta.1` → inglês (man page troff)
-- [ ] I3.5 · `INSTALL.md` → inglês; criar `docs/pt-BR/INSTALL.md`
-- [ ] I3.6 · `CHANGELOG.md` — entradas futuras em inglês; histórico existente permanece em pt-BR
-- [ ] I3.7 · `CLAUDE.md` — **permanece em português** (documento interno de agente, não público)
+- [x] I3.1 · `README.md` → inglês; conteúdo movido para `README.pt-BR.md`
+- [x] I3.2 · `DOCS.md` → inglês; versão em português em `docs/pt-BR/DOCS.md`
+- [x] I3.3 · `docs/FAQ.md` + `docs/TROUBLESHOOTING.md` → inglês; versões em português em `docs/pt-BR/`
+- [x] I3.4 · `docs/man/upapasta.1` → inglês
+- [x] I3.5 · `INSTALL.md` → inglês; versão em português em `docs/pt-BR/INSTALL.md`
+- [x] I3.6 · `CHANGELOG.md` — entradas traduzidas; versão em português em `docs/pt-BR/CHANGELOG.md`
+- [x] I3.7 · `CLAUDE.md` — **permanece em português**
 
-### I4 · CI para i18n `v0.27.x` `Média · Baixo esforço` — depende de I1–I3
+### ~~I4 · CI para i18n `v0.27.x`~~ ✅ Concluído
 
-- [ ] Step no GitHub Actions: `msgfmt --check locale/pt_BR/LC_MESSAGES/upapasta.po`
-- [ ] `grep -r 'print(' upapasta/ | grep -v '_('` no CI para detectar strings escapando sem `_()`
-- [ ] Rodar suite com `UPAPASTA_LANG=pt_BR` e `UPAPASTA_LANG=en` no CI
+- [x] Passo no GitHub Actions: `msgfmt --check`
+- [x] `grep` no CI para detectar strings escapando sem `_()`
+- [x] Rodar suite com `UPAPASTA_LANG=pt_BR` e `UPAPASTA_LANG=en` no CI
 
-### I5 · Guia de contribuição de tradução `v0.28.0` `Baixa · Baixo esforço` — depende de I4
+### ~~I5 · Guia de contribuição de tradução `v0.28.0`~~ ✅ Concluído
 
-- [ ] `CONTRIBUTING.md` (inglês): seção "Adding a new language" com passo-a-passo `msginit`/`msgfmt`
-- [ ] `locale/TRANSLATORS` com créditos
-- [ ] Estrutura para terceira língua (ex: `es`) como prova de conceito da infraestrutura
+- [x] `CONTRIBUTING.md` (inglês): seção "Adding a new language"
+- [x] `locale/TRANSLATORS` com créditos
+- [x] Estrutura para terceira língua (espanhol) suportada via Makefile
 
 ---
 

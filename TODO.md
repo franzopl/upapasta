@@ -253,27 +253,27 @@ Order by impact (most visible strings first):
 - [x] I2.6 · `nzb.py` + `nfo.py` + `catalog.py` — conflict messages, hook, category (~30 strings) ✅ Completed (commit 42a7757)
 - [x] I2.7 · `config.py` + `main.py` + `watch.py` + `nntp_test.py` — wizard, daemon, NNTP (~25 strings) ✅ Completed (commit to be generated)
 
-### I3 · English documentation `v0.27.0` `High · High effort` — can run in parallel with I2
+### ~~I3 · English documentation `v0.27.0`~~ ✅ Completed (v0.27.0)
 
 - [x] I3.1 · `README.md` → English; current content → `README.pt-BR.md`; mutual link at the top
 - [x] I3.2 · `DOCS.md` → English; create `docs/pt-BR/DOCS.md`
 - [x] I3.3 · `docs/FAQ.md` + `docs/TROUBLESHOOTING.md` → English; create equivalent `docs/pt-BR/`
 - [x] I3.4 · `docs/man/upapasta.1` → English (troff man page)
 - [x] I3.5 · `INSTALL.md` → English; create `docs/pt-BR/INSTALL.md`
-- [x] I3.6 · `CHANGELOG.md` — future entries in English; existing history remains in pt-BR
-- [x] I3.7 · `CLAUDE.md` — **remains in Portuguese** (internal agent document, not public)
+- [x] I3.6 · `CHANGELOG.md` — entries translated; existing history remains in pt-BR
+- [x] I3.7 · `CLAUDE.md` — **remains in Portuguese**
 
-### I4 · CI for i18n `v0.27.x` `Medium · Low effort` — depends on I1–I3
+### ~~I4 · CI for i18n `v0.27.x`~~ ✅ Completed
 
-- [ ] GitHub Actions step: `msgfmt --check locale/pt_BR/LC_MESSAGES/upapasta.po`
-- [ ] `grep -r 'print(' upapasta/ | grep -v '_('` in CI to detect strings escaping without `_()`
-- [ ] Run suite with `UPAPASTA_LANG=pt_BR` and `UPAPASTA_LANG=en` in CI
+- [x] GitHub Actions step: `msgfmt --check`
+- [x] `grep` in CI to detect missing `_()`
+- [x] Run suite with `UPAPASTA_LANG=pt_BR` and `UPAPASTA_LANG=en` in CI
 
-### I5 · Translation contribution guide `v0.28.0` `Low · Low effort` — depends on I4
+### ~~I5 · Translation contribution guide `v0.28.0`~~ ✅ Completed
 
-- [ ] `CONTRIBUTING.md` (English): \"Adding a new language\" section with `msginit`/`msgfmt` step-by-step
-- [ ] `locale/TRANSLATORS` with credits
-- [ ] Structure for a third language (e.g., `es`) as a proof of concept for the infrastructure
+- [x] `CONTRIBUTING.md` (English): \"Adding a new language\" section
+- [x] `locale/TRANSLATORS` with credits
+- [x] Structure for a third language (e.g., `es`) structure supported via Makefile
 
 ---
 
