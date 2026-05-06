@@ -47,6 +47,7 @@ env/
 .coverage
 .mypy_cache/
 htmlcov/
+*.cover
 
 # UpaPasta específico
 # (Gerados durante execução)

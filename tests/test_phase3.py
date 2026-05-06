@@ -192,3 +192,150 @@ class TestSendWebhook:
         assert captured
         parsed = json.loads(captured[0].decode())
         assert "text" in parsed
+
+# ── F3.1 — Múltiplas entradas posicionais ───────────────────────────────────
+
+import argparse
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+
+class TestMultiInput:
+    """Testa suporte a múltiplos inputs posicionais (F3.1)."""
+
+    def _make_args(self, inputs: list[str], jobs: int = 1) -> argparse.Namespace:
+        return argparse.Namespace(
+            inputs=inputs,
+            rar=False, password=None, obfuscate=False, strong_obfuscate=False,
+            each=False, season=False, watch=False, jobs=jobs,
+            skip_rar_deprecated=False,
+        )
+
+    # ── parse_args aceita múltiplos inputs ──────────────────────────────────
+
+    def test_parse_args_multiplos_inputs(self, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["upapasta", "a.mkv", "b.mkv", "c.mkv"])
+        from upapasta.cli import parse_args
+        args = parse_args()
+        assert args.inputs == ["a.mkv", "b.mkv", "c.mkv"]
+
+    def test_parse_args_input_unico(self, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["upapasta", "Pasta/"])
+        from upapasta.cli import parse_args
+        args = parse_args()
+        assert args.inputs == ["Pasta/"]
+
+    def test_parse_args_sem_inputs(self, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["upapasta"])
+        from upapasta.cli import parse_args
+        args = parse_args()
+        assert args.inputs == []
+
+    def test_parse_args_jobs(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(sys, "argv", ["upapasta", str(tmp_path), "--jobs", "4"])
+        from upapasta.cli import parse_args
+        args = parse_args()
+        assert args.jobs == 4
+
+    # ── _validate_flags com múltiplos inputs ────────────────────────────────
+
+    def test_validate_flags_normaliza_input(self, tmp_path):
+        from upapasta.cli import _validate_flags
+        args = self._make_args([str(tmp_path), str(tmp_path)])
+        _validate_flags(args)
+        # args.input deve ser o primeiro elemento da lista
+        assert args.input == str(tmp_path)
+
+    def test_validate_each_rejeita_multiplos_inputs(self, tmp_path):
+        from upapasta.cli import _validate_flags
+        args = self._make_args([str(tmp_path), str(tmp_path)], jobs=1)
+        args.each = True
+        result = _validate_flags(args)
+        assert result is False
+
+    def test_validate_watch_rejeita_multiplos_inputs(self, tmp_path):
+        from upapasta.cli import _validate_flags
+        args = self._make_args([str(tmp_path), str(tmp_path)], jobs=1)
+        args.watch = True
+        result = _validate_flags(args)
+        assert result is False
+
+    def test_validate_jobs_invalido(self):
+        from upapasta.cli import _validate_flags
+        args = self._make_args(["/tmp/a"], jobs=0)
+        result = _validate_flags(args)
+        assert result is False
+
+    # ── _run_multi_input sequencial ──────────────────────────────────────────
+
+    def test_run_multi_input_sequencial(self, tmp_path):
+        from upapasta.main import _run_multi_input
+
+        resultados: list[int] = [0, 0, 0]
+        chamados: list[str] = []
+
+        def fake_run_single(args, item_path, env_file):
+            chamados.append(item_path)
+            return 0
+
+        args = self._make_args([], jobs=1)
+
+        with patch("upapasta.main._run_single_input", side_effect=fake_run_single):
+            rc = _run_multi_input(
+                args,
+                ["/tmp/a", "/tmp/b", "/tmp/c"],
+                ".env",
+                jobs=1,
+            )
+
+        assert rc == 0
+        assert chamados == ["/tmp/a", "/tmp/b", "/tmp/c"]
+
+    def test_run_multi_input_reporta_falhas(self):
+        from upapasta.main import _run_multi_input
+
+        respostas = [0, 1, 0]
+        idx = [0]
+
+        def fake_run_single(args, item_path, env_file):
+            rc = respostas[idx[0]]
+            idx[0] += 1
+            return rc
+
+        args = self._make_args([], jobs=1)
+
+        with patch("upapasta.main._run_single_input", side_effect=fake_run_single):
+            rc = _run_multi_input(
+                args,
+                ["/tmp/a", "/tmp/b", "/tmp/c"],
+                ".env",
+                jobs=1,
+            )
+
+        assert rc == 1
+
+    def test_run_multi_input_paralelo(self):
+        from upapasta.main import _run_multi_input
+        import threading
+
+        chamados: list[str] = []
+        lock = threading.Lock()
+
+        def fake_run_single(args, item_path, env_file):
+            with lock:
+                chamados.append(item_path)
+            return 0
+
+        args = self._make_args([], jobs=2)
+
+        with patch("upapasta.main._run_single_input", side_effect=fake_run_single):
+            rc = _run_multi_input(
+                args,
+                ["/tmp/a", "/tmp/b"],
+                ".env",
+                jobs=2,
+            )
+
+        assert rc == 0
+        assert sorted(chamados) == ["/tmp/a", "/tmp/b"]

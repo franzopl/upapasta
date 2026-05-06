@@ -15,15 +15,17 @@ from .config import DEFAULT_ENV_FILE
 _USAGE_SHORT = """\
 UpaPasta — uploader automatizado para Usenet
 
-  Uso:  upapasta <caminho>  [opções]
+  Uso:  upapasta <caminho> [<caminho2> ...]  [opções]
 
   Exemplos rápidos:
-    upapasta Filme.2024/ --rar            pasta inteira como um release (RAR + PAR2)
-    upapasta Episodio.S01E01.mkv          arquivo único sem RAR
-    upapasta Temporada.1/ --each          cada arquivo da pasta vira um release separado
-    upapasta Pasta/ --obfuscate           release com nomes ofuscados
-    upapasta Pasta/ --password abc --rar  release com senha no RAR
-    upapasta Pasta/ --dry-run             simula sem enviar nada
+    upapasta Filme.2024/ --rar              pasta inteira como um release (RAR + PAR2)
+    upapasta Episodio.S01E01.mkv            arquivo único sem RAR
+    upapasta A.mkv B.mkv C.mkv             múltiplos arquivos em sequência
+    upapasta Pasta1/ Pasta2/ --jobs 2      duas pastas em paralelo
+    upapasta Temporada.1/ --each           cada arquivo da pasta vira um release separado
+    upapasta Pasta/ --obfuscate            release com nomes ofuscados
+    upapasta Pasta/ --password abc --rar   release com senha no RAR
+    upapasta Pasta/ --dry-run              simula sem enviar nada
 
   Para ajuda completa:  upapasta --help
 """
@@ -57,6 +59,8 @@ EXEMPLOS
   upapasta Pasta/ --obfuscate                 fluxo moderno (recomendado)
   upapasta Filme.2024/ --rar                  pasta como release único (com RAR)
   upapasta Episodio.S01E01.mkv               arquivo único, sem RAR
+  upapasta A.mkv B.mkv C.mkv                múltiplos arquivos, processamento sequencial
+  upapasta Pasta1/ Pasta2/ --jobs 2          duas pastas em paralelo
   upapasta Temporada.1/ --each               cada arquivo da pasta separado
   upapasta Pasta/ --password "abc123"         RAR com senha (presume --rar automaticamente)
   upapasta Pasta/ --filepath-format keep     preserva caminho completo
@@ -70,10 +74,10 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument(
-        "input",
-        nargs="?",
-        default=None,
-        help="Arquivo ou pasta a fazer upload",
+        "inputs",
+        nargs="*",
+        metavar="input",
+        help="Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em sequência (ou paralelo com --jobs).",
     )
     p.add_argument(
         "--config",
@@ -175,6 +179,13 @@ def parse_args() -> argparse.Namespace:
 
     # ── Opções de ajuste ─────────────────────────────────────────────────────
     tuning = p.add_argument_group("opções de ajuste")
+    tuning.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Número de uploads paralelos quando múltiplos inputs são fornecidos (padrão: 1 = sequencial)",
+    )
     tuning.add_argument(
         "--par-profile",
         choices=("fast", "balanced", "safe"),
@@ -393,11 +404,14 @@ def check_dependencies(rar_needed: bool = True) -> bool:
 
 def _validate_flags(args: argparse.Namespace) -> bool:
     """Valida combinações de flags incompatíveis. Retorna False se há erro fatal."""
+    # Normalizar inputs em lista; criar args.input para compatibilidade
+    inputs: list[str] = getattr(args, "inputs", []) or []
+    args.input = inputs[0] if inputs else None
+
     # Backward compatibility: --skip-rar → sem --rar
     if getattr(args, 'skip_rar_deprecated', False):
         print("⚠️  --skip-rar está deprecado. O padrão já é sem RAR.")
         print("   Para usar RAR, adicione --rar explicitamente.")
-        # Ignora --skip-rar deprecated e mantém --rar = False
         args.rar = False
 
     # --password sem argumento gera senha aleatória
@@ -418,14 +432,29 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         args.obfuscate = True
         print("ℹ️  --strong-obfuscate ativa --obfuscate automaticamente.")
 
+    # --jobs requer múltiplos inputs
+    jobs = getattr(args, "jobs", 1)
+    if jobs < 1:
+        print("❌  --jobs deve ser ≥ 1.")
+        return False
+    if jobs > 1 and len(inputs) < 2:
+        print("⚠️  --jobs > 1 é ignorado com apenas um input.")
+
+    # --each, --season e --watch requerem exatamente um input
     if args.each or args.season:
-        p = Path(args.input)
-        if not p.is_dir():
+        if len(inputs) > 1:
+            mode = "--each" if args.each else "--season"
+            print(f"❌  {mode} requer exatamente um input (pasta).")
+            return False
+        if not args.input or not Path(args.input).is_dir():
             mode = "--each" if args.each else "--season"
             print(f"❌  {mode} requer uma pasta como entrada.")
             return False
 
     if args.watch:
+        if len(inputs) > 1:
+            print("❌  --watch requer exatamente um input (pasta).")
+            return False
         if not args.input or not Path(args.input).is_dir():
             print("❌  --watch requer uma pasta como entrada.")
             return False

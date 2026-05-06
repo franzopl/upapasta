@@ -8,7 +8,9 @@ Ponto de entrada do UpaPasta.
 from __future__ import annotations
 
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any
 
 from .catalog import print_stats
 from .cli import _USAGE_SHORT, _validate_flags, check_dependencies, parse_args
@@ -19,6 +21,78 @@ from .nzb import collect_season_nzbs, fix_season_nzb_subjects, merge_nzbs
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .watch import _watch_loop
+
+
+def _run_single_input(args: Any, item_path: str, env_file: str) -> int:
+    """Processa um único input e retorna o código de saída."""
+    input_name = Path(item_path).name
+    log_path, log_fh = setup_session_log(input_name, env_file=env_file)
+    rc = 1
+    try:
+        orchestrator = UpaPastaOrchestrator.from_args(args, item_path)
+        with UpaPastaSession(orchestrator) as orch:
+            rc = orch.run()
+    except KeyboardInterrupt:
+        rc = 130
+        teardown_session_log(log_fh, log_path)
+        raise
+    except Exception:
+        import traceback
+        traceback.print_exc()
+    finally:
+        teardown_session_log(log_fh, log_path)
+    return rc
+
+
+def _run_multi_input(args: Any, inputs: list[str], env_file: str, jobs: int) -> int:
+    """Processa múltiplos inputs em sequência (jobs=1) ou em paralelo (jobs>1)."""
+    total = len(inputs)
+    print(f"📦 Multi-input: {total} item(s) — {'paralelo ×' + str(jobs) if jobs > 1 else 'sequencial'}")
+    failed: list[str] = []
+
+    if jobs <= 1:
+        for i, item_path in enumerate(inputs, 1):
+            print(f"\n{'='*60}")
+            print(f"[{i}/{total}] {Path(item_path).name}")
+            print("=" * 60)
+            try:
+                rc = _run_single_input(args, item_path, env_file)
+            except KeyboardInterrupt:
+                print("\n⚠️  Interrompido pelo usuário.")
+                return 130
+            if rc != 0:
+                failed.append(Path(item_path).name)
+    else:
+        # Paralelo: ThreadPoolExecutor com jobs workers
+        lock_print = __import__("threading").Lock()
+
+        def _worker(item_path: str) -> tuple[str, int]:
+            try:
+                rc = _run_single_input(args, item_path, env_file)
+            except KeyboardInterrupt:
+                rc = 130
+            return item_path, rc
+
+        with ThreadPoolExecutor(max_workers=jobs) as executor:
+            futures = {executor.submit(_worker, p): p for p in inputs}
+            for future in as_completed(futures):
+                item_path, rc = future.result()
+                if rc == 130:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    print("\n⚠️  Interrompido pelo usuário.")
+                    return 130
+                if rc != 0:
+                    with lock_print:
+                        failed.append(Path(item_path).name)
+
+    if failed:
+        print(f"\n❌  {len(failed)}/{total} item(s) com falha:")
+        for name in failed:
+            print(f"    • {name}")
+        return 1
+
+    print(f"\n✅  {total}/{total} item(s) concluídos com sucesso.")
+    return 0
 
 
 def main() -> None:
@@ -60,7 +134,7 @@ def main() -> None:
         sys.exit(0 if success else 1)
 
     # Sem argumentos: exibe uso amigável e sai
-    if args.input is None:
+    if not getattr(args, "inputs", None):
         print(_USAGE_SHORT)
         sys.exit(0)
 
@@ -79,6 +153,13 @@ def main() -> None:
 
     if not check_dependencies(needs_rar):
         sys.exit(1)
+
+    # ── Modo multi-input: múltiplos caminhos posicionais ─────────────────────
+    all_inputs: list[str] = getattr(args, "inputs", []) or []
+    if len(all_inputs) > 1:
+        jobs = getattr(args, "jobs", 1)
+        rc = _run_multi_input(args, all_inputs, env_file, jobs)
+        sys.exit(rc)
 
     # ── Modo --each ou --season: processa itens individualmente ──────────────
     if args.each or args.season:
@@ -208,22 +289,10 @@ def main() -> None:
         sys.exit(0)
 
     # ── Modo normal: um único input ──────────────────────────────────────────
-    input_name = Path(args.input).name
-    log_path, log_fh = setup_session_log(input_name, env_file=env_file)
-
-    rc = 1
     try:
-        orchestrator = UpaPastaOrchestrator.from_args(args,args.input)
-        with UpaPastaSession(orchestrator) as orch:
-            rc = orch.run()
+        rc = _run_single_input(args, args.input, env_file)
     except KeyboardInterrupt:
         rc = 130
-    except Exception:
-        rc = 1
-        import traceback
-        traceback.print_exc()
-    finally:
-        teardown_session_log(log_fh, log_path)
 
     sys.exit(rc)
 

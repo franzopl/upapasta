@@ -542,12 +542,17 @@ class TestCheckDependencies:
 
 class TestValidateFlags:
     def _args(self, **kwargs) -> argparse.Namespace:
-        defaults = {
+        # input_val permite configurar o caminho sem quebrar a lógica de inputs (lista)
+        input_val = kwargs.pop("input", "/tmp/test")
+        defaults: dict = {
             "rar": False, "password": None, "obfuscate": False,
             "strong_obfuscate": False, "each": False, "season": False,
-            "watch": False, "input": "/tmp/test",
+            "watch": False, "jobs": 1, "inputs": [input_val],
         }
         defaults.update(kwargs)
+        # Se inputs foi passado diretamente, não precisamos ajustar
+        if "inputs" not in kwargs and input_val:
+            defaults["inputs"] = [input_val]
         return argparse.Namespace(**defaults)
 
     def test_password_sem_rar_ativa_rar(self, capsys):
