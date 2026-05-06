@@ -1,12 +1,14 @@
-# Instalação — UpaPasta
+# Installation — UpaPasta
 
-## 1. Instalar o UpaPasta
+[Português (pt-BR)](docs/pt-BR/INSTALL.md)
+
+## 1. Install UpaPasta
 
 ```bash
 pip install upapasta
 ```
 
-Para desenvolvimento:
+For development:
 
 ```bash
 git clone https://github.com/franzopl/upapasta.git
@@ -16,35 +18,35 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Requer Python 3.9+.
+Requires Python 3.9+.
 
 ---
 
-## 2. Instalar dependências do sistema
+## 2. Install system dependencies
 
-O UpaPasta orquestra binários externos. Instale os que for usar:
+UpaPasta orchestrates external binaries. Install the ones you will use:
 
-### nyuu (obrigatório — upload NNTP)
+### nyuu (mandatory — NNTP upload)
 
 ```bash
-# Via npm (recomendado)
+# Via npm (recommended)
 npm install -g nyuu
 
-# Ou baixar o binário compilado
+# Or download the compiled binary
 # https://github.com/nicowillis/nyuu/releases
 ```
 
-Confirmar: `nyuu --version`
+Confirm with: `nyuu --version`
 
-### parpar (obrigatório para PAR2 — recomendado)
+### parpar (mandatory for PAR2 — recommended)
 
 ```bash
 pip install parpar
 ```
 
-Confirmar: `parpar --version`
+Confirm with: `parpar --version`
 
-### par2 (alternativa ao parpar)
+### par2 (parpar alternative)
 
 ```bash
 # Debian / Ubuntu
@@ -54,10 +56,10 @@ sudo apt install par2
 brew install par2
 
 # Windows
-# Baixar de: https://github.com/Parchive/par2cmdline/releases
+# Download from: https://github.com/Parchive/par2cmdline/releases
 ```
 
-### rar (apenas com `--rar`)
+### rar (only with `--rar`)
 
 ```bash
 # Debian / Ubuntu
@@ -67,12 +69,12 @@ sudo apt install rar
 brew install rar
 
 # Windows
-# Instalar WinRAR (rar.exe fica no PATH) ou baixar rar.exe standalone do RARLAB
+# Install WinRAR (rar.exe must be in PATH) or download standalone rar.exe from RARLAB
 ```
 
-Confirmar: `rar --version`
+Confirm with: `rar --version`
 
-### ffprobe (opcional — metadados de vídeo no NFO)
+### ffprobe (optional — video metadata in NFO)
 
 ```bash
 # Debian / Ubuntu
@@ -82,10 +84,10 @@ sudo apt install ffmpeg
 brew install ffmpeg
 
 # Windows
-# Baixar de: https://ffmpeg.org/download.html e adicionar ao PATH
+# Download from: https://ffmpeg.org/download.html and add to PATH
 ```
 
-### mediainfo (opcional — informações técnicas de mídia no NFO)
+### mediainfo (optional — technical media info in NFO)
 
 ```bash
 # Debian / Ubuntu
@@ -95,20 +97,20 @@ sudo apt install mediainfo
 brew install mediainfo
 
 # Windows
-# Baixar de: https://mediaarea.net/en/MediaInfo/Download
+# Download from: https://mediaarea.net/en/MediaInfo/Download
 ```
 
 ---
 
-## 3. Configuração inicial
+## 3. Initial Configuration
 
-Na primeira execução, o UpaPasta solicita as credenciais e cria `~/.config/upapasta/.env`:
+On the first run, UpaPasta will ask for credentials and create `~/.config/upapasta/.env`:
 
 ```bash
 upapasta --config
 ```
 
-Para configurar manualmente, copie o template e edite:
+To configure manually, copy the template and edit it:
 
 ```bash
 cp .env.example ~/.config/upapasta/.env
@@ -117,19 +119,19 @@ nano ~/.config/upapasta/.env
 
 ---
 
-## 4. Verificar instalação
+## 4. Verify Installation
 
 ```bash
-# Confirmar que o comando está disponível
+# Confirm that the command is available
 upapasta --help
 
-# Testar conexão com o servidor NNTP configurado
+# Test connection with the configured NNTP server
 upapasta --test-connection
 ```
 
-Se `upapasta` não for encontrado após `pip install`, adicione o diretório de scripts do pip ao PATH:
+If `upapasta` is not found after `pip install`, add the pip script directory to your PATH:
 
 ```bash
-# ~/.bashrc ou ~/.zshrc
+# ~/.bashrc or ~/.zshrc
 export PATH="$HOME/.local/bin:$PATH"
 ```
