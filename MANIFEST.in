@@ -1,3 +1,4 @@
+recursive-include locale *.po *.mo
 include .env.example
 include INSTALL.md
 include README.md

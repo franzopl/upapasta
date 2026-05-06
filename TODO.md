@@ -220,6 +220,61 @@
 
 ---
 
+## 🌐 Internacionalização (i18n) — v0.26.x → v0.28.0
+
+**Meta: inglês como idioma canônico (docs + mensagens); pt-BR como tradução de primeira classe via `gettext`.**
+
+**Decisões de arquitetura:**
+- Inglês é o padrão (README.md, docs/, man page, mensagens CLI)
+- pt-BR via `locale/pt_BR/LC_MESSAGES/upapasta.{po,mo}` + `README.pt-BR.md` + `docs/pt-BR/`
+- Detecção automática via `LANG`/`LC_ALL` do sistema; override via `UPAPASTA_LANG=pt_BR`; sem wizard de primeiro uso
+- `gettext` da stdlib — zero novas dependências
+
+### ~~I1 · Infraestrutura gettext `v0.26.0`~~ ✅ Concluído (0.26.0)
+
+- [x] Criar `upapasta/i18n.py`: `gettext.translation()` com `NullTranslations` fallback; detecta `UPAPASTA_LANG` → `locale.getlocale()` → `LANG` → `en`
+- [x] Criar estrutura `upapasta/locale/en/LC_MESSAGES/` e `upapasta/locale/pt_BR/LC_MESSAGES/`
+- [x] Adicionar `upapasta/locale/Makefile` de i18n: targets `extract` (`xgettext`), `init` (`msginit`), `compile` (`msgfmt`), `update` (`msgmerge`)
+- [x] Incluir `.mo` compilados no pacote via `pyproject.toml` (`package-data`) + `MANIFEST.in`
+- [x] 8 testes em `tests/test_i18n.py`: detecção de locale, fallback para inglês, `NullTranslations` quando `.mo` ausente, `install()`, `_()`
+
+### I2 · Extração e tradução de strings `v0.26.x` `Alta · Alto esforço` — depende de I1
+
+Envolver todas as strings visíveis ao usuário com `_()` e criar entradas em `pt_BR.po`.
+Ordem por impacto (mais strings visíveis primeiro):
+
+- [ ] I2.1 · `cli.py` — help strings, erros de validação de flags (~60 strings)
+- [ ] I2.2 · `orchestrator.py` + `_pipeline.py` — banner, sumário, avisos de pastas vazias (~80 strings)
+- [ ] I2.3 · `ui.py` — labels do PhaseBar, fases NFO/RAR/PAR2/UPLOAD/DONE (~20 strings)
+- [ ] I2.4 · `upfolder.py` — `_parse_nyuu_stderr`, mensagens de retry/backoff (~30 strings)
+- [ ] I2.5 · `makepar.py` + `makerar.py` — progresso, erros de execução (~40 strings)
+- [ ] I2.6 · `nzb.py` + `nfo.py` + `catalog.py` — mensagens de conflito, hook, categoria (~30 strings)
+- [ ] I2.7 · `config.py` + `main.py` + `watch.py` + `nntp_test.py` — wizard, daemon, NNTP (~25 strings)
+
+### I3 · Documentação em inglês `v0.27.0` `Alta · Alto esforço` — pode rodar em paralelo com I2
+
+- [ ] I3.1 · `README.md` → inglês; conteúdo atual → `README.pt-BR.md`; link mútuo no topo
+- [ ] I3.2 · `DOCS.md` → inglês; criar `docs/pt-BR/DOCS.md`
+- [ ] I3.3 · `docs/FAQ.md` + `docs/TROUBLESHOOTING.md` → inglês; criar `docs/pt-BR/` equivalentes
+- [ ] I3.4 · `docs/man/upapasta.1` → inglês (man page troff)
+- [ ] I3.5 · `INSTALL.md` → inglês; criar `docs/pt-BR/INSTALL.md`
+- [ ] I3.6 · `CHANGELOG.md` — entradas futuras em inglês; histórico existente permanece em pt-BR
+- [ ] I3.7 · `CLAUDE.md` — **permanece em português** (documento interno de agente, não público)
+
+### I4 · CI para i18n `v0.27.x` `Média · Baixo esforço` — depende de I1–I3
+
+- [ ] Step no GitHub Actions: `msgfmt --check locale/pt_BR/LC_MESSAGES/upapasta.po`
+- [ ] `grep -r 'print(' upapasta/ | grep -v '_('` no CI para detectar strings escapando sem `_()`
+- [ ] Rodar suite com `UPAPASTA_LANG=pt_BR` e `UPAPASTA_LANG=en` no CI
+
+### I5 · Guia de contribuição de tradução `v0.28.0` `Baixa · Baixo esforço` — depende de I4
+
+- [ ] `CONTRIBUTING.md` (inglês): seção "Adding a new language" com passo-a-passo `msginit`/`msgfmt`
+- [ ] `locale/TRANSLATORS` com créditos
+- [ ] Estrutura para terceira língua (ex: `es`) como prova de conceito da infraestrutura
+
+---
+
 ## 🏁 Critérios de v1.0.0
 
 - [x] Todas as Fases 1 e 2 concluídas ✅
@@ -240,6 +295,7 @@
 | 1 | v0.19.x | Estabilidade | F1.1–1.15: docs sync, testes verdes, CI, segurança básica |
 | 2 | v0.20.x | Robustez & UX | F2.1–2.17: validação, retry, refactor, resume, multi-server |
 | 3 | v0.21.x→v1.0 | Features | F3.1–3.15: webhooks, TMDb, 7z, stats, publicação |
+| i18n | v0.26.x→v0.28 | Internacionalização | I1–I5: gettext, strings en/pt-BR, docs em inglês, CI |
 
 **Próximos passos imediatos** (em ordem):
 1. ~~F1.1–F1.15~~ ✅ Fase 1 completa
@@ -253,5 +309,9 @@
 9. ~~F3.1~~ ✅ Múltiplas entradas posicionais (`upapasta a b c`)
 10. ~~F3.15~~ ✅ Publicação no PyPI (workflow automatizado)
 11. **F3.14** → documentação completa → **desbloqueador de v1.0.0**
-12. **F3.4** → TMDb (alta prioridade; desbloqueia F3.5 e F3.6)
-13. **F3.8** → TUI `--interactive` (pós-docs)
+12. **I1** → infraestrutura gettext (pré-requisito de toda a i18n)
+13. **I2** → extração de strings (em paralelo com I3)
+14. **I3** → documentação em inglês (em paralelo com I2)
+15. **I4 + I5** → CI de i18n + guia de contribuição
+16. **F3.4** → TMDb (desbloqueia F3.5 e F3.6)
+17. **F3.8** → TUI `--interactive` (pós-docs)

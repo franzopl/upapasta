@@ -35,6 +35,9 @@ Changelog = "https://github.com/franzopl/upapasta/blob/master/CHANGELOG.md"
 [tool.setuptools.packages.find]
 include = ["upapasta*"]
 
+[tool.setuptools.package-data]
+"upapasta" = ["locale/*/LC_MESSAGES/upapasta.mo", "locale/*/LC_MESSAGES/upapasta.po"]
+
 [project.scripts]
 upapasta = "upapasta.main:main"
 
