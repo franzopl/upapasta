@@ -243,10 +243,10 @@
 Envolver todas as strings visíveis ao usuário com `_()` e criar entradas em `pt_BR.po`.
 Ordem por impacto (mais strings visíveis primeiro):
 
-- [ ] I2.1 · `cli.py` — help strings, erros de validação de flags (~60 strings)
-- [ ] I2.2 · `orchestrator.py` + `_pipeline.py` — banner, sumário, avisos de pastas vazias (~80 strings)
-- [ ] I2.3 · `ui.py` — labels do PhaseBar, fases NFO/RAR/PAR2/UPLOAD/DONE (~20 strings)
-- [ ] I2.4 · `upfolder.py` — `_parse_nyuu_stderr`, mensagens de retry/backoff (~30 strings)
+- [x] I2.1 · `cli.py` — help strings, erros de validação de flags (~60 strings) ✅ Concluído (commit 66bd22d)
+- [x] I2.2 · `orchestrator.py` + `_pipeline.py` — banner, sumário, avisos de pastas vazias (~80 strings) ✅ Concluído (commit e5e3857)
+- [x] I2.3 · `ui.py` — labels do PhaseBar, fases NFO/RAR/PAR2/UPLOAD/DONE (~20 strings) ✅ Concluído (já estava internacionalizado)
+- [x] I2.4 · `upfolder.py` — `_parse_nyuu_stderr`, mensagens de retry/backoff (~30 strings) ✅ Concluído (commit bcc74ee)
 - [x] I2.5 · `makepar.py` + `makerar.py` — progresso, erros de execução (~40 strings) ✅ Concluído (commit 0bf1f60)
 - [ ] I2.6 · `nzb.py` + `nfo.py` + `catalog.py` — mensagens de conflito, hook, categoria (~30 strings)
 - [ ] I2.7 · `config.py` + `main.py` + `watch.py` + `nntp_test.py` — wizard, daemon, NNTP (~25 strings)
