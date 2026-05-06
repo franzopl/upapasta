@@ -157,6 +157,16 @@ def _load_upload_state(state_path: str) -> dict[str, object] | None:
         return None
 
 
+def _article_size_to_bytes(article_size: str) -> int:
+    """Converte string de tamanho de artigo ('700K', '1M', '750000') para bytes."""
+    s = article_size.strip().upper()
+    if s.endswith('K'):
+        return int(float(s[:-1]) * 1024)
+    if s.endswith('M'):
+        return int(float(s[:-1]) * 1024 * 1024)
+    return int(s)
+
+
 def _parse_nyuu_stderr(stderr: str) -> str | None:
     """Traduz mensagens de erro do nyuu para português. Retorna None se não reconhecido."""
     for pattern, msg in _NYUU_ERRORS:
@@ -616,7 +626,29 @@ def upload_to_usenet(
     # ── Pós-processamento do NZB ─────────────────────────────────────────────
     if nzb_out_abs and os.path.exists(nzb_out_abs) and (is_folder or obfuscated_map or folder_name):
         par2_basenames = [os.path.basename(f) for f in par2_files]
-        fix_nzb_subjects(nzb_out_abs, files_to_upload + par2_basenames, folder_name, obfuscated_map, strong_obfuscate)
+        all_files = files_to_upload + par2_basenames
+
+        # Calcula tamanhos em bytes de cada arquivo para matching por segmentos no NZB.
+        # O nyuu não preserva a ordem de upload no NZB, portanto não se pode usar
+        # índice — o match por tamanho é o único método confiável.
+        _art_bytes = _article_size_to_bytes(article_size)
+        _file_sizes: dict[str, int] = {}
+        for f in files_to_upload:
+            fp = os.path.join(working_dir, f)
+            try:
+                _file_sizes[f] = os.path.getsize(fp)
+            except OSError:
+                pass
+        for abs_path, basename in zip(par2_files, par2_basenames):
+            try:
+                _file_sizes[basename] = os.path.getsize(abs_path)
+            except OSError:
+                pass
+
+        fix_nzb_subjects(
+            nzb_out_abs, all_files, folder_name, obfuscated_map, strong_obfuscate,
+            file_sizes=_file_sizes, article_size_bytes=_art_bytes,
+        )
 
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password and not skip_rar:
         inject_nzb_password(nzb_out_abs, password)

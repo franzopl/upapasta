@@ -11,15 +11,84 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 from datetime import datetime
-from typing import Optional, cast
+from typing import Optional
 
 logger = logging.getLogger("upapasta")
 
+_ANSI_RE = re.compile(r'\x1b\[[0-9;]*[mABCDEFGHJKSTfhilmns]')
+_SENSITIVE_RE = [
+    (re.compile(r'(?i)(senha\s+rar:\s*)\S+'), r'\1***'),
+    (re.compile(r'(?i)(NNTP_PASS=)\S+'),      r'\1***'),
+    (re.compile(r'(?i)(-hp)\S+'),              r'\1***'),
+]
 
+
+def _sanitize(s: str) -> str:
+    clean = _ANSI_RE.sub('', s)
+    for pat, repl in _SENSITIVE_RE:
+        clean = pat.sub(repl, clean)
+    return clean
+
+
+class _ThreadDispatchTeeStream(io.TextIOBase):
+    """sys.stdout replacement: terminal para todos + log-file por-thread.
+
+    Instalado uma única vez; cada thread registra seu log_fh via threading.local().
+    Resolve a race-condition de --jobs N onde múltiplas threads sobrescreviam
+    sys.stdout globalmente.
+    """
+
+    def __init__(self, terminal: io.TextIOWrapper) -> None:
+        self._terminal = terminal
+
+    def write(self, s: str) -> int:
+        try:
+            self._terminal.write(s)
+            self._terminal.flush()
+        except Exception:
+            pass
+        log_fh: Optional[io.TextIOWrapper] = getattr(_thread_local, 'log_fh', None)
+        if log_fh:
+            try:
+                log_fh.write(_sanitize(s))
+            except Exception:
+                pass
+        return len(s)
+
+    def flush(self) -> None:
+        try:
+            self._terminal.flush()
+        except Exception:
+            pass
+        log_fh: Optional[io.TextIOWrapper] = getattr(_thread_local, 'log_fh', None)
+        if log_fh:
+            try:
+                log_fh.flush()
+            except Exception:
+                pass
+
+    @property
+    def encoding(self) -> str:  # type: ignore[override]
+        enc = getattr(self._terminal, 'encoding', 'utf-8')
+        return enc if isinstance(enc, str) else 'utf-8'
+
+    @property
+    def errors(self) -> Optional[str]:  # type: ignore[override]
+        return getattr(self._terminal, 'errors', 'replace')
+
+    def fileno(self) -> int:
+        return self._terminal.fileno()
+
+    def isatty(self) -> bool:
+        return self._terminal.isatty()
+
+
+# Mantido por compatibilidade interna; não usado em modo --jobs N.
 class _TeeStream(io.TextIOBase):
-    """Duplica escrita para stream original + arquivo de log."""
+    """Duplica escrita para stream original + arquivo de log (uso single-thread legado)."""
 
     def __init__(self, original: io.TextIOBase, log_fh: io.TextIOBase) -> None:
         self._original = original
@@ -28,12 +97,7 @@ class _TeeStream(io.TextIOBase):
     def write(self, s: str) -> int:
         self._original.write(s)
         self._original.flush()
-        clean = re.sub(r'\x1b\[[0-9;]*[mABCDEFGHJKSTfhilmns]', '', s)
-        # Mascara valores sensíveis antes de gravar no log em disco
-        clean = re.sub(r'(?i)(senha\s+rar:\s*)\S+', r'\1***', clean)
-        clean = re.sub(r'(?i)(NNTP_PASS=)\S+', r'\1***', clean)
-        clean = re.sub(r'(?i)(-hp)\S+', r'\1***', clean)
-        self._log.write(clean)
+        self._log.write(_sanitize(s))
         self._log.flush()
         return len(s)
 
@@ -51,6 +115,12 @@ class _TeeStream(io.TextIOBase):
 
     def isatty(self) -> bool:
         return self._original.isatty()
+
+
+# Estado global do dispatcher — inicializado após a definição da classe
+_thread_local: threading.local = threading.local()
+_dispatch_lock = threading.Lock()
+_dispatch_stream: Optional[_ThreadDispatchTeeStream] = None
 
 
 def setup_logging(verbose: bool = False, log_file: Optional[str] = None) -> None:
@@ -71,37 +141,42 @@ def setup_logging(verbose: bool = False, log_file: Optional[str] = None) -> None
 
 
 def setup_session_log(input_name: str, env_file: Optional[str] = None) -> tuple[str, io.TextIOWrapper]:
+    """Cria arquivo de log da sessão e registra esta thread no dispatcher global.
+
+    Thread-safe: instala _ThreadDispatchTeeStream em sys.stdout uma única vez;
+    cada thread subsequente apenas registra seu próprio log_fh via threading.local().
     """
-    Cria arquivo de log da sessão em ~/.config/upapasta/logs/.
-    Redireciona stdout para TeeStream que grava simultaneamente no terminal e no log.
-    Retorna (caminho_do_log, file_handle) para fechar ao final.
-    """
+    global _dispatch_stream
+
     log_dir = os.path.join(os.path.dirname(env_file or os.path.expanduser("~/.config/upapasta/.env")), "logs")
     os.makedirs(log_dir, exist_ok=True)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    # Sanitiza nome para uso em arquivo
     safe_name = re.sub(r'[^\w.\-]', '_', input_name)[:80]
     log_path = os.path.join(log_dir, f"{ts}_{safe_name}.log")
 
     log_fh = open(log_path, "w", encoding="utf-8", buffering=1)
     log_fh.write(f"# UpaPasta — log de sessão\n# Início: {datetime.now().isoformat()}\n# Entrada: {input_name}\n\n")
 
-    original_stdout = sys.__stdout__
-    if original_stdout is None:
-        original_stdout = sys.stdout  # type: ignore[assignment]
-    tee_stream = _TeeStream(original_stdout, log_fh)  # type: ignore[arg-type]
-    sys.stdout = tee_stream
+    # Instala o dispatcher global uma única vez (proteção com lock)
+    with _dispatch_lock:
+        if _dispatch_stream is None:
+            terminal = sys.__stdout__ or sys.stdout
+            _dispatch_stream = _ThreadDispatchTeeStream(terminal)
+            sys.stdout = _dispatch_stream  # type: ignore[assignment]
+
+    # Registra o log file desta thread
+    _thread_local.log_fh = log_fh
     return log_path, log_fh
 
 
 def teardown_session_log(log_fh: Optional[io.TextIOBase], log_path: str) -> None:
-    """Restaura stdout e fecha o arquivo de log."""
-    original = sys.__stdout__ or sys.stdout
-    sys.stdout = cast(io.TextIOWrapper, original)
+    """Desregistra esta thread do dispatcher e fecha o arquivo de log."""
     if log_fh:
         log_fh.write(f"\n# Fim: {datetime.now().isoformat()}\n")
         log_fh.close()
+    # Remove log file desta thread; futuros prints vão apenas para o terminal
+    _thread_local.log_fh = None
     print(f"📄 Log salvo em: {log_path}")
 
 

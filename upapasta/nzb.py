@@ -8,6 +8,7 @@ e correção de subjects em arquivos NZB.
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -242,11 +243,16 @@ def fix_nzb_subjects(
     folder_name: str | None = None,
     obfuscated_map: dict[str, str] | None = None,
     strong_obfuscate: bool = False,
+    file_sizes: dict[str, int] | None = None,
+    article_size_bytes: int = 716800,
 ) -> None:
     """Corrige os subjects no NZB para incluir o caminho relativo do arquivo.
 
     Usa _parse_subject para decompor cada subject em (prefixo, nome, sufixo),
     preservando indicadores de parte (N/M), yEnc e demais metadados.
+
+    Quando file_sizes é fornecido, faz matching por contagem de segmentos em vez de
+    por índice — necessário porque o nyuu não preserva a ordem de upload no NZB.
 
     Se strong_obfuscate=True, mantém os nomes aleatórios (máxima privacidade).
     """
@@ -260,12 +266,37 @@ def fix_nzb_subjects(
         if not files:
             files = root.findall(".//file")
 
-        from_file_list = bool(file_list and len(file_list) == len(files))
+        # Quando file_sizes está disponível, constrói mapeamento segs→filename.
+        # O nyuu não preserva a ordem de upload no NZB, então não se pode usar
+        # o índice da file_list — match por tamanho é o único método confiável.
+        # Quando file_sizes está disponível, monta seg_count→filename para matching por tamanho.
+        # Isso é necessário porque o nyuu não preserva a ordem de upload no NZB.
+        seg_to_file: dict[int, str] = {}
+        if file_list and file_sizes:
+            for fname in file_list:
+                size = file_sizes.get(fname)
+                if size is not None:
+                    expected_segs = max(1, math.ceil(size / article_size_bytes))
+                    seg_to_file[expected_segs] = fname
+
+        # from_file_list: fallback index-based quando não há tamanhos disponíveis.
+        from_file_list = bool(not seg_to_file and file_list and len(file_list) == len(files))
+
         for i, file_elem in enumerate(files):
             old_subject = file_elem.get("subject", "")
 
-            if from_file_list:
-                # file_list é autoritativo: o subject pode ser placeholder gerado pelo uploader
+            if seg_to_file:
+                # Match por contagem de segmentos (confiável, ordem-independente)
+                nzb_segs = len(
+                    file_elem.findall(f".//{{{ns_url}}}segment") or file_elem.findall(".//segment")
+                )
+                current_filename = seg_to_file.get(nzb_segs)
+                if current_filename is None:
+                    # Vizinho mais próximo (evita deixar entry sem label)
+                    current_filename = seg_to_file[min(seg_to_file, key=lambda k: abs(k - nzb_segs))]
+                prefix, suffix = "", ""
+            elif from_file_list:
+                # Index-based: usado quando file_sizes não está disponível (ex: testes, --season)
                 current_filename = file_list[i]  # type: ignore[index]
                 prefix, suffix = "", ""
             else:
