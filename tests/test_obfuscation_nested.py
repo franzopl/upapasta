@@ -4,6 +4,7 @@ obfuscate_and_par em pasta com 3 níveis de subpastas:
   - subpastas e arquivos internos preservam nomes
   - reversão em KeyboardInterrupt restaura nome do root
 """
+
 import io
 import os
 import subprocess
@@ -57,18 +58,23 @@ def test_obfuscation_only_renames_root(fake_parpar, monkeypatch, tmp_path):
     root.mkdir()
     _mktree(root)
     monkeypatch.setattr(
-        subprocess, "Popen",
+        subprocess,
+        "Popen",
         lambda *a, **kw: _OkPopen(a[0] if a else None, **kw),
     )
 
     rc, new_path, mapping, _linked = obfuscate_and_par(
-        str(root), redundancy=5, force=True, backend="parpar", threads=1,
+        str(root),
+        redundancy=5,
+        force=True,
+        backend="parpar",
+        threads=1,
     )
     assert rc == 0
     assert new_path is not None and os.path.isdir(new_path)
 
     # Subpastas e arquivos originais preservados dentro do root ofuscado
-    assert (os.path.join(new_path, "10. A", "1. X", "aula.mp4"))
+    assert os.path.join(new_path, "10. A", "1. X", "aula.mp4")
     assert os.path.exists(os.path.join(new_path, "10. A", "1. X", "aula.mp4"))
     assert os.path.exists(os.path.join(new_path, "10. A", "leia.txt"))
     assert os.path.exists(os.path.join(new_path, "11. B", "doc.pdf"))
@@ -81,13 +87,18 @@ def test_obfuscation_reverts_on_keyboard_interrupt(fake_parpar, monkeypatch, tmp
     root.mkdir()
     _mktree(root)
     monkeypatch.setattr(
-        subprocess, "Popen",
+        subprocess,
+        "Popen",
         lambda *a, **kw: _RaisingPopen(a[0] if a else None, **kw),
     )
 
     with pytest.raises(KeyboardInterrupt):
         obfuscate_and_par(
-            str(root), redundancy=5, force=True, backend="parpar", threads=1,
+            str(root),
+            redundancy=5,
+            force=True,
+            backend="parpar",
+            threads=1,
         )
 
     # Root original deve ter voltado

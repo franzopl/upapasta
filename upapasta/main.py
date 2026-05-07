@@ -39,6 +39,7 @@ def _run_single_input(args: Any, item_path: str, env_file: str) -> int:
         raise
     except Exception:
         import traceback
+
         traceback.print_exc()
     finally:
         teardown_session_log(log_fh, log_path)
@@ -54,7 +55,7 @@ def _run_multi_input(args: Any, inputs: list[str], env_file: str, jobs: int) -> 
 
     if jobs <= 1:
         for i, item_path in enumerate(inputs, 1):
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"[{i}/{total}] {Path(item_path).name}")
             print("=" * 60)
             try:
@@ -88,7 +89,11 @@ def _run_multi_input(args: Any, inputs: list[str], env_file: str, jobs: int) -> 
                         failed.append(Path(item_path).name)
 
     if failed:
-        print(_("\n❌  {failed_count}/{total} item(s) failed:").format(failed_count=len(failed), total=total))
+        print(
+            _("\n❌  {failed_count}/{total} item(s) failed:").format(
+                failed_count=len(failed), total=total
+            )
+        )
         for name in failed:
             print(f"    • {name}")
         return 1
@@ -167,8 +172,8 @@ def main() -> None:
     if args.each or args.season:
         folder = Path(args.input)
         # Extensões de arquivos gerados que devem ser ignorados
-        skip_extensions = {'.par2', '.nfo', '.nzb'}
-        skip_patterns = ['.vol', '.part']
+        skip_extensions = {".par2", ".nfo", ".nzb"}
+        skip_patterns = [".vol", ".part"]
 
         def should_skip(f: Path) -> bool:
             if any(f.name.endswith(ext) for ext in skip_extensions):
@@ -181,18 +186,24 @@ def main() -> None:
         if args.each:
             items = sorted(f for f in folder.iterdir() if f.is_file() and not should_skip(f))
         else:
-            items = sorted(f for f in folder.iterdir() if not f.name.startswith('.') and not should_skip(f))
+            items = sorted(
+                f for f in folder.iterdir() if not f.name.startswith(".") and not should_skip(f)
+            )
 
         if not items:
             print(_("❌  No items found in: {folder}").format(folder=folder))
             sys.exit(1)
 
         mode_name = "--each" if args.each else "--season"
-        print(_("📂 Mode {mode}: {count} item(s) in {folder}").format(mode=mode_name, count=len(items), folder=folder.name))
+        print(
+            _("📂 Mode {mode}: {count} item(s) in {folder}").format(
+                mode=mode_name, count=len(items), folder=folder.name
+            )
+        )
         failed: list[str] = []
 
         for i, item_path in enumerate(items, 1):
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"[{i}/{len(items)}] {item_path.name}")
             print("=" * 60)
 
@@ -217,6 +228,7 @@ def main() -> None:
                 sys.exit(rc)
             except Exception:
                 import traceback
+
                 traceback.print_exc()
             finally:
                 teardown_session_log(log_fh, log_path)
@@ -233,7 +245,11 @@ def main() -> None:
 
         # No --season, falhas parciais são toleradas; geramos NZB com os que sucederam
         if args.season and failed:
-            print(_("\n⚠️  {count} item(s) failed (continuing with season NZB):").format(count=len(failed)))
+            print(
+                _("\n⚠️  {count} item(s) failed (continuing with season NZB):").format(
+                    count=len(failed)
+                )
+            )
             for name in failed:
                 print(f"    • {name}")
 
@@ -253,7 +269,7 @@ def main() -> None:
             episode_data = collect_season_nzbs(str(working_dir_path), folder.name)
 
             if episode_data:
-                print(f"\n{'='*60}")
+                print(f"\n{'=' * 60}")
                 print(_("🌟 Finalizing Season: {folder}").format(folder=folder.name))
                 print("=" * 60)
 
@@ -262,7 +278,11 @@ def main() -> None:
                 season_nzb_path = working_dir_path / season_nzb_name
 
                 nzb_paths = [p for p, _ in episode_data]
-                print(_("📦 Merging {count} NZBs into: {name}").format(count=len(nzb_paths), name=season_nzb_name))
+                print(
+                    _("📦 Merging {count} NZBs into: {name}").format(
+                        count=len(nzb_paths), name=season_nzb_name
+                    )
+                )
                 if merge_nzbs(nzb_paths, str(season_nzb_path)):
                     fix_season_nzb_subjects(str(season_nzb_path), episode_data)
                     print(_("✅ Season NZB generated successfully!"))

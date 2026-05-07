@@ -1,4 +1,5 @@
 """Testes para _verify_nzb e retry de upload."""
+
 from upapasta.upfolder import _verify_nzb, upload_to_usenet
 
 NZB_VALID = """\
@@ -52,6 +53,7 @@ def test_verify_nzb_missing():
 def test_upload_retry_on_failure(tmp_path, monkeypatch):
     """upload_to_usenet deve tentar N+1 vezes antes de desistir."""
     import time
+
     monkeypatch.setattr(time, "sleep", lambda x: None)
 
     input_file = tmp_path / "video.mkv"
@@ -68,6 +70,7 @@ def test_upload_retry_on_failure(tmp_path, monkeypatch):
     }
 
     import upapasta.upfolder as upfolder
+
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
     call_count = {"n": 0}
@@ -76,8 +79,12 @@ def test_upload_retry_on_failure(tmp_path, monkeypatch):
         def wait(self):
             call_count["n"] += 1
             return 5
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     monkeypatch.setattr(upfolder, "managed_popen", lambda *a, **kw: MockProc())
 
@@ -90,6 +97,7 @@ def test_upload_retry_on_failure(tmp_path, monkeypatch):
 def test_upload_retry_succeeds_on_second_try(tmp_path, monkeypatch):
     """upload_to_usenet deve ter sucesso na segunda tentativa."""
     import time
+
     monkeypatch.setattr(time, "sleep", lambda x: None)
 
     input_file = tmp_path / "video.mkv"
@@ -106,6 +114,7 @@ def test_upload_retry_succeeds_on_second_try(tmp_path, monkeypatch):
     }
 
     import upapasta.upfolder as upfolder
+
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
     call_count = {"n": 0}
@@ -116,8 +125,12 @@ def test_upload_retry_succeeds_on_second_try(tmp_path, monkeypatch):
             if call_count["n"] == 1:
                 return 5
             return 0
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     monkeypatch.setattr(upfolder, "managed_popen", lambda *a, **kw: MockProc())
 

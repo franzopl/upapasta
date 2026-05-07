@@ -6,6 +6,7 @@ Foco: garantir que o argv passado ao binario externo reflete as escolhas
 do usuario em todos os cenarios suportados, e que paths de pastas
 aninhadas sao percorridos integralmente.
 """
+
 import io
 import subprocess
 
@@ -45,7 +46,8 @@ def fake_bins(monkeypatch):
     monkeypatch.setattr(makepar_module, "find_parpar", lambda: ("parpar", "/bin/true"))
     monkeypatch.setattr(makepar_module, "find_par2", lambda: ("par2", "/bin/true"))
     monkeypatch.setattr(
-        subprocess, "Popen",
+        subprocess,
+        "Popen",
         lambda *a, **kw: _RecPopen(a[0] if a else None, **kw),
     )
 
@@ -93,8 +95,12 @@ def test_make_parity_argv_matrix(fake_bins, tmp_path, entry_kind, backend, filep
         }
 
     rc = make_parity(
-        str(target), redundancy=5, force=True, backend=backend,
-        threads=1, filepath_format=filepath_format,
+        str(target),
+        redundancy=5,
+        force=True,
+        backend=backend,
+        threads=1,
+        filepath_format=filepath_format,
     )
     assert rc == 0
 
@@ -110,17 +116,24 @@ def test_make_parity_argv_matrix(fake_bins, tmp_path, entry_kind, backend, filep
         assert "-f" not in _argv
 
 
-@pytest.mark.parametrize("extra", [
-    None,
-    [],
-    ["--noindex"],
-    ["--foo=bar", "--baz"],
-])
+@pytest.mark.parametrize(
+    "extra",
+    [
+        None,
+        [],
+        ["--noindex"],
+        ["--foo=bar", "--baz"],
+    ],
+)
 def test_parpar_extra_args_matrix(fake_bins, tmp_path, extra):
     f = _mk_single(tmp_path)
     rc = make_parity(
-        str(f), redundancy=5, force=True, backend="parpar",
-        threads=1, parpar_extra_args=extra,
+        str(f),
+        redundancy=5,
+        force=True,
+        backend="parpar",
+        threads=1,
+        parpar_extra_args=extra,
     )
     assert rc == 0
     if extra:

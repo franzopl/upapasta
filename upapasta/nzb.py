@@ -26,7 +26,12 @@ def resolve_nzb_template(env_vars: dict[str, str], is_folder: bool, skip_rar: bo
     # Se o template aponta para um diretório existente, termina com barra
     # ou não contém o template/extensão esperada, anexar automaticamente {filename}.nzb
     if "{filename}" not in template:
-        if os.path.isdir(template) or template.endswith("/") or template.endswith("\\") or not template.lower().endswith(".nzb"):
+        if (
+            os.path.isdir(template)
+            or template.endswith("/")
+            or template.endswith("\\")
+            or not template.lower().endswith(".nzb")
+        ):
             return os.path.join(template, "{filename}.nzb")
 
     return template
@@ -109,9 +114,17 @@ def handle_nzb_conflict(
 
     if nzb_conflict == "overwrite":
         nzb_overwrite = True
-        print(_("Aviso: arquivo NZB já existe: {path} - sobrescrevendo por solicitação (overwrite)").format(path=nzb_out_abs))
+        print(
+            _(
+                "Aviso: arquivo NZB já existe: {path} - sobrescrevendo por solicitação (overwrite)"
+            ).format(path=nzb_out_abs)
+        )
     elif nzb_conflict == "fail":
-        print(_("Erro: arquivo NZB já existe: {path}. Parando por configuração 'fail'.").format(path=nzb_out_abs))
+        print(
+            _("Erro: arquivo NZB já existe: {path}. Parando por configuração 'fail'.").format(
+                path=nzb_out_abs
+            )
+        )
         return nzb_out, nzb_out_abs, nzb_overwrite, False
     else:  # rename
         base, ext = os.path.splitext(nzb_out_abs)
@@ -128,7 +141,11 @@ def handle_nzb_conflict(
         else:
             nzb_out = os.path.basename(candidate)
         nzb_out_abs = candidate
-        print(_("Aviso: arquivo NZB já existe - usando novo nome: {name}").format(name=os.path.basename(candidate)))
+        print(
+            _("Aviso: arquivo NZB já existe - usando novo nome: {name}").format(
+                name=os.path.basename(candidate)
+            )
+        )
 
     return nzb_out, nzb_out_abs, nzb_overwrite, True
 
@@ -181,27 +198,27 @@ def _parse_subject(subject: str) -> tuple[str, str, str]:
     # Caso 2: sem aspas — tenta localizar indicador de parte (N/M) ou yEnc
     # Padrão: <texto_opcional> <nome_arquivo> <yEnc> <(N/M)> <[tamanho]>
     # O nome do arquivo é o token imediatamente antes de "yEnc" ou de "(N/M)"
-    m_yenc = re.search(r'^(.*?)(\s+yEnc\s+\(\d+/\d+\).*)$', subject)
+    m_yenc = re.search(r"^(.*?)(\s+yEnc\s+\(\d+/\d+\).*)$", subject)
     if m_yenc:
         pre = m_yenc.group(1)
         suffix = m_yenc.group(2)
         # O último token de `pre` é o nome do arquivo
-        idx = pre.rfind(' ')
+        idx = pre.rfind(" ")
         if idx >= 0:
-            return pre[:idx + 1], pre[idx + 1:], suffix
-        return '', pre, suffix
+            return pre[: idx + 1], pre[idx + 1 :], suffix
+        return "", pre, suffix
 
-    m_part = re.search(r'^(.*?)(\s*\(\d+/\d+\).*)$', subject)
+    m_part = re.search(r"^(.*?)(\s*\(\d+/\d+\).*)$", subject)
     if m_part:
         pre = m_part.group(1)
         suffix = m_part.group(2)
-        idx = pre.rfind(' ')
+        idx = pre.rfind(" ")
         if idx >= 0:
-            return pre[:idx + 1], pre[idx + 1:], suffix
-        return '', pre, suffix
+            return pre[: idx + 1], pre[idx + 1 :], suffix
+        return "", pre, suffix
 
     # Caso 3: subject é apenas o nome do arquivo (sem indicadores)
-    return '', subject, ''
+    return "", subject, ""
 
 
 def _deobfuscate_filename(
@@ -218,9 +235,9 @@ def _deobfuscate_filename(
 
     # Extensões compostas: .partNN.rar e .volNN+MM.par2 / .par2
     for pattern in (
-        r'(\.part\d+\.rar)$',
-        r'(\.vol\d+\+\d+\.par2)$',
-        r'(\.par2)$',
+        r"(\.part\d+\.rar)$",
+        r"(\.vol\d+\+\d+\.par2)$",
+        r"(\.par2)$",
     ):
         m = re.search(pattern, current_filename, re.IGNORECASE)
         if m:
@@ -294,7 +311,9 @@ def fix_nzb_subjects(
                 current_filename = seg_to_file.get(nzb_segs)
                 if current_filename is None:
                     # Vizinho mais próximo (evita deixar entry sem label)
-                    current_filename = seg_to_file[min(seg_to_file, key=lambda k: abs(k - nzb_segs))]
+                    current_filename = seg_to_file[
+                        min(seg_to_file, key=lambda k: abs(k - nzb_segs))
+                    ]
                 prefix, suffix = "", ""
             elif from_file_list:
                 # Index-based: usado quando file_sizes não está disponível (ex: testes, --season)
@@ -324,7 +343,7 @@ def fix_nzb_subjects(
             if quoted:
                 new_subject = f'{prefix}"{final_filename}"{suffix}'
             else:
-                new_subject = f'{prefix}{final_filename}{suffix}'
+                new_subject = f"{prefix}{final_filename}{suffix}"
 
             file_elem.set("subject", new_subject)
 
@@ -354,7 +373,11 @@ def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, 
                 if subj:
                     subject_to_ep[subj] = ep_name
         except Exception as e:
-            print(_("Aviso: não foi possível ler NZB do episódio '{name}': {error}").format(name=ep_name, error=e))
+            print(
+                _("Aviso: não foi possível ler NZB do episódio '{name}': {error}").format(
+                    name=ep_name, error=e
+                )
+            )
 
     if not subject_to_ep:
         return
@@ -446,7 +469,7 @@ def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str
         return []
 
     # Extrai padrão de temporada do folder name (ex: S02E de Rick.And.Morty.S02....)
-    season_match = re.search(r'(S\d{2}E?)', season_prefix, re.IGNORECASE)
+    season_match = re.search(r"(S\d{2}E?)", season_prefix, re.IGNORECASE)
     if not season_match:
         return []
 
@@ -481,8 +504,11 @@ def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str
                         ep_name = Path(nzb_path).stem
                     break
         except Exception as e:
-            print(_("Aviso: não foi possível ler episódio de {name}: {error}").format(
-                name=Path(nzb_path).name, error=e))
+            print(
+                _("Aviso: não foi possível ler episódio de {name}: {error}").format(
+                    name=Path(nzb_path).name, error=e
+                )
+            )
             continue
 
         if ep_name:

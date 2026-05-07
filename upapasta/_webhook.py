@@ -25,7 +25,7 @@ def _build_payload(
     grupo: Optional[str],
     categoria: Optional[str],
 ) -> dict[str, object]:
-    gb = f"{tamanho_bytes / (1024 ** 3):.2f} GB" if tamanho_bytes else "?"
+    gb = f"{tamanho_bytes / (1024**3):.2f} GB" if tamanho_bytes else "?"
     grupo_str = f" → {grupo}" if grupo else ""
     cat_str = f" [{categoria}]" if categoria else ""
     msg = f"✅ Upload concluído: {nome}{cat_str} ({gb}){grupo_str}"

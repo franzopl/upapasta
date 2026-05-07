@@ -6,6 +6,7 @@ Os helpers vivem em upapasta.orchestrator (a serem implementados na fase 3):
   - normalize_extensionless(root) -> dict[novo_path, original_path]
   - revert_extensionless(mapping) -> None
 """
+
 import pytest
 
 orchestrator = pytest.importorskip("upapasta.orchestrator")

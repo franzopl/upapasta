@@ -42,14 +42,18 @@ import string
 import subprocess
 import threading
 from queue import Queue
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
 from .i18n import _
 from .profiles import DEFAULT_PROFILE, PROFILES
 
+if TYPE_CHECKING:
+    from .ui import PhaseBar
+
 # ── Helpers de tamanho ────────────────────────────────────────────────────────
+
 
 def _parse_size(s: str) -> int:
     """Converte string de tamanho (ex: '700K', '1M', '768000') para bytes."""
@@ -57,11 +61,11 @@ def _parse_size(s: str) -> int:
     if not s:
         raise ValueError("string de tamanho vazia")
     unit = s[-1].upper()
-    if unit == 'K':
+    if unit == "K":
         return int(float(s[:-1]) * 1024)
-    if unit == 'M':
+    if unit == "M":
         return int(float(s[:-1]) * 1024 * 1024)
-    if unit == 'G':
+    if unit == "G":
         return int(float(s[:-1]) * 1024 * 1024 * 1024)
     return int(float(s))
 
@@ -77,6 +81,7 @@ def _fmt_size(b: int) -> str:
 
 # ── Leitura de ARTICLE_SIZE do .env ──────────────────────────────────────────
 
+
 def _get_article_size_bytes() -> int:
     """
     Lê ARTICLE_SIZE do ~/.config/upapasta/.env.
@@ -84,6 +89,7 @@ def _get_article_size_bytes() -> int:
     """
     try:
         from .config import DEFAULT_ENV_FILE, load_env_file
+
         env = load_env_file(DEFAULT_ENV_FILE)
         raw = env.get("ARTICLE_SIZE", "").strip()
         if raw:
@@ -94,6 +100,7 @@ def _get_article_size_bytes() -> int:
 
 
 # ── Cálculo dinâmico de slice size ────────────────────────────────────────────
+
 
 def _compute_dynamic_slice(total_bytes: int, article_size: int) -> Tuple[str, int, int]:
     """
@@ -111,7 +118,7 @@ def _compute_dynamic_slice(total_bytes: int, article_size: int) -> Tuple[str, in
 
     Retorna (slice_str, min_slices, max_slices).
     """
-    GB = 1024 ** 3
+    GB = 1024**3
     base = article_size * 2  # ex: 768K → 1.536M
 
     if total_bytes <= 50 * GB:
@@ -135,6 +142,7 @@ def _compute_dynamic_slice(total_bytes: int, article_size: int) -> Tuple[str, in
 
 # ── Memória disponível ────────────────────────────────────────────────────────
 
+
 def get_parpar_memory_limit() -> Optional[str]:
     """
     Retorna limite de memória seguro para parpar (75% da RAM livre).
@@ -156,11 +164,11 @@ def get_parpar_memory_limit() -> Optional[str]:
 
 # ── Obfuscação ────────────────────────────────────────────────────────────────
 
+
 def generate_random_name(length: int = 12) -> str:
     """Gera um nome de arquivo aleatório com letras e dígitos."""
     chars = string.ascii_lowercase + string.digits
     return "".join(random.choice(chars) for _i in range(length))
-
 
 
 def link_tree(src: str, dst: str) -> None:
@@ -265,32 +273,56 @@ def _revert_obfuscation(
             os.rename(obfuscated_path, input_path)
             print(_("  ✓ Pasta restaurada: {name}").format(name=os.path.basename(input_path)))
         except OSError as e:
-            print(_("  ✗ Falha ao reverter pasta '{obfuscated}' → '{input}': {error}").format(obfuscated=obfuscated_path, input=input_path, error=e))
-            print(_("    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'").format(obfuscated=obfuscated_path, input=input_path))
+            print(
+                _("  ✗ Falha ao reverter pasta '{obfuscated}' → '{input}': {error}").format(
+                    obfuscated=obfuscated_path, input=input_path, error=e
+                )
+            )
+            print(
+                _("    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'").format(
+                    obfuscated=obfuscated_path, input=input_path
+                )
+            )
 
     elif is_rar_vol_set and obfuscated_map:
         orig_base = list(obfuscated_map.values())[0]
         vols = sorted(glob.glob(os.path.join(parent_dir, glob.escape(random_base) + ".part*.rar")))
         ok = 0
         for vol in vols:
-            suffix = os.path.basename(vol)[len(random_base):]
+            suffix = os.path.basename(vol)[len(random_base) :]
             original = os.path.join(parent_dir, orig_base + suffix)
             try:
                 os.rename(vol, original)
                 ok += 1
             except OSError as e:
-                print(_("  ✗ Falha ao reverter '{vol}' → '{original}': {error}").format(vol=os.path.basename(vol), original=orig_base + suffix, error=e))
+                print(
+                    _("  ✗ Falha ao reverter '{vol}' → '{original}': {error}").format(
+                        vol=os.path.basename(vol), original=orig_base + suffix, error=e
+                    )
+                )
                 print(_("    AÇÃO MANUAL: renomeie o arquivo manualmente."))
         if ok:
-            print(_("  ✓ {count} volume(s) RAR restaurado(s): {base}.part*.rar").format(count=ok, base=orig_base))
+            print(
+                _("  ✓ {count} volume(s) RAR restaurado(s): {base}.part*.rar").format(
+                    count=ok, base=orig_base
+                )
+            )
 
     else:
         try:
             os.rename(obfuscated_path, input_path)
             print(_("  ✓ Arquivo restaurado: {name}").format(name=os.path.basename(input_path)))
         except OSError as e:
-            print(_("  ✗ Falha ao reverter '{obfuscated}' → '{input}': {error}").format(obfuscated=obfuscated_path, input=input_path, error=e))
-            print(_("    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'").format(obfuscated=os.path.basename(obfuscated_path), input=os.path.basename(input_path)))
+            print(
+                _("  ✗ Falha ao reverter '{obfuscated}' → '{input}': {error}").format(
+                    obfuscated=obfuscated_path, input=input_path, error=e
+                )
+            )
+            print(
+                _("    AÇÃO MANUAL: renomeie '{obfuscated}' de volta para '{input}'").format(
+                    obfuscated=os.path.basename(obfuscated_path), input=os.path.basename(input_path)
+                )
+            )
 
 
 def _obfuscate_folder(
@@ -303,7 +335,9 @@ def _obfuscate_folder(
         link_tree(input_path, obfuscated_path)
         was_linked = True
     except OSError:
-        print(_("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar)."))
+        print(
+            _("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar).")
+        )
         os.rename(input_path, obfuscated_path)
         was_linked = False
     return obfuscated_path, {random_base: base}, was_linked, obfuscated_path
@@ -314,11 +348,17 @@ def _obfuscate_rar_vol_set(
 ) -> Tuple[str, dict[str, str], bool, str]:
     """Cria visão ofuscada de um conjunto de volumes RAR."""
     original_base = name_no_ext.rsplit(".part", 1)[0]
-    volumes = sorted(glob.glob(os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar"))) or [input_path]
-    print(_("Ofuscando volumes RAR (hardlink): {orig}.part*.rar → {random}.part*.rar").format(orig=original_base, random=random_base))
+    volumes = sorted(
+        glob.glob(os.path.join(parent_dir, glob.escape(original_base) + ".part*.rar"))
+    ) or [input_path]
+    print(
+        _("Ofuscando volumes RAR (hardlink): {orig}.part*.rar → {random}.part*.rar").format(
+            orig=original_base, random=random_base
+        )
+    )
     try:
         for vol in volumes:
-            suffix = os.path.basename(vol)[len(original_base):]
+            suffix = os.path.basename(vol)[len(original_base) :]
             os.link(vol, os.path.join(parent_dir, random_base + suffix))
         was_linked = True
     except OSError:
@@ -329,10 +369,10 @@ def _obfuscate_rar_vol_set(
             except OSError:
                 pass
         for vol in volumes:
-            suffix = os.path.basename(vol)[len(original_base):]
+            suffix = os.path.basename(vol)[len(original_base) :]
             os.rename(vol, os.path.join(parent_dir, random_base + suffix))
         was_linked = False
-    first_suffix = os.path.basename(volumes[0])[len(original_base):]
+    first_suffix = os.path.basename(volumes[0])[len(original_base) :]
     obfuscated_path = os.path.join(parent_dir, random_base + first_suffix)
     return obfuscated_path, {random_base: original_base}, was_linked, obfuscated_path
 
@@ -343,7 +383,11 @@ def _obfuscate_single_file(
     """Cria visão ofuscada de um arquivo único."""
     name_no_ext, ext = os.path.splitext(base)
     obfuscated_path = os.path.join(parent_dir, random_base + ext)
-    print(_("Ofuscando (hardlink): {base} → {obfuscated}").format(base=base, obfuscated=os.path.basename(obfuscated_path)))
+    print(
+        _("Ofuscando (hardlink): {base} → {obfuscated}").format(
+            base=base, obfuscated=os.path.basename(obfuscated_path)
+        )
+    )
     try:
         os.link(input_path, obfuscated_path)
         was_linked = True
@@ -362,7 +406,7 @@ def _rename_par2_files(
     if is_rar_vol_set:
         orig_stem = orig_stem.rsplit(".part", 1)[0]
     for p_file in glob.glob(os.path.join(parent_dir, glob.escape(orig_stem) + "*.par2")):
-        p_suffix = os.path.basename(p_file)[len(orig_stem):]
+        p_suffix = os.path.basename(p_file)[len(orig_stem) :]
         new_p_path = os.path.join(parent_dir, random_base + p_suffix)
         if os.path.exists(new_p_path):
             os.remove(new_p_path)
@@ -419,6 +463,7 @@ def obfuscate_and_par(
     memory_mb: Optional[int] = None,
     filepath_format: str = "common",
     parpar_extra_args: Optional[list[str]] = None,
+    bar: Optional[PhaseBar] = None,
 ) -> Tuple[int, Optional[str], dict[str, str], bool]:
     """
     Cria visão ofuscada da entrada (hardlinks ou rename) e gera paridade.
@@ -441,13 +486,16 @@ def obfuscate_and_par(
     try:
         if is_folder:
             obfuscated_path, obfuscated_map, was_linked, par_input = _obfuscate_folder(
-                input_path, parent_dir, base, random_base)
+                input_path, parent_dir, base, random_base
+            )
         elif is_rar_vol_set:
             obfuscated_path, obfuscated_map, was_linked, par_input = _obfuscate_rar_vol_set(
-                input_path, parent_dir, name_no_ext, random_base)
+                input_path, parent_dir, name_no_ext, random_base
+            )
         else:
             obfuscated_path, obfuscated_map, was_linked, par_input = _obfuscate_single_file(
-                input_path, parent_dir, base, random_base)
+                input_path, parent_dir, base, random_base
+            )
     except Exception as e:
         print(f"❌ Erro crítico na ofuscação: {e}")
         return 1, None, {}, False
@@ -459,10 +507,18 @@ def obfuscate_and_par(
     try:
         rc = make_parity(
             actual_par_input,
-            redundancy=redundancy, force=force, backend=backend, usenet=usenet,
-            post_size=post_size, threads=threads, profile=profile,
-            slice_size=slice_size, memory_mb=memory_mb,
-            filepath_format=filepath_format, parpar_extra_args=parpar_extra_args,
+            redundancy=redundancy,
+            force=force,
+            backend=backend,
+            usenet=usenet,
+            post_size=post_size,
+            threads=threads,
+            profile=profile,
+            slice_size=slice_size,
+            memory_mb=memory_mb,
+            filepath_format=filepath_format,
+            parpar_extra_args=parpar_extra_args,
+            bar=bar,
         )
         if rc == 0:
             _par_succeeded = True
@@ -474,14 +530,21 @@ def obfuscate_and_par(
     finally:
         if not _par_succeeded and obfuscated_path and obfuscated_map:
             _cleanup_on_par_failure(
-                parent_dir, random_base, input_path, is_rar_vol_set,
-                is_folder, obfuscated_path, obfuscated_map, was_linked)
+                parent_dir,
+                random_base,
+                input_path,
+                is_rar_vol_set,
+                is_folder,
+                obfuscated_path,
+                obfuscated_map,
+                was_linked,
+            )
 
     return (0, obfuscated_path, obfuscated_map, was_linked) if rc == 0 else (rc, None, {}, False)
 
 
-
 # ── Detecção de backends ──────────────────────────────────────────────────────
+
 
 def find_par2() -> tuple[str, str] | None:
     for cmd in ("par2", "par2create", "par2.exe", "par2create.exe"):
@@ -501,10 +564,11 @@ def find_parpar() -> tuple[str, str] | None:
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Cria arquivos de paridade para um arquivo/pasta (par2/parpar). "
-                    "O slice size é calculado automaticamente com base no ARTICLE_SIZE do seu .env."
+        "O slice size é calculado automaticamente com base no ARTICLE_SIZE do seu .env."
     )
     p.add_argument("rarfile", help="Caminho para o arquivo .rar ou pasta")
     p.add_argument(
@@ -514,8 +578,10 @@ def parse_args() -> argparse.Namespace:
         help=f"Perfil de otimização (padrão: {DEFAULT_PROFILE})",
     )
     p.add_argument(
-        "-r", "--redundancy",
-        type=int, default=None,
+        "-r",
+        "--redundancy",
+        type=int,
+        default=None,
         help="Redundância em porcentagem (padrão: 10%% para Usenet)",
     )
     p.add_argument("-f", "--force", action="store_true", help="Sobrescrever .par2 existente")
@@ -549,14 +615,17 @@ def parse_args() -> argparse.Namespace:
         help="Flag legada. O slice size agora é derivado de ARTICLE_SIZE, não de post-size.",
     )
     p.add_argument(
-        "-t", "--threads",
-        type=int, default=None,
+        "-t",
+        "--threads",
+        type=int,
+        default=None,
         help="Número de threads (parpar). Padrão: CPUs disponíveis.",
     )
     return p.parse_args()
 
 
 # ── make_parity ───────────────────────────────────────────────────────────────
+
 
 def make_parity(
     rar_path: str,
@@ -574,6 +643,7 @@ def make_parity(
     filepath_format: str = "common",
     parpar_extra_args: Optional[list[str]] = None,
     dry_run: bool = False,
+    bar: Optional[PhaseBar] = None,
 ) -> int:
     """
     Gera arquivos .par2 para rar_path (arquivo único, volume set ou pasta).
@@ -680,15 +750,13 @@ def make_parity(
     total_bytes = 0
 
     if chosen == "parpar":
-        total_bytes = sum(
-            os.path.getsize(f) for f in files_to_process if os.path.isfile(f)
-        )
+        total_bytes = sum(os.path.getsize(f) for f in files_to_process if os.path.isfile(f))
         if used_slice is None:
             article_size = _get_article_size_bytes()
             used_slice, min_input_slices, max_input_slices = _compute_dynamic_slice(
                 total_bytes, article_size
             )
-            total_gb = total_bytes / (1024 ** 3)
+            total_gb = total_bytes / (1024**3)
             print(
                 f"  [parpar] ARTICLE_SIZE={_fmt_size(article_size)} | "
                 f"total={total_gb:.1f} GB → slice={used_slice} "
@@ -712,7 +780,10 @@ def make_parity(
             cmd.append("-S")
         # min/max-input-slices apenas para releases grandes o suficiente para satisfazer a restrição
         # (parpar rejeita min-input-slices se o arquivo for menor que slice*min_slices)
-        if min_input_slices is not None and total_bytes >= _parse_size(used_slice or "1M") * min_input_slices:
+        if (
+            min_input_slices is not None
+            and total_bytes >= _parse_size(used_slice or "1M") * min_input_slices
+        ):
             cmd.append(f"--min-input-slices={min_input_slices}")
         if max_input_slices is not None:
             cmd.append(f"--max-input-slices={max_input_slices}")
@@ -733,11 +804,11 @@ def make_parity(
 
     # ── Execução ──────────────────────────────────────────────────────────────
     input_desc = (
-        f"pasta '{rar_path}' ({len(files_to_process)} arquivo(s))"
-        if is_folder
-        else f"'{rar_path}'"
+        f"pasta '{rar_path}' ({len(files_to_process)} arquivo(s))" if is_folder else f"'{rar_path}'"
     )
-    print(f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}...")
+    print(
+        f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}..."
+    )
 
     if dry_run:
         print("[DRY-RUN] Comando PAR2:")
@@ -754,7 +825,7 @@ def make_parity(
                 target=_read_output, args=(proc.stdout, output_queue), daemon=True
             )
             reader_thread.start()
-            _process_output(output_queue)
+            _process_output(output_queue, bar=bar)
             rc = proc.wait()
 
         if rc == 0:
@@ -789,6 +860,7 @@ def handle_par_failure(
     slice_size: Optional[str] = None,
     rar_file: Optional[str] = None,
     par_profile: str = "balanced",
+    bar: Optional[PhaseBar] = None,
 ) -> bool:
     """
     Chamado quando o PAR2 falha. Tenta retry automático com perfil safe
@@ -825,6 +897,7 @@ def handle_par_failure(
             profile=retry_profile,
             slice_size=slice_size,
             memory_mb=retry_memory_mb,
+            bar=bar,
         )
     except Exception as e:
         print(f"❌ Erro no retry: {e}")
@@ -839,7 +912,7 @@ def handle_par_failure(
     print(f"\n❌ Falha persistente ao gerar paridade (código original {original_rc}, retry {rc2}).")
 
     if rar_file:
-        rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(rar_file)[0])
+        rar_base = re.sub(r"\.part\d+$", "", os.path.splitext(rar_file)[0])
         rar_volumes = sorted(glob.glob(glob.escape(rar_base) + ".part*.rar"))
         count = len(rar_volumes)
         print(f"\n📦 Arquivos RAR preservados ({count} parte(s)) em:")

@@ -71,12 +71,14 @@ def test_ssl_secure_by_default(monkeypatch):
     captured_ctx = {}
 
     import upapasta.nntp_test as nntp_mod
+
     if nntp_mod.nntplib is None:
         pytest.skip("nntplib não disponível")
 
     class FakeNNTP:
         def __init__(self, host, port, *, user, password, ssl_context, timeout):
             captured_ctx["ctx"] = ssl_context
+
         def quit(self):
             pass
 
@@ -93,12 +95,14 @@ def test_ssl_insecure_flag_disables_verification(monkeypatch):
     captured_ctx = {}
 
     import upapasta.nntp_test as nntp_mod
+
     if nntp_mod.nntplib is None:
         pytest.skip("nntplib não disponível")
 
     class FakeNNTP:
         def __init__(self, host, port, *, user, password, ssl_context, timeout):
             captured_ctx["ctx"] = ssl_context
+
         def quit(self):
             pass
 
@@ -206,7 +210,8 @@ def test_logging_non_verbose_no_timestamp():
 
     setup_logging(verbose=False)
     stream_handlers = [
-        h for h in root.handlers
+        h
+        for h in root.handlers
         if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
     ]
     assert stream_handlers
@@ -254,14 +259,17 @@ def test_validate_disk_space_insufficient(tmp_path, monkeypatch):
 
 # ── F2.2: ETA pré-pipeline ───────────────────────────────────────────────────
 
+
 def test_eta_shown_in_run_output(tmp_path, capsys, monkeypatch):
     """O método run() deve exibir a linha de ETA antes do início do pipeline."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"x" * 1024)
 
     env = {
-        "NNTP_HOST": "h", "NNTP_USER": "u",
-        "NNTP_PASS": "p", "USENET_GROUP": "g",
+        "NNTP_HOST": "h",
+        "NNTP_USER": "u",
+        "NNTP_PASS": "p",
+        "USENET_GROUP": "g",
         "NNTP_CONNECTIONS": "20",
     }
     monkeypatch.setattr("upapasta.orchestrator.check_or_prompt_credentials", lambda f: env)
@@ -359,9 +367,13 @@ def test_watch_loop_processes_new_item(tmp_path, monkeypatch):
     mock_session.__enter__ = lambda s: mock_orch
     mock_session.__exit__ = MagicMock(return_value=False)
 
-    monkeypatch.setattr(watch_mod, "UpaPastaOrchestrator", MagicMock(from_args=lambda a, p: mock_orch))
+    monkeypatch.setattr(
+        watch_mod, "UpaPastaOrchestrator", MagicMock(from_args=lambda a, p: mock_orch)
+    )
     monkeypatch.setattr(watch_mod, "UpaPastaSession", lambda o: mock_session)
-    monkeypatch.setattr(watch_mod, "setup_session_log", lambda name, env_file: ("/tmp/x.log", MagicMock()))
+    monkeypatch.setattr(
+        watch_mod, "setup_session_log", lambda name, env_file: ("/tmp/x.log", MagicMock())
+    )
     monkeypatch.setattr(watch_mod, "teardown_session_log", lambda fh, p: None)
 
     with pytest.raises(KeyboardInterrupt):
@@ -373,12 +385,19 @@ def test_watch_loop_processes_new_item(tmp_path, monkeypatch):
 
 # ── F2.9 — Múltiplos servidores NNTP (failover) ──────────────────────────────
 
+
 class TestBuildServerList:
     def test_primary_only(self):
         from upapasta.upfolder import _build_server_list
-        env = {"NNTP_HOST": "news.example.com", "NNTP_PORT": "563",
-               "NNTP_SSL": "true", "NNTP_USER": "u", "NNTP_PASS": "p",
-               "NNTP_CONNECTIONS": "30"}
+
+        env = {
+            "NNTP_HOST": "news.example.com",
+            "NNTP_PORT": "563",
+            "NNTP_SSL": "true",
+            "NNTP_USER": "u",
+            "NNTP_PASS": "p",
+            "NNTP_CONNECTIONS": "30",
+        }
         servers = _build_server_list(env)
         assert len(servers) == 1
         assert servers[0]["host"] == "news.example.com"
@@ -387,10 +406,16 @@ class TestBuildServerList:
 
     def test_secondary_server_added(self):
         from upapasta.upfolder import _build_server_list
-        env = {"NNTP_HOST": "primary.example.com", "NNTP_PORT": "563",
-               "NNTP_SSL": "true", "NNTP_USER": "u", "NNTP_PASS": "p",
-               "NNTP_CONNECTIONS": "50",
-               "NNTP_HOST_2": "backup.example.com"}
+
+        env = {
+            "NNTP_HOST": "primary.example.com",
+            "NNTP_PORT": "563",
+            "NNTP_SSL": "true",
+            "NNTP_USER": "u",
+            "NNTP_PASS": "p",
+            "NNTP_CONNECTIONS": "50",
+            "NNTP_HOST_2": "backup.example.com",
+        }
         servers = _build_server_list(env)
         assert len(servers) == 2
         assert servers[1]["host"] == "backup.example.com"
@@ -400,12 +425,19 @@ class TestBuildServerList:
 
     def test_secondary_with_own_credentials(self):
         from upapasta.upfolder import _build_server_list
-        env = {"NNTP_HOST": "primary.example.com", "NNTP_PORT": "563",
-               "NNTP_SSL": "false", "NNTP_USER": "u1", "NNTP_PASS": "p1",
-               "NNTP_CONNECTIONS": "50",
-               "NNTP_HOST_2": "backup.example.com",
-               "NNTP_USER_2": "u2", "NNTP_PASS_2": "p2",
-               "NNTP_CONNECTIONS_2": "20"}
+
+        env = {
+            "NNTP_HOST": "primary.example.com",
+            "NNTP_PORT": "563",
+            "NNTP_SSL": "false",
+            "NNTP_USER": "u1",
+            "NNTP_PASS": "p1",
+            "NNTP_CONNECTIONS": "50",
+            "NNTP_HOST_2": "backup.example.com",
+            "NNTP_USER_2": "u2",
+            "NNTP_PASS_2": "p2",
+            "NNTP_CONNECTIONS_2": "20",
+        }
         servers = _build_server_list(env)
         assert len(servers) == 2
         assert servers[1]["user"] == "u2"
@@ -414,40 +446,46 @@ class TestBuildServerList:
 
     def test_empty_env_returns_empty(self):
         from upapasta.upfolder import _build_server_list
+
         servers = _build_server_list({})
         assert servers == []
 
 
 # ── F2.10 — Resume / upload parcial ──────────────────────────────────────────
 
+
 class TestUploadResume:
     def test_get_uploaded_files_from_nzb_empty_file(self, tmp_path):
         from upapasta.upfolder import _get_uploaded_files_from_nzb
+
         p = tmp_path / "empty.nzb"
         p.write_text("")
         assert _get_uploaded_files_from_nzb(str(p)) == set()
 
     def test_get_uploaded_files_from_nzb_missing(self, tmp_path):
         from upapasta.upfolder import _get_uploaded_files_from_nzb
+
         assert _get_uploaded_files_from_nzb(str(tmp_path / "nao_existe.nzb")) == set()
 
     def test_get_uploaded_files_from_nzb_with_subjects(self, tmp_path):
         from upapasta.upfolder import _get_uploaded_files_from_nzb
+
         nzb = tmp_path / "test.nzb"
         nzb.write_text(
             '<?xml version="1.0"?>'
             '<!DOCTYPE nzb PUBLIC "-//newzBin//DTD NZB 1.0//EN" "http://www.newzbin.com/DTD/nzb/nzb-1.0.dtd">'
             '<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">'
             '<file subject="[1/2] &quot;episodio01.mkv&quot; yEnc (1/100)">'
-            '<groups><group>alt.binaries.test</group></groups>'
+            "<groups><group>alt.binaries.test</group></groups>"
             '<segments><segment number="1" bytes="700000" messageid="abc@test">1</segment></segments>'
-            '</file></nzb>'
+            "</file></nzb>"
         )
         found = _get_uploaded_files_from_nzb(str(nzb))
         assert "episodio01.mkv" in found
 
     def test_save_and_load_upload_state(self, tmp_path):
         from upapasta.upfolder import _load_upload_state, _save_upload_state
+
         state_path = str(tmp_path / "test.upapasta-state.json")
         _save_upload_state(
             state_path,
@@ -464,15 +502,18 @@ class TestUploadResume:
 
     def test_load_nonexistent_state_returns_none(self, tmp_path):
         from upapasta.upfolder import _load_upload_state
+
         assert _load_upload_state(str(tmp_path / "nao_existe.json")) is None
 
 
 # ── F2.12 — NFO multi-track (áudio + legendas) ───────────────────────────────
 
+
 class TestNfoMultiTrack:
     def test_get_video_info_returns_track_keys(self, tmp_path):
         """_get_video_info retorna audio_tracks e subtitle_tracks mesmo sem ffprobe."""
         import upapasta.nfo as nfo_mod
+
         # Arquivo inexistente → ffprobe falha → retorna defaults com chaves corretas
         duration, meta = nfo_mod._get_video_info(str(tmp_path / "nao_existe.mkv"))
         assert "audio_tracks" in meta
@@ -487,15 +528,23 @@ class TestNfoMultiTrack:
 
         import upapasta.nfo as nfo_mod
 
-        ffprobe_output = json.dumps({
-            "streams": [
-                {"codec_type": "video", "codec_name": "h264", "width": 1920, "height": 1080, "tags": {}},
-                {"codec_type": "audio", "codec_name": "aac", "tags": {"language": "por"}},
-                {"codec_type": "audio", "codec_name": "aac", "tags": {"language": "eng"}},
-                {"codec_type": "subtitle", "codec_name": "ass", "tags": {"language": "por"}},
-            ],
-            "format": {"duration": "3600.0", "bit_rate": "8000000"},
-        })
+        ffprobe_output = json.dumps(
+            {
+                "streams": [
+                    {
+                        "codec_type": "video",
+                        "codec_name": "h264",
+                        "width": 1920,
+                        "height": 1080,
+                        "tags": {},
+                    },
+                    {"codec_type": "audio", "codec_name": "aac", "tags": {"language": "por"}},
+                    {"codec_type": "audio", "codec_name": "aac", "tags": {"language": "eng"}},
+                    {"codec_type": "subtitle", "codec_name": "ass", "tags": {"language": "por"}},
+                ],
+                "format": {"duration": "3600.0", "bit_rate": "8000000"},
+            }
+        )
 
         class FakeResult:
             stdout = ffprobe_output
@@ -517,6 +566,7 @@ class TestParseSubject:
     def test_quoted_canonical(self):
         """Formato canônico nyuu: "filename" yEnc (N/M) size."""
         from upapasta.nzb import _parse_subject
+
         pre, name, suf = _parse_subject('"video.mkv" yEnc (1/23) 750000')
         assert name == "video.mkv"
         assert "yEnc" in suf
@@ -526,6 +576,7 @@ class TestParseSubject:
     def test_quoted_with_prefix(self):
         """Subject com prefixo antes das aspas."""
         from upapasta.nzb import _parse_subject
+
         pre, name, suf = _parse_subject('[MyRelease] "file.part01.rar" yEnc (3/10)')
         assert name == "file.part01.rar"
         assert "[MyRelease]" in pre
@@ -534,7 +585,8 @@ class TestParseSubject:
     def test_unquoted_yenc(self):
         """Subject sem aspas com indicador yEnc."""
         from upapasta.nzb import _parse_subject
-        pre, name, suf = _parse_subject('file.mkv yEnc (2/5)')
+
+        pre, name, suf = _parse_subject("file.mkv yEnc (2/5)")
         assert name == "file.mkv"
         assert "yEnc" in suf
         assert "(2/5)" in suf
@@ -542,14 +594,16 @@ class TestParseSubject:
     def test_unquoted_part_only(self):
         """Subject sem aspas apenas com (N/M)."""
         from upapasta.nzb import _parse_subject
-        pre, name, suf = _parse_subject('archive.part02.rar (2/10)')
+
+        pre, name, suf = _parse_subject("archive.part02.rar (2/10)")
         assert name == "archive.part02.rar"
         assert "(2/10)" in suf
 
     def test_bare_filename(self):
         """Subject é apenas o nome do arquivo."""
         from upapasta.nzb import _parse_subject
-        pre, name, suf = _parse_subject('documento.pdf')
+
+        pre, name, suf = _parse_subject("documento.pdf")
         assert name == "documento.pdf"
         assert pre == ""
         assert suf == ""

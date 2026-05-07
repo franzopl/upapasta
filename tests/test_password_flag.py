@@ -1,4 +1,5 @@
 """Testes para a flag --password: senha aleatória e ativação implícita de --rar."""
+
 from __future__ import annotations
 
 import argparse

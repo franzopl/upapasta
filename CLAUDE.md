@@ -238,3 +238,30 @@ upapasta/
 ├── .gitignore
 └── LICENSE                      # MIT
 ```
+
+---
+
+## 11. Qualidade de Código (CI obrigatório)
+
+Todo código gerado deve passar na suíte completa de qualidade antes de ser commitado. **Não commitar sem verificar.**
+
+```bash
+ruff check upapasta/ tests/            # linting (erros bloqueiam CI)
+ruff format --check upapasta/ tests/   # formatação
+mypy upapasta/                         # checagem de tipos
+pytest tests/                          # testes (todos devem passar)
+```
+
+### Regras obrigatórias para o agente
+
+1. **Antes de qualquer commit**: rodar `ruff check` e `mypy upapasta/` e corrigir todos os erros encontrados.
+2. **Imports**: nunca deixar imports não usados (`F401`). Remover ou usar.
+3. **Shadowing**: nunca redeclarar variáveis de escopos externos com o mesmo nome (`F841`, `A002`).
+4. **Type hints**: sempre usar `from __future__ import annotations` (já convenção do projeto). Anotar retornos e parâmetros em funções públicas.
+5. **`type: ignore`**: só adicionar quando há razão documentada (comentário explicando o porquê).
+6. **Formatação**: deixar o `ruff format` decidir indentação, quebras de linha e aspas — não contrariar manualmente.
+7. **Se CI falhou num push anterior**: rodar a suíte completa (`ruff` + `mypy` + `pytest`) antes de propor qualquer novo commit.
+
+### Configuração dos linters
+
+Os parâmetros de `ruff` e `mypy` estão em `pyproject.toml`. Consultar lá antes de adicionar `# noqa` ou `# type: ignore` para confirmar se a regra já está ignorada globalmente.

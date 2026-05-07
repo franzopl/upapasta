@@ -1,4 +1,3 @@
-
 from upapasta.orchestrator import UpaPastaOrchestrator
 
 
@@ -9,6 +8,7 @@ def test_orchestrator_generates_nfo_even_with_skip_upload(tmp_path, monkeypatch)
 
     # Mock NFO generation to avoid external dependencies (mediainfo)
     import upapasta.nfo as nfo_mod
+
     def mock_gen_nfo(src, dst):
         with open(dst, "w") as f:
             f.write("Fake NFO Content")
@@ -23,10 +23,7 @@ def test_orchestrator_generates_nfo_even_with_skip_upload(tmp_path, monkeypatch)
 
     # Orchestrator with skip_upload=True
     orch = UpaPastaOrchestrator(
-        input_path=str(input_file),
-        skip_upload=True,
-        dry_run=False,
-        env_file=str(tmp_path / ".env")
+        input_path=str(input_file), skip_upload=True, dry_run=False, env_file=str(tmp_path / ".env")
     )
 
     # Create a fake .env

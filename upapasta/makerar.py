@@ -30,11 +30,14 @@ import shutil
 import subprocess
 import threading
 from queue import Queue
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
 from .i18n import _
+
+if TYPE_CHECKING:
+    from .ui import PhaseBar
 
 
 def find_rar() -> str | None:
@@ -47,7 +50,7 @@ def find_rar() -> str | None:
 
 
 _MIN_SPLIT_SIZE = 10 * 1024 * 1024 * 1024  # 10 GB — abaixo disso, RAR único
-_MIN_VOLUME_SIZE = 1024 * 1024 * 1024      # 1 GB — tamanho mínimo de cada parte
+_MIN_VOLUME_SIZE = 1024 * 1024 * 1024  # 1 GB — tamanho mínimo de cada parte
 _MAX_VOLUMES = 100
 
 
@@ -84,7 +87,13 @@ def _volume_size_bytes(total_bytes: int) -> Optional[int]:
     return vol
 
 
-def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None, password: Optional[str] = None) -> Tuple[int, Optional[str]]:
+def make_rar(
+    input_path: str,
+    force: bool = False,
+    threads: Optional[int] = None,
+    password: Optional[str] = None,
+    bar: Optional[PhaseBar] = None,
+) -> Tuple[int, Optional[str]]:
     """Cria um arquivo RAR para a pasta ou arquivo fornecido.
 
     Aceita tanto diretórios quanto arquivos únicos.
@@ -116,7 +125,11 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
     out_rar = os.path.join(parent, base + ".rar")
     existing_parts = glob.glob(os.path.join(parent, glob.escape(base) + ".part*.rar"))
     if (os.path.exists(out_rar) or existing_parts) and not force:
-        print(_("Erro: '{rar}' ou volumes parciais já existem. Use --force para sobrescrever.").format(rar=out_rar))
+        print(
+            _(
+                "Erro: '{rar}' ou volumes parciais já existem. Use --force para sobrescrever."
+            ).format(rar=out_rar)
+        )
         return 3, None
     if force:
         if os.path.exists(out_rar):
@@ -132,9 +145,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
 
     rar_exec = find_rar()
     if not rar_exec:
-        print(
-            _("Erro: utilitário 'rar' não encontrado. Instale-o (ex: sudo apt install rar)")
-        )
+        print(_("Erro: utilitário 'rar' não encontrado. Instale-o (ex: sudo apt install rar)"))
         return 4, None
 
     num_threads = min(threads if threads is not None else (os.cpu_count() or 4), 64)
@@ -154,11 +165,21 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
             cmd.append(f"-v{vol_bytes}b")
             num_vols = max(1, -(-total_bytes // vol_bytes))  # ceil division
             print(
-                _("Criando '{rar}' em volumes de {size} MB (~{count} partes, {total} MB total)...")
-                .format(rar=out_rar, size=vol_bytes // (1024*1024), count=num_vols, total=total_bytes // (1024*1024))
+                _(
+                    "Criando '{rar}' em volumes de {size} MB (~{count} partes, {total} MB total)..."
+                ).format(
+                    rar=out_rar,
+                    size=vol_bytes // (1024 * 1024),
+                    count=num_vols,
+                    total=total_bytes // (1024 * 1024),
+                )
             )
         else:
-            print(_("Criando '{rar}' a partir de '{input}' (usando {threads} threads)...").format(rar=out_rar, input=input_path, threads=num_threads))
+            print(
+                _("Criando '{rar}' a partir de '{input}' (usando {threads} threads)...").format(
+                    rar=out_rar, input=input_path, threads=num_threads
+                )
+            )
     else:
         # Arquivo único: sem volume splitting, sem flag -r
         total_bytes = os.path.getsize(input_path)
@@ -168,7 +189,11 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
             cmd.append(f"-hp{password}")
         if force:
             cmd.append("-o+")
-        print(_("Criando '{rar}' a partir de '{target}' (usando {threads} threads)...").format(rar=out_rar, target=archive_target, threads=num_threads))
+        print(
+            _("Criando '{rar}' a partir de '{target}' (usando {threads} threads)...").format(
+                rar=out_rar, target=archive_target, threads=num_threads
+            )
+        )
 
     cmd += [out_rar, archive_target]
 
@@ -196,7 +221,7 @@ def make_rar(input_path: str, force: bool = False, threads: Optional[int] = None
             reader_thread.start()
 
             # Processa output na thread principal
-            last_percent, teve_percentual = _process_output(output_queue)
+            last_percent, teve_percentual = _process_output(output_queue, bar=bar)
 
             # Aguarda o fim do processo
             rc = proc.wait()
@@ -233,5 +258,3 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("folder", help=_("Caminho para a pasta a ser compactada"))
     p.add_argument("-f", "--force", action="store_true", help=_("Sobrescrever .rar existente"))
     return p.parse_args()
-
-

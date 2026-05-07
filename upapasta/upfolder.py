@@ -38,7 +38,7 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from queue import Queue
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from upapasta import nfo
 
@@ -57,13 +57,31 @@ from .nzb import (
 )
 
 _NYUU_ERRORS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"40[13]", re.I), _("Erro de autenticação (401/403): verifique usuário e senha no .env")),
+    (
+        re.compile(r"40[13]", re.I),
+        _("Erro de autenticação (401/403): verifique usuário e senha no .env"),
+    ),
     (re.compile(r"502", re.I), _("Servidor indisponível (502): tente novamente mais tarde")),
-    (re.compile(r"441", re.I), _("Artigo rejeitado pelo servidor (441): verifique permissões da conta")),
-    (re.compile(r"timeout", re.I), _("Timeout de conexão: verifique host/porta e sua conexão de internet")),
-    (re.compile(r"ECONNREFUSED|connection refused", re.I), _("Conexão recusada: verifique NNTP_HOST e NNTP_PORT")),
-    (re.compile(r"ENOTFOUND|getaddrinfo", re.I), _("Host não encontrado: verifique NNTP_HOST no .env")),
-    (re.compile(r"certificate|SSL|TLS", re.I), _("Erro de certificado SSL: use NNTP_IGNORE_CERT=true para contornar")),
+    (
+        re.compile(r"441", re.I),
+        _("Artigo rejeitado pelo servidor (441): verifique permissões da conta"),
+    ),
+    (
+        re.compile(r"timeout", re.I),
+        _("Timeout de conexão: verifique host/porta e sua conexão de internet"),
+    ),
+    (
+        re.compile(r"ECONNREFUSED|connection refused", re.I),
+        _("Conexão recusada: verifique NNTP_HOST e NNTP_PORT"),
+    ),
+    (
+        re.compile(r"ENOTFOUND|getaddrinfo", re.I),
+        _("Host não encontrado: verifique NNTP_HOST no .env"),
+    ),
+    (
+        re.compile(r"certificate|SSL|TLS", re.I),
+        _("Erro de certificado SSL: use NNTP_IGNORE_CERT=true para contornar"),
+    ),
 ]
 
 
@@ -74,39 +92,58 @@ def _build_server_list(env_vars: dict[str, str]) -> list[dict[str, object]]:
     Servidores adicionais: NNTP_HOST_2, NNTP_PORT_2, ... NNTP_HOST_9, ...
     Campos não definidos para servidores adicionais herdam do primário.
     """
+
     def _bool(val: str, default: bool = False) -> bool:
         return val.lower() in ("true", "1", "yes") if val else default
 
     primary_host = env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST", "")
     servers: list[dict[str, object]] = []
     if primary_host:
-        servers.append({
-            "host": primary_host,
-            "port": env_vars.get("NNTP_PORT") or os.environ.get("NNTP_PORT", "119"),
-            "ssl": _bool(env_vars.get("NNTP_SSL", "") or os.environ.get("NNTP_SSL", "")),
-            "ignore_cert": _bool(env_vars.get("NNTP_IGNORE_CERT", "") or os.environ.get("NNTP_IGNORE_CERT", "")),
-            "user": env_vars.get("NNTP_USER") or os.environ.get("NNTP_USER", ""),
-            "password": env_vars.get("NNTP_PASS") or os.environ.get("NNTP_PASS", ""),
-            "connections": env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "50"),
-        })
+        servers.append(
+            {
+                "host": primary_host,
+                "port": env_vars.get("NNTP_PORT") or os.environ.get("NNTP_PORT", "119"),
+                "ssl": _bool(env_vars.get("NNTP_SSL", "") or os.environ.get("NNTP_SSL", "")),
+                "ignore_cert": _bool(
+                    env_vars.get("NNTP_IGNORE_CERT", "") or os.environ.get("NNTP_IGNORE_CERT", "")
+                ),
+                "user": env_vars.get("NNTP_USER") or os.environ.get("NNTP_USER", ""),
+                "password": env_vars.get("NNTP_PASS") or os.environ.get("NNTP_PASS", ""),
+                "connections": env_vars.get("NNTP_CONNECTIONS")
+                or os.environ.get("NNTP_CONNECTIONS", "50"),
+            }
+        )
 
     for i in range(2, 10):
         host = env_vars.get(f"NNTP_HOST_{i}") or os.environ.get(f"NNTP_HOST_{i}", "")
         if not host:
             break
         p = servers[0] if servers else {}
-        servers.append({
-            "host": host,
-            "port": env_vars.get(f"NNTP_PORT_{i}") or os.environ.get(f"NNTP_PORT_{i}") or p.get("port", "119"),
-            "ssl": _bool(
-                env_vars.get(f"NNTP_SSL_{i}") or os.environ.get(f"NNTP_SSL_{i}", ""),
-                default=bool(p.get("ssl", False)),
-            ),
-            "ignore_cert": _bool(env_vars.get(f"NNTP_IGNORE_CERT_{i}") or os.environ.get(f"NNTP_IGNORE_CERT_{i}", "")),
-            "user": env_vars.get(f"NNTP_USER_{i}") or os.environ.get(f"NNTP_USER_{i}") or p.get("user", ""),
-            "password": env_vars.get(f"NNTP_PASS_{i}") or os.environ.get(f"NNTP_PASS_{i}") or p.get("password", ""),
-            "connections": env_vars.get(f"NNTP_CONNECTIONS_{i}") or os.environ.get(f"NNTP_CONNECTIONS_{i}") or p.get("connections", "50"),
-        })
+        servers.append(
+            {
+                "host": host,
+                "port": env_vars.get(f"NNTP_PORT_{i}")
+                or os.environ.get(f"NNTP_PORT_{i}")
+                or p.get("port", "119"),
+                "ssl": _bool(
+                    env_vars.get(f"NNTP_SSL_{i}") or os.environ.get(f"NNTP_SSL_{i}", ""),
+                    default=bool(p.get("ssl", False)),
+                ),
+                "ignore_cert": _bool(
+                    env_vars.get(f"NNTP_IGNORE_CERT_{i}")
+                    or os.environ.get(f"NNTP_IGNORE_CERT_{i}", "")
+                ),
+                "user": env_vars.get(f"NNTP_USER_{i}")
+                or os.environ.get(f"NNTP_USER_{i}")
+                or p.get("user", ""),
+                "password": env_vars.get(f"NNTP_PASS_{i}")
+                or os.environ.get(f"NNTP_PASS_{i}")
+                or p.get("password", ""),
+                "connections": env_vars.get(f"NNTP_CONNECTIONS_{i}")
+                or os.environ.get(f"NNTP_CONNECTIONS_{i}")
+                or p.get("connections", "50"),
+            }
+        )
 
     return servers
 
@@ -131,10 +168,13 @@ def _get_uploaded_files_from_nzb(nzb_path: str) -> set[str]:
         return set()
 
 
-def _save_upload_state(state_path: str, files: list[str], par2_files: list[str], working_dir: str, nzb_out_abs: str) -> None:
+def _save_upload_state(
+    state_path: str, files: list[str], par2_files: list[str], working_dir: str, nzb_out_abs: str
+) -> None:
     """Salva estado do upload para permitir retomada em caso de interrupção."""
     import hashlib
     import json as _json
+
     content_hash = hashlib.sha256("\n".join(sorted(files)).encode()).hexdigest()[:16]
     state = {
         "version": 1,
@@ -154,6 +194,7 @@ def _save_upload_state(state_path: str, files: list[str], par2_files: list[str],
 
 def _load_upload_state(state_path: str) -> dict[str, object] | None:
     import json as _json
+
     try:
         with open(state_path, encoding="utf-8") as fh:
             data = _json.load(fh)
@@ -167,9 +208,9 @@ def _load_upload_state(state_path: str) -> dict[str, object] | None:
 def _article_size_to_bytes(article_size: str) -> int:
     """Converte string de tamanho de artigo ('700K', '1M', '750000') para bytes."""
     s = article_size.strip().upper()
-    if s.endswith('K'):
+    if s.endswith("K"):
         return int(float(s[:-1]) * 1024)
-    if s.endswith('M'):
+    if s.endswith("M"):
         return int(float(s[:-1]) * 1024 * 1024)
     return int(s)
 
@@ -192,7 +233,9 @@ def _verify_nzb(nzb_path: str) -> bool:
         tree = ET.parse(nzb_path)
         root = tree.getroot()
         # Suporta NZB com ou sem namespace
-        files = root.findall('.//{http://www.newzbin.com/DTD/2003/nzb}file') or root.findall('.//file')
+        files = root.findall(".//{http://www.newzbin.com/DTD/2003/nzb}file") or root.findall(
+            ".//file"
+        )
         return len(files) > 0
     except ET.ParseError:
         return False
@@ -208,9 +251,7 @@ def find_nyuu() -> Optional[str]:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(
-        description=_("Upload de .rar + .par2 para Usenet com nyuu")
-    )
+    p = argparse.ArgumentParser(description=_("Upload de .rar + .par2 para Usenet com nyuu"))
     p.add_argument("rarfile", help=_("Caminho para o arquivo .rar a fazer upload"))
     p.add_argument(
         "--dry-run",
@@ -243,10 +284,20 @@ def parse_args() -> argparse.Namespace:
 def generate_anonymous_uploader() -> str:
     """Gera um nome de uploader aleatório e anônimo para proteger privacidade."""
     first_names = [
-        "Anonymous", "User", "Poster", "Uploader", "Contributor", "Member",
-        "Guest", "Visitor", "Participant", "Sender", "Provider", "Supplier"
+        "Anonymous",
+        "User",
+        "Poster",
+        "Uploader",
+        "Contributor",
+        "Member",
+        "Guest",
+        "Visitor",
+        "Participant",
+        "Sender",
+        "Provider",
+        "Supplier",
     ]
-    suffix = ''.join(random.choices(string.digits, k=4))
+    suffix = "".join(random.choices(string.digits, k=4))
     name = random.choice(first_names)
     domains = ["anonymous.net", "upload.net", "poster.com", "user.org", "generic.mail"]
     domain = random.choice(domains)
@@ -334,7 +385,11 @@ def upload_to_usenet(
             set_base = base_no_ext.rsplit(".part", 1)[0]
             vol_pattern = os.path.join(working_dir, glob.escape(set_base) + ".part*.rar")
             rar_volumes = sorted(glob.glob(vol_pattern))
-            files_to_upload = [os.path.basename(v) for v in rar_volumes] if rar_volumes else [os.path.basename(input_path)]
+            files_to_upload = (
+                [os.path.basename(v) for v in rar_volumes]
+                if rar_volumes
+                else [os.path.basename(input_path)]
+            )
             base_name = os.path.join(working_dir, set_base)
         else:
             files_to_upload = [os.path.basename(input_path)]
@@ -347,7 +402,9 @@ def upload_to_usenet(
         par2_files = [os.path.basename(f) for f in par2_files]
 
     if not par2_files:
-        print(_("Erro: nenhum arquivo de paridade encontrado para '{path}'.").format(path=input_path))
+        print(
+            _("Erro: nenhum arquivo de paridade encontrado para '{path}'.").format(path=input_path)
+        )
         print(_("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2"))
         return 3
 
@@ -376,6 +433,7 @@ def upload_to_usenet(
     env_nyuu_args = env_vars.get("NYUU_EXTRA_ARGS")
     if env_nyuu_args and nyuu_extra_args is None:
         import shlex
+
         nyuu_extra_args = shlex.split(env_nyuu_args)
 
     nzb_out_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR")
@@ -398,7 +456,11 @@ def upload_to_usenet(
         return 2
 
     if len(servers) > 1:
-        print(_("  Servidores NNTP:  {count} configurados (failover ativo)").format(count=len(servers)))
+        print(
+            _("  Servidores NNTP:  {count} configurados (failover ativo)").format(
+                count=len(servers)
+            )
+        )
 
     # Encontra nyuu
     if nyuu_path:
@@ -428,9 +490,11 @@ def upload_to_usenet(
             mediainfo_path = nfo.find_mediainfo()
             if mediainfo_path:
                 try:
-                    proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+                    nfo_proc = subprocess.run(
+                        [mediainfo_path, input_path], capture_output=True, text=True, check=True
+                    )
                     with open(nfo_path, "w", encoding="utf-8") as nfo_fh:
-                        nfo_fh.write(proc.stdout)
+                        nfo_fh.write(nfo_proc.stdout)
                 except Exception:
                     pass
 
@@ -439,16 +503,22 @@ def upload_to_usenet(
     state_path: str | None = nzb_out_abs + ".upapasta-state.json" if nzb_out_abs else None
     remaining_files = list(files_to_upload)
     remaining_par2 = list(par2_files)
-    partial_nzb_backup: str | None = None   # caminho do NZB parcial salvo para merge
+    partial_nzb_backup: str | None = None  # caminho do NZB parcial salvo para merge
 
     if resume and nzb_out_abs and os.path.exists(nzb_out_abs):
         uploaded = _get_uploaded_files_from_nzb(nzb_out_abs)
         if uploaded:
             remaining_files = [f for f in files_to_upload if os.path.basename(f) not in uploaded]
             remaining_par2 = [p for p in par2_files if os.path.basename(p) not in uploaded]
-            skipped = len(files_to_upload) + len(par2_files) - len(remaining_files) - len(remaining_par2)
+            skipped = (
+                len(files_to_upload) + len(par2_files) - len(remaining_files) - len(remaining_par2)
+            )
             total_remaining = len(remaining_files) + len(remaining_par2)
-            print(_("  ↩️  Resume: {skipped} arquivo(s) já postados, {remaining} restante(s)").format(skipped=skipped, remaining=total_remaining))
+            print(
+                _("  ↩️  Resume: {skipped} arquivo(s) já postados, {remaining} restante(s)").format(
+                    skipped=skipped, remaining=total_remaining
+                )
+            )
             if total_remaining == 0:
                 print(_("  ✅ Todos os arquivos já foram postados. Upload completo."))
                 return 0
@@ -456,6 +526,7 @@ def upload_to_usenet(
             partial_nzb_backup = nzb_out_abs + ".partial.nzb"
             try:
                 import shutil as _shutil
+
                 _shutil.copy2(nzb_out_abs, partial_nzb_backup)
             except Exception as e:
                 print(_("Aviso: não foi possível salvar NZB parcial: {error}").format(error=e))
@@ -463,16 +534,20 @@ def upload_to_usenet(
         else:
             print(_("  Aviso: NZB existente está vazio. Reiniciando upload completo."))
     elif state_path and not resume and os.path.exists(state_path):
-        print(_("  Aviso: encontrado estado de upload anterior. Use --resume para retomar ou ignore para reiniciar."))
+        print(
+            _(
+                "  Aviso: encontrado estado de upload anterior. Use --resume para retomar ou ignore para reiniciar."
+            )
+        )
 
     # ── Calcular tamanho total para exibição ─────────────────────────────────
     def format_size(size_bytes: int) -> str:
         if size_bytes < 1024**2:
-            return f"{size_bytes/1024:.1f} KB"
+            return f"{size_bytes / 1024:.1f} KB"
         elif size_bytes < 1024**3:
-            return f"{size_bytes/1024**2:.2f} MB"
+            return f"{size_bytes / 1024**2:.2f} MB"
         else:
-            return f"{size_bytes/1024**3:.2f} GB"
+            return f"{size_bytes / 1024**3:.2f} GB"
 
     total_size_bytes = 0
     for f in remaining_files:
@@ -482,7 +557,11 @@ def upload_to_usenet(
             pass
     for f in remaining_par2:
         try:
-            total_size_bytes += os.path.getsize(f) if os.path.isabs(f) else os.path.getsize(os.path.join(working_dir, f))
+            total_size_bytes += (
+                os.path.getsize(f)
+                if os.path.isabs(f)
+                else os.path.getsize(os.path.join(working_dir, f))
+            )
         except OSError:
             pass
 
@@ -495,10 +574,23 @@ def upload_to_usenet(
     sep = "─" * min(term_columns - 1, 60)
 
     rows = [
-        (_("Host"),    f"{nntp_host}:{nntp_port}" + (_(" + {count} failover(s)").format(count=len(servers)-1) if len(servers) > 1 else "")),
-        (_("Grupo"),   usenet_group),
+        (
+            _("Host"),
+            f"{nntp_host}:{nntp_port}"
+            + (
+                _(" + {count} failover(s)").format(count=len(servers) - 1)
+                if len(servers) > 1
+                else ""
+            ),
+        ),
+        (_("Grupo"), usenet_group),
         (_("Subject"), subject),
-        (_("Total"),   _("{size}  ({count} arquivos)").format(size=format_size(total_size_bytes), count=all_file_count)),
+        (
+            _("Total"),
+            _("{size}  ({count} arquivos)").format(
+                size=format_size(total_size_bytes), count=all_file_count
+            ),
+        ),
     ]
     if nzb_out:
         rows.append((_("NZB"), nzb_out))
@@ -516,13 +608,29 @@ def upload_to_usenet(
     if dry_run:
         srv = servers[0]
         cmd_dry = [
-            nyuu_path, "-h", srv["host"], "-P", str(srv["port"]),
-            *([ "-S"] if srv.get("ssl") else []),
-            *([ "-i"] if srv.get("ignore_cert") else []),
-            "-u", srv["user"], "-p", srv["password"],
-            "-n", str(srv["connections"]),
-            "-g", usenet_group, "-a", article_size,
-            "-f", generate_anonymous_uploader(), "--date", "now", "-t", subject,
+            nyuu_path,
+            "-h",
+            srv["host"],
+            "-P",
+            str(srv["port"]),
+            *(["-S"] if srv.get("ssl") else []),
+            *(["-i"] if srv.get("ignore_cert") else []),
+            "-u",
+            srv["user"],
+            "-p",
+            srv["password"],
+            "-n",
+            str(srv["connections"]),
+            "-g",
+            usenet_group,
+            "-a",
+            article_size,
+            "-f",
+            generate_anonymous_uploader(),
+            "--date",
+            "now",
+            "-t",
+            subject,
         ]
         if nzb_out_abs:
             cmd_dry.extend(["-o", nzb_out_abs])
@@ -560,34 +668,58 @@ def upload_to_usenet(
             delay = _BACKOFF_BASE * (3 ** (attempt - 2))
             jitter = int(delay * 0.10 * (random.random() * 2 - 1))
             wait = max(1, delay + jitter)
-            print(_("\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max}...").format(wait=wait, attempt=attempt, max=max_attempts))
+            print(
+                _("\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max}...").format(
+                    wait=wait, attempt=attempt, max=max_attempts
+                )
+            )
             time.sleep(wait)
 
         srv = servers[(attempt - 1) % len(servers)]
         if len(servers) > 1:
-            print(_("\nTentativa {attempt}/{max} — servidor: {host}").format(attempt=attempt, max=max_attempts, host=srv['host']))
+            print(
+                _("\nTentativa {attempt}/{max} — servidor: {host}").format(
+                    attempt=attempt, max=max_attempts, host=srv["host"]
+                )
+            )
         elif attempt > 1:
-            print(_("\nTentativa {attempt}/{max} de upload...").format(attempt=attempt, max=max_attempts))
+            print(
+                _("\nTentativa {attempt}/{max} de upload...").format(
+                    attempt=attempt, max=max_attempts
+                )
+            )
 
         cmd = [
             nyuu_path,
-            "-h", srv["host"],
-            "-P", str(srv["port"]),
+            "-h",
+            srv["host"],
+            "-P",
+            str(srv["port"]),
         ]
         if srv.get("ssl"):
             cmd.append("-S")
         if srv.get("ignore_cert"):
             cmd.append("-i")
-        cmd.extend([
-            "-u", srv["user"],
-            "-p", srv["password"],
-            "-n", str(srv["connections"]),
-            "-g", usenet_group,
-            "-a", article_size,
-            "-f", generate_anonymous_uploader(),
-            "--date", "now",
-            "-t", subject,
-        ])
+        cmd.extend(
+            [
+                "-u",
+                srv["user"],
+                "-p",
+                srv["password"],
+                "-n",
+                str(srv["connections"]),
+                "-g",
+                usenet_group,
+                "-a",
+                article_size,
+                "-f",
+                generate_anonymous_uploader(),
+                "--date",
+                "now",
+                "-t",
+                subject,
+            ]
+        )
         if nzb_target:
             cmd.extend(["-o", nzb_target])
         if nzb_overwrite or (resume and partial_nzb_backup):
@@ -621,7 +753,11 @@ def upload_to_usenet(
 
             if last_rc == 0:
                 break
-            print(_("\nErro: nyuu retornou código {rc} no servidor {host}.").format(rc=last_rc, host=srv['host']))
+            print(
+                _("\nErro: nyuu retornou código {rc} no servidor {host}.").format(
+                    rc=last_rc, host=srv["host"]
+                )
+            )
         except KeyboardInterrupt:
             raise
         except FileNotFoundError:
@@ -640,7 +776,11 @@ def upload_to_usenet(
             os.remove(partial_nzb_backup)
             print(_("  ↩️  NZBs parciais mesclados com sucesso."))
         else:
-            print(_("  Aviso: falha ao mesclar NZBs. NZB parcial original em '{path}'.").format(path=partial_nzb_backup))
+            print(
+                _("  Aviso: falha ao mesclar NZBs. NZB parcial original em '{path}'.").format(
+                    path=partial_nzb_backup
+                )
+            )
 
     # ── Remover state file após upload completo ───────────────────────────────
     if state_path and os.path.exists(state_path):
@@ -672,8 +812,13 @@ def upload_to_usenet(
                 pass
 
         fix_nzb_subjects(
-            nzb_out_abs, all_files, folder_name, obfuscated_map, strong_obfuscate,
-            file_sizes=_file_sizes, article_size_bytes=_art_bytes,
+            nzb_out_abs,
+            all_files,
+            folder_name,
+            obfuscated_map,
+            strong_obfuscate,
+            file_sizes=_file_sizes,
+            article_size_bytes=_art_bytes,
         )
 
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password and not skip_rar:
@@ -682,7 +827,11 @@ def upload_to_usenet(
 
     if nzb_out_abs:
         if not _verify_nzb(nzb_out_abs):
-            print(_("Aviso: NZB gerado em '{path}' está ausente, vazio ou não contém elementos <file>.").format(path=nzb_out_abs))
+            print(
+                _(
+                    "Aviso: NZB gerado em '{path}' está ausente, vazio ou não contém elementos <file>."
+                ).format(path=nzb_out_abs)
+            )
         else:
             print(_("NZB verificado: {name}").format(name=os.path.basename(nzb_out_abs)))
 

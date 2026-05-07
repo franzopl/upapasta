@@ -5,6 +5,7 @@ arvore aninhada e confere que os paths internos foram preservados nos .par2
 
 Skip se parpar ausente.
 """
+
 import os
 import shutil
 import subprocess
@@ -32,10 +33,21 @@ def test_parpar_preserves_subdirs_in_par2(tmp_path):
 
     rc = subprocess.run(
         [
-            "parpar", "-s", "1M", "--min-input-slices=1",
-            "-r", "5%", "-f", "common", "-o", str(out_par2),
-        ] + files,
-        capture_output=True, text=True, timeout=60,
+            "parpar",
+            "-s",
+            "1M",
+            "--min-input-slices=1",
+            "-r",
+            "5%",
+            "-f",
+            "common",
+            "-o",
+            str(out_par2),
+        ]
+        + files,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     assert rc.returncode == 0, rc.stderr
     assert out_par2.exists()

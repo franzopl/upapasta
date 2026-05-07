@@ -79,7 +79,9 @@ def test_nntp_connection(
         return False, _("❌ Temporary server error: {error}").format(error=e)
 
     except TimeoutError:
-        return False, _("❌ Timeout connecting to {host}:{port} (check if server is available)").format(host=host, port=port)
+        return False, _(
+            "❌ Timeout connecting to {host}:{port} (check if server is available)"
+        ).format(host=host, port=port)
 
     except ConnectionRefusedError:
         return False, _("❌ Connection refused at {host}:{port}").format(host=host, port=port)

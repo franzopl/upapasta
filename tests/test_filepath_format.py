@@ -5,6 +5,7 @@ Garante que make_parity injeta -f <fmt> no argv do parpar e concatena tokens
 extras de parpar_extra_args após as flags próprias mas antes da lista de
 arquivos.
 """
+
 import io
 import subprocess
 
@@ -63,8 +64,12 @@ def test_filepath_format_keep_passed_through(fake_parpar, tmp_path):
     f = tmp_path / "vid.mkv"
     f.write_bytes(b"x" * 1024)
     rc = make_parity(
-        str(f), redundancy=5, force=True, backend="parpar",
-        threads=1, filepath_format="keep",
+        str(f),
+        redundancy=5,
+        force=True,
+        backend="parpar",
+        threads=1,
+        filepath_format="keep",
     )
     assert rc == 0
     assert _captured_argv[_captured_argv.index("-f") + 1] == "keep"
@@ -75,8 +80,12 @@ def test_filepath_format_choices(fake_parpar, tmp_path, fmt):
     f = tmp_path / "vid.mkv"
     f.write_bytes(b"x" * 1024)
     rc = make_parity(
-        str(f), redundancy=5, force=True, backend="parpar",
-        threads=1, filepath_format=fmt,
+        str(f),
+        redundancy=5,
+        force=True,
+        backend="parpar",
+        threads=1,
+        filepath_format=fmt,
     )
     assert rc == 0
     assert _captured_argv[_captured_argv.index("-f") + 1] == fmt
@@ -86,8 +95,12 @@ def test_parpar_extra_args_tokens_injected(fake_parpar, tmp_path):
     f = tmp_path / "vid.mkv"
     f.write_bytes(b"x" * 1024)
     rc = make_parity(
-        str(f), redundancy=5, force=True, backend="parpar",
-        threads=1, parpar_extra_args=["--noindex", "--foo=bar"],
+        str(f),
+        redundancy=5,
+        force=True,
+        backend="parpar",
+        threads=1,
+        parpar_extra_args=["--noindex", "--foo=bar"],
     )
     assert rc == 0
     assert "--noindex" in _captured_argv
@@ -108,8 +121,12 @@ def test_filepath_format_par2_backend_ignored(monkeypatch, tmp_path):
         lambda *args, **kw: _RecordingPopen(args[0] if args else None, **kw),
     )
     rc = make_parity(
-        str(f), redundancy=5, force=True, backend="par2",
-        threads=1, filepath_format="keep",
+        str(f),
+        redundancy=5,
+        force=True,
+        backend="par2",
+        threads=1,
+        filepath_format="keep",
     )
     assert rc == 0
     assert "-f" not in _captured_argv  # par2 não recebe -f

@@ -41,9 +41,11 @@ def test_run_makerar_uses_generated_rar_path(tmp_path, monkeypatch):
     temp_dir.mkdir()
 
     def fake_make_rar(folder_path, force, threads=None, **kwargs):
-        return 0, str(temp_dir / "Gravity.Falls.S02.720p.DSNP.WEB-DL.AAC2.0.H.264.DUAL-NeX.part001.rar")
+        return 0, str(
+            temp_dir / "Gravity.Falls.S02.720p.DSNP.WEB-DL.AAC2.0.H.264.DUAL-NeX.part001.rar"
+        )
 
-    monkeypatch.setattr('upapasta.orchestrator.make_rar', fake_make_rar)
+    monkeypatch.setattr("upapasta.orchestrator.make_rar", fake_make_rar)
 
     orchestrator = UpaPastaOrchestrator(
         input_path=str(temp_dir),
@@ -53,5 +55,7 @@ def test_run_makerar_uses_generated_rar_path(tmp_path, monkeypatch):
 
     rc = orchestrator.run_makerar()
     assert rc is True
-    assert orchestrator.rar_file == str(temp_dir / "Gravity.Falls.S02.720p.DSNP.WEB-DL.AAC2.0.H.264.DUAL-NeX.part001.rar")
+    assert orchestrator.rar_file == str(
+        temp_dir / "Gravity.Falls.S02.720p.DSNP.WEB-DL.AAC2.0.H.264.DUAL-NeX.part001.rar"
+    )
     assert orchestrator.input_target == orchestrator.rar_file

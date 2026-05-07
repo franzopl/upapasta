@@ -73,6 +73,7 @@ def detect_category(name: str) -> str:
 
 # ── Arquivo de histórico ─────────────────────────────────────────────────────
 
+
 def _cfg_dir() -> Path:
     cfg = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "upapasta"
     cfg.mkdir(parents=True, exist_ok=True)
@@ -120,20 +121,20 @@ def record_upload(
             pass
 
     record = {
-        "data_upload":      datetime.now(timezone.utc).isoformat(),
-        "nome_original":    nome_original,
-        "categoria":        detect_category(nome_original),
-        "nome_ofuscado":    nome_ofuscado,
-        "senha_rar":        senha_rar,
-        "tamanho_bytes":    tamanho_bytes,
-        "tmdb_id":          tmdb_id,
-        "grupo_usenet":     grupo_usenet,
-        "servidor_nntp":    servidor_nntp,
+        "data_upload": datetime.now(timezone.utc).isoformat(),
+        "nome_original": nome_original,
+        "categoria": detect_category(nome_original),
+        "nome_ofuscado": nome_ofuscado,
+        "senha_rar": senha_rar,
+        "tamanho_bytes": tamanho_bytes,
+        "tmdb_id": tmdb_id,
+        "grupo_usenet": grupo_usenet,
+        "servidor_nntp": servidor_nntp,
         "redundancia_par2": redundancia_par2,
         "duracao_upload_s": duracao_upload_s,
         "num_arquivos_rar": num_arquivos_rar,
-        "caminho_nzb":      nzb_arquivado,
-        "subject":          subject,
+        "caminho_nzb": nzb_arquivado,
+        "subject": subject,
     }
 
     with open(_history_path(), "a", encoding="utf-8") as f:
@@ -141,6 +142,7 @@ def record_upload(
 
 
 # ── Estatísticas do catálogo ─────────────────────────────────────────────────
+
 
 def print_stats() -> None:
     """Lê history.jsonl e imprime estatísticas agregadas."""
@@ -165,7 +167,7 @@ def print_stats() -> None:
 
     total = len(records)
     total_bytes = sum(r.get("tamanho_bytes") or 0 for r in records)
-    total_gb = total_bytes / (1024 ** 3)
+    total_gb = total_bytes / (1024**3)
 
     # Por categoria
     cat_counts: dict[str, int] = {}
@@ -207,20 +209,24 @@ def print_stats() -> None:
 
     if group_counts:
         top_group = max(group_counts, key=lambda k: group_counts[k])
-        print(_("  Grupo mais usado: {group} ({count} upload(s))").format(
-            group=top_group, count=group_counts[top_group]))
+        print(
+            _("  Grupo mais usado: {group} ({count} upload(s))").format(
+                group=top_group, count=group_counts[top_group]
+            )
+        )
         print()
 
     if month_bytes:
         print(_("  Volume por mês (últimos 6):"))
         for month in sorted(month_bytes)[-6:]:
-            gb = month_bytes[month] / (1024 ** 3)
+            gb = month_bytes[month] / (1024**3)
             print(_("    {month}  {size:>7.2f} GB").format(month=month, size=gb))
 
     print(sep)
 
 
 # ── Hook pós-upload ──────────────────────────────────────────────────────────
+
 
 def run_post_upload_hook(
     env_vars: dict[str, str],
@@ -244,15 +250,17 @@ def run_post_upload_hook(
         return None
 
     hook_env = os.environ.copy()
-    hook_env.update({
-        "UPAPASTA_NZB":            nzb_path or "",
-        "UPAPASTA_NFO":            nfo_path or "",
-        "UPAPASTA_SENHA":          senha_rar or "",
-        "UPAPASTA_NOME_ORIGINAL":  nome_original,
-        "UPAPASTA_NOME_OFUSCADO":  nome_ofuscado or "",
-        "UPAPASTA_TAMANHO":        str(tamanho_bytes or ""),
-        "UPAPASTA_GRUPO":          grupo_usenet or "",
-    })
+    hook_env.update(
+        {
+            "UPAPASTA_NZB": nzb_path or "",
+            "UPAPASTA_NFO": nfo_path or "",
+            "UPAPASTA_SENHA": senha_rar or "",
+            "UPAPASTA_NOME_ORIGINAL": nome_original,
+            "UPAPASTA_NOME_OFUSCADO": nome_ofuscado or "",
+            "UPAPASTA_TAMANHO": str(tamanho_bytes or ""),
+            "UPAPASTA_GRUPO": grupo_usenet or "",
+        }
+    )
 
     try:
         result = subprocess.run(

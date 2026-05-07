@@ -59,8 +59,13 @@ def mock_binaries(monkeypatch, tmp_path):
     monkeypatch.setattr("upapasta.upfolder.os.path.exists", lambda x: True)
 
     def fake_resources(*a, **k):
-        return {"threads": 2, "par_threads": 2, "max_memory_mb": 512,
-                "conservative_mode": False, "total_gb": 0.0}
+        return {
+            "threads": 2,
+            "par_threads": 2,
+            "max_memory_mb": 512,
+            "conservative_mode": False,
+            "total_gb": 0.0,
+        }
 
     monkeypatch.setattr("upapasta.orchestrator.calculate_optimal_resources", fake_resources)
 
@@ -185,9 +190,11 @@ def test_season_obfuscation_integration(tmp_path, mock_binaries, dummy_env):
         print(f"  {s}")
 
     # Episódio 01 (arquivo único): subject deve conter o nome original
-    assert any("Episode01.mkv" in s for s in subjects), \
+    assert any("Episode01.mkv" in s for s in subjects), (
         f"Episode01.mkv não encontrado nos subjects: {subjects}"
+    )
 
     # Episódio 02 (pasta): subject deve conter prefixo Episode02/
-    assert any("Episode02/Video.mkv" in s for s in subjects), \
+    assert any("Episode02/Video.mkv" in s for s in subjects), (
         f"Episode02/Video.mkv não encontrado nos subjects: {subjects}"
+    )

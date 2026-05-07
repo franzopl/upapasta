@@ -44,7 +44,9 @@ class UpaPastaSession:
     def __enter__(self) -> "UpaPastaOrchestrator":
         return self.orch
 
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> None:
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object
+    ) -> None:
         if exc_type is not None:
             if exc_type is KeyboardInterrupt:
                 print(_("\n⚠️  Interrompido pelo usuário (Ctrl+C)."))
@@ -168,12 +170,10 @@ class UpaPastaOrchestrator:
             max_memory_mb=args.max_memory,
             filepath_format=getattr(args, "filepath_format", "common"),
             parpar_extra_args=(
-                shlex.split(args.parpar_args)
-                if getattr(args, "parpar_args", None) else None
+                shlex.split(args.parpar_args) if getattr(args, "parpar_args", None) else None
             ),
             nyuu_extra_args=(
-                shlex.split(args.nyuu_args)
-                if getattr(args, "nyuu_args", None) else None
+                shlex.split(args.nyuu_args) if getattr(args, "nyuu_args", None) else None
             ),
             rename_extensionless=getattr(args, "rename_extensionless", False),
             resume=getattr(args, "resume", False),
@@ -201,6 +201,7 @@ class UpaPastaOrchestrator:
 
     def run_generate_nfo(self) -> bool:
         from .nfo import generate_nfo_folder, generate_nfo_single_file
+
         nfo_path, nzb_dir = self._resolve_nfo_path()
         nfo_filename = os.path.basename(nfo_path)
         try:
@@ -212,15 +213,23 @@ class UpaPastaOrchestrator:
             ok = generate_nfo_single_file(str(self.input_path), nfo_path)
             if ok:
                 self.nfo_file = nfo_path
-                print(_("  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nzb_dir})").format(nfo_filename=nfo_filename, nzb_dir=nzb_dir))
+                print(
+                    _("  ✔️ Arquivo NFO gerado: {nfo_filename} (salvo em: {nzb_dir})").format(
+                        nfo_filename=nfo_filename, nzb_dir=nzb_dir
+                    )
+                )
             return ok
         ok = generate_nfo_folder(str(self.input_path), nfo_path, banner=banner)
         if ok:
             self.nfo_file = nfo_path
-            print(_("  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nzb_dir})").format(nfo_filename=nfo_filename, nzb_dir=nzb_dir))
+            print(
+                _(
+                    "  ✔️ Arquivo NFO (descrição de pasta) gerado: {nfo_filename} (salvo em: {nzb_dir})"
+                ).format(nfo_filename=nfo_filename, nzb_dir=nzb_dir)
+            )
         return ok
 
-    def run_makerar(self) -> bool:
+    def run_makerar(self, bar: Optional[PhaseBar] = None) -> bool:
         if self.input_path.is_file():
             if self.rar_password:
                 print(_("📦 Arquivo único com senha: criando RAR automaticamente."))
@@ -229,9 +238,17 @@ class UpaPastaOrchestrator:
             elif self.skip_rar:
                 # sem --rar explícito → upload direto (MKV/arquivo original)
                 if self.obfuscate:
-                    print(_("✅ Arquivo único com ofuscação: {name} (upload direto ofuscado + PAR2)").format(name=self.input_path.name))
+                    print(
+                        _(
+                            "✅ Arquivo único com ofuscação: {name} (upload direto ofuscado + PAR2)"
+                        ).format(name=self.input_path.name)
+                    )
                 else:
-                    print(_("✅ Arquivo único: {name} (upload direto, sem RAR)").format(name=self.input_path.name))
+                    print(
+                        _("✅ Arquivo único: {name} (upload direto, sem RAR)").format(
+                            name=self.input_path.name
+                        )
+                    )
             # else: --rar explícito sem --obfuscate/--password → cria RAR normalmente
 
         if self.skip_rar:
@@ -239,7 +256,11 @@ class UpaPastaOrchestrator:
             self.rar_file = None
             self.input_target = str(self.input_path)
             label = _("pasta") if self.input_path.is_dir() else _("arquivo")
-            print(_("✅ Modo upload de {label}: {name}").format(label=label, name=self.input_path.name))
+            print(
+                _("✅ Modo upload de {label}: {name}").format(
+                    label=label, name=self.input_path.name
+                )
+            )
             return True
 
         print("\n" + "=" * 60)
@@ -257,20 +278,34 @@ class UpaPastaOrchestrator:
         print(_("📥 Compactando {name}...").format(name=self.input_path.name))
         print("-" * 60)
         try:
-            rc, generated_rar = make_rar(str(self.input_path), self.force, threads=self.rar_threads, password=self.rar_password)
+            rc, generated_rar = make_rar(
+                str(self.input_path),
+                self.force,
+                threads=self.rar_threads,
+                password=self.rar_password,
+                bar=bar,
+            )
             print("-" * 60)
             if rc == 0 and generated_rar:
                 self.rar_file = generated_rar
                 self.input_target = self.rar_file
                 return True
-            print(_("\n❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})").format(rc=rc))
+            print(
+                _("\n❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})").format(
+                    rc=rc
+                )
+            )
             return False
         except (FileNotFoundError, PermissionError, OSError) as e:
-            label = _("binário 'rar' não encontrado no PATH") if isinstance(e, FileNotFoundError) else str(e)
+            label = (
+                _("binário 'rar' não encontrado no PATH")
+                if isinstance(e, FileNotFoundError)
+                else str(e)
+            )
             print(_("❌ Erro ao criar RAR: {label}").format(label=label))
             return False
 
-    def run_makepar(self) -> bool:
+    def run_makepar(self, bar: Optional[PhaseBar] = None) -> bool:
         if not self.input_target:
             print(_("Erro: caminho de entrada não definido."))
             return False
@@ -279,7 +314,10 @@ class UpaPastaOrchestrator:
 
         if self.skip_par:
             par_path = (
-                os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
+                os.path.join(
+                    os.path.dirname(self.input_target),
+                    os.path.basename(self.input_target) + ".par2",
+                )
                 if os.path.isdir(self.input_target)
                 else resolver.par_file_path(self.input_target)
             )
@@ -296,10 +334,12 @@ class UpaPastaOrchestrator:
         print("=" * 60)
 
         if self.obfuscate and not self.dry_run:
-            return self._run_makepar_obfuscated(resolver)
-        return self._run_makepar_plain(resolver)
+            return self._run_makepar_obfuscated(resolver, bar=bar)
+        return self._run_makepar_plain(resolver, bar=bar)
 
-    def _run_makepar_obfuscated(self, resolver: PathResolver) -> bool:
+    def _run_makepar_obfuscated(
+        self, resolver: PathResolver, bar: Optional[PhaseBar] = None
+    ) -> bool:
         print(_("🔐 Ofuscando arquivos e gerando paridade..."))
         print("-" * 60)
         assert self.input_target is not None, _("input_target não foi configurado")
@@ -317,9 +357,14 @@ class UpaPastaOrchestrator:
                 memory_mb=self.par_memory_mb,
                 filepath_format=self.filepath_format,
                 parpar_extra_args=self.parpar_extra_args,
+                bar=bar,
             )
         except (FileNotFoundError, PermissionError, OSError) as e:
-            label = _("binário de paridade não encontrado") if isinstance(e, FileNotFoundError) else str(e)
+            label = (
+                _("binário de paridade não encontrado")
+                if isinstance(e, FileNotFoundError)
+                else str(e)
+            )
             print(_("❌ Erro ao ofuscar/gerar paridade: {label}").format(label=label))
             return False
 
@@ -336,8 +381,8 @@ class UpaPastaOrchestrator:
             self.rar_file = obfuscated_path
 
         obf_basename = os.path.basename(obfuscated_path)
-        obf_base_no_ext = re.sub(r'\.part\d+\.rar$', '', obf_basename)
-        obf_base_no_ext = re.sub(r'\.rar$', '', obf_base_no_ext)
+        obf_base_no_ext = re.sub(r"\.part\d+\.rar$", "", obf_basename)
+        obf_base_no_ext = re.sub(r"\.rar$", "", obf_base_no_ext)
         self.subject = obf_base_no_ext
         print(_("✨ Subject ofuscado: {subject}").format(subject=self.subject))
 
@@ -348,12 +393,14 @@ class UpaPastaOrchestrator:
         print(_("❌ Erro: Arquivo de paridade não encontrado após ofuscação."))
         return False
 
-    def _run_makepar_plain(self, resolver: PathResolver) -> bool:
+    def _run_makepar_plain(self, resolver: PathResolver, bar: Optional[PhaseBar] = None) -> bool:
         print(_("🔐 Gerando paridade (perfil: {profile})...").format(profile=self.par_profile))
         print("-" * 60)
         assert self.input_target is not None, _("input_target não foi configurado")
         self.par_file = (
-            os.path.join(os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2")
+            os.path.join(
+                os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2"
+            )
             if os.path.isdir(self.input_target)
             else resolver.par_file_path(self.input_target)
         )
@@ -372,9 +419,14 @@ class UpaPastaOrchestrator:
                 filepath_format=self.filepath_format,
                 parpar_extra_args=self.parpar_extra_args,
                 dry_run=self.dry_run,
+                bar=bar,
             )
         except (FileNotFoundError, PermissionError, OSError) as e:
-            label = _("binário de paridade não encontrado") if isinstance(e, FileNotFoundError) else str(e)
+            label = (
+                _("binário de paridade não encontrado")
+                if isinstance(e, FileNotFoundError)
+                else str(e)
+            )
             print(_("❌ Erro ao gerar paridade: {label}").format(label=label))
             return False
 
@@ -393,12 +445,13 @@ class UpaPastaOrchestrator:
                 slice_size=self.par_slice_size,
                 rar_file=self.rar_file,
                 par_profile=self.par_profile,
+                bar=bar,
             )
 
         print("-" * 60)
         return True
 
-    def run_upload(self) -> bool:
+    def run_upload(self, bar: Optional[PhaseBar] = None) -> bool:
         if not self.input_target:
             print(_("Erro: caminho de entrada não definido."))
             return False
@@ -409,7 +462,7 @@ class UpaPastaOrchestrator:
         try:
             assert self.input_target is not None, _("input_target não foi configurado")
             if self.nzb_conflict:
-                self.env_vars['NZB_CONFLICT'] = self.nzb_conflict
+                self.env_vars["NZB_CONFLICT"] = self.nzb_conflict
             rc = upload_to_usenet(
                 self.input_target,
                 env_vars=self.env_vars,
@@ -425,6 +478,7 @@ class UpaPastaOrchestrator:
                 folder_name=self.nzb_subject_prefix,
                 strong_obfuscate=self.strong_obfuscate,
                 resume=self.resume,
+                bar=bar,
             )
             return rc == 0
         except (FileNotFoundError, PermissionError, OSError) as e:
@@ -447,17 +501,27 @@ class UpaPastaOrchestrator:
     def _revert_extension_normalization(self) -> None:
         if self._extensionless_map:
             revert_extensionless(self._extensionless_map)
-            print(_("↩️  Restauradas {count} extensões originais").format(count=len(self._extensionless_map)))
+            print(
+                _("↩️  Restauradas {count} extensões originais").format(
+                    count=len(self._extensionless_map)
+                )
+            )
             self._extensionless_map = {}
 
     def _revert_obfuscation(self) -> None:
         self.input_target = revert_obfuscation(
-            self.obfuscate, self.input_target, self.input_path,
-            self.obfuscate_was_linked, self.obfuscated_map, self.keep_files)
+            self.obfuscate,
+            self.input_target,
+            self.input_path,
+            self.obfuscate_was_linked,
+            self.obfuscated_map,
+            self.keep_files,
+        )
 
     def check_nzb_conflict_early(self) -> bool:
         return self._path_resolver().check_nzb_conflict(
-            self.input_target, self.skip_upload, self.dry_run)
+            self.input_target, self.skip_upload, self.dry_run
+        )
 
     def _recalculate_resources(self) -> tuple[dict[str, Any], str, str]:
         res, rar_src, par_src = recalculate_resources(
@@ -472,17 +536,9 @@ class UpaPastaOrchestrator:
 
     def run(self) -> int:
         total_start = time.time()
-        bar = PhaseBar()
-
-        single_file_no_rar = self.input_path.is_file() and self.skip_rar and not self.obfuscate and not self.rar_password
-        if self.skip_rar or single_file_no_rar:
-            bar.skip("RAR")
-        if self.skip_par:
-            bar.skip("PAR2")
-        if self.skip_upload:
-            bar.skip("UPLOAD")
 
         from .config import load_env_file
+
         self.env_vars = load_env_file(self.env_file)
 
         if not self.skip_upload:
@@ -494,92 +550,123 @@ class UpaPastaOrchestrator:
             return 1
 
         res, rar_src, par_src = self._recalculate_resources()
-
-        nntp_connections = int(self.env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "10"))
+        nntp_connections = int(
+            self.env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "10")
+        )
         total_bytes = get_total_size(str(self.input_path))
         eta_s = int(total_bytes / (nntp_connections * 500 * 1024))
         eta_str = format_time(eta_s) if eta_s > 0 else _("N/A")
 
         PipelineReporter.print_header(
-            self.input_path, res, self.subject, self.par_profile, self.post_size,
-            self.rar_threads, self.par_threads, rar_src, par_src,
-            self.obfuscate, self.rar_password, self.dry_run, eta_str, nntp_connections,
+            self.input_path,
+            res,
+            self.subject,
+            self.par_profile,
+            self.post_size,
+            self.rar_threads,
+            self.par_threads,
+            rar_src,
+            par_src,
+            self.obfuscate,
+            self.rar_password,
+            self.dry_run,
+            eta_str,
+            nntp_connections,
         )
-        bar._render()
 
-        # ── NFO ──────────────────────────────────────────────────────────────
-        if not self.dry_run:
-            bar.start("NFO")
-            if not self.run_generate_nfo():
-                bar.skip("NFO")
-                print(_("Atenção: falha ao gerar .nfo, mas continuando..."))
+        with PhaseBar() as bar:
+            single_file_no_rar = (
+                self.input_path.is_file()
+                and self.skip_rar
+                and not self.obfuscate
+                and not self.rar_password
+            )
+            if self.skip_rar or single_file_no_rar:
+                bar.skip("RAR")
+            if self.skip_par:
+                bar.skip("PAR2")
+            if self.skip_upload:
+                bar.skip("UPLOAD")
+
+            # ── NFO ──────────────────────────────────────────────────────────────
+            if not self.dry_run:
+                bar.start("NFO")
+                if not self.run_generate_nfo():
+                    bar.skip("NFO")
+                    # print(_("Atenção: falha ao gerar .nfo, mas continuando..."))
+                else:
+                    bar.done("NFO")
             else:
-                bar.done("NFO")
-        else:
-            bar.skip("NFO")
+                bar.skip("NFO")
 
-        if not self.check_nzb_conflict_early():
-            return 3
-
-        # ── RAR ──────────────────────────────────────────────────────────────
-        will_create_rar = not self.skip_rar
-        if will_create_rar:
-            bar.start("RAR")
-            if not self.run_makerar():
-                bar.error("RAR")
-                self._cleanup_on_error()
-                return 1
-            bar.done("RAR")
-        else:
-            if not self.run_makerar():
-                self._cleanup_on_error()
-                return 1
-
-        # ── Normalização de extensões ────────────────────────────────────────
-        if self.rename_extensionless and self.skip_rar and not self.dry_run:
-            target = self.input_target or str(self.input_path)
-            self._extensionless_map = normalize_extensionless(target)
-            if self._extensionless_map:
-                print(_("🔧 Normalizadas {count} extensões → .bin").format(count=len(self._extensionless_map)))
-
-        # ── PAR2 ─────────────────────────────────────────────────────────────
-        if not self.skip_par:
-            bar.start("PAR2")
-            if not self.run_makepar():
-                bar.error("PAR2")
-                self._cleanup_on_error(preserve_rar=True)
-                return 2
-            bar.done("PAR2")
-        else:
-            if not self.run_makepar():
-                self._cleanup_on_error()
-                return 2
-
-        stats = PipelineReporter.collect_stats(self.input_target, self.rar_file, self.par_file)
-
-        # ── Upload ───────────────────────────────────────────────────────────
-        if not self.skip_upload:
-            bar.start("UPLOAD")
-            if not self.run_upload():
-                bar.error("UPLOAD")
-                self._cleanup_on_error()
+            if not self.check_nzb_conflict_early():
                 return 3
-            bar.done("UPLOAD")
-            self.cleanup()
-            self._revert_extension_normalization()
-            self._revert_obfuscation()
-        else:
-            print(_("\n⏭️  [--skip-upload] Upload foi pulado."))
-            self._revert_extension_normalization()
-            self._revert_obfuscation()
 
-        total_elapsed = time.time() - total_start
-        bar.done("DONE")
+            # ── RAR ──────────────────────────────────────────────────────────────
+            will_create_rar = not self.skip_rar
+            if will_create_rar:
+                bar.start("RAR")
+                if not self.run_makerar(bar=bar):
+                    bar.error("RAR")
+                    self._cleanup_on_error()
+                    return 1
+                bar.done("RAR")
+            else:
+                if not self.run_makerar(bar=bar):
+                    self._cleanup_on_error()
+                    return 1
+
+            # ── Normalização de extensões ────────────────────────────────────────
+            if self.rename_extensionless and self.skip_rar and not self.dry_run:
+                target = self.input_target or str(self.input_path)
+                self._extensionless_map = normalize_extensionless(target)
+
+            # ── PAR2 ─────────────────────────────────────────────────────────────
+            if not self.skip_par:
+                bar.start("PAR2")
+                if not self.run_makepar(bar=bar):
+                    bar.error("PAR2")
+                    self._cleanup_on_error(preserve_rar=True)
+                    return 2
+                bar.done("PAR2")
+            else:
+                if not self.run_makepar(bar=bar):
+                    self._cleanup_on_error()
+                    return 2
+
+            stats = PipelineReporter.collect_stats(self.input_target, self.rar_file, self.par_file)
+
+            # ── Upload ───────────────────────────────────────────────────────────
+            if not self.skip_upload:
+                bar.start("UPLOAD")
+                if not self.run_upload(bar=bar):
+                    bar.error("UPLOAD")
+                    self._cleanup_on_error()
+                    return 3
+                bar.done("UPLOAD")
+                self.cleanup()
+                self._revert_extension_normalization()
+                self._revert_obfuscation()
+            else:
+                # print(_("\n⏭️  [--skip-upload] Upload foi pulado."))
+                self._revert_extension_normalization()
+                self._revert_obfuscation()
+
+            total_elapsed = time.time() - total_start
+            bar.done("DONE")
 
         PipelineReporter.print_summary(
-            stats, self.input_path, self.subject, self.rar_password,
-            self.obfuscate, self.skip_upload, self.env_vars, self.group,
-            self.nfo_file, self.rar_file, total_elapsed,
+            stats,
+            self.input_path,
+            self.subject,
+            self.rar_password,
+            self.obfuscate,
+            self.skip_upload,
+            self.env_vars,
+            self.group,
+            self.nfo_file,
+            self.rar_file,
+            total_elapsed,
         )
 
         PipelineReporter.record_catalog_and_hook(

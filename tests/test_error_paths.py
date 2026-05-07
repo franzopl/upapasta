@@ -1,4 +1,5 @@
 """Testes para error paths diferenciados e backend par2."""
+
 import io
 import logging
 import subprocess
@@ -11,6 +12,7 @@ from upapasta.ui import setup_logging
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _orch(tmp_path, **kwargs):
     dummy = tmp_path / "input"
     dummy.mkdir(exist_ok=True)
@@ -20,6 +22,7 @@ def _orch(tmp_path, **kwargs):
 # ---------------------------------------------------------------------------
 # #4 — Error handling diferenciado em run_makepar
 # ---------------------------------------------------------------------------
+
 
 def test_run_makepar_permission_error_returns_false(tmp_path, monkeypatch):
     target = tmp_path / "show.rar"
@@ -79,6 +82,7 @@ def test_run_makerar_oserror_returns_false(tmp_path, monkeypatch):
 # #3 — Cleanup sem rar_file (só par_file)
 # ---------------------------------------------------------------------------
 
+
 def test_cleanup_only_par_file(tmp_path):
     par = tmp_path / "show.par2"
     vol = tmp_path / "show.vol0+1.par2"
@@ -113,6 +117,7 @@ def test_cleanup_deduplication_does_not_double_delete(tmp_path):
 # ---------------------------------------------------------------------------
 # #3 — Backend par2 em make_parity
 # ---------------------------------------------------------------------------
+
 
 class DummyPopenPar2:
     def __init__(self, args_passed, *a, **kw):
@@ -149,7 +154,8 @@ def test_make_parity_par2_backend(monkeypatch, tmp_path):
     monkeypatch.setattr(makepar_module, "find_par2", lambda: ("par2", "/usr/bin/par2"))
     monkeypatch.setattr(makepar_module, "find_parpar", lambda: None)
     monkeypatch.setattr(
-        subprocess, "Popen",
+        subprocess,
+        "Popen",
         lambda *args, **kwargs: DummyPopenPar2(args[0] if args else None, **kwargs),
     )
 
@@ -161,6 +167,7 @@ def test_make_parity_par2_backend(monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 # #3 — makepar FileNotFoundError → código 4
 # ---------------------------------------------------------------------------
+
 
 def test_make_parity_file_not_found_returns_4(monkeypatch, tmp_path):
     input_file = tmp_path / "video.mkv"
@@ -176,13 +183,16 @@ def test_make_parity_file_not_found_returns_4(monkeypatch, tmp_path):
 
     monkeypatch.setattr(subprocess, "Popen", boom)
 
-    rc = make_parity(str(input_file), redundancy=10, force=True, backend="parpar", profile="balanced")
+    rc = make_parity(
+        str(input_file), redundancy=10, force=True, backend="parpar", profile="balanced"
+    )
     assert rc == 4
 
 
 # ---------------------------------------------------------------------------
 # #6 — setup_logging com log_file
 # ---------------------------------------------------------------------------
+
 
 def test_setup_logging_creates_file_handler(tmp_path):
     log_path = tmp_path / "upapasta.log"

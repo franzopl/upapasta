@@ -1,6 +1,5 @@
 """Testes para _do_cleanup, cleanup e caminhos de erro críticos."""
 
-
 from upapasta.orchestrator import UpaPastaOrchestrator
 
 
@@ -14,6 +13,7 @@ def _make_orchestrator(tmp_path, **kwargs):
 # ---------------------------------------------------------------------------
 # Cleanup remove RAR e PAR2 gerados
 # ---------------------------------------------------------------------------
+
 
 def test_cleanup_removes_rar_and_par2(tmp_path):
     rar = tmp_path / "show.rar"
@@ -94,6 +94,7 @@ def test_cleanup_nonexistent_files_does_not_raise(tmp_path):
 # run_makerar — caminho de erro
 # ---------------------------------------------------------------------------
 
+
 def test_run_makerar_rar_failure_returns_false(tmp_path, monkeypatch):
     folder = tmp_path / "MyShow"
     folder.mkdir()
@@ -125,6 +126,7 @@ def test_run_makerar_file_not_found_returns_false(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # run_makepar — caminho de erro
 # ---------------------------------------------------------------------------
+
 
 def test_run_makepar_failure_returns_false(tmp_path, monkeypatch):
     target = tmp_path / "show.rar"
@@ -160,6 +162,7 @@ def test_run_makepar_missing_binary_returns_false(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # par_slice_size é passado ao make_parity
 # ---------------------------------------------------------------------------
+
 
 def test_par_slice_size_propagated(tmp_path, monkeypatch):
     target = tmp_path / "show.rar"

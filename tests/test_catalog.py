@@ -11,36 +11,43 @@ from upapasta.catalog import detect_category, record_upload, run_post_upload_hoo
 
 # ── detect_category ──────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("name,expected", [
-    # TV — padrão SxxExx
-    ("Breaking.Bad.S01E01.Pilot.mkv",           "TV"),
-    ("the.office.s03e04.hdtv.avi",              "TV"),
-    ("Game.of.Thrones.S08E06.1080p.mkv",        "TV"),
-    # TV — outros padrões
-    ("Chernobyl.1x01.720p.mkv",                 "TV"),
-    ("Doctor.Who.Season.2.Complete.mkv",        "TV"),
-    # Anime
-    ("[SubGroup] Naruto - 42 [720p].mkv",       "Anime"),
-    ("[HorribleSubs] Attack on Titan - 01 [1080p].mkv", "Anime"),
-    # Filme — ano no nome
-    ("Wuthering.Heights.2026.1080p.BluRay.mkv", "Movie"),
-    ("Dune.Part.Two.2024.mkv",                  "Movie"),
-    ("The.Godfather.1972.Remastered.mkv",       "Movie"),
-    # Genérico
-    ("backup_2024-01-01.zip",                   "Generic"),
-    ("documento_importante.pdf",                "Generic"),
-    ("minha_colecao",                           "Generic"),
-])
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        # TV — padrão SxxExx
+        ("Breaking.Bad.S01E01.Pilot.mkv", "TV"),
+        ("the.office.s03e04.hdtv.avi", "TV"),
+        ("Game.of.Thrones.S08E06.1080p.mkv", "TV"),
+        # TV — outros padrões
+        ("Chernobyl.1x01.720p.mkv", "TV"),
+        ("Doctor.Who.Season.2.Complete.mkv", "TV"),
+        # Anime
+        ("[SubGroup] Naruto - 42 [720p].mkv", "Anime"),
+        ("[HorribleSubs] Attack on Titan - 01 [1080p].mkv", "Anime"),
+        # Filme — ano no nome
+        ("Wuthering.Heights.2026.1080p.BluRay.mkv", "Movie"),
+        ("Dune.Part.Two.2024.mkv", "Movie"),
+        ("The.Godfather.1972.Remastered.mkv", "Movie"),
+        # Genérico
+        ("backup_2024-01-01.zip", "Generic"),
+        ("documento_importante.pdf", "Generic"),
+        ("minha_colecao", "Generic"),
+    ],
+)
 def test_detect_category(name, expected):
     assert detect_category(name) == expected
 
 
 # ── record_upload ────────────────────────────────────────────────────────────
 
+
 def test_record_upload_cria_registro(tmp_path):
     jsonl_file = tmp_path / "history.jsonl"
-    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
-         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
+    with (
+        patch("upapasta.catalog._history_path", return_value=jsonl_file),
+        patch("upapasta.catalog._cfg_dir", return_value=tmp_path),
+    ):
         record_upload(
             nome_original="Dune.2021.mkv",
             senha_rar="abc123",
@@ -56,8 +63,10 @@ def test_record_upload_cria_registro(tmp_path):
 
 def test_record_upload_categoria_inferida(tmp_path):
     jsonl_file = tmp_path / "history.jsonl"
-    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
-         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
+    with (
+        patch("upapasta.catalog._history_path", return_value=jsonl_file),
+        patch("upapasta.catalog._cfg_dir", return_value=tmp_path),
+    ):
         record_upload(nome_original="Breaking.Bad.S02E03.mkv")
     record = json.loads(jsonl_file.read_text().strip())
     assert record["categoria"] == "TV"
@@ -67,8 +76,10 @@ def test_record_upload_arquiva_nzb(tmp_path):
     nzb = tmp_path / "test.nzb"
     nzb.write_bytes(b"<nzb>fake</nzb>")
     jsonl_file = tmp_path / "history.jsonl"
-    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
-         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
+    with (
+        patch("upapasta.catalog._history_path", return_value=jsonl_file),
+        patch("upapasta.catalog._cfg_dir", return_value=tmp_path),
+    ):
         record_upload(nome_original="test.mkv", caminho_nzb=str(nzb))
     record = json.loads(jsonl_file.read_text().strip())
     # NZB arquivado deve apontar para um arquivo existente dentro de tmp_path/nzb/
@@ -78,8 +89,10 @@ def test_record_upload_arquiva_nzb(tmp_path):
 
 def test_record_upload_nzb_ausente_nao_falha(tmp_path):
     jsonl_file = tmp_path / "history.jsonl"
-    with patch("upapasta.catalog._history_path", return_value=jsonl_file), \
-         patch("upapasta.catalog._cfg_dir", return_value=tmp_path):
+    with (
+        patch("upapasta.catalog._history_path", return_value=jsonl_file),
+        patch("upapasta.catalog._cfg_dir", return_value=tmp_path),
+    ):
         record_upload(
             nome_original="test.mkv",
             caminho_nzb="/caminho/inexistente.nzb",
@@ -90,6 +103,7 @@ def test_record_upload_nzb_ausente_nao_falha(tmp_path):
 
 
 # ── run_post_upload_hook ─────────────────────────────────────────────────────
+
 
 def test_hook_nao_executado_sem_configuracao():
     """Sem POST_UPLOAD_SCRIPT no env_vars, não deve fazer nada."""

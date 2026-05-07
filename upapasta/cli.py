@@ -78,7 +78,9 @@ def parse_args() -> argparse.Namespace:
         "inputs",
         nargs="*",
         metavar=_("input"),
-        help=_("Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em sequência (ou paralelo com --jobs)."),
+        help=_(
+            "Arquivo(s) ou pasta(s) a fazer upload. Múltiplos caminhos processados em sequência (ou paralelo com --jobs)."
+        ),
     )
     p.add_argument(
         "--config",
@@ -98,7 +100,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--insecure",
         action="store_true",
-        help=_("Desativa verificação de certificado SSL em --test-connection (use apenas para testes)"),
+        help=_(
+            "Desativa verificação de certificado SSL em --test-connection (use apenas para testes)"
+        ),
     )
     # ── Opções essenciais ────────────────────────────────────────────────────
     essential = p.add_argument_group(_("opções essenciais"))
@@ -164,7 +168,9 @@ def parse_args() -> argparse.Namespace:
     essential.add_argument(
         "--rar",
         action="store_true",
-        help=_("Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão com PAR2)."),
+        help=_(
+            "Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão com PAR2)."
+        ),
     )
     essential.add_argument(
         "--skip-rar",
@@ -185,7 +191,9 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=1,
         metavar=_("N"),
-        help=_("Número de uploads paralelos quando múltiplos inputs são fornecidos (padrão: 1 = sequencial)"),
+        help=_(
+            "Número de uploads paralelos quando múltiplos inputs são fornecidos (padrão: 1 = sequencial)"
+        ),
     )
     tuning.add_argument(
         "--par-profile",
@@ -194,7 +202,8 @@ def parse_args() -> argparse.Namespace:
         help=_("Perfil PAR2: fast=5%%, balanced=10%% (padrão), safe=20%%"),
     )
     tuning.add_argument(
-        "-r", "--redundancy",
+        "-r",
+        "--redundancy",
         type=int,
         default=None,
         metavar=_("PERCENT"),
@@ -280,12 +289,14 @@ def parse_args() -> argparse.Namespace:
         help=_("Limite de memória para PAR2 em MB (padrão: automático)"),
     )
     advanced.add_argument(
-        "-s", "--subject",
+        "-s",
+        "--subject",
         default=None,
         help=_("Assunto da postagem (padrão: nome do arquivo/pasta)"),
     )
     advanced.add_argument(
-        "-g", "--group",
+        "-g",
+        "--group",
         default=None,
         help=_("Newsgroup (padrão: do .env)"),
     )
@@ -309,7 +320,8 @@ def parse_args() -> argparse.Namespace:
         help=_("Timeout de conexão para nyuu em segundos"),
     )
     advanced.add_argument(
-        "-f", "--force",
+        "-f",
+        "--force",
         action="store_true",
         help=_("Sobrescreve RAR/PAR2 existentes"),
     )
@@ -339,7 +351,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         metavar=_("STR"),
         help=_(
-            "Args extras repassados ao parpar, ex: --parpar-args \"--noindex --foo=bar\". "
+            'Args extras repassados ao parpar, ex: --parpar-args "--noindex --foo=bar". '
             "Tokenizado via shlex. Ignorado quando backend=par2."
         ),
     )
@@ -348,7 +360,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         metavar=_("STR"),
         help=_(
-            "Args extras repassados ao nyuu, ex: --nyuu-args \"--article-threads=8 --queue=20\". "
+            'Args extras repassados ao nyuu, ex: --nyuu-args "--article-threads=8 --queue=20". '
             "Tokenizado via shlex."
         ),
     )
@@ -395,7 +407,11 @@ def check_dependencies(rar_needed: bool = True) -> bool:
     optional_commands = ["mediainfo", "ffprobe"]
     missing_optional = [cmd for cmd in optional_commands if not shutil.which(cmd)]
     if missing_optional:
-        print(_("⚠️  Dependências opcionais ausentes: {missing}").format(missing=', '.join(missing_optional)))
+        print(
+            _("⚠️  Dependências opcionais ausentes: {missing}").format(
+                missing=", ".join(missing_optional)
+            )
+        )
         print(_("   A geração de arquivos .nfo será limitada ou ignorada."))
     else:
         print(_("✅ Todas as dependências (incluindo opcionais) foram encontradas."))
@@ -410,7 +426,7 @@ def _validate_flags(args: argparse.Namespace) -> bool:
     args.input = inputs[0] if inputs else None
 
     # Backward compatibility: --skip-rar → sem --rar
-    if getattr(args, 'skip_rar_deprecated', False):
+    if getattr(args, "skip_rar_deprecated", False):
         print(_("⚠️  --skip-rar está deprecado. O padrão já é sem RAR."))
         print(_("   Para usar RAR, adicione --rar explicitamente."))
         args.rar = False
@@ -419,6 +435,7 @@ def _validate_flags(args: argparse.Namespace) -> bool:
     if args.password == "__random__":
         import secrets
         import string
+
         chars = string.ascii_letters + string.digits
         args.password = "".join(secrets.choice(chars) for _ in range(16))
         print(_("🔑  Senha gerada automaticamente: {password}").format(password=args.password))
@@ -429,7 +446,7 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         args.rar = True
 
     # --strong-obfuscate presume --obfuscate
-    if getattr(args, 'strong_obfuscate', False):
+    if getattr(args, "strong_obfuscate", False):
         args.obfuscate = True
         print(_("ℹ️  --strong-obfuscate ativa --obfuscate automaticamente."))
 
@@ -468,9 +485,11 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         # vão para os headers NNTP + paths preservados dentro dos .par2 pelo
         # parpar (filepath-format). Não há ofuscação "parcial" — a estrutura
         # interna fica protegida pelo próprio mecanismo do parpar.
-        print(_(
-            "✅ Fluxo moderno: --obfuscate (sem RAR).\n"
-            "   Nomes externos ofuscados; estrutura preservada via parpar."
-        ))
+        print(
+            _(
+                "✅ Fluxo moderno: --obfuscate (sem RAR).\n"
+                "   Nomes externos ofuscados; estrutura preservada via parpar."
+            )
+        )
 
     return True

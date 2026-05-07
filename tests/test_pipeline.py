@@ -8,6 +8,7 @@ Testes isolados para as classes e funções de _pipeline.py:
   - revert_obfuscation
   - recalculate_resources
 """
+
 import os
 from unittest.mock import MagicMock, patch
 
@@ -23,6 +24,7 @@ from upapasta._pipeline import (
 )
 
 # ── DependencyChecker ─────────────────────────────────────────────────────────
+
 
 class TestDependencyChecker:
     def test_missing_path_returns_false(self, tmp_path):
@@ -58,6 +60,7 @@ class TestDependencyChecker:
 
 
 # ── PathResolver ──────────────────────────────────────────────────────────────
+
 
 class TestPathResolver:
     def _make_resolver(self, tmp_path, skip_rar=True, subject="MyRelease"):
@@ -106,6 +109,7 @@ class TestPathResolver:
 
 # ── PipelineReporter ──────────────────────────────────────────────────────────
 
+
 class TestPipelineReporter:
     def test_collect_stats_missing_target(self):
         stats = PipelineReporter.collect_stats(None, None, None)
@@ -142,12 +146,27 @@ class TestPipelineReporter:
 
     def test_print_header_runs(self, tmp_path, capsys):
         res = {
-            "max_memory_mb": 1024, "total_gb": "1.0",
-            "threads": 4, "par_threads": 4, "conservative_mode": False,
+            "max_memory_mb": 1024,
+            "total_gb": "1.0",
+            "threads": 4,
+            "par_threads": 4,
+            "conservative_mode": False,
         }
         PipelineReporter.print_header(
-            tmp_path, res, "MyRelease", "balanced", None,
-            4, 4, "auto", "auto", False, None, False, "N/A", 10,
+            tmp_path,
+            res,
+            "MyRelease",
+            "balanced",
+            None,
+            4,
+            4,
+            "auto",
+            "auto",
+            False,
+            None,
+            False,
+            "N/A",
+            10,
         )
         out = capsys.readouterr().out
         assert "UpaPasta" in out
@@ -156,13 +175,24 @@ class TestPipelineReporter:
     def test_print_summary_runs(self, tmp_path, capsys):
         stats = {"rar_size_mb": 100.0, "par2_size_mb": 10.0, "par2_file_count": 2}
         PipelineReporter.print_summary(
-            stats, tmp_path, "MyRelease", None, False, True, {}, None, None, None, 5.0,
+            stats,
+            tmp_path,
+            "MyRelease",
+            None,
+            False,
+            True,
+            {},
+            None,
+            None,
+            None,
+            5.0,
         )
         out = capsys.readouterr().out
         assert "CONCLUÍDO" in out
 
 
 # ── normalize_extensionless / revert_extensionless ────────────────────────────
+
 
 class TestNormalizeExtensionless:
     def test_file_without_extension_renamed(self, tmp_path):
@@ -205,6 +235,7 @@ class TestNormalizeExtensionless:
 
 # ── do_cleanup_files ─────────────────────────────────────────────────────────
 
+
 class TestDoCleanupFiles:
     def test_removes_par2_files(self, tmp_path, capsys):
         par = tmp_path / "archive.par2"
@@ -238,6 +269,7 @@ class TestDoCleanupFiles:
 
 
 # ── revert_obfuscation ────────────────────────────────────────────────────────
+
 
 class TestRevertObfuscation:
     def test_no_obfuscate_returns_same_target(self, tmp_path):
@@ -296,6 +328,7 @@ class TestRevertObfuscation:
 
 
 # ── recalculate_resources ─────────────────────────────────────────────────────
+
 
 class TestRecalculateResources:
     def test_returns_dict_and_strings(self, tmp_path):

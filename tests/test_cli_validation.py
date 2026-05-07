@@ -2,6 +2,7 @@
 Validação dos novos flags do CLI: --filepath-format, --parpar-args,
 --rename-extensionless. Asserts via parse_args().
 """
+
 import shlex
 
 import pytest
@@ -32,9 +33,7 @@ def test_filepath_format_rejects_invalid(monkeypatch, capsys):
 
 
 def test_parpar_args_passthrough(monkeypatch):
-    args = _run_parse(
-        ["some/path", "--parpar-args", "--noindex --foo=bar"], monkeypatch
-    )
+    args = _run_parse(["some/path", "--parpar-args", "--noindex --foo=bar"], monkeypatch)
     # O atributo deve existir e ser tokenizável via shlex
     tokens = shlex.split(args.parpar_args)
     assert tokens == ["--noindex", "--foo=bar"]

@@ -2,6 +2,7 @@
 Pasta com subpastas + --skip-rar deve passar ao parpar a árvore inteira
 recursivamente, e make_parity deve sinalizar -f common no argv.
 """
+
 import io
 import subprocess
 
@@ -40,7 +41,8 @@ class _Pop:
 def fake_parpar(monkeypatch):
     monkeypatch.setattr(makepar_module, "find_parpar", lambda: ("parpar", "/bin/true"))
     monkeypatch.setattr(
-        subprocess, "Popen",
+        subprocess,
+        "Popen",
         lambda *a, **kw: _Pop(a[0] if a else None, **kw),
     )
 
@@ -61,9 +63,7 @@ def test_make_parity_walks_full_tree_for_folder(fake_parpar, tmp_path):
     assert rc == 0
 
     # Todos os 3 arquivos da árvore devem estar no argv passado ao parpar
-    leaf_paths = [str(root / "a" / "b" / "c.bin"),
-                  str(root / "a" / "d.bin"),
-                  str(root / "e.bin")]
+    leaf_paths = [str(root / "a" / "b" / "c.bin"), str(root / "a" / "d.bin"), str(root / "e.bin")]
     for p in leaf_paths:
         assert p in _captured, f"{p} ausente do argv: {_captured}"
 

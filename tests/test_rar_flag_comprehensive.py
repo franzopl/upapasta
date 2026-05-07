@@ -173,6 +173,7 @@ class TestRarFlagWithCliParsing:
 
     def test_cli_validate_password_presumes_rar(self):
         """Validação CLI: --password sem --rar → força --rar."""
+
         # Simula argparse namespace
         class MockArgs:
             rar = False
@@ -215,6 +216,7 @@ class TestRarFlagWithCliParsing:
 
     def test_cli_validate_strong_obfuscate_implies_obfuscate(self):
         """Validação CLI: --strong-obfuscate implica --obfuscate."""
+
         class MockArgs:
             rar = False
             password = None

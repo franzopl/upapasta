@@ -20,6 +20,7 @@ from .i18n import _
 
 def find_mediainfo() -> str | None:
     import shutil
+
     for cmd in ("mediainfo", "mediainfo.exe"):
         path = shutil.which(cmd)
         if path:
@@ -43,16 +44,24 @@ def _get_video_info(file_path: str) -> tuple[float, dict[str, Any]]:
     audio_tracks e subtitle_tracks são listas de códigos de idioma (ex: ['PT', 'EN']).
     """
     import json as _json
+
     duration = 0.0
     metadata: dict[str, Any] = {
-        "codec": "N/A", "resolution": "N/A", "bitrate": "N/A",
-        "audio_tracks": [], "subtitle_tracks": [],
+        "codec": "N/A",
+        "resolution": "N/A",
+        "bitrate": "N/A",
+        "audio_tracks": [],
+        "subtitle_tracks": [],
     }
     try:
         cmd = [
-            "ffprobe", "-v", "error",
-            "-show_entries", "stream=codec_type,codec_name,width,height,tags:format=duration,bit_rate",
-            "-of", "json",
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "stream=codec_type,codec_name,width,height,tags:format=duration,bit_rate",
+            "-of",
+            "json",
             file_path,
         ]
         result = subprocess.run(
@@ -115,7 +124,9 @@ def _normalize_text(text: str) -> str:
 _MAX_FILENAME_LEN = 42
 
 
-def _generate_tree(start_path: str, video_metadata_map: dict[str, Any], file_sizes: dict[str, int]) -> tuple[list[str], int, int]:
+def _generate_tree(
+    start_path: str, video_metadata_map: dict[str, Any], file_sizes: dict[str, int]
+) -> tuple[list[str], int, int]:
     if not os.path.isdir(start_path):
         return [], 0, 0
 
@@ -126,7 +137,9 @@ def _generate_tree(start_path: str, video_metadata_map: dict[str, Any], file_siz
 
     def _walk(current_dir: str, prefix: str = "") -> None:
         nonlocal file_count, dir_count
-        contents = [c for c in sorted(os.listdir(current_dir), key=str.lower) if c != current_nfo_name]
+        contents = [
+            c for c in sorted(os.listdir(current_dir), key=str.lower) if c != current_nfo_name
+        ]
         for i, item in enumerate(contents):
             path = os.path.join(current_dir, item)
             pointer = "`-- " if i == len(contents) - 1 else "|-- "
@@ -138,7 +151,11 @@ def _generate_tree(start_path: str, video_metadata_map: dict[str, Any], file_siz
                 _walk(path, new_prefix)
             else:
                 file_count += 1
-                display_name = (normalized[:_MAX_FILENAME_LEN] + "...") if len(normalized) > _MAX_FILENAME_LEN else normalized
+                display_name = (
+                    (normalized[:_MAX_FILENAME_LEN] + "...")
+                    if len(normalized) > _MAX_FILENAME_LEN
+                    else normalized
+                )
                 key = os.path.abspath(path)
                 size_str = _format_size(file_sizes.get(key, 0))
                 meta_line = f" [{size_str}]"
@@ -182,7 +199,9 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
         return False
 
     try:
-        proc = subprocess.run([mediainfo_path, input_path], capture_output=True, text=True, check=True)
+        proc = subprocess.run(
+            [mediainfo_path, input_path], capture_output=True, text=True, check=True
+        )
         output = proc.stdout
 
         video_exts = (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm")
@@ -206,7 +225,7 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
 
 
 def _is_series_folder(folder_name: str) -> bool:
-    return bool(re.search(r'(?<![A-Za-z])S\d{2}(?:E\d{2})?(?![0-9])', folder_name, re.IGNORECASE))
+    return bool(re.search(r"(?<![A-Za-z])S\d{2}(?:E\d{2})?(?![0-9])", folder_name, re.IGNORECASE))
 
 
 def _find_first_episode(folder_path: str) -> str | None:
@@ -244,7 +263,7 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         year_match = re.search(r"[\[(](\d{4})[\])]", title_temp)
         if year_match:
             year = year_match.group(1)
-            title_temp = (title_temp[: year_match.start()] + title_temp[year_match.end():]).strip()
+            title_temp = (title_temp[: year_match.start()] + title_temp[year_match.end() :]).strip()
 
         title = title_temp
         if year != "N/A":
@@ -252,7 +271,9 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         title = _normalize_text(title)
 
         root_path = Path(input_path)
-        all_files = [p for p in root_path.rglob("*") if p.is_file() and p.name != f"{folder_name}.nfo"]
+        all_files = [
+            p for p in root_path.rglob("*") if p.is_file() and p.name != f"{folder_name}.nfo"
+        ]
         video_exts = {".mp4", ".mkv", ".mov", ".avi", ".flv", ".ts", ".webm", ".wmv"}
         video_files = [f for f in all_files if f.suffix.lower() in video_exts]
 
@@ -267,7 +288,9 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
             total_duration_seconds += duration_sec
             video_metadata_map[os.path.abspath(video)] = meta
 
-        tree_lines, total_dirs, total_files_in_tree = _generate_tree(input_path, video_metadata_map, file_sizes)
+        tree_lines, total_dirs, total_files_in_tree = _generate_tree(
+            input_path, video_metadata_map, file_sizes
+        )
 
         extension_counts: dict[str, int] = {}
         for f in all_files:
@@ -302,7 +325,9 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         ]
 
         if total_duration_seconds > 0:
-            lines.append(f"  > Duracao Total:      {_format_duration(total_duration_seconds)} ({total_duration_seconds / 3600:.2f} horas)")
+            lines.append(
+                f"  > Duracao Total:      {_format_duration(total_duration_seconds)} ({total_duration_seconds / 3600:.2f} horas)"
+            )
 
         # Exibe faixas de áudio e legendas do primeiro vídeo encontrado (representativo da release)
         if video_files and video_metadata_map:
@@ -331,7 +356,9 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
             "",
         ]
         lines.extend(tree_lines)
-        lines.append(f"\n{total_dirs} diretorios, {total_files_in_tree} arquivos, {_format_size(total_size)}")
+        lines.append(
+            f"\n{total_dirs} diretorios, {total_files_in_tree} arquivos, {_format_size(total_size)}"
+        )
 
         with open(nfo_path, "w", encoding="utf-8") as nfo_fh:
             nfo_fh.write("\n".join(lines))

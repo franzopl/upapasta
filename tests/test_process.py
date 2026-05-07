@@ -20,6 +20,7 @@ def wait_for_proc(proc, timeout=1.0):
             continue
         break
 
+
 class TestTerminateProcess:
     """Testes para _terminate_process."""
 
@@ -183,6 +184,7 @@ class TestManagedPopen:
     def test_early_return_cleanup(self):
         """Cleanup deve ser chamado em early return."""
         with patch("upapasta._process._terminate_process") as mock_term:
+
             def run_with_early_return():
                 with managed_popen(
                     [sys.executable, "-c", "import time; time.sleep(10)"],

@@ -17,6 +17,7 @@ Casos cobertos:
 Os subprocessos externos (nyuu, parpar) são mockados; estes testes não
 tocam rede nem dependem de binários instalados.
 """
+
 from __future__ import annotations
 
 import io
@@ -35,8 +36,10 @@ from upapasta.upfolder import upload_to_usenet
 
 # ─────────────────────────── Helpers / mocks ────────────────────────────────
 
+
 class _RecordingPopen:
     """Mock de subprocess.Popen que registra o argv recebido."""
+
     last_argv: list = []
 
     def __init__(self, argv=None, *a, **kw):
@@ -69,7 +72,8 @@ class _RecordingPopen:
 def recording_popen(monkeypatch):
     monkeypatch.setattr(makepar_module, "find_parpar", lambda: ("parpar", "/bin/true"))
     monkeypatch.setattr(
-        subprocess, "Popen",
+        subprocess,
+        "Popen",
         lambda *a, **kw: _RecordingPopen(a[0] if a else None, **kw),
     )
     _RecordingPopen.last_argv = []
@@ -89,12 +93,14 @@ def _build_deep_tree(root):
 def _env():
     return {
         "NNTP_HOST": "news.example.com",
-        "NNTP_USER": "u", "NNTP_PASS": "p",
+        "NNTP_USER": "u",
+        "NNTP_PASS": "p",
         "USENET_GROUP": "alt.binaries.test",
     }
 
 
 # ───────────────────────── 1. Profundidade extrema ───────────────────────────
+
 
 def test_make_parity_deep_tree_includes_all_leaves(recording_popen, tmp_path):
     root = tmp_path / "deep"
@@ -129,9 +135,15 @@ def test_upload_deep_tree_preserves_relative_paths(monkeypatch, tmp_path):
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
             captured["cwd"] = kw.get("cwd")
-        def wait(self): return 0
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def wait(self):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     monkeypatch.setattr(upfolder_module, "find_nyuu", lambda: "/bin/true")
     monkeypatch.setattr(upfolder_module, "managed_popen", lambda *a, **k: FakePopen(*a, **k))
@@ -159,6 +171,7 @@ def test_upload_deep_tree_preserves_relative_paths(monkeypatch, tmp_path):
 
 # ─────────────────── 2. Unicode / espaços / chars especiais ─────────────────
 
+
 def test_unicode_and_special_chars_preserved_in_argv(monkeypatch, tmp_path):
     folder = tmp_path / "Coleção [2025] (Final)"
     folder.mkdir()
@@ -173,9 +186,15 @@ def test_unicode_and_special_chars_preserved_in_argv(monkeypatch, tmp_path):
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
-        def wait(self): return 0
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def wait(self):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     monkeypatch.setattr(upfolder_module, "find_nyuu", lambda: "/bin/true")
     monkeypatch.setattr(upfolder_module, "managed_popen", lambda *a, **k: FakePopen(*a, **k))
@@ -221,6 +240,7 @@ def test_fix_nzb_subjects_preserves_nested_subjects(tmp_path):
 
 # ─────────────────── 3. Empty / hidden / symlink edge cases ─────────────────
 
+
 def test_walk_skips_empty_dirs_keeps_hidden_files(monkeypatch, tmp_path):
     folder = tmp_path / "edge"
     folder.mkdir()
@@ -237,9 +257,15 @@ def test_walk_skips_empty_dirs_keeps_hidden_files(monkeypatch, tmp_path):
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
-        def wait(self): return 0
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def wait(self):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     monkeypatch.setattr(upfolder_module, "find_nyuu", lambda: "/bin/true")
     monkeypatch.setattr(upfolder_module, "managed_popen", lambda *a, **k: FakePopen(*a, **k))
@@ -275,9 +301,15 @@ def test_walk_follows_symlink_to_file_in_subdir(monkeypatch, tmp_path):
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
-        def wait(self): return 0
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def wait(self):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     monkeypatch.setattr(upfolder_module, "find_nyuu", lambda: "/bin/true")
     monkeypatch.setattr(upfolder_module, "managed_popen", lambda *a, **k: FakePopen(*a, **k))
@@ -291,6 +323,7 @@ def test_walk_follows_symlink_to_file_in_subdir(monkeypatch, tmp_path):
 
 # ─────────────────── 4. Obfuscate + nested + NZB integrity ──────────────────
 
+
 def test_obfuscate_then_upload_preserves_inner_structure(recording_popen, monkeypatch, tmp_path):
     """
     Após obfuscate_and_par renomear o root, um upload subsequente deve
@@ -302,7 +335,11 @@ def test_obfuscate_then_upload_preserves_inner_structure(recording_popen, monkey
     _build_deep_tree(root)
 
     rc, new_path, mapping, _linked = obfuscate_and_par(
-        str(root), redundancy=5, force=True, backend="parpar", threads=1,
+        str(root),
+        redundancy=5,
+        force=True,
+        backend="parpar",
+        threads=1,
     )
     assert rc == 0 and new_path is not None
     # Estrutura interna preservada após obfuscação do root
@@ -317,9 +354,15 @@ def test_obfuscate_then_upload_preserves_inner_structure(recording_popen, monkey
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
-        def wait(self): return 0
-        def __enter__(self): return self
-        def __exit__(self, *a): pass
+
+        def wait(self):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
 
     monkeypatch.setattr(upfolder_module, "find_nyuu", lambda: "/bin/true")
     monkeypatch.setattr(upfolder_module, "managed_popen", lambda *a, **k: FakePopen(*a, **k))
@@ -336,15 +379,16 @@ def test_obfuscate_then_upload_preserves_inner_structure(recording_popen, monkey
 
 # ─────────────────── 5. rename-extensionless em subdirs ─────────────────────
 
+
 def test_rename_extensionless_in_nested_dirs_round_trip(tmp_path):
     folder = tmp_path / "noext"
     deep = folder / "a" / "b" / "c"
     deep.mkdir(parents=True)
-    f_deep = deep / "videofile"            # sem extensão, em subdir profundo
-    f_mid = folder / "a" / "another"       # sem extensão, nível intermediário
-    f_root = folder / "rootless"           # sem extensão, no root
-    f_keep = folder / "a" / "keep.txt"     # com extensão, deve ser ignorado
-    f_dot = folder / ".dotfile"            # dotfile, deve ser ignorado
+    f_deep = deep / "videofile"  # sem extensão, em subdir profundo
+    f_mid = folder / "a" / "another"  # sem extensão, nível intermediário
+    f_root = folder / "rootless"  # sem extensão, no root
+    f_keep = folder / "a" / "keep.txt"  # com extensão, deve ser ignorado
+    f_dot = folder / ".dotfile"  # dotfile, deve ser ignorado
     for f in (f_deep, f_mid, f_root, f_keep, f_dot):
         f.write_bytes(b"x" * 128)
 

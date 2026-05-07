@@ -1,4 +1,5 @@
 """Testes para upapasta/resources.py."""
+
 from __future__ import annotations
 
 from unittest.mock import mock_open, patch

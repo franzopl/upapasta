@@ -34,7 +34,6 @@ def _item_size(path: Path) -> int:
     return total
 
 
-
 def _watch_loop(args: argparse.Namespace, folder: Path, interval: int, stable_secs: int) -> None:
     """Monitora folder via polling e processa novos itens automaticamente."""
     try:
@@ -79,7 +78,9 @@ def _watch_loop(args: argparse.Namespace, folder: Path, interval: int, stable_se
 
             # Divide o intervalo em pequenos passos para o spinner ser fluido
             for _i in range(max(1, interval * 2)):
-                if list(folder.iterdir()) != list(current): # Pequena otimização: checa se algo mudou antes do sleep total
+                if list(folder.iterdir()) != list(
+                    current
+                ):  # Pequena otimização: checa se algo mudou antes do sleep total
                     break
                 time.sleep(0.5)
             continue
@@ -91,8 +92,10 @@ def _watch_loop(args: argparse.Namespace, folder: Path, interval: int, stable_se
                 stdout_real.write("\r" + " " * 60 + "\r")
                 stdout_real.flush()
 
-        emoji = '🔔' if len(new_items) == 1 else '🔔🔔'
-        print(_("\n{emoji} {count} new item(s) detected!").format(emoji=emoji, count=len(new_items)))
+        emoji = "🔔" if len(new_items) == 1 else "🔔🔔"
+        print(
+            _("\n{emoji} {count} new item(s) detected!").format(emoji=emoji, count=len(new_items))
+        )
         for item in new_items:
             print(f"  • {item.name}")
 
@@ -115,13 +118,18 @@ def _watch_loop(args: argparse.Namespace, folder: Path, interval: int, stable_se
                         if rc == 0:
                             print(_("\n✅ Successfully completed: {name}").format(name=item.name))
                         else:
-                            print(_("\n❌ Processing failed (rc={rc}): {name}").format(rc=rc, name=item.name))
+                            print(
+                                _("\n❌ Processing failed (rc={rc}): {name}").format(
+                                    rc=rc, name=item.name
+                                )
+                            )
                 except KeyboardInterrupt:
                     teardown_session_log(log_fh, log_path)
                     raise
                 except Exception:
                     print(_("\n💥 Unexpected error processing {name}:").format(name=item.name))
                     import traceback
+
                     traceback.print_exc()
                 finally:
                     teardown_session_log(log_fh, log_path)
@@ -132,10 +140,16 @@ def _watch_loop(args: argparse.Namespace, folder: Path, interval: int, stable_se
                 processed.add(item)
             else:
                 if size_after <= 0:
-                    print(_("⚠️  {name}: empty or inaccessible file, ignoring.").format(name=item.name))
+                    print(
+                        _("⚠️  {name}: empty or inaccessible file, ignoring.").format(name=item.name)
+                    )
                     processed.add(item)
                 else:
-                    print(_("⏳ {name}: size still changing, waiting for stability...").format(name=item.name))
+                    print(
+                        _("⏳ {name}: size still changing, waiting for stability...").format(
+                            name=item.name
+                        )
+                    )
 
         # Força um pequeno delay antes da próxima varredura para não saturar I/O
         time.sleep(2)

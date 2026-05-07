@@ -1,4 +1,3 @@
-
 import shutil
 import unittest
 from pathlib import Path
@@ -47,6 +46,7 @@ class TestObfuscation(unittest.TestCase):
         # Arquivo de paridade criado para o arquivo ofuscado
         par2_file = obfuscated_file.with_suffix(".par2")
         self.assertTrue(par2_file.exists(), f"O arquivo de paridade {par2_file} deve existir.")
+
 
 if __name__ == "__main__":
     unittest.main()

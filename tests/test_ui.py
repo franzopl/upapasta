@@ -1,8 +1,9 @@
 """Testes para upapasta/ui.py — PhaseBar, _TeeStream, format_time."""
+
 from __future__ import annotations
 
 import io
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -108,7 +109,6 @@ def test_tee_flush_propaga():
 
 def test_tee_encoding_herda_do_original():
     # Usa mock para simular stream com encoding definido (ex: arquivo aberto em latin-1)
-    from unittest.mock import MagicMock
     terminal = MagicMock(spec=io.TextIOBase)
     terminal.encoding = "latin-1"
     logfile = io.StringIO()
@@ -118,7 +118,6 @@ def test_tee_encoding_herda_do_original():
 
 def test_tee_encoding_fallback_utf8():
     # Quando o stream não tem encoding (getattr retorna None/ausente), usa utf-8
-    from unittest.mock import MagicMock
     terminal = MagicMock(spec=io.RawIOBase)  # sem atributo encoding
     del terminal.encoding
     logfile = io.StringIO()
@@ -131,19 +130,6 @@ def test_tee_encoding_fallback_utf8():
 # ---------------------------------------------------------------------------
 
 
-def _capture_renders(bar: PhaseBar, actions) -> list[str]:
-    """Executa ações e captura todas as linhas impressas por _render."""
-    prints: list[str] = []
-
-    def fake_print(*args, **kwargs):
-        prints.append(args[0] if args else "")
-
-    with patch("upapasta.ui.print", side_effect=fake_print):
-        for action, phase in actions:
-            getattr(bar, action)(phase)
-    return prints
-
-
 def test_phasebar_estado_inicial_pending():
     bar = PhaseBar()
     for phase in PhaseBar.PHASES:
@@ -152,14 +138,13 @@ def test_phasebar_estado_inicial_pending():
 
 def test_phasebar_start_muda_estado_para_active():
     bar = PhaseBar()
-    with patch("upapasta.ui.print"):
-        bar.start("NFO")
+    bar.start("NFO")
     assert bar._state["NFO"] == "active"
 
 
 def test_phasebar_done_muda_estado_para_done():
     bar = PhaseBar()
-    with patch("upapasta.ui.print"), patch("upapasta.ui.time") as mock_time:
+    with patch("upapasta.ui.time") as mock_time:
         mock_time.time.return_value = 0.0
         bar.start("NFO")
         mock_time.time.return_value = 5.0
@@ -168,16 +153,15 @@ def test_phasebar_done_muda_estado_para_done():
     assert bar._elapsed["NFO"] == pytest.approx(5.0)
 
 
-def test_phasebar_skip_nao_renderiza():
+def test_phasebar_skip_muda_estado():
     bar = PhaseBar()
-    renders = _capture_renders(bar, [("skip", "RAR")])
+    bar.skip("RAR")
     assert bar._state["RAR"] == "skipped"
-    assert renders == []
 
 
 def test_phasebar_error_muda_estado():
     bar = PhaseBar()
-    with patch("upapasta.ui.print"), patch("upapasta.ui.time") as mock_time:
+    with patch("upapasta.ui.time") as mock_time:
         mock_time.time.return_value = 0.0
         bar.start("PAR2")
         mock_time.time.return_value = 3.0
@@ -185,54 +169,43 @@ def test_phasebar_error_muda_estado():
     assert bar._state["PAR2"] == "error"
 
 
-def test_phasebar_render_contem_todas_as_fases():
+def test_phasebar_render_group_contem_todas_as_fases():
     bar = PhaseBar()
-    prints: list[str] = []
+    # Mock do tradutor _ para retornar a própria string
+    with patch("upapasta.ui._", side_effect=lambda x: x):
+        group = bar._render_group()
+        # O group contém a tabela de fases. Vamos verificar se as fases estão lá.
+        # Como o Rich renderiza para objetos complexos, vamos converter para texto simples para teste
+        from rich.console import Console
 
-    def fake_print(*args, **kwargs):
-        prints.append(args[0] if args else "")
-
-    with patch("upapasta.ui.print", side_effect=fake_print):
-        bar.start("NFO")
-
-    assert prints
-    line = prints[-1]
-    for phase in PhaseBar.PHASES:
-        assert phase in line
+        console = Console(width=100)
+        with console.capture() as capture:
+            console.print(group)
+        output = capture.get()
+        for phase in PhaseBar.PHASES:
+            assert phase in output
 
 
-def test_phasebar_fmt_active_contem_reticencias():
+def test_phasebar_update_progress_cria_task():
     bar = PhaseBar()
-    bar._state["UPLOAD"] = "active"
-    resultado = bar._fmt("UPLOAD")
-    assert "..." in resultado
+    bar.update_progress(50.0, "Testando")
+    assert bar.active_task is not None
+    task = bar.progress.tasks[0]
+    assert task.completed == 50.0
+    assert task.description == "Testando"
 
 
-def test_phasebar_fmt_done_contem_tempo():
+def test_phasebar_done_remove_task():
     bar = PhaseBar()
-    bar._state["NFO"] = "done"
-    bar._elapsed["NFO"] = 90.0  # 1m30s
-    resultado = bar._fmt("NFO")
-    assert "01:30" in resultado
-
-
-def test_phasebar_fmt_skipped_usa_icone():
-    bar = PhaseBar()
-    bar._state["RAR"] = "skipped"
-    resultado = bar._fmt("RAR")
-    assert PhaseBar._ICONS["skipped"] in resultado
-
-
-def test_phasebar_fmt_error_usa_icone():
-    bar = PhaseBar()
-    bar._state["PAR2"] = "error"
-    resultado = bar._fmt("PAR2")
-    assert PhaseBar._ICONS["error"] in resultado
+    bar.update_progress(100.0)
+    assert bar.active_task is not None
+    bar.done("RAR")
+    assert bar.active_task is None
+    assert len(bar.progress.tasks) == 0
 
 
 def test_phasebar_done_sem_start_nao_quebra():
     bar = PhaseBar()
-    with patch("upapasta.ui.print"):
-        bar.done("DONE")  # nunca chamou start("DONE")
+    bar.done("DONE")  # nunca chamou start("DONE")
     assert bar._state["DONE"] == "done"
     assert "DONE" not in bar._elapsed

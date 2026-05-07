@@ -27,6 +27,7 @@ from .resources import calculate_optimal_resources, get_total_size
 
 # ── Funções utilitárias de extensão (re-exportadas por orchestrator) ─────────
 
+
 def normalize_extensionless(root: str, suffix: str = ".bin") -> dict[str, str]:
     """Renomeia recursivamente arquivos sem extensão para `<nome>{suffix}`.
 
@@ -71,6 +72,7 @@ def revert_extensionless(mapping: dict[str, str]) -> None:
 
 # ── DependencyChecker ─────────────────────────────────────────────────────────
 
+
 class DependencyChecker:
     """Valida a entrada e o ambiente antes de iniciar o pipeline."""
 
@@ -78,11 +80,17 @@ class DependencyChecker:
     def validate(input_path: Path, dry_run: bool) -> bool:
         """Verifica existência, permissões de leitura e espaço em disco."""
         if not input_path.exists():
-            print(_("Erro: arquivo ou pasta '{input_path}' não existe.").format(input_path=input_path))
+            print(
+                _("Erro: arquivo ou pasta '{input_path}' não existe.").format(input_path=input_path)
+            )
             return False
 
         if not input_path.is_dir() and not input_path.is_file():
-            print(_("Erro: '{input_path}' não é um arquivo nem um diretório.").format(input_path=input_path))
+            print(
+                _("Erro: '{input_path}' não é um arquivo nem um diretório.").format(
+                    input_path=input_path
+                )
+            )
             return False
 
         unreadable = []
@@ -96,7 +104,11 @@ class DependencyChecker:
                     if not os.access(fp, os.R_OK):
                         unreadable.append(fp)
         if unreadable:
-            print(_("Erro: {count} arquivo(s) sem permissão de leitura:").format(count=len(unreadable)))
+            print(
+                _("Erro: {count} arquivo(s) sem permissão de leitura:").format(
+                    count=len(unreadable)
+                )
+            )
             for p in unreadable[:5]:
                 print(_("  {p}").format(p=p))
             if len(unreadable) > 5:
@@ -109,14 +121,16 @@ class DependencyChecker:
                 stat = shutil.disk_usage(str(input_path.parent))
                 needed = source_size * 2
                 if stat.free < needed:
-                    free_gb = stat.free / (1024 ** 3)
-                    needed_gb = needed / (1024 ** 3)
-                    source_gb = source_size / (1024 ** 3)
-                    print(_(
-                        "Erro: espaço insuficiente em disco.\n"
-                        "  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | Livre: {free_gb:.2f} GB\n"
-                        "  Libere espaço ou use --dry-run para simular."
-                    ).format(source_gb=source_gb, needed_gb=needed_gb, free_gb=free_gb))
+                    free_gb = stat.free / (1024**3)
+                    needed_gb = needed / (1024**3)
+                    source_gb = source_size / (1024**3)
+                    print(
+                        _(
+                            "Erro: espaço insuficiente em disco.\n"
+                            "  Fonte: {source_gb:.2f} GB | Necessário (2×): {needed_gb:.2f} GB | Livre: {free_gb:.2f} GB\n"
+                            "  Libere espaço ou use --dry-run para simular."
+                        ).format(source_gb=source_gb, needed_gb=needed_gb, free_gb=free_gb)
+                    )
                     return False
             except OSError:
                 pass
@@ -125,6 +139,7 @@ class DependencyChecker:
 
 
 # ── PathResolver ──────────────────────────────────────────────────────────────
+
 
 class PathResolver:
     """Resolve caminhos de saída para NZB, NFO e PAR2."""
@@ -204,6 +219,7 @@ class PathResolver:
 
 # ── PipelineReporter ──────────────────────────────────────────────────────────
 
+
 class PipelineReporter:
     """Formata e exibe o progresso, resultado e catálogo do pipeline."""
 
@@ -225,18 +241,26 @@ class PipelineReporter:
         nntp_connections: int,
     ) -> None:
         from .ui import format_time as _ft  # noqa: F401 — evita import circular no topo
+
         mem_gb = res["max_memory_mb"] / 1024
         print("\n" + "=" * 60)
         print(_("🚀 UpaPasta — Workflow Completo de Upload para Usenet"))
         print("=" * 60)
         print(_("📁 Entrada:     {name}").format(name=input_path.name))
-        print(_("📦 Tamanho:     {size} GB").format(size=res['total_gb']))
-        print(_("⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)").format(eta=eta_str, conn=nntp_connections))
+        print(_("📦 Tamanho:     {size} GB").format(size=res["total_gb"]))
+        print(
+            _("⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)").format(
+                eta=eta_str, conn=nntp_connections
+            )
+        )
         print(_("🎯 Perfil PAR2: {profile}").format(profile=par_profile))
         print(_("📊 Post-size:   {size}").format(size=post_size or _("(do perfil)")))
         print(_("✉️  Subject:     {subject}").format(subject=subject))
-        print(_("⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})").format(
-            rar_threads=rar_threads, rar_src=rar_src, par_threads=par_threads, par_src=par_src))
+        print(
+            _("⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})").format(
+                rar_threads=rar_threads, rar_src=rar_src, par_threads=par_threads, par_src=par_src
+            )
+        )
         print(_("🧠 Memória PAR: {mem:.1f} GB").format(mem=mem_gb))
         if obfuscate:
             print(_("🔒 Ofuscação:   ativada"))
@@ -252,7 +276,11 @@ class PipelineReporter:
         par_file: Optional[str],
     ) -> dict[str, float | int]:
         """Coleta tamanhos de RAR e PAR2 gerados."""
-        stats: dict[str, float | int] = {"rar_size_mb": 0.0, "par2_size_mb": 0.0, "par2_file_count": 0}
+        stats: dict[str, float | int] = {
+            "rar_size_mb": 0.0,
+            "par2_size_mb": 0.0,
+            "par2_file_count": 0,
+        }
         if not input_target or not os.path.exists(input_target):
             return stats
 
@@ -317,7 +345,9 @@ class PipelineReporter:
         if not skip_upload:
             raw_group = group or env_vars.get("USENET_GROUP") or _("(Não especificado)")
             display_group = (
-                _("Pool ({count} grupos)").format(count=len(raw_group.split(','))) if "," in raw_group else raw_group
+                _("Pool ({count} grupos)").format(count=len(raw_group.split(",")))
+                if "," in raw_group
+                else raw_group
             )
             print(_("  » Subject da Postagem: {subject}").format(subject=subject))
             print(_("  » Grupo Usenet: {group}").format(group=display_group))
@@ -329,13 +359,29 @@ class PipelineReporter:
         rar_display = os.path.basename(rar_file) if rar_file else None
         if stats["rar_size_mb"] > 0:
             if rar_display:
-                print(_("  » RAR: {name} ({size:.2f} MB)").format(name=rar_display, size=stats['rar_size_mb']))
+                print(
+                    _("  » RAR: {name} ({size:.2f} MB)").format(
+                        name=rar_display, size=stats["rar_size_mb"]
+                    )
+                )
             elif os.path.isdir(str(input_path)):
-                print(_("  » Pasta: {name} ({size:.2f} MB)").format(name=input_path.name, size=stats['rar_size_mb']))
+                print(
+                    _("  » Pasta: {name} ({size:.2f} MB)").format(
+                        name=input_path.name, size=stats["rar_size_mb"]
+                    )
+                )
             else:
-                print(_("  » Arquivo: {name} ({size:.2f} MB)").format(name=input_path.name, size=stats['rar_size_mb']))
+                print(
+                    _("  » Arquivo: {name} ({size:.2f} MB)").format(
+                        name=input_path.name, size=stats["rar_size_mb"]
+                    )
+                )
         if stats["par2_file_count"] > 0:
-            print(_("  » PAR2: {count} arquivo(s) ({size:.2f} MB)").format(count=stats['par2_file_count'], size=stats['par2_size_mb']))
+            print(
+                _("  » PAR2: {count} arquivo(s) ({size:.2f} MB)").format(
+                    count=stats["par2_file_count"], size=stats["par2_size_mb"]
+                )
+            )
         total_size = stats["rar_size_mb"] + stats["par2_size_mb"]
         print(_("  » Total: {size:.2f} MB").format(size=total_size))
         print(_("\n  » Tempo total: {time}").format(time=format_time(int(elapsed))))
@@ -393,7 +439,9 @@ class PipelineReporter:
                 servidor_nntp=env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST"),
                 redundancia_par2=f"{redundancy}%" if redundancy else None,
                 duracao_upload_s=round(elapsed, 1),
-                num_arquivos_rar=int(stats["par2_file_count"]) if "par2_file_count" in stats else None,
+                num_arquivos_rar=int(stats["par2_file_count"])
+                if "par2_file_count" in stats
+                else None,
                 caminho_nzb=_nzb_abs_final,
                 subject=subject,
             )
@@ -416,6 +464,7 @@ class PipelineReporter:
             if webhook_url:
                 from ._webhook import send_webhook
                 from .catalog import detect_category
+
                 categoria = detect_category(input_path.name)
                 send_webhook(
                     webhook_url,
@@ -427,6 +476,7 @@ class PipelineReporter:
 
 
 # ── Funções auxiliares standalone ────────────────────────────────────────────
+
 
 def do_cleanup_files(
     rar_file: Optional[str],
@@ -448,12 +498,14 @@ def do_cleanup_files(
     base_name: Optional[str] = None
 
     if rar_file and not preserve_rar:
-        rar_base = re.sub(r'\.part\d+$', '', os.path.splitext(rar_file)[0])
+        rar_base = re.sub(r"\.part\d+$", "", os.path.splitext(rar_file)[0])
         rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
-        candidates.extend(rar_volumes if rar_volumes else ([rar_file] if os.path.exists(rar_file) else []))
+        candidates.extend(
+            rar_volumes if rar_volumes else ([rar_file] if os.path.exists(rar_file) else [])
+        )
         base_name = rar_base
     elif rar_file and preserve_rar:
-        base_name = re.sub(r'\.part\d+$', '', os.path.splitext(rar_file)[0])
+        base_name = re.sub(r"\.part\d+$", "", os.path.splitext(rar_file)[0])
 
     if base_name is None and par_file:
         base_name = os.path.splitext(par_file)[0]
@@ -469,7 +521,9 @@ def do_cleanup_files(
             if os.path.exists(file_path):
                 if os.path.isdir(file_path):
                     shutil.rmtree(file_path)
-                    print(_("  ✓ Removido diretório: {name}").format(name=os.path.basename(file_path)))
+                    print(
+                        _("  ✓ Removido diretório: {name}").format(name=os.path.basename(file_path))
+                    )
                 else:
                     os.remove(file_path)
                     print(_("  ✓ Removido: {name}").format(name=os.path.basename(file_path)))
@@ -504,29 +558,47 @@ def revert_obfuscation(
 
     if obfuscate_was_linked:
         if keep_files:
-            print(_("⚡ [--keep-files] Mantendo links de ofuscação: {name}").format(name=os.path.basename(input_target)))
+            print(
+                _("⚡ [--keep-files] Mantendo links de ofuscação: {name}").format(
+                    name=os.path.basename(input_target)
+                )
+            )
             return input_target
         if not os.path.exists(input_target):
             # hardlink já removido pelo cleanup; o original (mesmo inode) pode ainda existir
             target_dir = os.path.dirname(input_target)
             target_ext = os.path.splitext(input_target)[1]
             obf_full_base = os.path.basename(os.path.splitext(input_target)[0])
-            obf_base = re.sub(r'\.part\d+$', '', obf_full_base)
+            obf_base = re.sub(r"\.part\d+$", "", obf_full_base)
             original_base = obfuscated_map.get(obf_base)
             if original_base:
                 # arquivo único ou primeiro volume
                 orig_path = os.path.join(target_dir, original_base + target_ext)
-                candidates = glob.glob(glob.escape(os.path.join(target_dir, original_base)) + ".part*.rar")
+                candidates = glob.glob(
+                    glob.escape(os.path.join(target_dir, original_base)) + ".part*.rar"
+                )
                 if not candidates and os.path.exists(orig_path):
                     candidates = [orig_path]
                 for cand in candidates:
                     try:
                         os.remove(cand)
-                        print(_("🧹 Removido original após cleanup do hardlink: {name}").format(name=os.path.basename(cand)))
+                        print(
+                            _("🧹 Removido original após cleanup do hardlink: {name}").format(
+                                name=os.path.basename(cand)
+                            )
+                        )
                     except OSError as e:
-                        print(_("⚠️  Falha ao remover original '{name}': {error}").format(name=os.path.basename(cand), error=e))
+                        print(
+                            _("⚠️  Falha ao remover original '{name}': {error}").format(
+                                name=os.path.basename(cand), error=e
+                            )
+                        )
             return input_target
-        print(_("🧹 Removendo links temporários de ofuscação: {name}").format(name=os.path.basename(input_target)))
+        print(
+            _("🧹 Removendo links temporários de ofuscação: {name}").format(
+                name=os.path.basename(input_target)
+            )
+        )
         try:
             if os.path.isdir(input_target):
                 shutil.rmtree(input_target)
@@ -543,8 +615,16 @@ def revert_obfuscation(
         print(_("↩️  Nome original restaurado: {name}").format(name=input_path.name))
         input_target = original
     except OSError as e:
-        print(_("⚠️  Falha ao restaurar nome original ('{input}' → '{original}'): {error}").format(input=input_target, original=original, error=e))
-        print(_("    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'").format(input=os.path.basename(input_target), original=input_path.name))
+        print(
+            _("⚠️  Falha ao restaurar nome original ('{input}' → '{original}'): {error}").format(
+                input=input_target, original=original, error=e
+            )
+        )
+        print(
+            _("    AÇÃO MANUAL: renomeie '{input}' de volta para '{original}'").format(
+                input=os.path.basename(input_target), original=input_path.name
+            )
+        )
         return input_target
 
     obf_base = os.path.basename(input_target)
@@ -569,31 +649,38 @@ def print_skip_rar_hints(input_path: Path, filepath_format: str, backend: str) -
     if backend == "parpar":
         has_subdirs = any(e.is_dir() for e in input_path.iterdir())
         if has_subdirs:
-            print(_(
-                "✅ Pasta com subpastas + parpar (filepath-format={fmt}): "
-                "estrutura será preservada via PAR2."
-            ).format(fmt=filepath_format))
-            print(_(
-                "   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip internos\n"
-                "   e revise 'Unwanted Extensions' (use --rename-extensionless se houver arquivos sem extensão)."
-            ))
+            print(
+                _(
+                    "✅ Pasta com subpastas + parpar (filepath-format={fmt}): "
+                    "estrutura será preservada via PAR2."
+                ).format(fmt=filepath_format)
+            )
+            print(
+                _(
+                    "   Dica: no SABnzbd, desative 'Recursive Unpacking' para preservar .zip internos\n"
+                    "   e revise 'Unwanted Extensions' (use --rename-extensionless se houver arquivos sem extensão)."
+                )
+            )
             empty_dirs = [
                 os.path.relpath(dp, input_path)
                 for dp, _d, files in os.walk(input_path)
-                if not files and dp != str(input_path)
-                and not any(os.scandir(dp))
+                if not files and dp != str(input_path) and not any(os.scandir(dp))
             ]
             if empty_dirs:
-                print(_(
-                    "⚠️  {count} diretório(s) vazio(s) detectado(s) — não serão preservados no upload.\n"
-                    "    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem no destino.\n"
-                    "    Se a estrutura vazia for relevante, remova --skip-rar para empacotar em RAR."
-                ).format(count=len(empty_dirs)))
+                print(
+                    _(
+                        "⚠️  {count} diretório(s) vazio(s) detectado(s) — não serão preservados no upload.\n"
+                        "    Usenet posta artigos (arquivos), não diretórios; pastas vazias somem no destino.\n"
+                        "    Se a estrutura vazia for relevante, remova --skip-rar para empacotar em RAR."
+                    ).format(count=len(empty_dirs))
+                )
     elif backend == "par2":
-        print(_(
-            "⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva hierarquia.\n"
-            "    Considere --backend parpar (recomendado) ou remova --skip-rar."
-        ))
+        print(
+            _(
+                "⚠️  Backend par2 + --skip-rar com pasta: par2 clássico não preserva hierarquia.\n"
+                "    Considere --backend parpar (recomendado) ou remova --skip-rar."
+            )
+        )
 
 
 def print_rar_hints(
@@ -607,11 +694,13 @@ def print_rar_hints(
         and not obfuscate
         and any(e.is_dir() for e in input_path.iterdir())
     ):
-        print(_(
-            "💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
-            "   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
-            "   downloaders modernos reconstroem a árvore. Menos overhead, mesmo resultado."
-        ))
+        print(
+            _(
+                "💡 Dica: para esta pasta com subpastas, considere --skip-rar.\n"
+                "   parpar preserva a hierarquia nos .par2 (filepath-format=common) e\n"
+                "   downloaders modernos reconstroem a árvore. Menos overhead, mesmo resultado."
+            )
+        )
 
 
 def recalculate_resources(

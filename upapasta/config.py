@@ -29,6 +29,7 @@ def resolve_env_file(profile: str | None = None) -> str:
         return DEFAULT_ENV_FILE
     return os.path.join(CONFIG_DIR, f"{profile}.env")
 
+
 # Pool de grupos populares para aumentar obfuscação e redundância
 DEFAULT_GROUP_POOL = (
     "alt.binaries.boneless,"
@@ -44,7 +45,12 @@ DEFAULT_GROUP_POOL = (
 )
 
 
-def _ask(prompt: str, default: str | None = None, validator: Optional[Callable[[str], bool]] = None, secret: bool = False) -> str:
+def _ask(
+    prompt: str,
+    default: str | None = None,
+    validator: Optional[Callable[[str], bool]] = None,
+    secret: bool = False,
+) -> str:
     hint = f" [{default}]" if default is not None else ""
     while True:
         if secret:
@@ -161,6 +167,7 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
     with open(env_file, "w") as f:
         f.write("\n".join(lines))
 
+
 __all__ = ["DEFAULT_PROFILE", "PROFILES"]
 
 
@@ -205,9 +212,23 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
     print()
 
     print(_("── NNTP Server ───────────────────────────────────────"))
-    host = _ask(_("NNTP Server (ex: news.eweka.nl)"), default=ex("NNTP_HOST", None) or "", validator=lambda v: (True if v and " " not in v else (print(_("    Invalid address.")) or False)))
+    host = _ask(
+        _("NNTP Server (ex: news.eweka.nl)"),
+        default=ex("NNTP_HOST", None) or "",
+        validator=lambda v: (
+            True if v and " " not in v else (print(_("    Invalid address.")) or False)
+        ),
+    )
     port = _ask(_("NNTP Port"), default=ex("NNTP_PORT", "563") or "563", validator=_is_numeric_port)
-    ssl  = _ask(_("Use SSL/TLS?"), default=ex("NNTP_SSL", "true") or "true", validator=lambda v: (True if v.lower() in ("true", "false") else (print(_("    Type true or false.")) or False)))
+    ssl = _ask(
+        _("Use SSL/TLS?"),
+        default=ex("NNTP_SSL", "true") or "true",
+        validator=lambda v: (
+            True
+            if v.lower() in ("true", "false")
+            else (print(_("    Type true or false.")) or False)
+        ),
+    )
     user = _ask(_("NNTP User"), default=ex("NNTP_USER", None) or "")
 
     # Senha: se já existe, permite manter com Enter
@@ -222,35 +243,40 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
     print(_("── Upload ────────────────────────────────────────────"))
     print(_("  Hint: You can provide a single group or a comma-separated list."))
     print(_("  If a list is provided, UpaPasta will pick a random group per upload."))
-    group       = _ask(_("Usenet Group (or Pool)"), default=ex("USENET_GROUP", DEFAULT_GROUP_POOL))
-    connections = _ask(_("Simultaneous connections (check your plan limit)"), default=ex("NNTP_CONNECTIONS", "50"))
-    article_sz  = _ask(_("Article size"), default=ex("ARTICLE_SIZE", "700K"))
-    nzb_out     = _ask(_("Output path for .nzb ({{filename}} = upload name)"), default=ex("NZB_OUT", "{filename}.nzb"))
+    group = _ask(_("Usenet Group (or Pool)"), default=ex("USENET_GROUP", DEFAULT_GROUP_POOL))
+    connections = _ask(
+        _("Simultaneous connections (check your plan limit)"), default=ex("NNTP_CONNECTIONS", "50")
+    )
+    article_sz = _ask(_("Article size"), default=ex("ARTICLE_SIZE", "700K"))
+    nzb_out = _ask(
+        _("Output path for .nzb ({{filename}} = upload name)"),
+        default=ex("NZB_OUT", "{filename}.nzb"),
+    )
     # Se o usuário indicou apenas uma pasta (não contém {filename} e não termina em .nzb)
     if "{filename}" not in nzb_out and not nzb_out.lower().endswith(".nzb"):
         nzb_out = os.path.join(nzb_out, "{filename}.nzb")
 
     values = {
-        "NNTP_HOST":           host,
-        "NNTP_PORT":           port,
-        "NNTP_SSL":            ssl.lower(),
-        "NNTP_IGNORE_CERT":    "false",
-        "NNTP_USER":           user,
-        "NNTP_PASS":           passwd,
-        "NNTP_CONNECTIONS":    connections,
-        "USENET_GROUP":        group,
-        "ARTICLE_SIZE":        article_sz,
-        "CHECK_CONNECTIONS":   "5",
-        "CHECK_TRIES":         "2",
-        "CHECK_DELAY":         "5s",
-        "CHECK_RETRY_DELAY":   "30s",
-        "CHECK_POST_TRIES":    "2",
-        "NZB_OUT":             nzb_out,
-        "NZB_OVERWRITE":       "true",
-        "SKIP_ERRORS":         "all",
-        "DUMP_FAILED_POSTS":   "",
-        "QUIET":               "false",
-        "LOG_TIME":            "true",
+        "NNTP_HOST": host,
+        "NNTP_PORT": port,
+        "NNTP_SSL": ssl.lower(),
+        "NNTP_IGNORE_CERT": "false",
+        "NNTP_USER": user,
+        "NNTP_PASS": passwd,
+        "NNTP_CONNECTIONS": connections,
+        "USENET_GROUP": group,
+        "ARTICLE_SIZE": article_sz,
+        "CHECK_CONNECTIONS": "5",
+        "CHECK_TRIES": "2",
+        "CHECK_DELAY": "5s",
+        "CHECK_RETRY_DELAY": "30s",
+        "CHECK_POST_TRIES": "2",
+        "NZB_OUT": nzb_out,
+        "NZB_OVERWRITE": "true",
+        "SKIP_ERRORS": "all",
+        "DUMP_FAILED_POSTS": "",
+        "QUIET": "false",
+        "LOG_TIME": "true",
     }
 
     print()
@@ -258,7 +284,11 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
     print(_("  Server    : {host}").format(host=host))
     print(_("  User      : {user}").format(user=user))
     print(_("  Group     : {group}").format(group=group))
-    print(_("  Conns     : {connections}  Article: {size}").format(connections=connections, size=article_sz))
+    print(
+        _("  Conns     : {connections}  Article: {size}").format(
+            connections=connections, size=article_sz
+        )
+    )
     print(_("  NZB out   : {nzb}").format(nzb=nzb_out))
     print()
 

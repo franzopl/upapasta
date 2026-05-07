@@ -1,4 +1,5 @@
 """Tests for upapasta.i18n — locale detection and gettext fallback."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -11,6 +12,7 @@ class TestDetectLang:
         monkeypatch.setenv("UPAPASTA_LANG", "pt_BR")
         monkeypatch.setenv("LANG", "en_US.UTF-8")
         from upapasta.i18n import _detect_lang
+
         assert _detect_lang() == "pt_BR"
 
     def test_lang_env_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -18,6 +20,7 @@ class TestDetectLang:
         monkeypatch.setenv("LANG", "pt_BR.UTF-8")
         with patch("locale.getlocale", return_value=(None, None)):
             from upapasta.i18n import _detect_lang
+
             assert _detect_lang() == "pt_BR"
 
     def test_no_env_defaults_to_en(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -26,6 +29,7 @@ class TestDetectLang:
         monkeypatch.delenv("LC_ALL", raising=False)
         with patch("locale.getlocale", return_value=(None, None)):
             from upapasta.i18n import _detect_lang
+
             assert _detect_lang() == "en"
 
 

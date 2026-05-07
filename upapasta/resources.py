@@ -72,7 +72,7 @@ def calculate_optimal_resources(
     """
     cpu = os.cpu_count() or 2
     mem_avail = get_mem_available_mb()
-    total_gb = total_size_bytes / (1024 ** 3)
+    total_gb = total_size_bytes / (1024**3)
     conservative = total_gb > 200 or mem_avail < 4096
 
     # Threads RAR: RAR é CPU+I/O bound e escala bem até ~32 threads
