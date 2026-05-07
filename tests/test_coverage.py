@@ -8,6 +8,7 @@ Cobre: nzb.py, makerar.py, makepar.py, cli.py, upfolder.py, orchestrator.py
 from __future__ import annotations
 
 import argparse
+import io
 import os
 import sys
 import xml.etree.ElementTree as ET
@@ -2068,6 +2069,7 @@ class TestUpfolderAdditional:
 
         mock_proc = MagicMock()
         mock_proc.wait.return_value = 0
+        mock_proc.stdout = io.StringIO("")
 
         def enter_and_create_nzb(s: object) -> MagicMock:
             ET.ElementTree(root).write(nzb_path, encoding="UTF-8", xml_declaration=True)

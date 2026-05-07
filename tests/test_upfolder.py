@@ -163,6 +163,7 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
     class MockProc:
         def __init__(self, args):
             self.args = args
+            self.stdout = io.StringIO("")
 
         def wait(self):
             captured["args"] = self.args
@@ -216,6 +217,7 @@ def test_upload_to_usenet_basic(monkeypatch, tmp_path):
 
     class C:
         returncode = 0
+        stdout = io.StringIO("")
 
         def wait(self):
             return 0

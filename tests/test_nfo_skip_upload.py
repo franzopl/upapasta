@@ -18,8 +18,8 @@ def test_orchestrator_generates_nfo_even_with_skip_upload(tmp_path, monkeypatch)
     monkeypatch.setattr(nfo_mod, "find_mediainfo", lambda: "/usr/bin/mediainfo")
 
     # Mock other steps to focus on NFO
-    monkeypatch.setattr(UpaPastaOrchestrator, "run_makerar", lambda self: True)
-    monkeypatch.setattr(UpaPastaOrchestrator, "run_makepar", lambda self: True)
+    monkeypatch.setattr(UpaPastaOrchestrator, "run_makerar", lambda self, bar=None: True)
+    monkeypatch.setattr(UpaPastaOrchestrator, "run_makepar", lambda self, bar=None: True)
 
     # Orchestrator with skip_upload=True
     orch = UpaPastaOrchestrator(

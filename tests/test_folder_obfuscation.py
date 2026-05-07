@@ -1,3 +1,4 @@
+import io
 import shutil
 import unittest
 from pathlib import Path
@@ -35,6 +36,7 @@ class TestFolderObfuscation(unittest.TestCase):
     ):
         mock_proc = MagicMock()
         mock_proc.wait.return_value = 0
+        mock_proc.stdout = io.StringIO("")
         mock_managed_popen.return_value.__enter__.return_value = mock_proc
 
         mock_check_creds.return_value = {

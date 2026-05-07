@@ -1,5 +1,7 @@
 """Testes para _verify_nzb e retry de upload."""
 
+import io
+
 from upapasta.upfolder import _verify_nzb, upload_to_usenet
 
 NZB_VALID = """\
@@ -76,6 +78,8 @@ def test_upload_retry_on_failure(tmp_path, monkeypatch):
     call_count = {"n": 0}
 
     class MockProc:
+        stdout = io.StringIO("")
+
         def wait(self):
             call_count["n"] += 1
             return 5
@@ -120,6 +124,8 @@ def test_upload_retry_succeeds_on_second_try(tmp_path, monkeypatch):
     call_count = {"n": 0}
 
     class MockProc:
+        stdout = io.StringIO("")
+
         def wait(self):
             call_count["n"] += 1
             if call_count["n"] == 1:

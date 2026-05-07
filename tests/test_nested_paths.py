@@ -135,6 +135,7 @@ def test_upload_deep_tree_preserves_relative_paths(monkeypatch, tmp_path):
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
             captured["cwd"] = kw.get("cwd")
+            self.stdout = io.StringIO("")
 
         def wait(self):
             return 0
@@ -186,6 +187,7 @@ def test_unicode_and_special_chars_preserved_in_argv(monkeypatch, tmp_path):
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
+            self.stdout = io.StringIO("")
 
         def wait(self):
             return 0
@@ -257,6 +259,7 @@ def test_walk_skips_empty_dirs_keeps_hidden_files(monkeypatch, tmp_path):
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
+            self.stdout = io.StringIO("")
 
         def wait(self):
             return 0
@@ -301,6 +304,7 @@ def test_walk_follows_symlink_to_file_in_subdir(monkeypatch, tmp_path):
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
+            self.stdout = io.StringIO("")
 
         def wait(self):
             return 0
@@ -354,6 +358,7 @@ def test_obfuscate_then_upload_preserves_inner_structure(recording_popen, monkey
     class FakePopen:
         def __init__(self, cmd, *a, **kw):
             captured["cmd"] = list(cmd)
+            self.stdout = io.StringIO("")
 
         def wait(self):
             return 0
