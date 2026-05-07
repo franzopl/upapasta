@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "upapasta"
-version = "0.26.1"
+version = "0.26.2"
 description = "Ferramenta CLI para upload automatizado em Usenet com RAR, PAR2 e nyuu"
 authors = [{name = "franzopl", email = "franzopl@pm.me"}]
 requires-python = ">=3.9"
 readme = "README.md"
 license = {text = "MIT"}
 keywords = ["usenet", "nntp", "upload", "par2", "rar", "nzb", "nyuu"]
+dependencies = [
+    "rich>=13.0.0",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",

@@ -34,14 +34,20 @@ import re
 import shutil
 import string
 import subprocess
+import threading
 import time
 import xml.etree.ElementTree as ET
-from typing import Optional
+from queue import Queue
+from typing import Optional, TYPE_CHECKING
 
 from upapasta import nfo
 
 from ._process import managed_popen
+from ._progress import _process_output, _read_output
 from .i18n import _
+
+if TYPE_CHECKING:
+    from .ui import PhaseBar
 from .nzb import (
     fix_nzb_subjects,
     handle_nzb_conflict,
@@ -263,6 +269,7 @@ def upload_to_usenet(
     folder_name: Optional[str] = None,
     strong_obfuscate: bool = False,
     resume: bool = False,
+    bar: Optional[PhaseBar] = None,
 ) -> int:
     """
     Upload de arquivos para Usenet usando nyuu.
@@ -413,7 +420,9 @@ def upload_to_usenet(
 
     # Geração de NFO para arquivo único (se não for pasta e tivermos caminho de NZB)
     # Isso garante que mesmo o upload direto via upfolder.py gere metadados.
-    if not is_folder and nzb_out_abs:
+    # Só roda em arquivos de mídia: .rar e outros contêineres não têm metadados úteis.
+    _media_exts = {".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".ts", ".m2ts"}
+    if not is_folder and nzb_out_abs and os.path.splitext(input_path)[1].lower() in _media_exts:
         nfo_path = os.path.abspath(os.path.splitext(nzb_out_abs)[0] + ".nfo")
         if not os.path.exists(nfo_path):
             mediainfo_path = nfo.find_mediainfo()
@@ -592,8 +601,24 @@ def upload_to_usenet(
         cmd.extend(remaining_par2)
 
         try:
-            with managed_popen(cmd, cwd=working_dir) as proc:  # type: ignore[assignment]
-                last_rc = proc.wait()  # type: ignore[attr-defined]
+            with managed_popen(
+                cmd,
+                cwd=working_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            ) as proc:
+                output_queue: Queue[str | None] = Queue()
+                reader_thread = threading.Thread(
+                    target=_read_output,
+                    args=(proc.stdout, output_queue),
+                    daemon=True,
+                )
+                reader_thread.start()
+                _process_output(output_queue, bar=bar)
+                last_rc = proc.wait()
+
             if last_rc == 0:
                 break
             print(_("\nErro: nyuu retornou código {rc} no servidor {host}.").format(rc=last_rc, host=srv['host']))
