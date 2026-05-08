@@ -85,18 +85,22 @@ def calculate_optimal_resources(
     else:
         rar_threads = min(32, max(4, int(cpu * 0.75)))
 
-    # Threads parpar: retorno decrescente acima de 8-16 threads devido à
-    # largura de banda de memória; >16 threads pode causar SIGSEGV em jobs grandes.
+    # Threads parpar: escalamento revisado.
+    # Jobs menores (<50GB) podem usar mais threads em segurança.
+    # Jobs grandes escalam para baixo percentualmente para preservar largura de banda e evitar OOM/SIGSEGV.
     if user_threads is not None:
         par_threads = max(1, user_threads)
     elif total_gb > 200:
-        par_threads = min(8, max(4, int(cpu * 0.125)))
+        par_threads = min(8, max(4, int(cpu * 0.15)))
     elif total_gb > 100:
-        par_threads = min(12, max(4, int(cpu * 0.175)))
+        par_threads = min(12, max(4, int(cpu * 0.25)))
+    elif total_gb > 50:
+        par_threads = min(16, max(4, int(cpu * 0.35)))
     elif total_gb > 10:
-        par_threads = min(16, max(4, int(cpu * 0.25)))
+        par_threads = min(24, max(4, int(cpu * 0.50)))
     else:
-        par_threads = min(8, max(2, int(cpu * 0.125)))
+        # Arquivos pequenos (<10GB) podem usar a maior parte da CPU sem estourar memória.
+        par_threads = min(24, max(4, int(cpu * 0.75)))
 
     # Memória: mantém ao menos 2GB livres para o sistema
     if user_memory_mb is not None:
