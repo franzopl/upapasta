@@ -4,6 +4,12 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.26.5 - 2026-05-08
+
+### Performance
+
+- **Geração PAR2**: Aumentado significativamente o limite máximo de threads da CPU para o `parpar` no processamento de arquivos pequenos a médios (< 50GB), se igualando à alocação de processamento do RAR. Isso reduz a lentidão no processo de paridade sem esgotar a largura de banda de memória do sistema.
+
 ## 0.26.4 - 2026-05-08
 
 ### Melhorias

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.26.5 - 2026-05-08
+
+### Performance
+
+- **PAR2 Generation**: Significantly increased the maximum allowed CPU threads for `parpar` when processing small-to-medium files (< 50GB), matching the thread allocation strategy used for RAR creation. This reduces the processing time bottleneck without exhausting memory bandwidth.
+
 ## 0.26.4 - 2026-05-08
 
 ### Improvements
