@@ -609,6 +609,8 @@ def upload_to_usenet(
         srv = servers[0]
         cmd_dry = [
             nyuu_path,
+            "--progress",
+            "stderrx",
             "-h",
             srv["host"],
             "-P",
@@ -691,6 +693,8 @@ def upload_to_usenet(
 
         cmd = [
             nyuu_path,
+            "--progress",
+            "stderrx",
             "-h",
             srv["host"],
             "-P",
@@ -738,8 +742,7 @@ def upload_to_usenet(
                 cwd=working_dir,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
+                bufsize=0,
             ) as proc:
                 output_queue: Queue[str | None] = Queue()
                 reader_thread = threading.Thread(

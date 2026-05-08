@@ -25,7 +25,6 @@ from rich.progress import (
     SpinnerColumn,
     TextColumn,
     TimeRemainingColumn,
-    TransferSpeedColumn,
 )
 from rich.table import Table
 
@@ -60,6 +59,7 @@ class _ThreadDispatchTeeStream(io.TextIOBase):
             self._terminal.flush()
         except Exception:
             pass
+
         log_fh: Optional[io.TextIOWrapper] = getattr(_thread_local, "log_fh", None)
         if log_fh:
             try:
@@ -221,7 +221,6 @@ class PhaseBar:
             TextColumn("[progress.description]{task.description}"),
             BarColumn(bar_width=None),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TransferSpeedColumn(),
             TimeRemainingColumn(),
             expand=True,
             console=self.console,
@@ -230,6 +229,7 @@ class PhaseBar:
         self._live: Optional[Live] = None
 
     def __enter__(self) -> PhaseBar:
+        _thread_local.bar_active = True
         self._live = Live(self._render_group(), console=self.console, refresh_per_second=10)
         self._live.start()
         return self
@@ -237,6 +237,7 @@ class PhaseBar:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self._live:
             self._live.stop()
+        _thread_local.bar_active = False
 
     def start(self, phase: str) -> None:
         self._state[phase] = "active"

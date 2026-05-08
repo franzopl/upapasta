@@ -206,8 +206,7 @@ def make_rar(
             cwd=parent,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
+            bufsize=0,
         ) as proc:
             # Fila para comunicação entre threads
             output_queue: Queue[str | None] = Queue()

@@ -774,7 +774,7 @@ def make_parity(
                 pass
 
     if chosen == "parpar":
-        cmd = [exe_path]
+        cmd = [exe_path, "--progress", "stderr"]
         cmd.append(f"-s{used_slice or '1M'}")
         if use_auto_scale:
             cmd.append("-S")
@@ -818,7 +818,7 @@ def make_parity(
     try:
         # managed_popen garante SIGTERM → SIGKILL no filho se receber Ctrl+C
         with managed_popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0
         ) as proc:
             output_queue: Queue[str | None] = Queue()
             reader_thread = threading.Thread(
