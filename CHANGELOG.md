@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.26.3 - 2026-05-07
+
+### Fixes
+
+- **UI/UX**: Standardized and responsive progress bars for RAR, PAR2, and Upload phases.
+- **Progress Tracking**: Added support for backspace (`\b`) and ANSI control codes (`\x1b[0G`) in the progress parser to handle `rar` and `nyuu` output correctly.
+- **Buffering**: Switched to unbuffered binary I/O for external tool pipes to prevent stalled UI updates.
+- **External Tools**: Improved `nyuu` and `parpar` progress reporting by forcing `stderr` usage to avoid stdout block-buffering.
+- **Type Safety**: Fixed `PhaseBar` NameError in `_progress.py` using `from __future__ import annotations`.
+
+## 0.26.2 - 2026-05-07
+
+### Improvements
+
+- **Stability**: Refactored internal pipe reading and UI silencing logic to prevent flickering.
+
 ## 0.26.1 - 2026-05-06
 
 ### Improvements
