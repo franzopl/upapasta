@@ -4,6 +4,15 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.26.4 - 2026-05-08
+
+### Melhorias
+
+- **UI/UX**: Substituição do log sequencial por um dashboard de progresso moderno.
+- **Dashboard**: Adicionada exibição de metadados em tempo real (Tamanho, Ofuscação, Senha) e um mini-log para eventos recentes.
+- **Redução de Ruído**: Silenciada a lista detalhada de limpeza e logs internos de ferramentas (parpar/rar) para focar em informações relevantes.
+- **Resumo**: Refatoração do cabeçalho e resumo da operação para uma visão geral pós-upload mais limpa.
+
 ## 0.26.3 - 2026-05-07
 
 ### Correções

@@ -176,15 +176,25 @@ def _process_output(
             # Se não tem porcentagem, atualiza label se parecer significativo (contém letras)
             clean_line = _LABEL_CLEAN_RE.sub("", line)
 
-            # Filtra banners inúteis do rar
+            # Filtra banners inúteis do rar e logs internos do parpar
             lower_clean = clean_line.lower()
-            is_rar_banner = any(
+            is_noise = any(
                 x in lower_clean
-                for x in ["copyright (c)", "trial version", "evaluation copy", "please register"]
+                for x in [
+                    "copyright (c)",
+                    "trial version",
+                    "evaluation copy",
+                    "please register",
+                    "article_size=",
+                    "total=",
+                    "slice=",
+                    "min-slices=",
+                    "max-slices=",
+                ]
             )
 
             if (
-                not is_rar_banner
+                not is_noise
                 and clean_line
                 and any(c.isalpha() for c in clean_line)
                 and len(clean_line) < 80

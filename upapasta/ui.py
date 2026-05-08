@@ -209,17 +209,24 @@ class PhaseBar:
         "error": "[bold red]❌[/]",
     }
 
-    def __init__(self, console: Optional[Console] = None) -> None:
+    def __init__(
+        self,
+        console: Optional[Console] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> None:
         self.console = console or Console()
         self._state: dict[str, str] = {p: "pending" for p in self.PHASES}
         self._elapsed: dict[str, float] = {}
         self._start_time: dict[str, float] = {}
+        self.metadata = metadata or {}
+        self._logs: list[str] = []
+        self._max_logs = 3
 
         # Progresso rico
         self.progress = Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
-            BarColumn(bar_width=None),
+            BarColumn(bar_width=None, pulse_style="bright_blue"),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeRemainingColumn(),
             expand=True,
@@ -238,6 +245,13 @@ class PhaseBar:
         if self._live:
             self._live.stop()
         _thread_local.bar_active = False
+
+    def log(self, message: str) -> None:
+        """Adiciona uma mensagem curta ao log do dashboard."""
+        self._logs.append(message)
+        if len(self._logs) > self._max_logs:
+            self._logs.pop(0)
+        self._update_live()
 
     def start(self, phase: str) -> None:
         self._state[phase] = "active"
@@ -275,32 +289,60 @@ class PhaseBar:
             self._live.update(self._render_group())
 
     def _render_group(self) -> Group:
+        renderables: list[Any] = []
+
+        # Header de Metadados (opcional)
+        if self.metadata:
+            meta_table = Table.grid(padding=(0, 1))
+            meta_table.add_column(style="bold magenta")
+            meta_table.add_column()
+
+            if "size" in self.metadata:
+                meta_table.add_row(_("Tamanho:"), f"{self.metadata['size']} GB")
+            if "obfuscate" in self.metadata:
+                status = "[green]ON[/]" if self.metadata["obfuscate"] else "[grey50]OFF[/]"
+                meta_table.add_row(_("Ofuscação:"), status)
+            if "password" in self.metadata and self.metadata["password"]:
+                pwd = self.metadata["password"]
+                meta_table.add_row(_("Senha RAR:"), f"[bold yellow][ {pwd} ][/]")
+
+            renderables.append(meta_table)
+            renderables.append("")
+
         # Tabela de Fases
         table = Table.grid(padding=(0, 2))
-        # Adiciona uma única coluna para as fases
         table.add_column(justify="left")
 
-        for p in self.PHASES:
+        for i, p in enumerate(self.PHASES, 1):
             state = self._state[p]
             icon = self._ICONS.get(state, "⬜")
             display_name = _(p)
+            step_prefix = f"[dim][{i}/{len(self.PHASES)}][/] "
+
             if state == "done":
                 t = int(self._elapsed.get(p, 0))
                 table.add_row(
-                    f"{icon} [bold green]{display_name}[/] [dim]({t // 60:02d}:{t % 60:02d})[/]"
+                    f"{icon} {step_prefix}[bold green]{display_name}[/] [dim]({t // 60:02d}:{t % 60:02d})[/]"
                 )
             elif state == "active":
-                table.add_row(f"{icon} [bold cyan]{display_name}...[/]")
+                table.add_row(f"{icon} {step_prefix}[bold cyan]{display_name}...[/]")
             elif state == "error":
-                table.add_row(f"{icon} [bold red]{display_name}[/]")
+                table.add_row(f"{icon} {step_prefix}[bold red]{display_name}[/]")
             else:
-                table.add_row(f"{icon} [grey50]{display_name}[/]")
+                table.add_row(f"{icon} {step_prefix}[grey50]{display_name}[/]")
 
-        # Layout Final
-        renderables: list[Any] = [table]
+        renderables.append(table)
+
+        # Barra de Progresso Ativa
         if self.active_task is not None:
             renderables.append("")
             renderables.append(self.progress)
+
+        # Logs Recentes
+        if self._logs:
+            renderables.append("")
+            for log_msg in self._logs:
+                renderables.append(f"[dim]  • {log_msg}[/]")
 
         return Group(*renderables)
 

@@ -601,7 +601,13 @@ class UpaPastaOrchestrator:
             nntp_connections,
         )
 
-        with PhaseBar() as bar:
+        meta = {
+            "size": res["total_gb"],
+            "obfuscate": self.obfuscate,
+            "password": self.rar_password,
+        }
+
+        with PhaseBar(metadata=meta) as bar:
             single_file_no_rar = (
                 self.input_path.is_file()
                 and self.skip_rar
@@ -620,8 +626,8 @@ class UpaPastaOrchestrator:
                 bar.start("NFO")
                 if not self.run_generate_nfo(bar=bar):
                     bar.skip("NFO")
-                    # print(_("Atenção: falha ao gerar .nfo, mas continuando..."))
                 else:
+                    bar.log(_("Arquivo NFO gerado com sucesso."))
                     bar.done("NFO")
             else:
                 bar.skip("NFO")
@@ -637,6 +643,7 @@ class UpaPastaOrchestrator:
                     bar.error("RAR")
                     self._cleanup_on_error()
                     return 1
+                bar.log(_("Arquivo RAR criado com sucesso."))
                 bar.done("RAR")
             else:
                 if not self.run_makerar(bar=bar):
@@ -655,6 +662,7 @@ class UpaPastaOrchestrator:
                     bar.error("PAR2")
                     self._cleanup_on_error(preserve_rar=True)
                     return 2
+                bar.log(_("Arquivos de paridade criados com sucesso."))
                 bar.done("PAR2")
             else:
                 if not self.run_makepar(bar=bar):
@@ -670,12 +678,12 @@ class UpaPastaOrchestrator:
                     bar.error("UPLOAD")
                     self._cleanup_on_error()
                     return 3
+                bar.log(_("Upload concluído para Usenet."))
                 bar.done("UPLOAD")
                 self.cleanup()
                 self._revert_extension_normalization()
                 self._revert_obfuscation()
             else:
-                # print(_("\n⏭️  [--skip-upload] Upload foi pulado."))
                 self._revert_extension_normalization()
                 self._revert_obfuscation()
 

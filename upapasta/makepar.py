@@ -756,12 +756,13 @@ def make_parity(
             used_slice, min_input_slices, max_input_slices = _compute_dynamic_slice(
                 total_bytes, article_size
             )
-            total_gb = total_bytes / (1024**3)
-            print(
-                f"  [parpar] ARTICLE_SIZE={_fmt_size(article_size)} | "
-                f"total={total_gb:.1f} GB → slice={used_slice} "
-                f"min-slices={min_input_slices} max-slices={max_input_slices}"
-            )
+            if not bar:
+                total_gb = total_bytes / (1024**3)
+                print(
+                    f"  [parpar] ARTICLE_SIZE={_fmt_size(article_size)} | "
+                    f"total={total_gb:.1f} GB → slice={used_slice} "
+                    f"min-slices={min_input_slices} max-slices={max_input_slices}"
+                )
         # -S sempre ativo para parpar (auto-scaling garante blocos adequados)
         use_auto_scale = True
 
@@ -806,9 +807,13 @@ def make_parity(
     input_desc = (
         f"pasta '{rar_path}' ({len(files_to_process)} arquivo(s))" if is_folder else f"'{rar_path}'"
     )
-    print(
-        f"Criando paridade para {input_desc} -> '{out_par2}' (redundância {redundancy}%) usando {chosen}..."
+    msg = _("Criando paridade para {input} -> '{out}' ({red}%)...").format(
+        input=input_desc, out=os.path.basename(out_par2), red=redundancy
     )
+    if bar:
+        bar.log(msg)
+    else:
+        print(msg)
 
     if dry_run:
         print("[DRY-RUN] Comando PAR2:")
@@ -829,10 +834,12 @@ def make_parity(
             rc = proc.wait()
 
         if rc == 0:
-            print("Arquivos de paridade criados com sucesso.")
+            if not bar:
+                print(_("Arquivos de paridade criados com sucesso."))
             return 0
         else:
-            print(f"Erro: '{chosen}' retornou código {rc}.")
+            if not bar:
+                print(_("Erro: '{chosen}' retornou código {rc}.").format(chosen=chosen, rc=rc))
             return 5
     except KeyboardInterrupt:
         # managed_popen já terminou o filho; propaga para obfuscate_and_par

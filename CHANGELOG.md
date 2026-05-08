@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.26.4 - 2026-05-08
+
+### Improvements
+
+- **UI/UX**: Replaced the sequential log with a modern progress dashboard.
+- **Dashboard**: Added live metadata display (Size, Obfuscation, Password) and a mini-log for recent events.
+- **Noise Reduction**: Silenced detailed cleanup lists and internal tool logs (parpar/rar) to focus on relevant information.
+- **Summary**: Refined the operation header and summary for a cleaner post-upload overview.
+
 ## 0.26.3 - 2026-05-07
 
 ### Fixes

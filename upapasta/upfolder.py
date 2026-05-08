@@ -595,14 +595,15 @@ def upload_to_usenet(
     if nzb_out:
         rows.append((_("NZB"), nzb_out))
 
-    label_w = max(len(r[0]) for r in rows)
-    print(sep)
-    print(_("  Upload para Usenet"))
-    print(sep)
-    for label, value in rows:
-        print(f"  {label:<{label_w}}  {value}")
-    print(sep)
-    print()
+    if not bar:
+        label_w = max(len(r[0]) for r in rows)
+        print(sep)
+        print(_("  Upload para Usenet"))
+        print(sep)
+        for label, value in rows:
+            print(f"  {label:<{label_w}}  {value}")
+        print(sep)
+        print()
 
     # ── dry-run: monta cmd com servidor primário e imprime ────────────────────
     if dry_run:
@@ -826,16 +827,25 @@ def upload_to_usenet(
 
     if nzb_out_abs and os.path.exists(nzb_out_abs) and password and not skip_rar:
         inject_nzb_password(nzb_out_abs, password)
-        print(_("Senha injetada no NZB."))
+        if bar:
+            bar.log(_("Senha injetada no NZB."))
+        else:
+            print(_("Senha injetada no NZB."))
 
     if nzb_out_abs:
         if not _verify_nzb(nzb_out_abs):
-            print(
-                _(
-                    "Aviso: NZB gerado em '{path}' está ausente, vazio ou não contém elementos <file>."
-                ).format(path=nzb_out_abs)
+            msg = _("Aviso: NZB gerado em '{path}' está ausente, vazio ou inválido.").format(
+                path=nzb_out_abs
             )
+            if bar:
+                bar.log(msg)
+            else:
+                print(msg)
         else:
-            print(_("NZB verificado: {name}").format(name=os.path.basename(nzb_out_abs)))
+            msg = _("NZB verificado: {name}").format(name=os.path.basename(nzb_out_abs))
+            if bar:
+                bar.log(msg)
+            else:
+                print(msg)
 
     return 0

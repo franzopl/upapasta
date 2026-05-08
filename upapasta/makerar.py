@@ -164,22 +164,26 @@ def make_rar(
         if vol_bytes is not None:
             cmd.append(f"-v{vol_bytes}b")
             num_vols = max(1, -(-total_bytes // vol_bytes))  # ceil division
-            print(
-                _(
-                    "Criando '{rar}' em volumes de {size} MB (~{count} partes, {total} MB total)..."
-                ).format(
-                    rar=out_rar,
-                    size=vol_bytes // (1024 * 1024),
-                    count=num_vols,
-                    total=total_bytes // (1024 * 1024),
-                )
+            msg = _(
+                "Criando '{rar}' em volumes de {size} MB (~{count} partes, {total} MB total)..."
+            ).format(
+                rar=out_rar,
+                size=vol_bytes // (1024 * 1024),
+                count=num_vols,
+                total=total_bytes // (1024 * 1024),
             )
+            if bar:
+                bar.log(msg)
+            else:
+                print(msg)
         else:
-            print(
-                _("Criando '{rar}' a partir de '{input}' (usando {threads} threads)...").format(
-                    rar=out_rar, input=input_path, threads=num_threads
-                )
+            msg = _("Criando '{rar}' a partir de '{input}' (usando {threads} threads)...").format(
+                rar=out_rar, input=input_path, threads=num_threads
             )
+            if bar:
+                bar.log(msg)
+            else:
+                print(msg)
     else:
         # Arquivo único: sem volume splitting, sem flag -r
         total_bytes = os.path.getsize(input_path)
@@ -189,11 +193,13 @@ def make_rar(
             cmd.append(f"-hp{password}")
         if force:
             cmd.append("-o+")
-        print(
-            _("Criando '{rar}' a partir de '{target}' (usando {threads} threads)...").format(
-                rar=out_rar, target=archive_target, threads=num_threads
-            )
+        msg = _("Criando '{rar}' a partir de '{target}' (usando {threads} threads)...").format(
+            rar=out_rar, target=archive_target, threads=num_threads
         )
+        if bar:
+            bar.log(msg)
+        else:
+            print(msg)
 
     cmd += [out_rar, archive_target]
 
@@ -226,17 +232,20 @@ def make_rar(
             rc = proc.wait()
 
         if rc == 0:
-            print(_("Arquivo .rar criado com sucesso."))
+            if not bar:
+                print(_("Arquivo .rar criado com sucesso."))
             if vol_bytes is None:
                 return 0, out_rar
             matches = glob.glob(os.path.join(parent, glob.escape(base) + ".part*.rar"))
             if matches:
                 return 0, sorted(matches)[0]
             # Volumes esperados mas não encontrados — rar gerou arquivo único
-            print(_("Aviso: volumes RAR não encontrados, usando arquivo único."))
+            if not bar:
+                print(_("Aviso: volumes RAR não encontrados, usando arquivo único."))
             return 0, out_rar
         else:
-            print(_("Erro: 'rar' retornou código {rc}.").format(rc=rc))
+            if not bar:
+                print(_("Erro: 'rar' retornou código {rc}.").format(rc=rc))
             return 5, None
     except KeyboardInterrupt:
         # managed_popen ya terminó al hijo; se propaga al orquestador

@@ -240,34 +240,17 @@ class PipelineReporter:
         eta_str: str,
         nntp_connections: int,
     ) -> None:
-        from .ui import format_time as _ft  # noqa: F401 — evita import circular no topo
-
-        mem_gb = res["max_memory_mb"] / 1024
         print("\n" + "=" * 60)
-        print(_("🚀 UpaPasta — Workflow Completo de Upload para Usenet"))
+        print(_("🚀 UpaPasta — Preparando Upload para Usenet"))
         print("=" * 60)
         print(_("📁 Entrada:     {name}").format(name=input_path.name))
-        print(_("📦 Tamanho:     {size} GB").format(size=res["total_gb"]))
         print(
-            _("⏱  ETA upload:  ~{eta} @ {conn} conexões (estimativa)").format(
-                eta=eta_str, conn=nntp_connections
-            )
+            _("⏱  ETA upload:  ~{eta} @ {conn} conexões").format(eta=eta_str, conn=nntp_connections)
         )
-        print(_("🎯 Perfil PAR2: {profile}").format(profile=par_profile))
-        print(_("📊 Post-size:   {size}").format(size=post_size or _("(do perfil)")))
         print(_("✉️  Subject:     {subject}").format(subject=subject))
-        print(
-            _("⚡ Threads RAR: {rar_threads} ({rar_src})  PAR: {par_threads} ({par_src})").format(
-                rar_threads=rar_threads, rar_src=rar_src, par_threads=par_threads, par_src=par_src
-            )
-        )
-        print(_("🧠 Memória PAR: {mem:.1f} GB").format(mem=mem_gb))
-        if obfuscate:
-            print(_("🔒 Ofuscação:   ativada"))
-            if rar_password:
-                print(_("🔑 Senha RAR:   {password}").format(password=rar_password))
         if dry_run:
-            print(_("⚠️  [DRY-RUN] Nenhum arquivo será criado ou enviado"))
+            print(_("⚠️  [DRY-RUN] Modo de simulação ativado"))
+        print("-" * 60)
 
     @staticmethod
     def collect_stats(
@@ -333,15 +316,16 @@ class PipelineReporter:
         from .ui import format_time
 
         print("=" * 60)
-        print(_("🎉 WORKFLOW CONCLUÍDO COM SUCESSO 🎉"))
+        print(_("✨ WORKFLOW CONCLUÍDO COM SUCESSO!"))
         print("=" * 60)
-        print(_("\n📊 RESUMO DA OPERAÇÃO:"))
-        print("-" * 25)
-        print(_("  » Entrada de Origem: {name}").format(name=input_path.name))
+
         if obfuscate:
-            print(_("  » Nome Ofuscado:    {subject}").format(subject=subject))
+            print(_("  » Nome Ofuscado:    [bold cyan]{subject}[/]").format(subject=subject))
         if rar_password:
-            print(_("  » Senha RAR:        {password}").format(password=rar_password))
+            print(
+                _("  » Senha RAR:        [bold yellow]{password}[/]").format(password=rar_password)
+            )
+
         if not skip_upload:
             raw_group = group or env_vars.get("USENET_GROUP") or _("(Não especificado)")
             display_group = (
@@ -349,43 +333,29 @@ class PipelineReporter:
                 if "," in raw_group
                 else raw_group
             )
-            print(_("  » Subject da Postagem: {subject}").format(subject=subject))
-            print(_("  » Grupo Usenet: {group}").format(group=display_group))
+            print(_("  » Grupo Usenet:     {group}").format(group=display_group))
 
         print(_("\n📦 ARQUIVOS GERADOS:"))
-        print("-" * 25)
         if nfo_file and os.path.exists(nfo_file):
-            print(_("  » NFO: {name}").format(name=os.path.basename(nfo_file)))
+            print(_("  • NFO: {name}").format(name=os.path.basename(nfo_file)))
+
         rar_display = os.path.basename(rar_file) if rar_file else None
         if stats["rar_size_mb"] > 0:
-            if rar_display:
-                print(
-                    _("  » RAR: {name} ({size:.2f} MB)").format(
-                        name=rar_display, size=stats["rar_size_mb"]
-                    )
-                )
-            elif os.path.isdir(str(input_path)):
-                print(
-                    _("  » Pasta: {name} ({size:.2f} MB)").format(
-                        name=input_path.name, size=stats["rar_size_mb"]
-                    )
-                )
-            else:
-                print(
-                    _("  » Arquivo: {name} ({size:.2f} MB)").format(
-                        name=input_path.name, size=stats["rar_size_mb"]
-                    )
-                )
+            name = rar_display or input_path.name
+            print(_("  • RAR: {name} ({size:.2f} MB)").format(name=name, size=stats["rar_size_mb"]))
+
         if stats["par2_file_count"] > 0:
             print(
-                _("  » PAR2: {count} arquivo(s) ({size:.2f} MB)").format(
+                _("  • PAR2: {count} arquivo(s) ({size:.2f} MB)").format(
                     count=stats["par2_file_count"], size=stats["par2_size_mb"]
                 )
             )
+
         total_size = stats["rar_size_mb"] + stats["par2_size_mb"]
-        print(_("  » Total: {size:.2f} MB").format(size=total_size))
-        print(_("\n  » Tempo total: {time}").format(time=format_time(int(elapsed))))
-        print("\n" + "=" * 60 + "\n")
+        print(_("  • Total: {size:.2f} MB").format(size=total_size))
+
+        print(_("\n⏱️  Tempo total: {time}").format(time=format_time(int(elapsed))))
+        print("=" * 60 + "\n")
 
     @staticmethod
     def record_catalog_and_hook(
@@ -486,13 +456,9 @@ def do_cleanup_files(
     preserve_rar: bool = False,
 ) -> None:
     """Remove arquivos RAR e PAR2 gerados pelo pipeline."""
-    if on_error:
-        print(_("\n🧹 Limpando arquivos temporários devido a erro..."))
-    else:
-        if keep_files:
-            print(_("\n⚡ [--keep-files] Mantendo arquivos RAR e PAR2."))
-            return
-        print(_("\n🧹 Limpando arquivos temporários..."))
+    if keep_files and not on_error:
+        print(_("\n⚡ [--keep-files] Mantendo arquivos RAR e PAR2."))
+        return
 
     candidates: list[str] = []
     base_name: Optional[str] = None
@@ -516,23 +482,34 @@ def do_cleanup_files(
 
     files_to_delete = list(dict.fromkeys(candidates))
     deleted_count = 0
+
+    if files_to_delete:
+        if on_error:
+            print(_("\n🧹 Limpando arquivos temporários devido a erro..."))
+        else:
+            print(
+                _("\n🧹 Limpando {count} arquivo(s) temporário(s)...").format(
+                    count=len(files_to_delete)
+                ),
+                end=" ",
+                flush=True,
+            )
+
     for file_path in files_to_delete:
         try:
             if os.path.exists(file_path):
                 if os.path.isdir(file_path):
                     shutil.rmtree(file_path)
-                    print(
-                        _("  ✓ Removido diretório: {name}").format(name=os.path.basename(file_path))
-                    )
                 else:
                     os.remove(file_path)
-                    print(_("  ✓ Removido: {name}").format(name=os.path.basename(file_path)))
                 deleted_count += 1
-        except Exception as e:
-            print(_("  ✗ Erro ao remover {path}: {error}").format(path=file_path, error=e))
+        except Exception:
+            pass
 
-    if deleted_count > 0:
-        print(_("\n✅ {count} arquivo(s) removido(s) com sucesso").format(count=deleted_count))
+    if deleted_count > 0 and not on_error:
+        print(_("✅ Concluído"))
+    elif deleted_count > 0 and on_error:
+        print(_("✅ {count} arquivo(s) removidos.").format(count=deleted_count))
     print()
 
 

@@ -209,3 +209,29 @@ def test_phasebar_done_sem_start_nao_quebra():
     bar.done("DONE")  # nunca chamou start("DONE")
     assert bar._state["DONE"] == "done"
     assert "DONE" not in bar._elapsed
+
+
+def test_phasebar_metadata_render():
+    meta = {"size": 10.5, "obfuscate": True, "password": "secret_pwd"}
+    bar = PhaseBar(metadata=meta)
+    with patch("upapasta.ui._", side_effect=lambda x: x):
+        group = bar._render_group()
+        from rich.console import Console
+
+        console = Console(width=100)
+        with console.capture() as capture:
+            console.print(group)
+        output = capture.get()
+        assert "10.5 GB" in output
+        assert "ON" in output
+        assert "secret_pwd" in output
+
+
+def test_phasebar_log_rotation():
+    bar = PhaseBar()
+    bar._max_logs = 2
+    bar.log("msg1")
+    bar.log("msg2")
+    bar.log("msg3")
+    assert len(bar._logs) == 2
+    assert bar._logs == ["msg2", "msg3"]
