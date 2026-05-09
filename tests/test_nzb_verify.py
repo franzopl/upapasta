@@ -49,7 +49,7 @@ def test_verify_nzb_empty(tmp_path):
 
 
 def test_verify_nzb_missing():
-    assert _verify_nzb("/tmp/this_file_does_not_exist_upapasta.nzb") is False
+    assert _verify_nzb("non_existent_file_upapasta_test.nzb") is False
 
 
 def test_upload_retry_on_failure(tmp_path, monkeypatch):

@@ -30,15 +30,12 @@ def _terminate_process(proc: subprocess.Popen[Any], timeout: int = 5) -> None:
     """
     Encerra o processo filho de forma segura.
 
-    Sequência:
-      1. poll() — já terminou? Nada a fazer.
-      2. terminate() — envia SIGTERM (graceful).
-      3. wait(timeout) — aguarda até `timeout` segundos.
-      4. kill() — envia SIGKILL se ainda estiver vivo (força bruta).
-      5. wait() — coleta o exit code para evitar zumbi.
+    No Unix, envia SIGTERM e depois SIGKILL se necessário.
+    No Windows, terminate() e kill() ambos encerram o processo abruptamente.
     """
     if proc.poll() is not None:
         return  # Já terminou
+
     try:
         proc.terminate()
         proc.wait(timeout=timeout)
@@ -60,19 +57,14 @@ def managed_popen(
     """
     Context manager que garante encerramento do processo filho em qualquer situação.
 
-    Uso idêntico a subprocess.Popen() — todos os args e kwargs são repassados
-    diretamente. A diferença é que em caso de KeyboardInterrupt, Exception, ou
-    saída antecipada, o processo filho recebe SIGTERM (e SIGKILL como fallback).
-
-    Exemplo:
-        with managed_popen(cmd, stdout=subprocess.PIPE, text=True) as proc:
-            for line in proc.stdout:
-                print(line, end='')
-            rc = proc.wait()
-
-    Levanta KeyboardInterrupt normalmente após encerrar o filho, para que o
-    orquestrador (main.py) possa fazer sua própria limpeza.
+    No Windows, adiciona creationflags=subprocess.CREATE_NO_WINDOW por padrão
+    para evitar janelas de console "pipocando" para subprocessos, a menos que
+    já fornecido.
     """
+    if sys.platform == "win32" and "creationflags" not in kwargs:
+        # 0x08000000 = CREATE_NO_WINDOW
+        kwargs["creationflags"] = 0x08000000
+
     proc = subprocess.Popen(*args, **kwargs)
     try:
         yield proc

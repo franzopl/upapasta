@@ -353,7 +353,7 @@ class TestOrchestratorStrongObfuscateUnified:
 
     def test_obfuscate_flag_sets_strong_obfuscate_true(self):
         orch = UpaPastaOrchestrator(
-            input_path="/tmp",
+            input_path="fake_tmp",
             obfuscate=True,
         )
         assert orch.strong_obfuscate is True, (
@@ -362,7 +362,7 @@ class TestOrchestratorStrongObfuscateUnified:
 
     def test_no_obfuscate_keeps_strong_obfuscate_false(self):
         orch = UpaPastaOrchestrator(
-            input_path="/tmp",
+            input_path="fake_tmp",
             obfuscate=False,
         )
         assert orch.strong_obfuscate is False, (
@@ -372,7 +372,7 @@ class TestOrchestratorStrongObfuscateUnified:
     def test_strong_obfuscate_explicit_deprecated_path(self):
         """Mesmo passando strong_obfuscate=True diretamente, deve permanecer True."""
         orch = UpaPastaOrchestrator(
-            input_path="/tmp",
+            input_path="fake_tmp",
             obfuscate=True,
             strong_obfuscate=True,
         )

@@ -108,10 +108,6 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
     - `--obfuscate` agora aplica ofuscação máxima (comportamento anterior do `--strong-obfuscate`)
     - `--strong-obfuscate` deprecated com aviso; alias para `--obfuscate`
     - `orchestrator.py`: `strong_obfuscate` sempre `True` quando `obfuscate=True`
-- [ ] **3.0.1 · Camuflagem de NFO** `Low · Low effort`
-    - Flag `--decoy-nfo`: substitui o NFO real por um genérico antes do upload; NFO local permanece intacto
-    - Útil para esconder metadados de indexadores "peepers" sem comprometer a experiência do downloader
-
 ### ~~2.7 · Refactor `makepar.py::obfuscate_and_par` into sub-functions by mode~~ ✅ Completed
 - Function reduced from 195 lines → 72 lines with 5 sub-functions (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure)
 - Goal: main function < 60 lines (close, ~72 is acceptable)

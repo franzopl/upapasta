@@ -372,7 +372,7 @@ def test_watch_loop_processes_new_item(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(watch_mod, "UpaPastaSession", lambda o: mock_session)
     monkeypatch.setattr(
-        watch_mod, "setup_session_log", lambda name, env_file: ("/tmp/x.log", MagicMock())
+        watch_mod, "setup_session_log", lambda name, env_file: ("x.log", MagicMock())
     )
     monkeypatch.setattr(watch_mod, "teardown_session_log", lambda fh, p: None)
 

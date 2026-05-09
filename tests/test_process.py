@@ -37,6 +37,7 @@ class TestTerminateProcess:
         _terminate_process(proc)
         assert proc.poll() is not None
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Windows doesn't support SIGTERM trapping")
     def test_terminate_signal_sent(self):
         """Processo deve receber SIGTERM e terminar gracefully."""
         # Script que ignora SIGTERM e executa até recebê-lo
@@ -64,6 +65,9 @@ while True:
 
         assert proc.poll() is not None, "Processo não terminou após SIGTERM"
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Windows doesn't support SIGTERM/SIGKILL signals"
+    )
     def test_kill_as_fallback(self):
         """Processo que não responde a SIGTERM deve receber SIGKILL."""
         # Script que ignora SIGTERM (vai precisar de SIGKILL)

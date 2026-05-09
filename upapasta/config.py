@@ -8,12 +8,24 @@ from __future__ import annotations
 
 import getpass
 import os
+import sys
 from typing import Callable, Optional
 
 from .i18n import _
 from .profiles import DEFAULT_PROFILE, PROFILES  # noqa: E402
 
-CONFIG_DIR = os.path.expanduser("~/.config/upapasta")
+
+def _get_default_config_dir() -> str:
+    if sys.platform == "win32":
+        # No Windows, usa %APPDATA%/upapasta
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            return os.path.join(appdata, "upapasta")
+    # Padrão Unix: ~/.config/upapasta
+    return os.path.expanduser("~/.config/upapasta")
+
+
+CONFIG_DIR = _get_default_config_dir()
 DEFAULT_ENV_FILE = os.path.join(CONFIG_DIR, ".env")
 
 REQUIRED_CRED_KEYS = ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS", "USENET_GROUP"]

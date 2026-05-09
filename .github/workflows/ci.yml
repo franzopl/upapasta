@@ -8,10 +8,12 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.11", "3.12"]
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.9", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
@@ -21,16 +23,28 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install parpar
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
-          curl -fsSL https://github.com/animetosho/ParPar/releases/download/v0.4.5/parpar-v0.4.5-linux-static-amd64.xz | xz -d > /usr/local/bin/parpar
-          chmod +x /usr/local/bin/parpar
+          sudo apt-get update && sudo apt-get install -y gettext xz-utils
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest pytest-cov ruff mypy
+          # Install parpar
+          curl -fsSL https://github.com/animetosho/ParPar/releases/download/v0.4.5/parpar-v0.4.5-linux-static-amd64.xz | xz -d > /tmp/parpar
+          sudo mv /tmp/parpar /usr/local/bin/parpar
+          sudo chmod +x /usr/local/bin/parpar
+          # Install nyuu
+          sudo npm install -g nyuu --unsafe-perm
 
-      - name: Install dependencies
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install pytest ruff mypy
+          pip install pytest pytest-cov ruff mypy
+          pip install parpar
+          npm install -g nyuu
 
       - name: Lint (ruff)
         run: ruff check upapasta/ tests/
@@ -39,17 +53,14 @@ jobs:
         run: mypy upapasta/ --strict
 
       - name: Check i18n (msgfmt)
+        if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install -y gettext
           msgfmt --check upapasta/locale/pt_BR/LC_MESSAGES/upapasta.po
 
-      - name: Check for missing i18n
-        run: |
-          # Detect print() calls that are not wrapped in _()
-          # We exclude known exceptions or just warn
-          grep -r 'print(' upapasta/ | grep -v '_(' || true
-
       - name: Test (pytest)
+        shell: bash
         run: |
-          UPAPASTA_LANG=en pytest tests/ -v --tb=short
-          UPAPASTA_LANG=pt_BR pytest tests/ -v --tb=short
+          export UPAPASTA_LANG=en
+          pytest tests/ -v --tb=short
+          export UPAPASTA_LANG=pt_BR
+          pytest tests/ -v --tb=short

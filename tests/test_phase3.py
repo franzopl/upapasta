@@ -310,7 +310,7 @@ class TestMultiInput:
     def test_validate_jobs_invalido(self):
         from upapasta.cli import _validate_flags
 
-        args = self._make_args(["/tmp/a"], jobs=0)
+        args = self._make_args(["a"], jobs=0)
         result = _validate_flags(args)
         assert result is False
 
@@ -330,13 +330,13 @@ class TestMultiInput:
         with patch("upapasta.main._run_single_input", side_effect=fake_run_single):
             rc = _run_multi_input(
                 args,
-                ["/tmp/a", "/tmp/b", "/tmp/c"],
+                ["a", "b", "c"],
                 ".env",
                 jobs=1,
             )
 
         assert rc == 0
-        assert chamados == ["/tmp/a", "/tmp/b", "/tmp/c"]
+        assert chamados == ["a", "b", "c"]
 
     def test_run_multi_input_reporta_falhas(self):
         from upapasta.main import _run_multi_input
@@ -354,7 +354,7 @@ class TestMultiInput:
         with patch("upapasta.main._run_single_input", side_effect=fake_run_single):
             rc = _run_multi_input(
                 args,
-                ["/tmp/a", "/tmp/b", "/tmp/c"],
+                ["a", "b", "c"],
                 ".env",
                 jobs=1,
             )
@@ -377,10 +377,10 @@ class TestMultiInput:
         with patch("upapasta.main._run_single_input", side_effect=fake_run_single):
             rc = _run_multi_input(
                 args,
-                ["/tmp/a", "/tmp/b"],
+                ["a", "b"],
                 ".env",
                 jobs=2,
             )
 
         assert rc == 0
-        assert sorted(chamados) == ["/tmp/a", "/tmp/b"]
+        assert sorted(chamados) == ["a", "b"]

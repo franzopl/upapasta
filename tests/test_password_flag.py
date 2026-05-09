@@ -9,7 +9,7 @@ from upapasta.cli import _validate_flags
 
 def _make_args(**kwargs) -> argparse.Namespace:
     defaults = dict(
-        input="/tmp/fake",
+        input="fake_input_dir",
         password=None,
         rar=False,
         skip_rar_deprecated=False,

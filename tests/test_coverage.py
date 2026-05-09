@@ -368,9 +368,9 @@ class TestMakeRar:
     def test_parse_args_makerar(self, monkeypatch):
         from upapasta.makerar import parse_args
 
-        monkeypatch.setattr(sys, "argv", ["makerar", "/tmp/pasta"])
+        monkeypatch.setattr(sys, "argv", ["makerar", "fake_input_dir"])
         args = parse_args()
-        assert args.folder == "/tmp/pasta"
+        assert args.folder == "fake_input_dir"
         assert args.force is False
 
 
@@ -568,9 +568,9 @@ class TestParseArgsMakepar:
     def test_parse_args_basico(self, monkeypatch):
         from upapasta.makepar import parse_args
 
-        monkeypatch.setattr(sys, "argv", ["makepar", "/tmp/test.rar"])
+        monkeypatch.setattr(sys, "argv", ["makepar", "fake_test.rar"])
         args = parse_args()
-        assert args.rarfile == "/tmp/test.rar"
+        assert args.rarfile == "fake_test.rar"
 
 
 # ── cli.py ────────────────────────────────────────────────────────────────────
@@ -621,7 +621,7 @@ class TestCheckDependencies:
 class TestValidateFlags:
     def _args(self, **kwargs) -> argparse.Namespace:
         # input_val permite configurar o caminho sem quebrar a lógica de inputs (lista)
-        input_val = kwargs.pop("input", "/tmp/test")
+        input_val = kwargs.pop("input", "fake_test_path")
         defaults: dict = {
             "rar": False,
             "password": None,
@@ -1167,9 +1167,9 @@ class TestUpfolderParseArgs:
     def test_parse_args_basico(self, monkeypatch):
         from upapasta.upfolder import parse_args
 
-        monkeypatch.setattr(sys, "argv", ["upfolder", "/tmp/test.rar"])
+        monkeypatch.setattr(sys, "argv", ["upfolder", "fake_test.rar"])
         args = parse_args()
-        assert args.rarfile == "/tmp/test.rar"
+        assert args.rarfile == "fake_test.rar"
         assert args.dry_run is False
 
 
