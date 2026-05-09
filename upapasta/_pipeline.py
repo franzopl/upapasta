@@ -47,7 +47,7 @@ def normalize_extensionless(root: str, suffix: str = ".bin") -> dict[str, str]:
         new = path + suffix
         if os.path.exists(new):
             return
-        os.rename(path, new)
+        os.replace(path, new)
         mapping[os.path.abspath(new)] = os.path.abspath(path)
 
     if os.path.isfile(root):
@@ -65,7 +65,7 @@ def revert_extensionless(mapping: dict[str, str]) -> None:
     for new_path, original in mapping.items():
         if os.path.exists(new_path) and not os.path.exists(original):
             try:
-                os.rename(new_path, original)
+                os.replace(new_path, original)
             except OSError:
                 pass
 
@@ -588,7 +588,7 @@ def revert_obfuscation(
     if not os.path.exists(input_target) or os.path.exists(original):
         return input_target
     try:
-        os.rename(input_target, original)
+        os.replace(input_target, original)
         print(_("↩️  Nome original restaurado: {name}").format(name=input_path.name))
         input_target = original
     except OSError as e:
@@ -613,7 +613,7 @@ def revert_obfuscation(
         if os.path.exists(new_full) and not os.path.exists(orig_full):
             try:
                 os.makedirs(os.path.dirname(orig_full), exist_ok=True)
-                os.rename(new_full, orig_full)
+                os.replace(new_full, orig_full)
             except OSError:
                 pass
     return input_target

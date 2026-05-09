@@ -236,7 +236,7 @@ class TestDeepObfuscationIntegrity:
             orig_abs = root / orig_rel
             if new_abs.exists() and not orig_abs.exists():
                 orig_abs.parent.mkdir(parents=True, exist_ok=True)
-                os.rename(new_abs, orig_abs)
+                os.replace(new_abs, orig_abs)
 
         # Após reversão: hashes devem ser idênticos ao estado inicial
         post_revert = _snapshot(root)

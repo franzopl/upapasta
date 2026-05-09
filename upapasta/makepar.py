@@ -210,7 +210,7 @@ def _deep_obfuscate_tree(path: str) -> dict[str, str]:
             name, ext = os.path.splitext(f)
             new_name = generate_random_name() + ext
 
-            os.rename(os.path.join(root, f), os.path.join(root, new_name))
+            os.replace(os.path.join(root, f), os.path.join(root, new_name))
 
             new_rel_f = os.path.normpath(os.path.join(rel_root, new_name))
             orig_rel_f = os.path.normpath(os.path.join(orig_rel_root, f))
@@ -220,7 +220,7 @@ def _deep_obfuscate_tree(path: str) -> dict[str, str]:
         for i, d in enumerate(dirs):
             new_name = generate_random_name()
 
-            os.rename(os.path.join(root, d), os.path.join(root, new_name))
+            os.replace(os.path.join(root, d), os.path.join(root, new_name))
 
             new_rel_d = os.path.normpath(os.path.join(rel_root, new_name))
             orig_rel_d = os.path.normpath(os.path.join(orig_rel_root, d))
@@ -271,7 +271,7 @@ def _revert_obfuscation(
     print(_("  Revertendo ofuscação para restaurar nomes originais..."))
     if is_folder:
         try:
-            os.rename(obfuscated_path, input_path)
+            os.replace(obfuscated_path, input_path)
             print(_("  ✓ Pasta restaurada: {name}").format(name=os.path.basename(input_path)))
         except OSError as e:
             print(
@@ -293,7 +293,7 @@ def _revert_obfuscation(
             suffix = os.path.basename(vol)[len(random_base) :]
             original = os.path.join(parent_dir, orig_base + suffix)
             try:
-                os.rename(vol, original)
+                os.replace(vol, original)
                 ok += 1
             except OSError as e:
                 print(
@@ -311,7 +311,7 @@ def _revert_obfuscation(
 
     else:
         try:
-            os.rename(obfuscated_path, input_path)
+            os.replace(obfuscated_path, input_path)
             print(_("  ✓ Arquivo restaurado: {name}").format(name=os.path.basename(input_path)))
         except OSError as e:
             print(
@@ -339,7 +339,17 @@ def _obfuscate_folder(
         print(
             _("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar).")
         )
-        os.rename(input_path, obfuscated_path)
+        # Se o link_tree criou o diretório de destino antes de falhar,
+        # precisamos removê-lo para que o os.replace/os.replace funcione no Windows.
+        if os.path.exists(obfuscated_path):
+            try:
+                if os.path.isdir(obfuscated_path):
+                    shutil.rmtree(obfuscated_path)
+                else:
+                    os.remove(obfuscated_path)
+            except OSError:
+                pass
+        os.replace(input_path, obfuscated_path)
         was_linked = False
     return obfuscated_path, {random_base: base}, was_linked, obfuscated_path
 
@@ -371,7 +381,7 @@ def _obfuscate_rar_vol_set(
                 pass
         for vol in volumes:
             suffix = os.path.basename(vol)[len(original_base) :]
-            os.rename(vol, os.path.join(parent_dir, random_base + suffix))
+            os.replace(vol, os.path.join(parent_dir, random_base + suffix))
         was_linked = False
     first_suffix = os.path.basename(volumes[0])[len(original_base) :]
     obfuscated_path = os.path.join(parent_dir, random_base + first_suffix)
@@ -394,7 +404,7 @@ def _obfuscate_single_file(
         was_linked = True
     except OSError:
         print(_("  ⚠️ Hardlink falhou. Usando rename."))
-        os.rename(input_path, obfuscated_path)
+        os.replace(input_path, obfuscated_path)
         was_linked = False
     return obfuscated_path, {random_base: name_no_ext}, was_linked, obfuscated_path
 
@@ -411,7 +421,7 @@ def _rename_par2_files(
         new_p_path = os.path.join(parent_dir, random_base + p_suffix)
         if os.path.exists(new_p_path):
             os.remove(new_p_path)
-        os.rename(p_file, new_p_path)
+        os.replace(p_file, new_p_path)
 
 
 def _cleanup_on_par_failure(
