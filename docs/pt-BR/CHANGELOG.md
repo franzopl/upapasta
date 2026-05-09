@@ -4,6 +4,17 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.28.0 - 2026-05-09
+
+### Funcionalidades
+- **Suporte ao Windows**: Adicionada compatibilidade nativa completa com ambientes Windows. Removida a dependência de `SIGTERM` em favor de terminação segura, aprimorada a detecção de utilitários como parpar/nyuu (incluindo fallback local do `npm`) e eliminação de janelas de console indesejadas em processos em background.
+
+## 0.27.0 - 2026-05-09
+
+### Funcionalidades
+- **Elite Obfuscation Suite**: Implementação do modo "schizo" com nomes variáveis (10-30 chars), emails de poster aleatórios via tokens do nyuu, embaralhamento da ordem de upload e jitter no tamanho do artigo (`ARTICLE_SIZE`).
+- **Fragmentação Multigrupo**: Uploads para múltiplos grupos agora suportam divisão cruzada avançada via configuração javascript do nyuu.
+
 ## 0.26.5 - 2026-05-08
 
 ### Performance

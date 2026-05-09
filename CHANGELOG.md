@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.28.0 - 2026-05-09
+
+### Features
+- **Windows Support**: Added full native compatibility for Windows environments. Fixed `SIGTERM` reliance, improved CLI tool discovery including local `node_modules` fallback, and ensured background processes do not spawn visible console windows.
+
+## 0.27.0 - 2026-05-09
+
+### Features
+- **Elite Obfuscation**: Introduced variable name lengths, randomized poster domains via nyuu tokens, upload list shuffling, and `ARTICLE_SIZE` jitter for robust stealth.
+- **Cross-Group Fragmentation**: Enhanced `--obfuscate` to distribute multi-group uploads efficiently via nyuu JavaScript configuration.
+
 ## 0.26.5 - 2026-05-08
 
 ### Performance
