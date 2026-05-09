@@ -144,8 +144,19 @@ class UpaPastaOrchestrator:
         self.generated_nzb: Optional[str] = None
 
     @classmethod
-    def from_args(cls, args: Any, input_path: str) -> "UpaPastaOrchestrator":
+    def from_args(
+        cls,
+        args: Any,
+        input_path: str,
+        env_vars: Optional[dict[str, str]] = None,
+    ) -> "UpaPastaOrchestrator":
         """Cria instância a partir do namespace retornado por parse_args()."""
+        if env_vars is None:
+            from .config import load_env_file, resolve_env_file
+
+            env_file = getattr(args, "env", None)
+            env_vars = load_env_file(resolve_env_file(env_file))
+
         return cls(
             input_path=input_path,
             dry_run=args.dry_run,
@@ -182,7 +193,8 @@ class UpaPastaOrchestrator:
             ),
             rename_extensionless=getattr(args, "rename_extensionless", False),
             resume=getattr(args, "resume", False),
-            compressor=getattr(args, "compressor", "rar"),
+            compressor=getattr(args, "compressor", None)
+            or env_vars.get("DEFAULT_COMPRESSOR", "rar"),
         )
 
     @staticmethod

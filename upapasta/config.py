@@ -166,6 +166,9 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
         "# Args extras repassados ao nyuu (ex: --article-threads=8 --queue=20)",
         f"NYUU_EXTRA_ARGS={v('NYUU_EXTRA_ARGS')}",
         "",
+        "# Compressor padrão (rar/7z) usado quando a compactação é necessária",
+        f"DEFAULT_COMPRESSOR={v('DEFAULT_COMPRESSOR')}",
+        "",
         "# Modo silencioso: suprime saída do nyuu (true/false)",
         f"QUIET={v('QUIET')}",
         "",
@@ -260,6 +263,13 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         _("Simultaneous connections (check your plan limit)"), default=ex("NNTP_CONNECTIONS", "50")
     )
     article_sz = _ask(_("Article size"), default=ex("ARTICLE_SIZE", "700K"))
+    default_compressor = _ask(
+        _("Default compressor (rar or 7z)"),
+        default=ex("DEFAULT_COMPRESSOR", "rar") or "rar",
+        validator=lambda v: (
+            True if v.lower() in ("rar", "7z") else (print(_("    Enter 'rar' or '7z'.")) or False)
+        ),
+    )
     nzb_out = _ask(
         _("Output path for .nzb ({{filename}} = upload name)"),
         default=ex("NZB_OUT", "{filename}.nzb"),
@@ -278,6 +288,7 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         "NNTP_CONNECTIONS": connections,
         "USENET_GROUP": group,
         "ARTICLE_SIZE": article_sz,
+        "DEFAULT_COMPRESSOR": default_compressor.lower(),
         "CHECK_CONNECTIONS": "5",
         "CHECK_TRIES": "2",
         "CHECK_DELAY": "5s",
