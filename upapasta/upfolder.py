@@ -282,8 +282,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def generate_anonymous_uploader() -> str:
-    """Gera um nome de uploader aleatório e anônimo para proteger privacidade."""
-    first_names = [
+    """Gera um nome de uploader aleatório e anônimo para proteger privacidade.
+
+    Usa a filosofia Schizo de comprimentos e domínios variáveis.
+    """
+    from .makepar import generate_random_name
+
+    prefix_names = [
         "Anonymous",
         "User",
         "Poster",
@@ -297,11 +302,29 @@ def generate_anonymous_uploader() -> str:
         "Provider",
         "Supplier",
     ]
-    suffix = "".join(random.choices(string.digits, k=4))
-    name = random.choice(first_names)
-    domains = ["anonymous.net", "upload.net", "poster.com", "user.org", "generic.mail"]
-    domain = random.choice(domains)
-    return f"{name}{suffix} <{name}{suffix}@{domain}>"
+    name = random.choice(prefix_names)
+    # Variabilidade Schizo no sufixo e no nome do uploader
+    suffix = "".join(random.choices(string.digits, k=random.randint(4, 8)))
+    real_name = f"{name}{suffix}"
+
+    # Domínios variados e aleatórios
+    domains = [
+        "anonymous.net",
+        "upload.net",
+        "poster.com",
+        "user.org",
+        "generic.mail",
+        "usenet.net",
+        "binaries.net",
+        "hidden.org",
+    ]
+    # Às vezes usa um domínio totalmente aleatório (Schizo level 2)
+    if random.random() < 0.3:
+        domain = f"{generate_random_name(5, 10)}.{random.choice(['com', 'net', 'org', 'io'])}"
+    else:
+        domain = random.choice(domains)
+
+    return f"{real_name} <{real_name}@{domain}>"
 
 
 def upload_to_usenet(
