@@ -281,6 +281,21 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
+def jitter_article_size(size_str: str) -> str:
+    """Adiciona um 'jitter' (variação aleatória) ao tamanho do artigo.
+
+    Ex: '700K' -> 716800 +/- 5000 bytes. Retorna o valor em bytes como string.
+    """
+    try:
+        base_bytes = _article_size_to_bytes(size_str)
+        # Variação de +/- 1% (máximo 10KB)
+        variation = int(base_bytes * 0.01)
+        jitter = random.randint(-variation, variation)
+        return str(base_bytes + jitter)
+    except Exception:
+        return size_str
+
+
 def generate_anonymous_uploader() -> str:
     """Gera um nome de uploader aleatório e anônimo para proteger privacidade.
 
@@ -454,6 +469,9 @@ def upload_to_usenet(
         if groups:
             usenet_group = random.choice(groups)
     article_size = env_vars.get("ARTICLE_SIZE") or os.environ.get("ARTICLE_SIZE", "700K")
+    if obfuscated_map:
+        article_size = jitter_article_size(article_size)
+
     nzb_overwrite_env = env_vars.get("NZB_OVERWRITE") or os.environ.get("NZB_OVERWRITE")
 
     # Args extras do .env
