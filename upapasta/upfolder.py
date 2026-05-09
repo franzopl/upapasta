@@ -408,6 +408,10 @@ def upload_to_usenet(
         print(_("Execute 'python3 makepar.py' primeiro para gerar os arquivos .par2"))
         return 3
 
+    if obfuscated_map:
+        random.shuffle(files_to_upload)
+        random.shuffle(par2_files)
+
     # Carrega servidores NNTP (primário + opcionais failover)
     servers = _build_server_list(env_vars)
     if not servers or not servers[0]["host"]:
