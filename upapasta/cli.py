@@ -59,13 +59,12 @@ FLUXO RECOMENDADO 2026 (padrão moderno)
 
 EXEMPLOS
   upapasta Pasta/ --obfuscate                 fluxo moderno (recomendado)
-  upapasta Filme.2024/ --rar                  pasta como release único (com RAR)
+  upapasta Filme.2024/ --rar                  pasta como release único (força RAR)
+  upapasta Filme.2024/ --7z                   pasta como release único (força 7z)
   upapasta Episodio.S01E01.mkv               arquivo único, sem compactação
   upapasta A.mkv B.mkv C.mkv                múltiplos arquivos, processamento sequencial
-  upapasta Pasta1/ Pasta2/ --jobs 2          duas pastas em paralelo
-  upapasta Temporada.1/ --each               cada arquivo da pasta separado
   upapasta Pasta/ --password "abc123"         compactado com senha (usa compressor padrão)
-  upapasta Pasta/ --compressor 7z             usa 7z em vez de RAR
+  upapasta Pasta/ --compress                  compacta pasta usando compressor padrão
 """)
 
 
@@ -164,18 +163,25 @@ def parse_args() -> argparse.Namespace:
             "Sem argumento, gera uma senha aleatória de 16 caracteres."
         ),
     )
-    essential.add_argument(
+    comp_group = essential.add_mutually_exclusive_group()
+    comp_group.add_argument(
         "--rar",
         action="store_true",
-        help=_(
-            "Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão com PAR2)."
-        ),
+        help=_("Cria RAR antes do upload (ignora padrão do .env)."),
     )
-    essential.add_argument(
-        "--compressor",
-        choices=("rar", "7z"),
-        default="rar",
-        help=_("Escolhe o compressor a ser usado quando a compactação está ativa (padrão: rar)."),
+    comp_group.add_argument(
+        "--7z",
+        dest="sevenzip",
+        action="store_true",
+        help=_("Cria 7z antes do upload (ignora padrão do .env)."),
+    )
+    comp_group.add_argument(
+        "-c",
+        "--compress",
+        action="store_true",
+        help=_(
+            "Ativa compactação usando o compressor padrão definido no .env (ou RAR se não definido)."
+        ),
     )
     essential.add_argument(
         "--skip-rar",
@@ -389,10 +395,10 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def check_dependencies(compression_needed: bool = True, compressor: str = "rar") -> bool:
+def check_dependencies(pack_needed: bool = True, compressor: str = "rar") -> bool:
     """Verifica se os binários necessários estão no PATH."""
     required_commands = ["nyuu", "parpar"]
-    if compression_needed:
+    if pack_needed:
         if compressor == "7z":
             from .make7z import find_7z
 
@@ -452,11 +458,14 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         print(_("🔑  Senha gerada automaticamente: {password}").format(password=args.password))
 
     # --password ativa compactação automaticamente (precisa de container para proteger com senha)
-    if args.password and not args.rar and not getattr(args, "compressor", None):
+    if args.password and not args.rar and not getattr(args, "sevenzip", False):
         print(_("ℹ️  --password ativa compactação automaticamente (usa compressor padrão do .env)."))
-        # Deixamos args.rar como False se o usuário não pediu,
-        # o orchestrator decidirá entre RAR/7z baseando-se no .env
+        # Ativamos a flag interna de compressão genérica
+        args.compress = True
 
+    # Se o usuário pediu --rar ou --7z, garantimos que a lógica de "precisa compactar" seja seguida
+    if args.rar or getattr(args, "sevenzip", False):
+        args.compress = True
     # --strong-obfuscate é deprecated desde v0.28.0; --obfuscate já aplica ofuscação máxima
     if getattr(args, "strong_obfuscate", False):
         args.obfuscate = True

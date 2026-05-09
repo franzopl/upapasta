@@ -157,6 +157,38 @@ class UpaPastaOrchestrator:
             env_file = getattr(args, "env", None)
             env_vars = load_env_file(resolve_env_file(env_file))
 
+        # Decisão do compressor
+        if getattr(args, "rar", False):
+            final_compressor = "rar"
+        elif getattr(args, "sevenzip", False):
+            final_compressor = "7z"
+        else:
+            final_compressor = env_vars.get("DEFAULT_COMPRESSOR", "rar")
+
+        # Se o input for pasta, o padrão histórico é compactar (RAR/7z)
+        # Se for arquivo único, o padrão é upload direto UNLESS flags específicas
+        skip_pack = True
+        try:
+            p = Path(input_path)
+            if p.is_dir():
+                skip_pack = False
+        except Exception:
+            pass
+
+        # Sobrescritas que forçam compactação:
+        if (
+            getattr(args, "rar", False)
+            or getattr(args, "sevenzip", False)
+            or getattr(args, "compress", False)
+            or args.password
+            or args.obfuscate
+        ):
+            skip_pack = False
+
+        # Sobrescrita que força pular (deprecated)
+        if getattr(args, "skip_rar_deprecated", False):
+            skip_pack = True
+
         return cls(
             input_path=input_path,
             dry_run=args.dry_run,
@@ -165,7 +197,7 @@ class UpaPastaOrchestrator:
             post_size=args.post_size,
             subject=args.subject,
             group=args.group,
-            skip_rar=not args.rar and not args.password and not getattr(args, "compressor", None),
+            skip_rar=skip_pack,
             skip_par=args.skip_par,
             skip_upload=args.skip_upload,
             force=args.force,
@@ -193,8 +225,7 @@ class UpaPastaOrchestrator:
             ),
             rename_extensionless=getattr(args, "rename_extensionless", False),
             resume=getattr(args, "resume", False),
-            compressor=getattr(args, "compressor", None)
-            or env_vars.get("DEFAULT_COMPRESSOR", "rar"),
+            compressor=final_compressor,
         )
 
     @staticmethod

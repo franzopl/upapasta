@@ -150,15 +150,31 @@ def main() -> None:
     if not _validate_flags(args):
         sys.exit(1)
 
-    needs_compression = True
+    # Carrega env_vars antecipadamente para decidir dependências e compressor
+    env_vars = load_env_file(resolve_env_file(getattr(args, "env_file", None)))
+
+    # Decisão do compressor
+    if getattr(args, "rar", False):
+        final_compressor = "rar"
+    elif getattr(args, "sevenzip", False):
+        final_compressor = "7z"
+    else:
+        final_compressor = env_vars.get("DEFAULT_COMPRESSOR", "rar")
+
+    # Decisão se precisa de empacotamento
+    needs_pack = getattr(args, "compress", False)
     try:
         p = Path(args.input)
-        if p.exists() and p.is_file() and not args.obfuscate and not args.password and not args.rar:
-            needs_compression = False
+        # Se for pasta e não pediu --skip-rar, precisa de pack
+        if p.exists() and p.is_dir() and not getattr(args, "skip_rar_deprecated", False):
+            needs_pack = True
+        # Se for arquivo único mas pediu obfuscate, também ativa pack por segurança (evitar vazar ext)
+        if p.exists() and p.is_file() and args.obfuscate:
+            needs_pack = True
     except Exception:
         pass
 
-    if not check_dependencies(needs_compression, compressor=args.compressor):
+    if not check_dependencies(needs_pack, compressor=final_compressor):
         sys.exit(1)
 
     # ── Modo multi-input: múltiplos caminhos posicionais ─────────────────────
