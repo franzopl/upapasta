@@ -308,7 +308,7 @@ def fix_nzb_subjects(
                 nzb_segs = len(
                     file_elem.findall(f".//{{{ns_url}}}segment") or file_elem.findall(".//segment")
                 )
-                
+
                 # Pega o próximo arquivo disponível com essa contagem de segmentos
                 file_options = seg_to_files.get(nzb_segs)
                 if file_options:
