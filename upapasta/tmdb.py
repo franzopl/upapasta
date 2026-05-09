@@ -54,12 +54,67 @@ def parse_title_and_year(name: str) -> tuple[str, Optional[str]]:
     return clean_name, year
 
 
+def _normalize_for_search(text: str) -> str:
+    """Normaliza string para comparação: minúsculas, sem acentos e sem símbolos."""
+    text = text.lower()
+    # Remove acentos simplificado
+    table = str.maketrans(
+        "áàâãäéèêëíìîïóòôõöúùûüç",
+        "aaaaaeeeeiiiiooooouuuuc",
+    )
+    text = text.translate(table)
+    # Mantém apenas letras e números
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    # Colapsa múltiplos espaços
+    return " ".join(text.split())
+
+
+def validate_confident_match(
+    query_title: str,
+    query_year: Optional[str],
+    result: dict[str, Any],
+    media_type: str = "movie",
+) -> bool:
+    """
+    Verifica se um resultado do TMDb é confiável com base no título e ano.
+    Retorna True se houver alta confiança.
+    """
+    res_title = result.get("title") or result.get("name", "")
+    res_date = result.get("release_date") or result.get("first_air_date") or ""
+    res_year = res_date[:4] if len(res_date) >= 4 else None
+
+    # 1. Se informamos ano no arquivo, ele DEVE bater com o resultado (filtro de remakes/homônimos)
+    if query_year and res_year and query_year != res_year:
+        return False
+
+    # 2. Comparação de títulos normalizados
+    n_query = _normalize_for_search(query_title)
+    n_res = _normalize_for_search(res_title)
+
+    # Se um título contém o outro integralmente (ex: "Matrix" in "The Matrix"), é confiável.
+    if n_query in n_res or n_res in n_query:
+        return True
+
+    # 3. Verificação por palavras (fuzzy simplificado)
+    # Se pelo menos 80% das palavras do título buscado estão no resultado
+    words_query = set(n_query.split())
+    words_res = set(n_res.split())
+    if not words_query:
+        return False
+
+    matches = words_query.intersection(words_res)
+    confidence = len(matches) / len(words_query)
+
+    return confidence >= 0.8
+
+
 def search_media(
     api_key: str,
     title: str,
     year: Optional[str] = None,
     media_type: str = "movie",
     language: str = "pt-BR",
+    strict: bool = True,
 ) -> Optional[dict[str, Any]]:
     """Busca um filme ou série no TMDb e retorna o resultado mais relevante."""
     base_url = "https://api.themoviedb.org/3/search/"
@@ -83,13 +138,20 @@ def search_media(
                 return None
             results = data.get("results", [])
             if not results:
-                # Tenta sem o ano se falhar com o ano
+                # Tenta sem o ano se falhar com o ano (talvez o ano no arquivo esteja errado)
+                # Mas se strict=True, o validate_confident_match cuidará de barrar depois.
                 if year:
-                    return search_media(api_key, title, None, media_type, language)
+                    return search_media(api_key, title, None, media_type, language, strict=strict)
                 return None
 
             # Pega o primeiro resultado (mais relevante)
             item = results[0]
+
+            # Validação de Confiança (Heurística)
+            if strict:
+                if not validate_confident_match(title, year, item, media_type):
+                    return None
+
             tmdb_id = item.get("id")
 
             # Busca detalhes extras (como external IDs para IMDB)

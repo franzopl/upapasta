@@ -2,7 +2,44 @@ import json
 import urllib.error
 from unittest.mock import MagicMock, patch
 
-from upapasta.tmdb import _get_details, parse_title_and_year, search_media
+from upapasta.tmdb import _get_details, parse_title_and_year, search_media, validate_confident_match
+
+
+def test_validate_confident_match():
+    # Sucesso: Título exato + Ano exato
+    item = {"title": "The Matrix", "release_date": "1999-03-31"}
+    assert validate_confident_match("Matrix", "1999", item) is True
+
+    # Falha: Ano divergente
+    item = {"title": "The Matrix", "release_date": "2021-12-22"}
+    assert validate_confident_match("The Matrix", "1999", item) is False
+
+    # Sucesso: Sem ano no arquivo, mas título é bom
+    item = {"title": "Fight Club", "release_date": "1999-10-15"}
+    assert validate_confident_match("Fight Club", None, item) is True
+
+    # Falha: Títulos totalmente diferentes
+    item = {"title": "Toy Story", "release_date": "1995-11-22"}
+    assert validate_confident_match("The Matrix", None, item) is False
+
+
+@patch("urllib.request.urlopen")
+def test_search_media_strict_rejects_bad_year(mock_urlopen):
+    # Mock retorna um filme com ano errado (ex: remake de 2021 em vez do original de 1999)
+    response = MagicMock()
+    response.read.return_value = json.dumps(
+        {
+            "results": [
+                {"id": 456, "title": "The Matrix Resurrections", "release_date": "2021-12-22"}
+            ]
+        }
+    ).encode("utf-8")
+    response.__enter__.return_value = response
+    mock_urlopen.return_value = response
+
+    # Busca por Matrix 1999, mas a API retornou 2021 como primeiro resultado
+    result = search_media("fake_key", "Matrix", "1999", strict=True)
+    assert result is None
 
 
 def test_parse_title_and_year():

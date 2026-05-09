@@ -297,18 +297,26 @@ class UpaPastaOrchestrator:
             else:
                 # Busca automática por nome
                 clean_title, year = parse_title_and_year(self.input_path.name)
+                strict_mode = self.env_vars.get("TMDB_STRICT", "true").lower() == "true"
                 tmdb_data = search_media(
                     api_key,
                     clean_title,
                     year=year,
                     media_type=media_type,
                     language=self.env_vars.get("TMDB_LANGUAGE", "pt-BR"),
+                    strict=strict_mode,
                 )
 
-            if tmdb_data and bar:
-                title = tmdb_data.get("title") or tmdb_data.get("name")
-                bar.log(_("✅ TMDb: {title} encontrado.").format(title=title))
-
+                if tmdb_data and bar:
+                    title = tmdb_data.get("title") or tmdb_data.get("name")
+                    bar.log(_("✅ TMDb: {title} encontrado.").format(title=title))
+                elif not tmdb_data and bar and not self.tmdb_id:
+                    # Se tínhamos chave mas não veio nada, pode ser por conta do strict
+                    bar.log(
+                        _("⚠️ TMDb: nenhum resultado confiável para '{title}'.").format(
+                            title=clean_title
+                        )
+                    )
         banner = self.env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
         if not self.input_path.is_dir():
             ok = generate_nfo_single_file(str(self.input_path), nfo_path, tmdb_metadata=tmdb_data)

@@ -170,6 +170,7 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
         "# Chave da API do TMDb (opcional)",
         f"TMDB_API_KEY={v('TMDB_API_KEY')}",
         f"TMDB_LANGUAGE={v('TMDB_LANGUAGE') or 'pt-BR'}",
+        f"TMDB_STRICT={v('TMDB_STRICT') or 'true'}",
         "",
         "# Compressor padrão (rar/7z) usado quando a compactação é necessária",
         f"DEFAULT_COMPRESSOR={v('DEFAULT_COMPRESSOR')}",
@@ -315,6 +316,7 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         "LOG_TIME": "true",
         "TMDB_API_KEY": tmdb_key,
         "TMDB_LANGUAGE": tmdb_lang,
+        "TMDB_STRICT": "true",
     }
 
     print()
