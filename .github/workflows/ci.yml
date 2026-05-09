@@ -44,16 +44,16 @@ jobs:
           pip install -e .
           pip install pytest pytest-cov ruff mypy
           npm install nyuu parpar
-          echo "${{ github.workspace }}\node_modules\.bin" >> $GITHUB_PATH
+          python -c "import os; p = os.path.abspath('node_modules/.bin'); open(os.environ['GITHUB_PATH'], 'a').write(p + '\n')"
 
       - name: Debug Paths (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          ls -F "${{ github.workspace }}/node_modules/.bin" || echo "node_modules/.bin not found"
-          # Try to find nyuu using different methods
-          which nyuu || echo "which nyuu failed"
-          test -f "${{ github.workspace }}/node_modules/.bin/nyuu.cmd" && echo "nyuu.cmd exists"
+          ls -F node_modules/.bin || echo "node_modules/.bin not found"
+          # Check if they are in PATH
+          which nyuu || echo "nyuu not found in PATH"
+          which parpar || echo "parpar not found in PATH"
 
       - name: Lint (ruff)
         shell: bash

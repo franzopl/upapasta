@@ -345,7 +345,7 @@ def _obfuscate_folder(
         if os.path.exists(obfuscated_path):
             try:
                 if os.path.isdir(obfuscated_path):
-                    shutil.rmtree(obfuscated_path)
+                    shutil.rmtree(obfuscated_path, ignore_errors=True)
                 else:
                     os.remove(obfuscated_path)
             except OSError:
@@ -354,9 +354,24 @@ def _obfuscate_folder(
         if sys.platform == "win32":
             import time
 
-            time.sleep(0.1)  # Pequena pausa para o Windows liberar handles
-
-        os.replace(input_path, obfuscated_path)
+            # No Windows, os.replace não funciona se o destino for um diretório existente.
+            # E shutil.rmtree pode levar um tempo para liberar o nome no sistema de arquivos.
+            for i in range(5):
+                try:
+                    if os.path.exists(obfuscated_path):
+                        if os.path.isdir(obfuscated_path):
+                            shutil.rmtree(obfuscated_path, ignore_errors=True)
+                        else:
+                            os.remove(obfuscated_path)
+                    os.rename(input_path, obfuscated_path)
+                    break
+                except OSError:
+                    time.sleep(0.2)
+            else:
+                # Última tentativa desesperada
+                os.replace(input_path, obfuscated_path)
+        else:
+            os.replace(input_path, obfuscated_path)
 
         was_linked = False
     return obfuscated_path, {random_base: base}, was_linked, obfuscated_path
