@@ -43,15 +43,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
           pip install pytest pytest-cov ruff mypy
-          npm install -g nyuu parpar
-          # Add NPM global bin to PATH
-          echo "$(npm config get prefix)" >> $GITHUB_PATH
+          npm install nyuu parpar
+          echo "$(pwd)/node_modules/.bin" >> $GITHUB_PATH
 
       - name: Debug Paths (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          ls -F "$(npm config get prefix)"
+          ls -F node_modules/.bin || echo "node_modules/.bin not found"
           which nyuu || echo "nyuu not found"
           which parpar || echo "parpar not found"
 

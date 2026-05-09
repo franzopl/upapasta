@@ -40,6 +40,7 @@ import re
 import shutil
 import string
 import subprocess
+import sys
 import threading
 from queue import Queue
 from typing import TYPE_CHECKING, Optional, Tuple
@@ -340,7 +341,7 @@ def _obfuscate_folder(
             _("  ⚠️ Hardlink falhou (possível cross-device). Usando rename (seeding pode quebrar).")
         )
         # Se o link_tree criou o diretório de destino antes de falhar,
-        # precisamos removê-lo para que o os.replace/os.replace funcione no Windows.
+        # precisamos removê-lo para que o os.replace funcione no Windows.
         if os.path.exists(obfuscated_path):
             try:
                 if os.path.isdir(obfuscated_path):
@@ -349,7 +350,14 @@ def _obfuscate_folder(
                     os.remove(obfuscated_path)
             except OSError:
                 pass
+
+        if sys.platform == "win32":
+            import time
+
+            time.sleep(0.1)  # Pequena pausa para o Windows liberar handles
+
         os.replace(input_path, obfuscated_path)
+
         was_linked = False
     return obfuscated_path, {random_base: base}, was_linked, obfuscated_path
 

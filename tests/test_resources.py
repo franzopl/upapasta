@@ -25,13 +25,19 @@ Buffers:          512000 kB
 
 
 def test_get_mem_available_mb_parses_proc_meminfo():
-    with patch("builtins.open", mock_open(read_data=PROC_MEMINFO_SAMPLE)):
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=PROC_MEMINFO_SAMPLE)),
+    ):
         result = get_mem_available_mb()
     assert result == 8000  # 8192000 kB // 1024
 
 
 def test_get_mem_available_mb_fallback_on_ioerror():
-    with patch("builtins.open", side_effect=OSError("sem /proc")):
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", side_effect=OSError("sem /proc")),
+    ):
         result = get_mem_available_mb()
     assert result == 2048
 
@@ -39,7 +45,10 @@ def test_get_mem_available_mb_fallback_on_ioerror():
 def test_get_mem_available_mb_fallback_on_bad_format():
     # /proc/meminfo sem linha MemAvailable
     broken = "MemTotal: 16384000 kB\nMemFree: 2048000 kB\n"
-    with patch("builtins.open", mock_open(read_data=broken)):
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=broken)),
+    ):
         result = get_mem_available_mb()
     assert result == 2048
 
