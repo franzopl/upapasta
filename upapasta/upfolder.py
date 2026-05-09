@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import json
 import os
 import random
 import re
@@ -281,6 +282,27 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
+def _create_nyuu_fragmentation_config(groups: list[str]) -> str:
+    """Cria um arquivo JS temporário para o nyuu rotacionar grupos por artigo.
+
+    Esta é a técnica de fragmentação multigrupo (Cross-Group Fragmentation).
+    """
+    import tempfile
+
+    js_content = f"""
+module.exports = {{
+    newsgroups: function(article, file) {{
+        var groups = {json.dumps(groups)};
+        // Rotaciona o grupo baseado no número da parte do artigo
+        return groups[article.part % groups.length];
+    }}
+}};
+"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False, encoding="utf-8") as f:
+        f.write(js_content)
+        return f.name
+
+
 def jitter_article_size(size_str: str) -> str:
     """Adiciona um 'jitter' (variação aleatória) ao tamanho do artigo.
 
@@ -464,10 +486,12 @@ def upload_to_usenet(
 
     # Pool de grupos: seleciona um grupo aleatório por upload para distribuir
     # o histórico entre múltiplos grupos e dificultar remoção seletiva.
+    group_pool = []
     if usenet_group and "," in usenet_group:
-        groups = [g.strip() for g in usenet_group.split(",") if g.strip()]
-        if groups:
-            usenet_group = random.choice(groups)
+        group_pool = [g.strip() for g in usenet_group.split(",") if g.strip()]
+        if not obfuscated_map and group_pool:
+            usenet_group = random.choice(group_pool)
+
     article_size = env_vars.get("ARTICLE_SIZE") or os.environ.get("ARTICLE_SIZE", "700K")
     if obfuscated_map:
         article_size = jitter_article_size(article_size)
@@ -701,131 +725,151 @@ def upload_to_usenet(
     if nzb_out_abs:
         os.makedirs(os.path.dirname(nzb_out_abs), exist_ok=True)
 
-    # ── Executar nyuu com failover de servidor ────────────────────────────────
-    # Em cada tentativa, rotaciona para o próximo servidor disponível.
-    # Backoff exponencial: 30s → 90s → 270s com ±10% jitter.
-    max_attempts = 1 + max(0, upload_retries)
-    last_rc = 5
-    _BACKOFF_BASE = 30
+    # ── Configuração de Fragmentação Multigrupo ──────────────────────────────
+    tmp_js_config = None
+    if obfuscated_map and group_pool and len(group_pool) > 1:
+        tmp_js_config = _create_nyuu_fragmentation_config(group_pool)
 
-    # NZB de saída para esta rodada de upload
-    nzb_target = nzb_out_abs
+    try:
+        # ── Executar nyuu com failover de servidor ────────────────────────────────
+        # Em cada tentativa, rotaciona para o próximo servidor disponível.
+        # Backoff exponencial: 30s → 90s → 270s com ±10% jitter.
+        max_attempts = 1 + max(0, upload_retries)
+        last_rc = 5
+        _BACKOFF_BASE = 30
 
-    for attempt in range(1, max_attempts + 1):
-        if attempt > 1:
-            delay = _BACKOFF_BASE * (3 ** (attempt - 2))
-            jitter = int(delay * 0.10 * (random.random() * 2 - 1))
-            wait = max(1, delay + jitter)
-            print(
-                _("\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max}...").format(
-                    wait=wait, attempt=attempt, max=max_attempts
+        # NZB de saída para esta rodada de upload
+        nzb_target = nzb_out_abs
+
+        for attempt in range(1, max_attempts + 1):
+            if attempt > 1:
+                delay = _BACKOFF_BASE * (3 ** (attempt - 2))
+                jitter = int(delay * 0.10 * (random.random() * 2 - 1))
+                wait = max(1, delay + jitter)
+                print(
+                    _("\n⏳ Aguardando {wait}s antes da tentativa {attempt}/{max}...").format(
+                        wait=wait, attempt=attempt, max=max_attempts
+                    )
                 )
-            )
-            time.sleep(wait)
+                time.sleep(wait)
 
-        srv = servers[(attempt - 1) % len(servers)]
-        if len(servers) > 1:
-            print(
-                _("\nTentativa {attempt}/{max} — servidor: {host}").format(
-                    attempt=attempt, max=max_attempts, host=srv["host"]
+            srv = servers[(attempt - 1) % len(servers)]
+            if len(servers) > 1:
+                print(
+                    _("\nTentativa {attempt}/{max} — servidor: {host}").format(
+                        attempt=attempt, max=max_attempts, host=srv["host"]
+                    )
                 )
-            )
-        elif attempt > 1:
-            print(
-                _("\nTentativa {attempt}/{max} de upload...").format(
-                    attempt=attempt, max=max_attempts
+            elif attempt > 1:
+                print(
+                    _("\nTentativa {attempt}/{max} de upload...").format(
+                        attempt=attempt, max=max_attempts
+                    )
                 )
-            )
 
-        # Identidade: Schizo/Token-based se ofuscado, senão anônimo padrão.
-        if obfuscated_map:
-            # Token do nyuu para gerar poster aleatório POR ARTIGO
-            # Formato: ${rand(8)}@${rand(5)}.com
-            uploader = "${rand(8)}@${rand(5)}." + random.choice(["com", "net", "org"])
-        else:
-            uploader = generate_anonymous_uploader()
+            # Identidade: Schizo/Token-based se ofuscado, senão anônimo padrão.
+            if obfuscated_map:
+                # Token do nyuu para gerar poster aleatório POR ARTIGO
+                # Formato: ${rand(8)}@${rand(5)}.com
+                uploader = "${rand(8)}@${rand(5)}." + random.choice(["com", "net", "org"])
+            else:
+                uploader = generate_anonymous_uploader()
 
-        cmd = [
-            nyuu_path,
-            "--progress",
-            "stderrx",
-            "-h",
-            srv["host"],
-            "-P",
-            str(srv["port"]),
-        ]
-        if srv.get("ssl"):
-            cmd.append("-S")
-        if srv.get("ignore_cert"):
-            cmd.append("-i")
-        if obfuscated_map:
-            cmd.append("--token-eval")
-
-        cmd.extend(
-            [
-                "-u",
-                srv["user"],
-                "-p",
-                srv["password"],
-                "-n",
-                str(srv["connections"]),
-                "-g",
-                usenet_group,
-                "-a",
-                article_size,
-                "-f",
-                uploader,
-                "--date",
-                "now",
-                "-t",
-                subject,
+            cmd = [
+                nyuu_path,
+                "--progress",
+                "stderrx",
+                "-h",
+                srv["host"],
+                "-P",
+                str(srv["port"]),
             ]
-        )
-        if nzb_target:
-            cmd.extend(["-o", nzb_target])
-        if nzb_overwrite or (resume and partial_nzb_backup):
-            cmd.append("-O")
-        if upload_timeout is not None:
-            cmd.extend(["--timeout", str(upload_timeout)])
-        if nyuu_extra_args:
-            cmd.extend(nyuu_extra_args)
-        # Arquivos a postar: restantes (resume) ou todos (upload normal)
-        cmd.extend(remaining_files)
-        cmd.extend(remaining_par2)
+            if srv.get("ssl"):
+                cmd.append("-S")
+            if srv.get("ignore_cert"):
+                cmd.append("-i")
+            if obfuscated_map:
+                cmd.append("--token-eval")
+            if tmp_js_config:
+                cmd.extend(["--config", tmp_js_config])
 
-        try:
-            with managed_popen(
-                cmd,
-                cwd=working_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                bufsize=0,
-            ) as proc:
-                output_queue: Queue[str | None] = Queue()
-                reader_thread = threading.Thread(
-                    target=_read_output,
-                    args=(proc.stdout, output_queue),
-                    daemon=True,
-                )
-                reader_thread.start()
-                _process_output(output_queue, bar=bar)
-                last_rc = proc.wait()
-
-            if last_rc == 0:
-                break
-            print(
-                _("\nErro: nyuu retornou código {rc} no servidor {host}.").format(
-                    rc=last_rc, host=srv["host"]
-                )
+            cmd.extend(
+                [
+                    "-u",
+                    srv["user"],
+                    "-p",
+                    srv["password"],
+                    "-n",
+                    str(srv["connections"]),
+                ]
             )
-        except KeyboardInterrupt:
-            raise
-        except FileNotFoundError:
-            print(_("\nErro: nyuu não encontrado em '{path}'.").format(path=nyuu_path))
-            return 4
-        except OSError as e:
-            print(_("\nErro de I/O ao executar nyuu: {error}").format(error=e))
-            last_rc = 5
+            if not tmp_js_config:
+                cmd.extend(["-g", usenet_group])
+
+            cmd.extend(
+                [
+                    "-a",
+                    article_size,
+                    "-f",
+                    uploader,
+                    "--date",
+                    "now",
+                    "-t",
+                    subject,
+                ]
+            )
+            if nzb_target:
+                cmd.extend(["-o", nzb_target])
+            if nzb_overwrite or (resume and partial_nzb_backup):
+                cmd.append("-O")
+            if upload_timeout is not None:
+                cmd.extend(["--timeout", str(upload_timeout)])
+            if nyuu_extra_args:
+                cmd.extend(nyuu_extra_args)
+            # Arquivos a postar: restantes (resume) ou todos (upload normal)
+            cmd.extend(remaining_files)
+            cmd.extend(remaining_par2)
+
+            try:
+                with managed_popen(
+                    cmd,
+                    cwd=working_dir,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    bufsize=0,
+                ) as proc:
+                    output_queue: Queue[str | None] = Queue()
+                    reader_thread = threading.Thread(
+                        target=_read_output,
+                        args=(proc.stdout, output_queue),
+                        daemon=True,
+                    )
+                    reader_thread.start()
+                    _process_output(output_queue, bar=bar)
+                    last_rc = proc.wait()
+
+                if last_rc == 0:
+                    break
+                print(
+                    _("\nErro: nyuu retornou código {rc} no servidor {host}.").format(
+                        rc=last_rc, host=srv["host"]
+                    )
+                )
+            except KeyboardInterrupt:
+                raise
+            except FileNotFoundError:
+                print(_("\nErro: nyuu não encontrado em '{path}'.").format(path=nyuu_path))
+                return 4
+            except OSError as e:
+                print(_("\nErro de I/O ao executar nyuu: {error}").format(error=e))
+                last_rc = 5
+
+    finally:
+        if tmp_js_config and os.path.exists(tmp_js_config):
+            try:
+                os.remove(tmp_js_config)
+            except Exception:
+                pass
 
     if last_rc != 0:
         return last_rc
