@@ -49,6 +49,14 @@ env/
 htmlcov/
 *.cover
 
+# Imagens e Mídia (exceto as usadas no README)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+
 # UpaPasta específico
 # (Gerados durante execução)
 logs/
