@@ -287,33 +287,38 @@ def fix_nzb_subjects(
         # Quando file_sizes está disponível, constrói mapeamento segs→filename.
         # O nyuu não preserva a ordem de upload no NZB, então não se pode usar
         # o índice da file_list — match por tamanho é o único método confiável.
-        # Quando file_sizes está disponível, monta seg_count→filename para matching por tamanho.
-        # Isso é necessário porque o nyuu não preserva a ordem de upload no NZB.
-        seg_to_file: dict[int, str] = {}
+        # Quando file_sizes está disponível, monta seg_count -> [lista_de_arquivos] para matching.
+        # Usamos uma lista porque múltiplos arquivos podem ter o mesmo tamanho (mesma contagem de segmentos).
+        seg_to_files: dict[int, list[str]] = {}
         if file_list and file_sizes:
             for fname in file_list:
                 size = file_sizes.get(fname)
                 if size is not None:
                     expected_segs = max(1, math.ceil(size / article_size_bytes))
-                    seg_to_file[expected_segs] = fname
+                    seg_to_files.setdefault(expected_segs, []).append(fname)
 
         # from_file_list: fallback index-based quando não há tamanhos disponíveis.
-        from_file_list = bool(not seg_to_file and file_list and len(file_list) == len(files))
+        from_file_list = bool(not seg_to_files and file_list and len(file_list) == len(files))
 
         for i, file_elem in enumerate(files):
             old_subject = file_elem.get("subject", "")
 
-            if seg_to_file:
+            if seg_to_files:
                 # Match por contagem de segmentos (confiável, ordem-independente)
                 nzb_segs = len(
                     file_elem.findall(f".//{{{ns_url}}}segment") or file_elem.findall(".//segment")
                 )
-                current_filename = seg_to_file.get(nzb_segs)
-                if current_filename is None:
-                    # Vizinho mais próximo (evita deixar entry sem label)
-                    current_filename = seg_to_file[
-                        min(seg_to_file, key=lambda k: abs(k - nzb_segs))
-                    ]
+                
+                # Pega o próximo arquivo disponível com essa contagem de segmentos
+                file_options = seg_to_files.get(nzb_segs)
+                if file_options:
+                    current_filename = file_options.pop(0)
+                else:
+                    # Vizinho mais próximo se a contagem exata não existir (raro)
+                    closest_seg = min(seg_to_files.keys(), key=lambda k: abs(k - nzb_segs))
+                    current_filename = seg_to_files[closest_seg].pop(0)
+                    if not seg_to_files[closest_seg]:
+                        del seg_to_files[closest_seg]
                 prefix, suffix = "", ""
             elif from_file_list:
                 # Index-based: usado quando file_sizes não está disponível (ex: testes, --season)
