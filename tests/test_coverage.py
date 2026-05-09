@@ -937,18 +937,18 @@ class TestGenerateRandomName:
         from upapasta.makepar import generate_random_name
 
         name = generate_random_name()
-        assert len(name) == 12
+        assert 10 <= len(name) <= 30
 
     def test_comprimento_customizado(self):
         from upapasta.makepar import generate_random_name
 
-        name = generate_random_name(20)
-        assert len(name) == 20
+        name = generate_random_name(15, 15)
+        assert len(name) == 15
 
     def test_apenas_alphanumerico(self):
         from upapasta.makepar import generate_random_name
 
-        name = generate_random_name(50)
+        name = generate_random_name(20, 20)
         assert name.isalnum()
 
 

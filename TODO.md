@@ -98,6 +98,18 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 
 ### 3.0 · Obfuscation Improvements
 - [x] ✅ Implement `--strong-obfuscate`: keeps random names inside the NZB as well (maximum privacy in indexers, requires manual renaming or via par2 after download). **Implemented in 0.23.0**
+- [ ] **v0.25.0+ · Refactor Obfuscation Model (Unified Standard)**
+    - Unificar `--obfuscate` e `--strong-obfuscate` em um único comportamento de segurança máxima.
+    - Adotar "Strong Obfuscation" como padrão: nomes aleatórios em arquivos, subjects da Usenet e subjects do NZB.
+    - **Randomização de Identidade por File-Entry**: Gerar um "Poster" (nome/e-mail) aleatório para cada arquivo/volume individual dentro do mesmo NZB, dificultando o agrupamento por autor.
+    - **Modo Schizo Avançado**: Comprimentos de nomes variáveis (10-30 chars) e domínios de e-mail aleatórios.
+    - **Deep Obfuscation Protocols (Elite)**:
+        - *Fragmentação Multigrupo*: Distribuir volumes de um mesmo release entre múltiplos grupos (ex: boneless, mom, etc) para evitar takedowns focados em um único grupo.
+        - *Upload Embaralhado (Shuffled)*: Postar partes e arquivos em ordem não-linear para quebrar detecção de sequenciamento lógico.
+        - *Jitter de Tamanho*: Variar levemente o `ARTICLE_SIZE` entre posts para quebrar assinaturas de tráfego.
+        - *Camuflagem de NFO*: Suporte a NFOs falsos/genéricos para esconder a natureza do conteúdo de indexadores "peepers".
+    - Motivação: Downloaders modernos (SABnzbd/NZBGet) já usam PAR2 para renomeação automática; a ofuscação reversível é considerada insegura pois vaza metadados em indexadores.
+    - Manter apenas o nome do arquivo `.nzb` legível no disco local.
 
 ### ~~2.7 · Refactor `makepar.py::obfuscate_and_par` into sub-functions by mode~~ ✅ Completed
 - Function reduced from 195 lines → 72 lines with 5 sub-functions (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure)

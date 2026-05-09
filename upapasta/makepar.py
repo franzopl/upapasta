@@ -165,8 +165,9 @@ def get_parpar_memory_limit() -> Optional[str]:
 # ── Obfuscação ────────────────────────────────────────────────────────────────
 
 
-def generate_random_name(length: int = 12) -> str:
-    """Gera um nome de arquivo aleatório com letras e dígitos."""
+def generate_random_name(min_len: int = 10, max_len: int = 30) -> str:
+    """Gera um nome de arquivo aleatório com letras e dígitos e comprimento variável."""
+    length = random.randint(min_len, max_len)
     chars = string.ascii_lowercase + string.digits
     return "".join(random.choice(chars) for _i in range(length))
 
