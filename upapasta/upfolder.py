@@ -35,6 +35,7 @@ import re
 import shutil
 import string
 import subprocess
+import sys
 import threading
 import time
 import xml.etree.ElementTree as ET
@@ -244,10 +245,18 @@ def _verify_nzb(nzb_path: str) -> bool:
 
 def find_nyuu() -> Optional[str]:
     """Procura executável 'nyuu' no PATH."""
-    for cmd in ("nyuu", "nyuu.exe"):
+    cmds = ["nyuu", "nyuu.cmd", "nyuu.exe"]
+    for cmd in cmds:
         path = shutil.which(cmd)
         if path:
             return path
+
+    # Fallback para node_modules local (comum em CI)
+    if sys.platform == "win32":
+        local_bin = os.path.join(os.getcwd(), "node_modules", ".bin", "nyuu.cmd")
+        if os.path.exists(local_bin):
+            return local_bin
+
     return None
 
 

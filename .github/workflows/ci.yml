@@ -46,6 +46,12 @@ jobs:
           npm install nyuu parpar
           python -c "import os; p = os.path.abspath('node_modules/.bin'); open(os.environ['GITHUB_PATH'], 'a').write(p + '\n')"
 
+      - name: Add node_modules to PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Add-Content -Path $env:GITHUB_PATH -Value "$(Get-Location)\node_modules\.bin"
+
       - name: Debug Paths (Windows)
         if: runner.os == 'Windows'
         shell: bash

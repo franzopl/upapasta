@@ -589,10 +589,19 @@ def find_par2() -> tuple[str, str] | None:
 
 
 def find_parpar() -> tuple[str, str] | None:
-    for cmd in ("parpar", "parpar.exe"):
+    """Procura 'parpar' ou 'par2' no PATH."""
+    cmds = ["parpar", "parpar.cmd", "parpar.exe", "par2", "par2.exe"]
+    for cmd in cmds:
         path = shutil.which(cmd)
         if path:
             return ("parpar", path)
+
+    # Fallback para node_modules local (comum em CI)
+    if sys.platform == "win32":
+        local_bin = os.path.join(os.getcwd(), "node_modules", ".bin", "parpar.cmd")
+        if os.path.exists(local_bin):
+            return "parpar", local_bin
+
     return None
 
 
