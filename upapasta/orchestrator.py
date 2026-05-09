@@ -116,7 +116,8 @@ class UpaPastaOrchestrator:
         self.par_profile = par_profile
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
-        self.strong_obfuscate = strong_obfuscate
+        # Desde v0.28.0: obfuscate implica strong_obfuscate (ofuscação máxima)
+        self.strong_obfuscate = strong_obfuscate or obfuscate
         self.obfuscated_map: dict[str, str] = {}
         self.obfuscate_was_linked = False
         self.rar_password = rar_password
