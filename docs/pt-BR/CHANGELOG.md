@@ -4,6 +4,15 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.31.0 - 2026-05-09
+
+### Funcionalidades
+- **Integração com TMDb**: Busca automática de metadados de filmes e séries (sinopse, gêneros, etc.) para enriquecer arquivos NFO.
+- **Metadados no NZB**: Injeção de tags meta padrão Newznab (`title`, `poster`, `imdb`, `tag`, `tagline`) diretamente nos NZBs para melhor automação em indexadores.
+- **Utilitário de Busca TMDb**: Novo comando `--tmdb-search <termo>` para listar e encontrar IDs de mídia manualmente.
+- **Heurística de Match Estrito**: Precisão aprimorada com validação obrigatória de ano e similaridade de título.
+- **Sugestões Inteligentes**: O Dashboard agora lista IDs prováveis do TMDb quando a busca automática é ambígua.
+
 ## 0.30.0 - 2026-05-09
 
 ### Funcionalidades

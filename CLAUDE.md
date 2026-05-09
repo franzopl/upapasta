@@ -233,7 +233,7 @@ upapasta/
 ├── INSTALL.md                   # instalação por plataforma
 ├── README.md                    # vitrine pública
 ├── TODO.md                      # roadmap interno
-├── pyproject.toml               # version=0.30.0, requires-python>=3.9, mypy/ruff configurados
+├── pyproject.toml               # version=0.31.0, requires-python>=3.9, mypy/ruff configurados
 ├── .env.example                 # template completo do .env
 ├── .gitignore
 └── LICENSE                      # MIT

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.31.0 - 2026-05-09
+
+### Features
+- **TMDb Integration**: Added automated movie and TV show metadata fetching (synopsis, genres, etc.) to enrich NFO files.
+- **Enriched NZB Metadata**: Injected standard Newznab meta tags (`title`, `poster`, `imdb`, `tag`, `tagline`) directly into generated NZBs for better indexer automation.
+- **TMDb Search Utility**: New `--tmdb-search <term>` command to manually list and find media IDs without starting an upload.
+- **Strict Matching Heuristics**: Improved metadata accuracy with mandatory year matching and title similarity validation.
+- **Intelligent Suggestions**: Dashboard now logs probable TMDb ID suggestions when an automatic match is ambiguous.
+
 ## 0.30.0 - 2026-05-09
 
 ### Features
