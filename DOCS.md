@@ -111,6 +111,7 @@ What happens when you run `upapasta Folder/`:
 | `--season` | Like `--each`, but also generates a single NZB with the entire season |
 | `--obfuscate` | Maximum privacy: random names for files, PAR2 and NZB subjects |
 | `--tmdb` | Enrich NFO with TMDb metadata (requires API Key in `.env`) |
+| `--tmdb-search TERMO` | Utility: manual search for movies/TV shows and list IDs |
 | `--password [PASS]` | Encryption password; uses `DEFAULT_COMPRESSOR` if unspecified |
 | `--compress` / `-c` | Activates packaging using default compressor from `.env` |
 | `--rar` | Forces RAR5 packaging (ignores `.env`) |

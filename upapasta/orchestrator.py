@@ -29,6 +29,7 @@ from .i18n import _
 from .make7z import make_7z
 from .makepar import handle_par_failure, make_parity, obfuscate_and_par
 from .makerar import make_rar
+from .nzb import enrich_nzb_metadata
 from .resources import get_total_size
 from .ui import PhaseBar, format_time
 from .upfolder import upload_to_usenet
@@ -147,6 +148,7 @@ class UpaPastaOrchestrator:
         self.input_target: Optional[str] = None
         self.env_vars: dict[str, str] = {}
         self.generated_nzb: Optional[str] = None
+        self.tmdb_data: Optional[dict[str, Any]] = None
 
     @classmethod
     def from_args(
@@ -298,7 +300,7 @@ class UpaPastaOrchestrator:
                 # Busca automática por nome
                 clean_title, year = parse_title_and_year(self.input_path.name)
                 strict_mode = self.env_vars.get("TMDB_STRICT", "true").lower() == "true"
-                tmdb_data = search_media(
+                tmdb_data, suggestions = search_media(
                     api_key,
                     clean_title,
                     year=year,
@@ -317,9 +319,23 @@ class UpaPastaOrchestrator:
                             title=clean_title
                         )
                     )
+                    if suggestions:
+                        # Lista top 3 sugestões
+                        bar.log(_("Sugestões encontradas (use --tmdb-id):"))
+                        for s in suggestions[:3]:
+                            s_title = s.get("title") or s.get("name")
+                            s_date = s.get("release_date") or s.get("first_air_date") or ""
+                            s_year = s_date[:4] if len(s_date) >= 4 else "N/A"
+                            s_id = s.get("id")
+                            bar.log(f"  • {s_title} ({s_year}) ID: {s_id}")
+
+                self.tmdb_data = tmdb_data
+
         banner = self.env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
         if not self.input_path.is_dir():
-            ok = generate_nfo_single_file(str(self.input_path), nfo_path, tmdb_metadata=tmdb_data)
+            ok = generate_nfo_single_file(
+                str(self.input_path), nfo_path, tmdb_metadata=self.tmdb_data
+            )
             if ok:
                 self.nfo_file = nfo_path
                 if not bar:
@@ -330,7 +346,7 @@ class UpaPastaOrchestrator:
                     )
             return ok
         ok = generate_nfo_folder(
-            str(self.input_path), nfo_path, banner=banner, tmdb_metadata=tmdb_data
+            str(self.input_path), nfo_path, banner=banner, tmdb_metadata=self.tmdb_data
         )
         if ok:
             self.nfo_file = nfo_path
@@ -817,6 +833,12 @@ class UpaPastaOrchestrator:
                     bar.error("UPLOAD")
                     self._cleanup_on_error()
                     return 3
+
+                # F3.5: Enriquecimento de metadados no NZB
+                if self.generated_nzb and self.tmdb_data:
+                    enrich_nzb_metadata(self.generated_nzb, self.tmdb_data)
+                    bar.log(_("Metadados TMDb injetados no NZB."))
+
                 bar.log(_("Upload concluído para Usenet."))
                 bar.done("UPLOAD")
                 self.cleanup()

@@ -330,6 +330,11 @@ def parse_args() -> argparse.Namespace:
         help=_("Força um ID específico do TMDb para a busca de metadados (implica --tmdb)."),
     )
     advanced.add_argument(
+        "--tmdb-search",
+        metavar=_("TERMO"),
+        help=_("Busca manual por filmes/séries no TMDb e lista os resultados e IDs."),
+    )
+    advanced.add_argument(
         "--env-file",
         default=DEFAULT_ENV_FILE,
         metavar=_("PATH"),

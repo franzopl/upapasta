@@ -2,6 +2,8 @@ import json
 import urllib.error
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from upapasta.tmdb import _get_details, parse_title_and_year, search_media, validate_confident_match
 
 
@@ -38,8 +40,10 @@ def test_search_media_strict_rejects_bad_year(mock_urlopen):
     mock_urlopen.return_value = response
 
     # Busca por Matrix 1999, mas a API retornou 2021 como primeiro resultado
-    result = search_media("fake_key", "Matrix", "1999", strict=True)
-    assert result is None
+    item, suggestions = search_media("fake_key", "Matrix", "1999", strict=True)
+    assert item is None
+    assert len(suggestions) == 1
+    assert suggestions[0]["id"] == 456
 
 
 def test_parse_title_and_year():
@@ -82,11 +86,11 @@ def test_search_media_movie_success(mock_urlopen):
 
     mock_urlopen.side_effect = [search_response, details_response]
 
-    result = search_media("fake_key", "Matrix", "1999")
-    assert result is not None
-    assert result["title"] == "Matrix"
-    assert result["imdb_id"] == "tt0133093"
-    assert "Action" in result["genres"]
+    item, _ = search_media("fake_key", "Matrix", "1999")
+    assert item is not None
+    assert item["title"] == "Matrix"
+    assert item["imdb_id"] == "tt0133093"
+    assert "Action" in item["genres"]
 
 
 @patch("urllib.request.urlopen")
@@ -96,15 +100,17 @@ def test_search_media_no_results(mock_urlopen):
     response.__enter__.return_value = response
     mock_urlopen.return_value = response
 
-    result = search_media("fake_key", "NonExistentMovie")
-    assert result is None
+    item, suggestions = search_media("fake_key", "NonExistentMovie")
+    assert item is None
+    assert suggestions == []
 
 
 @patch("urllib.request.urlopen")
 def test_search_media_api_error(mock_urlopen):
     mock_urlopen.side_effect = Exception("API Error")
-    result = search_media("fake_key", "Matrix")
-    assert result is None
+    item, suggestions = search_media("fake_key", "Matrix")
+    assert item is None
+    assert suggestions == []
 
 
 @patch("urllib.request.urlopen")
@@ -112,3 +118,37 @@ def test_get_details_failure(mock_urlopen):
     mock_urlopen.side_effect = urllib.error.URLError("Fail")
     result = _get_details("fake_key", 123, "movie", "pt-BR")
     assert result is None
+
+
+def test_tmdb_search_main_logic(monkeypatch, capsys):
+    """Testa a lógica do utilitário --tmdb-search em main.py."""
+    import sys
+
+    from upapasta.main import main
+
+    # Mock de argumentos
+    class FakeArgs:
+        tmdb_search = "Matrix"
+        env_file = None
+        verbose = False
+        log_file = None
+        insecure = False
+
+    monkeypatch.setattr(sys, "argv", ["upapasta", "--tmdb-search", "Matrix"])
+
+    # Mock do .env
+    monkeypatch.setattr("upapasta.config.load_env_file", lambda f: {"TMDB_API_KEY": "fake_key"})
+    monkeypatch.setattr("upapasta.config.resolve_env_file", lambda f=None: ".env")
+
+    # Mock do search_media
+    mock_item = {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"}
+    mock_suggestions = [mock_item]
+
+    with patch("upapasta.tmdb.search_media", return_value=(mock_item, mock_suggestions)):
+        with pytest.raises(SystemExit) as e:
+            main()
+        assert e.value.code == 0
+
+    captured = capsys.readouterr()
+    assert "Resultados encontrados" in captured.out
+    assert "The Matrix (1999) ID: 603" in captured.out

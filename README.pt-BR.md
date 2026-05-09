@@ -105,6 +105,7 @@ Desde a v0.28.0, a flag `--obfuscate` oferece stealth máximo por padrão:
 --password SENHA         Senha de criptografia (usa compressor padrão se não especificado)
 --obfuscate              Máxima privacidade: nomes aleatórios em tudo
 --tmdb                   Enriquece o .nfo com dados do TMDb (requer API Key)
+--tmdb-search TERMO      Busca manual no TMDb e lista IDs (utilitário)
 --par-profile PERFIL     fast (5%) · balanced (10%) · safe (20%)
 --jobs N                 Uploads paralelos quando múltiplos inputs
 --resume                 Retoma upload interrompido

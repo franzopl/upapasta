@@ -140,6 +140,43 @@ def main() -> None:
         print(message)
         sys.exit(0 if success else 1)
 
+    if getattr(args, "tmdb_search", None):
+        from .tmdb import parse_title_and_year, search_media
+
+        env_vars = load_env_file(env_file)
+        api_key = env_vars.get("TMDB_API_KEY")
+        if not api_key:
+            print(_("❌ Erro: --tmdb-search requer 'TMDB_API_KEY' no seu .env."))
+            sys.exit(1)
+
+        query = args.tmdb_search
+        title, year = parse_title_and_year(query)
+        print(_("🔍 Buscando no TMDb: '{title}'...").format(title=title))
+
+        # Busca em ambos os tipos para utilitário
+        all_results = []
+        for mtype in ("movie", "tv"):
+            ignore_item, suggestions = search_media(
+                api_key, title, year=year, media_type=mtype, strict=False
+            )
+            for s in suggestions:
+                s["_mtype"] = mtype
+                all_results.append(s)
+
+        if not all_results:
+            print(_("❌ Nenhum resultado encontrado."))
+        else:
+            print(_("\nResultados encontrados:"))
+            for s in all_results[:10]:
+                s_title = s.get("title") or s.get("name")
+                s_date = s.get("release_date") or s.get("first_air_date") or ""
+                s_year = s_date[:4] if len(s_date) >= 4 else "N/A"
+                s_id = s.get("id")
+                s_type = "Filme" if s["_mtype"] == "movie" else "Série"
+                print(f"  [{s_type}] {s_title} ({s_year}) ID: {s_id}")
+
+        sys.exit(0)
+
     # Sem argumentos: exibe uso amigável e sai
     if not getattr(args, "inputs", None):
         print(_USAGE_SHORT)

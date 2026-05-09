@@ -115,8 +115,11 @@ def search_media(
     media_type: str = "movie",
     language: str = "pt-BR",
     strict: bool = True,
-) -> Optional[dict[str, Any]]:
-    """Busca um filme ou série no TMDb e retorna o resultado mais relevante."""
+) -> tuple[Optional[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Busca um filme ou série no TMDb.
+    Retorna (item_relevante, lista_de_sugestoes).
+    """
     base_url = "https://api.themoviedb.org/3/search/"
     endpoint = "movie" if media_type == "movie" else "tv"
 
@@ -135,14 +138,15 @@ def search_media(
         with urllib.request.urlopen(url, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
             if not isinstance(data, dict):
-                return None
+                return None, []
             results = data.get("results", [])
             if not results:
-                # Tenta sem o ano se falhar com o ano (talvez o ano no arquivo esteja errado)
-                # Mas se strict=True, o validate_confident_match cuidará de barrar depois.
+                # Tenta sem o ano se falhar com o ano
                 if year:
                     return search_media(api_key, title, None, media_type, language, strict=strict)
-                return None
+                return None, []
+
+            suggestions = results[:5]  # Top 5 resultados brutos
 
             # Pega o primeiro resultado (mais relevante)
             item = results[0]
@@ -150,18 +154,18 @@ def search_media(
             # Validação de Confiança (Heurística)
             if strict:
                 if not validate_confident_match(title, year, item, media_type):
-                    return None
+                    return None, suggestions
 
             tmdb_id = item.get("id")
 
-            # Busca detalhes extras (como external IDs para IMDB)
+            # Busca detalhes extras (como external IDs para IMDB) para o match principal
             details = _get_details(api_key, tmdb_id, media_type, language)
             if details:
                 item.update(details)
 
-            return cast("dict[str, Any]", item)
+            return cast("dict[str, Any]", item), suggestions
     except Exception:
-        return None
+        return None, []
 
 
 def _get_details(

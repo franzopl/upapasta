@@ -12,6 +12,7 @@ import math
 import os
 import re
 import xml.etree.ElementTree as ET
+from typing import Any
 
 from .config import render_template
 from .i18n import _
@@ -163,18 +164,74 @@ def inject_nzb_password(nzb_path: str, password: str) -> None:
             head = ET.Element(f"{{{ns}}}head")
             root.insert(0, head)
 
-        # Remove senha anterior se existir
-        for meta in list(head):
-            if meta.get("type") == "password":
-                head.remove(meta)
+        meta_elem = root.find(f".//{{{ns}}}meta[@type='password']")
+        if meta_elem is None:
+            meta_elem = root.find(".//meta[@type='password']")
 
-        meta_elem = ET.SubElement(head, f"{{{ns}}}meta")
-        meta_elem.set("type", "password")
-        meta_elem.text = password
+        if meta_elem is not None:
+            meta_elem.text = password
+        else:
+            meta_elem = ET.SubElement(head, f"{{{ns}}}meta")
+            meta_elem.set("type", "password")
+            meta_elem.text = password
 
         tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
     except Exception as e:
         print(_("Aviso: não foi possível injetar senha no NZB: {error}").format(error=e))
+
+
+def enrich_nzb_metadata(nzb_path: str, metadata: dict[str, Any]) -> None:
+    """Enriquece o NZB com metadados do TMDb (título, poster, IMDB, etc.)."""
+    try:
+        ns = "http://www.newzbin.com/DTD/2003/nzb"
+        ET.register_namespace("", ns)
+        tree = ET.parse(nzb_path)
+        root = tree.getroot()
+
+        head = root.find(f"{{{ns}}}head") or root.find("head")
+        if head is None:
+            head = ET.Element(f"{{{ns}}}head")
+            root.insert(0, head)
+
+        # Mapeamento de chaves TMDb para tipos de meta NZB (Newznab standard)
+        mapping = {
+            "title": "title",
+            "name": "title",
+            "poster_path": "poster",
+            "imdb_id": "imdb",
+            "genres": "tag",
+            "tagline": "tagline",
+        }
+
+        # Remove metas antigos do mesmo tipo para evitar duplicidade
+        types_to_add = set(mapping.values())
+        for meta in list(head):
+            if meta.get("type") in types_to_add:
+                head.remove(meta)
+
+        for key, meta_type in mapping.items():
+            val = metadata.get(key)
+            if not val:
+                continue
+
+            # Formatação especial para poster
+            if key == "poster_path":
+                val = f"https://image.tmdb.org/t/p/original{val}"
+
+            # Se for lista (gêneros), adiciona múltiplos elementos do mesmo tipo
+            if isinstance(val, list):
+                for item in val:
+                    m = ET.SubElement(head, f"{{{ns}}}meta")
+                    m.set("type", meta_type)
+                    m.text = str(item)
+            else:
+                m = ET.SubElement(head, f"{{{ns}}}meta")
+                m.set("type", meta_type)
+                m.text = str(val)
+
+        tree.write(nzb_path, encoding="UTF-8", xml_declaration=True)
+    except Exception as e:
+        print(_("Aviso: não foi possível enriquecer metadados no NZB: {error}").format(error=e))
 
 
 def _parse_subject(subject: str) -> tuple[str, str, str]:
