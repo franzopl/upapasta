@@ -26,6 +26,7 @@ from ._pipeline import (
 )
 from .config import check_or_prompt_credentials
 from .i18n import _
+from .make7z import make_7z
 from .makepar import handle_par_failure, make_parity, obfuscate_and_par
 from .makerar import make_rar
 from .resources import get_total_size
@@ -92,6 +93,7 @@ class UpaPastaOrchestrator:
         rename_extensionless: bool = False,
         nzb_subject_prefix: Optional[str] = None,
         resume: bool = False,
+        compressor: str = "rar",
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -106,6 +108,7 @@ class UpaPastaOrchestrator:
         self.env_file = env_file
         self.keep_files = keep_files
         self.backend = backend
+        self.compressor = compressor
         self._user_rar_threads = rar_threads
         self._user_par_threads = par_threads
         self._user_memory_mb = max_memory_mb
@@ -179,6 +182,7 @@ class UpaPastaOrchestrator:
             ),
             rename_extensionless=getattr(args, "rename_extensionless", False),
             resume=getattr(args, "resume", False),
+            compressor=getattr(args, "compressor", "rar"),
         )
 
     @staticmethod
@@ -234,12 +238,26 @@ class UpaPastaOrchestrator:
         return ok
 
     def run_makerar(self, bar: Optional[PhaseBar] = None) -> bool:
+        """Alias para run_compression por compatibilidade com testes."""
+        return self.run_compression(bar=bar)
+
+    def run_compression(self, bar: Optional[PhaseBar] = None) -> bool:
         if self.input_path.is_file():
             if not bar:
+                msg_pfx = "RAR" if self.compressor == "rar" else "7z"
                 if self.rar_password:
-                    print(_("📦 Arquivo único com senha: criando RAR automaticamente."))
+                    print(
+                        _("📦 Arquivo único com senha: criando {pfx} automaticamente.").format(
+                            pfx=msg_pfx
+                        )
+                    )
                 elif self.obfuscate and not self.skip_rar:
-                    print(_("📦 Arquivo único com ofuscação e --rar: criando RAR."))
+                    print(
+                        _("📦 Arquivo único com ofuscação e --rar: criando {pfx}.").format(
+                            pfx=msg_pfx
+                        )
+                    )
+
                 elif self.skip_rar:
                     # sem --rar explícito → upload direto (MKV/arquivo original)
                     if self.obfuscate:
@@ -271,50 +289,64 @@ class UpaPastaOrchestrator:
 
         if not bar:
             print("\n" + "=" * 60)
-            print(_("📦 ETAPA 1: Criar arquivo RAR"))
+            msg_pfx = "RAR" if self.compressor == "rar" else "7z"
+            print(_("📦 ETAPA 1: Criar arquivo {pfx}").format(pfx=msg_pfx))
             print("=" * 60)
             print_rar_hints(self.input_path, self.backend, self.rar_password, self.obfuscate)
 
+        ext = ".7z" if self.compressor == "7z" else ".rar"
         if self.dry_run:
-            self.rar_file = str(self.input_path.parent / f"{self.input_path.stem}.rar")
+            self.rar_file = str(self.input_path.parent / f"{self.input_path.stem}{ext}")
             self.input_target = self.rar_file
             if not bar:
-                print(_("[DRY-RUN] pularia a criação do RAR."))
-                print(_("[DRY-RUN] RAR seria criado em: {path}").format(path=self.rar_file))
+                print(_("[DRY-RUN] pularia a criação do arquivo compactado."))
+                print(_("[DRY-RUN] Arquivo seria criado em: {path}").format(path=self.rar_file))
             return True
 
         if not bar:
             print(_("📥 Compactando {name}...").format(name=self.input_path.name))
             print("-" * 60)
         try:
-            rc, generated_rar = make_rar(
-                str(self.input_path),
-                self.force,
-                threads=self.rar_threads,
-                password=self.rar_password,
-                bar=bar,
-            )
+            if self.compressor == "7z":
+                rc, generated_archive = make_7z(
+                    str(self.input_path),
+                    self.force,
+                    threads=self.rar_threads,
+                    password=self.rar_password,
+                    bar=bar,
+                )
+            else:
+                rc, generated_archive = make_rar(
+                    str(self.input_path),
+                    self.force,
+                    threads=self.rar_threads,
+                    password=self.rar_password,
+                    bar=bar,
+                )
+
             if not bar:
                 print("-" * 60)
-            if rc == 0 and generated_rar:
-                self.rar_file = generated_rar
+            if rc == 0 and generated_archive:
+                self.rar_file = generated_archive
                 self.input_target = self.rar_file
                 return True
             if not bar:
                 print(
                     _(
-                        "\n❌ Erro ao criar RAR. Veja o output acima para detalhes. (rc={rc})"
+                        "\n❌ Erro ao criar arquivo compactado. Veja o output acima para detalhes. (rc={rc})"
                     ).format(rc=rc)
                 )
             return False
         except (FileNotFoundError, PermissionError, OSError) as e:
             if not bar:
                 label = (
-                    _("binário 'rar' não encontrado no PATH")
+                    _("binário '{compressor}' não encontrado no PATH").format(
+                        compressor=self.compressor
+                    )
                     if isinstance(e, FileNotFoundError)
                     else str(e)
                 )
-                print(_("❌ Erro ao criar RAR: {label}").format(label=label))
+                print(_("❌ Erro ao compactar: {label}").format(label=label))
             return False
 
     def run_makepar(self, bar: Optional[PhaseBar] = None) -> bool:
@@ -617,7 +649,7 @@ class UpaPastaOrchestrator:
                 and not self.rar_password
             )
             if self.skip_rar or single_file_no_rar:
-                bar.skip("RAR")
+                bar.skip("PACK")
             if self.skip_par:
                 bar.skip("PAR2")
             if self.skip_upload:
@@ -637,18 +669,18 @@ class UpaPastaOrchestrator:
             if not self.check_nzb_conflict_early():
                 return 3
 
-            # ── RAR ──────────────────────────────────────────────────────────────
+            # ── COMPRESSION ──────────────────────────────────────────────────────
             will_create_rar = not self.skip_rar
             if will_create_rar:
-                bar.start("RAR")
-                if not self.run_makerar(bar=bar):
-                    bar.error("RAR")
+                bar.start("PACK")
+                if not self.run_compression(bar=bar):
+                    bar.error("PACK")
                     self._cleanup_on_error()
                     return 1
-                bar.log(_("Arquivo RAR criado com sucesso."))
-                bar.done("RAR")
+                bar.log(_("Arquivo compactado criado com sucesso."))
+                bar.done("PACK")
             else:
-                if not self.run_makerar(bar=bar):
+                if not self.run_compression(bar=bar):
                     self._cleanup_on_error()
                     return 1
 

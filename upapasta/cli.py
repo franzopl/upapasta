@@ -159,8 +159,8 @@ def parse_args() -> argparse.Namespace:
         default=None,
         metavar=_("SENHA"),
         help=_(
-            "Senha para o RAR (injetada no NZB para extração automática por SABnzbd/NZBGet). "
-            "Presume automaticamente --rar (precisa de RAR para proteger com senha). "
+            "Senha para o arquivo compactado (injetada no NZB para extração automática). "
+            "Ativa automaticamente a compactação (precisa compactar para proteger com senha). "
             "Sem argumento, gera uma senha aleatória de 16 caracteres."
         ),
     )
@@ -170,6 +170,12 @@ def parse_args() -> argparse.Namespace:
         help=_(
             "Cria RAR antes do upload. Padrão é desativado (enviar arquivos como estão com PAR2)."
         ),
+    )
+    essential.add_argument(
+        "--compressor",
+        choices=("rar", "7z"),
+        default="rar",
+        help=_("Escolhe o compressor a ser usado quando a compactação está ativa (padrão: rar)."),
     )
     essential.add_argument(
         "--skip-rar",
@@ -383,11 +389,17 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def check_dependencies(rar_needed: bool = True) -> bool:
+def check_dependencies(compression_needed: bool = True, compressor: str = "rar") -> bool:
     """Verifica se os binários necessários estão no PATH."""
     required_commands = ["nyuu", "parpar"]
-    if rar_needed:
-        required_commands.append("rar")
+    if compression_needed:
+        if compressor == "7z":
+            from .make7z import find_7z
+
+            if not find_7z():
+                required_commands.append("7z")
+        else:
+            required_commands.append("rar")
 
     missing_commands = []
     for cmd in required_commands:

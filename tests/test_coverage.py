@@ -599,7 +599,7 @@ class TestCheckDependencies:
         from upapasta.cli import check_dependencies
 
         with patch("shutil.which", return_value="/usr/bin/rar"):
-            result = check_dependencies(rar_needed=True)
+            result = check_dependencies(compression_needed=True)
         assert result is True
 
     def test_nyuu_ausente(self):
@@ -609,7 +609,7 @@ class TestCheckDependencies:
             return None if cmd == "nyuu" else "/usr/bin/" + cmd
 
         with patch("shutil.which", side_effect=which_sem_nyuu):
-            result = check_dependencies(rar_needed=False)
+            result = check_dependencies(compression_needed=False)
         assert result is False
 
     def test_rar_nao_necessario(self):
@@ -619,7 +619,7 @@ class TestCheckDependencies:
             return None if cmd == "rar" else "/usr/bin/" + cmd
 
         with patch("shutil.which", side_effect=which_sem_rar):
-            result = check_dependencies(rar_needed=False)
+            result = check_dependencies(compression_needed=False)
         assert result is True
 
     def test_opcionals_ausentes(self, capsys):
@@ -631,7 +631,7 @@ class TestCheckDependencies:
             return "/usr/bin/" + cmd
 
         with patch("shutil.which", side_effect=which_sem_opcionals):
-            result = check_dependencies(rar_needed=False)
+            result = check_dependencies(compression_needed=False)
         captured = capsys.readouterr()
         assert "opcionais" in captured.out.lower() or result is True
 

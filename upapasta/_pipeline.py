@@ -194,6 +194,8 @@ class PathResolver:
         stem = os.path.splitext(input_target)[0]
         if input_target.endswith(".rar") and ".part" in stem:
             stem = stem.rsplit(".part", 1)[0]
+        elif input_target.endswith(".001") and ".7z." in input_target:
+            stem = input_target.rsplit(".7z.", 1)[0]
         return stem + ".par2"
 
     def check_nzb_conflict(
@@ -258,9 +260,9 @@ class PipelineReporter:
         rar_file: Optional[str],
         par_file: Optional[str],
     ) -> dict[str, float | int]:
-        """Coleta tamanhos de RAR e PAR2 gerados."""
+        """Coleta tamanhos de arquivos compactados e PAR2 gerados."""
         stats: dict[str, float | int] = {
-            "rar_size_mb": 0.0,
+            "archive_size_mb": 0.0,
             "par2_size_mb": 0.0,
             "par2_file_count": 0,
         }
@@ -276,19 +278,28 @@ class PipelineReporter:
                         total_bytes += os.path.getsize(os.path.join(root, file))
                     except OSError:
                         pass
-            stats["rar_size_mb"] = total_bytes / (1024 * 1024)
+            stats["archive_size_mb"] = total_bytes / (1024 * 1024)
             base_name = input_target
         else:
             try:
-                rar_stem = os.path.splitext(input_target)[0]
-                if rar_stem.endswith(tuple(f".part{n:02d}" for n in range(1, 100))):
-                    rar_stem = rar_stem.rsplit(".", 1)[0]
-                rar_vols = glob.glob(glob.escape(rar_stem) + ".part*.rar")
-                if rar_vols:
-                    stats["rar_size_mb"] = sum(os.path.getsize(f) for f in rar_vols) / (1024 * 1024)
+                # Detecta se é RAR ou 7z para encontrar volumes
+                if input_target.endswith(".rar") or ".part" in input_target:
+                    stem = re.sub(r"\.part\d+$", "", os.path.splitext(input_target)[0])
+                    vols = glob.glob(glob.escape(stem) + ".part*.rar")
+                elif input_target.endswith((".7z", ".7z.001")):
+                    stem = re.sub(r"\.7z\.\d+$", "", input_target)
+                    if stem.endswith(".7z"):
+                        stem = stem[:-3]
+                    vols = glob.glob(glob.escape(stem) + ".7z.[0-9][0-9][0-9]")
                 else:
-                    stats["rar_size_mb"] = os.path.getsize(input_target) / (1024 * 1024)
-                base_name = rar_stem
+                    vols = []
+
+                if vols:
+                    stats["archive_size_mb"] = sum(os.path.getsize(f) for f in vols) / (1024 * 1024)
+                    base_name = stem
+                else:
+                    stats["archive_size_mb"] = os.path.getsize(input_target) / (1024 * 1024)
+                    base_name = os.path.splitext(input_target)[0]
             except OSError:
                 base_name = os.path.splitext(input_target)[0]
 
@@ -340,9 +351,14 @@ class PipelineReporter:
             print(_("  • NFO: {name}").format(name=os.path.basename(nfo_file)))
 
         rar_display = os.path.basename(rar_file) if rar_file else None
-        if stats["rar_size_mb"] > 0:
+        if stats["archive_size_mb"] > 0:
             name = rar_display or input_path.name
-            print(_("  • RAR: {name} ({size:.2f} MB)").format(name=name, size=stats["rar_size_mb"]))
+            label = "7z" if name.lower().endswith((".7z", ".001")) else "RAR"
+            print(
+                _("  • {label}: {name} ({size:.2f} MB)").format(
+                    label=label, name=name, size=stats["archive_size_mb"]
+                )
+            )
 
         if stats["par2_file_count"] > 0:
             print(
@@ -351,7 +367,7 @@ class PipelineReporter:
                 )
             )
 
-        total_size = stats["rar_size_mb"] + stats["par2_size_mb"]
+        total_size = stats["archive_size_mb"] + stats["par2_size_mb"]
         print(_("  • Total: {size:.2f} MB").format(size=total_size))
 
         print(_("\n⏱️  Tempo total: {time}").format(time=format_time(int(elapsed))))
@@ -396,7 +412,7 @@ class PipelineReporter:
         raw_group = group or env_vars.get("USENET_GROUP") or ""
         effective_group = raw_group.split(",")[0].strip() if "," in raw_group else raw_group
 
-        tamanho = int(stats["rar_size_mb"] * 1024 * 1024) if stats["rar_size_mb"] else None
+        tamanho = int(stats["archive_size_mb"] * 1024 * 1024) if stats["archive_size_mb"] else None
         nome_ofuscado = subject if obfuscate else None
 
         try:
@@ -464,14 +480,32 @@ def do_cleanup_files(
     base_name: Optional[str] = None
 
     if rar_file and not preserve_rar:
+        # RAR volumes: .part01.rar
         rar_base = re.sub(r"\.part\d+$", "", os.path.splitext(rar_file)[0])
         rar_volumes = glob.glob(glob.escape(rar_base) + ".part*.rar")
-        candidates.extend(
-            rar_volumes if rar_volumes else ([rar_file] if os.path.exists(rar_file) else [])
+
+        # 7z volumes: .7z.001
+        sz_base = re.sub(r"\.7z\.\d+$", "", rar_file)
+        if sz_base.endswith(".7z"):
+            sz_base = sz_base[:-3]
+        sz_volumes = glob.glob(glob.escape(sz_base) + ".7z.[0-9][0-9][0-9]")
+
+        candidates.extend(rar_volumes if rar_volumes else [])
+        candidates.extend(sz_volumes if sz_volumes else [])
+        if not rar_volumes and not sz_volumes and os.path.exists(rar_file):
+            candidates.append(rar_file)
+
+        base_name = (
+            rar_base if rar_volumes else (sz_base if sz_volumes else os.path.splitext(rar_file)[0])
         )
-        base_name = rar_base
     elif rar_file and preserve_rar:
+        # Para encontrar o .par2 mesmo se preservarmos o RAR
         base_name = re.sub(r"\.part\d+$", "", os.path.splitext(rar_file)[0])
+        if rar_file.endswith((".7z", ".001")):
+            sz_base = re.sub(r"\.7z\.\d+$", "", rar_file)
+            if sz_base.endswith(".7z"):
+                sz_base = sz_base[:-3]
+            base_name = sz_base
 
     if base_name is None and par_file:
         base_name = os.path.splitext(par_file)[0]
@@ -554,6 +588,11 @@ def revert_obfuscation(
                 candidates = glob.glob(
                     glob.escape(os.path.join(target_dir, original_base)) + ".part*.rar"
                 )
+                sz_candidates = glob.glob(
+                    glob.escape(os.path.join(target_dir, original_base)) + ".7z.[0-9][0-9][0-9]"
+                )
+                candidates.extend(sz_candidates)
+
                 if not candidates and os.path.exists(orig_path):
                     candidates = [orig_path]
                 for cand in candidates:

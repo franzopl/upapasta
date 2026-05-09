@@ -150,15 +150,15 @@ def main() -> None:
     if not _validate_flags(args):
         sys.exit(1)
 
-    needs_rar = True
+    needs_compression = True
     try:
         p = Path(args.input)
-        if p.exists() and p.is_file() and not args.obfuscate and not args.password:
-            needs_rar = False
+        if p.exists() and p.is_file() and not args.obfuscate and not args.password and not args.rar:
+            needs_compression = False
     except Exception:
         pass
 
-    if not check_dependencies(needs_rar):
+    if not check_dependencies(needs_compression, compressor=args.compressor):
         sys.exit(1)
 
     # ── Modo multi-input: múltiplos caminhos posicionais ─────────────────────

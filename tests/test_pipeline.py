@@ -113,18 +113,18 @@ class TestPathResolver:
 class TestPipelineReporter:
     def test_collect_stats_missing_target(self):
         stats = PipelineReporter.collect_stats(None, None, None)
-        assert stats["rar_size_mb"] == 0.0
+        assert stats["archive_size_mb"] == 0.0
         assert stats["par2_file_count"] == 0
 
     def test_collect_stats_nonexistent_target(self, tmp_path):
         stats = PipelineReporter.collect_stats(str(tmp_path / "missing.rar"), None, None)
-        assert stats["rar_size_mb"] == 0.0
+        assert stats["archive_size_mb"] == 0.0
 
     def test_collect_stats_single_file(self, tmp_path):
         f = tmp_path / "archive.rar"
         f.write_bytes(b"x" * 1024 * 100)  # 100 KB
         stats = PipelineReporter.collect_stats(str(f), str(f), None)
-        assert stats["rar_size_mb"] > 0
+        assert stats["archive_size_mb"] > 0
 
     def test_collect_stats_folder(self, tmp_path):
         d = tmp_path / "folder"
@@ -132,7 +132,7 @@ class TestPipelineReporter:
         (d / "a.txt").write_bytes(b"x" * 512)
         (d / "b.txt").write_bytes(b"x" * 512)
         stats = PipelineReporter.collect_stats(str(d), None, None)
-        assert stats["rar_size_mb"] > 0
+        assert stats["archive_size_mb"] > 0
 
     def test_collect_stats_par2_counted(self, tmp_path):
         f = tmp_path / "archive.rar"
@@ -173,7 +173,7 @@ class TestPipelineReporter:
         assert "MyRelease" in out
 
     def test_print_summary_runs(self, tmp_path, capsys):
-        stats = {"rar_size_mb": 100.0, "par2_size_mb": 10.0, "par2_file_count": 2}
+        stats = {"archive_size_mb": 100.0, "par2_size_mb": 10.0, "par2_file_count": 2}
         PipelineReporter.print_summary(
             stats,
             tmp_path,

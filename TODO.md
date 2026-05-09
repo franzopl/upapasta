@@ -167,9 +167,8 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 ### ~~3.1 · Multiple positional inputs: `upapasta a b c`~~ ✅ Completed (commit 2b1be9a)
 - Multiple positional inputs processed in sequence or `--jobs N` in parallel
 
-### 3.2 · Alternative compressor: `--compressor 7z` (new `make7z.py`) `Medium · High effort` ← depends on 2.6
-- RAR remains default; 7z generates `.7z.001` etc. (free, no commercial license)
-- Round-trip tests
+### ~~3.2 · Alternative compressor: `--compressor 7z` (new `make7z.py`)~~ ✅ Completed (0.29.0)
+- Support for 7z volumes (.7z.001), passwords (-mhe=on), and live progress UI
 
 ### ~~3.3 · Native webhooks: Discord/Telegram/Slack via `WEBHOOK_URL`~~ ✅ Completed
 - `_webhook.py`: `send_webhook()` + `_build_payload()` with automatic detection Discord/Slack/Telegram/generic
@@ -198,7 +197,7 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 - `make_parity` now prints the full `parpar`/`par2` command when `dry_run=True`
 - `upload_to_usenet` already printed the full nyuu command; orchestrator stopped intercepting before
 
-### 3.10 · Native Windows support tested (CI matrix) `Medium · High effort` ← depends on 1.5
+### ~~3.10 · Native Windows support tested (CI matrix)~~ ✅ Completed (0.28.0)
 - GitHub Actions runs on Windows; normalized paths; no regressions
 
 ### ~~3.11 · Separate `profiles.py` from `config.py`~~ ✅ Completed
@@ -310,20 +309,9 @@ Order by impact (most visible strings first):
 | i18n | v0.26.x→v0.28 | Internacionalization | I1–I5: gettext, en/pt-BR strings, English docs, CI |
 
 **Immediate next steps** (in order):
-1. ~~F1.1–F1.15~~ ✅ Phase 1 complete
-2. ~~F2.1–F2.17~~ ✅ Phase 2 complete (304 tests, 1 intentional skip)
-3. ~~F3.9~~ ✅ `--dry-run --verbose` prints complete argv
-4. ~~F3.3~~ ✅ Native Discord/Telegram/Slack webhooks via `WEBHOOK_URL`
-5. ~~F3.7~~ ✅ `upapasta --stats` (aggregated history)
-6. ~~F3.11~~ ✅ `profiles.py` separated from `config.py`
-7. ~~F3.12~~ ✅ `mypy --strict` in CI (84 errors fixed, 20 files)
-8. ~~F3.13~~ ✅ Coverage ≥ 90% in core modules (207 tests; cli=100%, nfo=97%, nzb=94%, orchestrator=91%, makerar=91%, makepar=90%, catalog=90%, upfolder=90%; global=82%)
-9. ~~F3.1~~ ✅ Multiple positional entries (`upapasta a b c`)
-10. ~~F3.15~~ ✅ PyPI publication (automated workflow)
-11. **F3.14** → complete documentation → **v1.0.0 unblocker**
-12. **I1** → gettext infrastructure (prerequisite for all i18n)
-13. **I2** → string extraction (in parallel with I3)
-14. **I3** → English documentation (in parallel with I2)
-15. **I4 + I5** → i18n CI + contribution guide
-16. **F3.4** → TMDb (unblocks F3.5 and F3.6)
-17. **F3.8** → TUI `--interactive` (post-docs)
+1. **F3.4** → TMDb integration (enriches NFO with synopsis/poster URL/IMDB ID) `High · High effort`
+2. **F3.5** → NZB with enriched `<meta>` (title/poster/category) `Medium · Medium effort`
+3. **F3.6** → Customizable NFO template: `--nfo-template <file>` `Medium · Medium effort`
+4. **F3.2** → Alternative compressor: `--compressor 7z` (new `make7z.py`) `Medium · High effort`
+5. **F3.8** → Interactive TUI mode (`--interactive`) `Low · High effort`
+6. **3.17** → Plugin system: Python hooks in `~/.config/upapasta/hooks/<name>.py` `Low · High effort`

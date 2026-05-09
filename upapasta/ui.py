@@ -200,7 +200,7 @@ class PhaseBar:
     Gerencia o layout com fases e barra de progresso ativa.
     """
 
-    PHASES = ("NFO", "RAR", "PAR2", "UPLOAD", "DONE")
+    PHASES = ("NFO", "PACK", "PAR2", "UPLOAD", "DONE")
     _ICONS = {
         "pending": "[grey50]⬜[/]",
         "active": "[bold cyan]▶ [/]",
