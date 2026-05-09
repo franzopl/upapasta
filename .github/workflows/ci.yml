@@ -43,27 +43,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
           pip install pytest pytest-cov ruff mypy
-          pip install parpar
-          npm install -g nyuu
-          # Add Python Scripts and NPM to PATH
-          echo "$(python -c 'import sysconfig; print(sysconfig.get_path("scripts"))')" >> $GITHUB_PATH
-          echo "$(npm config get prefix)" >> $GITHUB_PATH
-
-      - name: Debug Paths (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          where nyuu || echo "nyuu not found"
-          where parpar || echo "parpar not found"
-          echo "PATH=$PATH"
+          npm install -g nyuu parpar
 
       - name: Lint (ruff)
+        shell: bash
         run: ruff check upapasta/ tests/
 
       - name: Type check (mypy)
+        shell: bash
         run: mypy upapasta/ --strict
 
       - name: Check i18n (msgfmt)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
           msgfmt --check upapasta/locale/pt_BR/LC_MESSAGES/upapasta.po
 

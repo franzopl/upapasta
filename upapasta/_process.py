@@ -59,11 +59,15 @@ def managed_popen(
 
     No Windows, adiciona creationflags=subprocess.CREATE_NO_WINDOW por padrão
     para evitar janelas de console "pipocando" para subprocessos, a menos que
-    já fornecido.
+    já fornecido. Também ativa shell=True no Windows para melhor compatibilidade
+    com wrappers .cmd/.bat.
     """
-    if sys.platform == "win32" and "creationflags" not in kwargs:
-        # 0x08000000 = CREATE_NO_WINDOW
-        kwargs["creationflags"] = 0x08000000
+    if sys.platform == "win32":
+        if "creationflags" not in kwargs:
+            # 0x08000000 = CREATE_NO_WINDOW
+            kwargs["creationflags"] = 0x08000000
+        if "shell" not in kwargs:
+            kwargs["shell"] = True
 
     proc = subprocess.Popen(*args, **kwargs)
     try:
