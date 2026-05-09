@@ -801,11 +801,10 @@ def upload_to_usenet(
                     srv["password"],
                     "-n",
                     str(srv["connections"]),
+                    "-g",
+                    usenet_group,  # Sempre inclui para que o NZB tenha todos os grupos no cabeçalho
                 ]
             )
-            if not tmp_js_config:
-                cmd.extend(["-g", usenet_group])
-
             cmd.extend(
                 [
                     "-a",
