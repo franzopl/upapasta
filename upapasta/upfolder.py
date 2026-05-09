@@ -737,6 +737,14 @@ def upload_to_usenet(
                 )
             )
 
+        # Identidade: Schizo/Token-based se ofuscado, senão anônimo padrão.
+        if obfuscated_map:
+            # Token do nyuu para gerar poster aleatório POR ARTIGO
+            # Formato: ${rand(8)}@${rand(5)}.com
+            uploader = "${rand(8)}@${rand(5)}." + random.choice(["com", "net", "org"])
+        else:
+            uploader = generate_anonymous_uploader()
+
         cmd = [
             nyuu_path,
             "--progress",
@@ -750,6 +758,9 @@ def upload_to_usenet(
             cmd.append("-S")
         if srv.get("ignore_cert"):
             cmd.append("-i")
+        if obfuscated_map:
+            cmd.append("--token-eval")
+
         cmd.extend(
             [
                 "-u",
@@ -763,7 +774,7 @@ def upload_to_usenet(
                 "-a",
                 article_size,
                 "-f",
-                generate_anonymous_uploader(),
+                uploader,
                 "--date",
                 "now",
                 "-t",
