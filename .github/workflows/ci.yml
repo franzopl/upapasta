@@ -44,6 +44,16 @@ jobs:
           pip install -e .
           pip install pytest pytest-cov ruff mypy
           npm install -g nyuu parpar
+          # Add NPM global bin to PATH
+          echo "$(npm config get prefix)" >> $GITHUB_PATH
+
+      - name: Debug Paths (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          ls -F "$(npm config get prefix)"
+          which nyuu || echo "nyuu not found"
+          which parpar || echo "parpar not found"
 
       - name: Lint (ruff)
         shell: bash

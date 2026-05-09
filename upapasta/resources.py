@@ -15,14 +15,15 @@ logger = logging.getLogger("upapasta")
 
 
 def get_mem_available_mb() -> int:
-    """Lê MemAvailable de /proc/meminfo. Fallback conservador: 2048 MB."""
-    try:
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemAvailable:"):
-                    return int(line.split()[1]) // 1024
-    except Exception as e:
-        logger.warning(f"Não foi possível ler /proc/meminfo: {e}")
+    """Lê MemAvailable de /proc/meminfo (Linux). Fallback conservador: 2048 MB."""
+    if os.path.exists("/proc/meminfo"):
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        return int(line.split()[1]) // 1024
+        except Exception as e:
+            logger.warning(f"Falha ao ler /proc/meminfo: {e}")
     return 2048
 
 

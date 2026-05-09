@@ -17,6 +17,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+
+def _create_mock_nyuu(tmp_path):
+    """Cria um binário/script mock do nyuu que funciona em Windows e Linux."""
+    import sys
+
+    py_script = tmp_path / "fake_nyuu_script.py"
+    py_script.write_text("import sys; sys.exit(0)")
+    if sys.platform == "win32":
+        cmd_file = tmp_path / "fake_nyuu.cmd"
+        cmd_file.write_text(f'@echo off\n"{sys.executable}" "{py_script}" %*')
+        return str(cmd_file)
+    else:
+        sh_file = tmp_path / "fake_nyuu"
+        sh_file.write_text(f"#!{sys.executable}\nimport sys; sys.exit(0)")
+        sh_file.chmod(0o755)
+        return str(sh_file)
+
+
 # ── nzb.py ────────────────────────────────────────────────────────────────────
 
 
@@ -885,9 +903,7 @@ class TestUploadToUsenet:
         f.write_text("fake rar")
         (tmp_path / "test.par2").write_text("fake par2")
         # Cria um nyuu fake executável para o teste de dry-run
-        nyuu_fake = tmp_path / "nyuu"
-        nyuu_fake.write_text("#!/bin/sh\nexit 0")
-        nyuu_fake.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
         rc = upload_to_usenet(
             str(f),
             env_vars={
@@ -898,7 +914,7 @@ class TestUploadToUsenet:
                 "USENET_GROUP": "alt.binaries.test",
             },
             dry_run=True,
-            nyuu_path=str(nyuu_fake),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
 
@@ -1242,9 +1258,7 @@ class TestUploadToUsenetFolder:
         par2 = tmp_path / "minha_pasta.par2"
         par2.write_text("fake par2")
 
-        nyuu_fake = tmp_path / "nyuu"
-        nyuu_fake.write_text("#!/bin/sh\nexit 0")
-        nyuu_fake.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         rc = upload_to_usenet(
             str(folder),
@@ -1257,7 +1271,7 @@ class TestUploadToUsenetFolder:
             },
             dry_run=True,
             skip_rar=True,
-            nyuu_path=str(nyuu_fake),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
 
@@ -1837,16 +1851,14 @@ class TestUpfolderAdditional:
         (tmp_path / "serie.part02.rar").write_text("rar2")
         (tmp_path / "serie.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         rc = upload_to_usenet(
             str(tmp_path / "serie.part01.rar"),
             env_vars=self._base_env(),
             dry_run=True,
             skip_rar=False,
-            nyuu_path=str(nyuu),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
 
@@ -1859,9 +1871,7 @@ class TestUpfolderAdditional:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         env = self._base_env()
         env["USENET_GROUP"] = "alt.binaries.a,alt.binaries.b,alt.binaries.c"
@@ -1871,7 +1881,7 @@ class TestUpfolderAdditional:
             env_vars=env,
             dry_run=True,
             skip_rar=True,
-            nyuu_path=str(nyuu),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
 
@@ -1884,16 +1894,14 @@ class TestUpfolderAdditional:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         rc = upload_to_usenet(
             str(f),
             env_vars=self._base_env(),
             dry_run=True,
             skip_rar=True,
-            nyuu_path=str(nyuu),
+            nyuu_path=nyuu_path,
             upload_timeout=30,
             nyuu_extra_args=["--extra-flag"],
         )
@@ -1947,9 +1955,7 @@ class TestUpfolderAdditional:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         env = self._base_env()
         env["NYUU_EXTRA_ARGS"] = "--no-datetime"
@@ -1959,7 +1965,7 @@ class TestUpfolderAdditional:
             env_vars=env,
             dry_run=True,
             skip_rar=True,
-            nyuu_path=str(nyuu),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
 
@@ -1972,9 +1978,7 @@ class TestUpfolderAdditional:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         with patch("upapasta.upfolder.managed_popen", side_effect=OSError("io error")):
             rc = upload_to_usenet(
@@ -1982,7 +1986,7 @@ class TestUpfolderAdditional:
                 env_vars=self._base_env(),
                 dry_run=False,
                 skip_rar=True,
-                nyuu_path=str(nyuu),
+                nyuu_path=nyuu_path,
             )
         assert rc == 5
 
@@ -2015,9 +2019,7 @@ class TestUpfolderAdditional:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         env = self._base_env()
         env["NNTP_HOST_2"] = "news2.test.com"
@@ -2029,7 +2031,7 @@ class TestUpfolderAdditional:
             env_vars=env,
             dry_run=True,
             skip_rar=True,
-            nyuu_path=str(nyuu),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
 
@@ -2043,9 +2045,7 @@ class TestUpfolderAdditional:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         env = self._base_env()
         env["NZB_OVERWRITE"] = "1"
@@ -2055,7 +2055,7 @@ class TestUpfolderAdditional:
             env_vars=env,
             dry_run=True,
             skip_rar=True,
-            nyuu_path=str(nyuu),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
 
@@ -2091,9 +2091,7 @@ class TestUpfolderAdditional:
         par2 = tmp_path / "minha_pasta.par2"
         par2.write_text("fake par2")
 
-        fake_nyuu = tmp_path / "nyuu"
-        fake_nyuu.write_text("#!/bin/sh\nexit 0")
-        fake_nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         nzb_path = str(tmp_path / "minha_pasta.nzb")
         mock_proc = self._make_mock_popen_that_creates_nzb(nzb_path)
@@ -2107,7 +2105,7 @@ class TestUpfolderAdditional:
                 env_vars=env,
                 dry_run=False,
                 skip_rar=True,
-                nyuu_path=str(fake_nyuu),
+                nyuu_path=nyuu_path,
                 folder_name="MinhasSeries",
             )
         assert rc == 0
@@ -2122,9 +2120,7 @@ class TestUpfolderAdditional:
         f.write_text("fake rar")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        fake_nyuu = tmp_path / "nyuu"
-        fake_nyuu.write_text("#!/bin/sh\nexit 0")
-        fake_nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         nzb_path = str(tmp_path / "video.nzb")
         mock_proc = self._make_mock_popen_that_creates_nzb(nzb_path)
@@ -2138,7 +2134,7 @@ class TestUpfolderAdditional:
                 env_vars=env,
                 dry_run=False,
                 skip_rar=False,
-                nyuu_path=str(fake_nyuu),
+                nyuu_path=nyuu_path,
                 password="senha123",
             )
         assert rc == 0
@@ -2702,9 +2698,7 @@ class TestUpfolderNzbConflict:
         env = self._base_env()
         env["NZB_OUT_DIR"] = str(tmp_path)
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         # _get_uploaded_files_from_nzb retornará um set com os filenames
         with patch(
@@ -2716,7 +2710,7 @@ class TestUpfolderNzbConflict:
                 env_vars=env,
                 dry_run=False,
                 skip_rar=True,
-                nyuu_path=str(nyuu),
+                nyuu_path=nyuu_path,
                 resume=True,
             )
         assert rc == 0
@@ -2731,9 +2725,7 @@ class TestUpfolderNzbConflict:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         original_getsize = os.path.getsize
 
@@ -2748,7 +2740,7 @@ class TestUpfolderNzbConflict:
                 env_vars=self._base_env(),
                 dry_run=True,
                 skip_rar=True,
-                nyuu_path=str(nyuu),
+                nyuu_path=nyuu_path,
             )
         assert rc == 0
 
@@ -2762,9 +2754,7 @@ class TestUpfolderNzbConflict:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         # Mock getsize para retornar > 1 GB e get_terminal_size para levantar
         with (
@@ -2778,7 +2768,7 @@ class TestUpfolderNzbConflict:
                 env_vars=self._base_env(),
                 dry_run=True,
                 skip_rar=True,
-                nyuu_path=str(nyuu),
+                nyuu_path=nyuu_path,
             )
         assert rc == 0
 
@@ -2808,9 +2798,7 @@ class TestUpfolderNzbConflict:
         f.write_text("fake")
         (tmp_path / "video.par2").write_text("fake par2")
 
-        nyuu = tmp_path / "nyuu"
-        nyuu.write_text("#!/bin/sh\nexit 0")
-        nyuu.chmod(0o755)
+        nyuu_path = _create_mock_nyuu(tmp_path)
 
         env = self._base_env()
         env["NNTP_HOST_2"] = "news2.test.com"
@@ -2822,6 +2810,6 @@ class TestUpfolderNzbConflict:
             env_vars=env,
             dry_run=True,
             skip_rar=True,
-            nyuu_path=str(nyuu),
+            nyuu_path=nyuu_path,
         )
         assert rc == 0
