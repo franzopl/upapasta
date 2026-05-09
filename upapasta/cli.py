@@ -318,6 +318,18 @@ def parse_args() -> argparse.Namespace:
         help=_("Comportamento quando .nzb já existe: rename (padrão), overwrite, fail"),
     )
     advanced.add_argument(
+        "--tmdb-id",
+        type=int,
+        help=_("Força um ID específico do TMDb para a busca de metadados."),
+    )
+    advanced.add_argument(
+        "--disable-tmdb",
+        action="store_true",
+        help=_(
+            "Desativa a busca automática de metadados no TMDb, mesmo se a API Key estiver configurada."
+        ),
+    )
+    advanced.add_argument(
         "--env-file",
         default=DEFAULT_ENV_FILE,
         metavar=_("PATH"),

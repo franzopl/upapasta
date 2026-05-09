@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from typing import Any
+from typing import Any, Optional
 
 from .i18n import _
 
@@ -191,7 +191,48 @@ def _default_banner() -> str:
     )
 
 
-def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
+def _format_tmdb_section(data: dict[str, Any]) -> list[str]:
+    """Formata os metadados do TMDb em uma seção visual."""
+    title = data.get("title") or data.get("name", "N/A")
+    year = (data.get("release_date") or data.get("first_air_date") or "N/A")[:4]
+    genres = ", ".join(data.get("genres", []))
+    overview = data.get("overview", "N/A")
+    imdb_id = data.get("imdb_id")
+    poster_path = data.get("poster_path")
+
+    lines = [
+        "",
+        "+" + "-" * 78 + "+",
+        "|" + center("*** METADADOS TMDB ***") + "|",
+        "+" + "-" * 78 + "+",
+        "",
+        f"  > Titulo:     {title}",
+        f"  > Ano:        {year}",
+    ]
+    if genres:
+        lines.append(f"  > Generos:    {genres}")
+    if imdb_id:
+        lines.append(f"  > IMDB:       https://www.imdb.com/title/{imdb_id}")
+    if poster_path:
+        lines.append(f"  > Poster:     https://image.tmdb.org/t/p/original{poster_path}")
+
+    # Encurta a sinopse se for muito longa
+    lines.append("  > Sinopse:")
+    import textwrap
+
+    for line in textwrap.wrap(overview, width=74):
+        lines.append(f"    {line}")
+
+    return lines
+
+
+def center(text: str, width: int = 78) -> str:
+    return text.center(width)
+
+
+def generate_nfo_single_file(
+    input_path: str, nfo_path: str, tmdb_metadata: Optional[dict[str, Any]] = None
+) -> bool:
     """Gera .nfo com saída do mediainfo para um arquivo único."""
     mediainfo_path = find_mediainfo()
     if not mediainfo_path:
@@ -215,6 +256,10 @@ def generate_nfo_single_file(input_path: str, nfo_path: str) -> bool:
                 else:
                     lines.append(line)
             output = "\n".join(lines) + ("\n" if proc.stdout.endswith("\n") else "")
+
+        if tmdb_metadata:
+            tmdb_lines = _format_tmdb_section(tmdb_metadata)
+            output += "\n" + "\n".join(tmdb_lines) + "\n"
 
         with open(nfo_path, "w", encoding="utf-8") as f:
             f.write(output)
@@ -240,7 +285,12 @@ def _find_first_episode(folder_path: str) -> str | None:
     return sorted(candidates)[0]
 
 
-def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = None) -> bool:
+def generate_nfo_folder(
+    input_path: str,
+    nfo_path: str,
+    banner: str | None = None,
+    tmdb_metadata: Optional[dict[str, Any]] = None,
+) -> bool:
     """Gera .nfo detalhado para uma pasta.
 
     Para pastas de série (padrão SXX no nome): usa mediainfo do primeiro episódio.
@@ -254,7 +304,7 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         if _is_series_folder(folder_name):
             first_ep = _find_first_episode(input_path)
             if first_ep:
-                return generate_nfo_single_file(first_ep, nfo_path)
+                return generate_nfo_single_file(first_ep, nfo_path, tmdb_metadata=tmdb_metadata)
 
         title_temp = folder_name
 
@@ -346,6 +396,9 @@ def generate_nfo_folder(input_path: str, nfo_path: str, banner: str | None = Non
         lines.append("  > Arquivos por Tipo:")
         for ext, count in sorted(extension_counts.items(), key=lambda x: x[1], reverse=True):
             lines.append(f"    - {ext.upper().replace('.', '')}: {count} arquivo(s)")
+
+        if tmdb_metadata:
+            lines.extend(_format_tmdb_section(tmdb_metadata))
 
         lines += [
             "",

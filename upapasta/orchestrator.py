@@ -94,6 +94,8 @@ class UpaPastaOrchestrator:
         nzb_subject_prefix: Optional[str] = None,
         resume: bool = False,
         compressor: str = "rar",
+        tmdb_id: Optional[int] = None,
+        disable_tmdb: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -109,6 +111,9 @@ class UpaPastaOrchestrator:
         self.keep_files = keep_files
         self.backend = backend
         self.compressor = compressor
+        self.tmdb_id = tmdb_id
+        self.disable_tmdb = disable_tmdb
+
         self._user_rar_threads = rar_threads
         self._user_par_threads = par_threads
         self._user_memory_mb = max_memory_mb
@@ -226,6 +231,8 @@ class UpaPastaOrchestrator:
             rename_extensionless=getattr(args, "rename_extensionless", False),
             resume=getattr(args, "resume", False),
             compressor=final_compressor,
+            tmdb_id=getattr(args, "tmdb_id", None),
+            disable_tmdb=getattr(args, "disable_tmdb", False),
         )
 
     @staticmethod
@@ -257,9 +264,54 @@ class UpaPastaOrchestrator:
             os.makedirs(nzb_dir, exist_ok=True)
         except OSError:
             pass
+
+        tmdb_data: Optional[dict[str, Any]] = None
+
+        # Tenta buscar metadados no TMDb se houver chave e não estiver desativado
+        api_key = self.env_vars.get("TMDB_API_KEY")
+        if api_key and not self.disable_tmdb and not self.dry_run:
+            from .tmdb import parse_title_and_year, search_media
+
+            if bar:
+                bar.log(_("Buscando metadados no TMDb..."))
+
+            # Determina tipo de mídia (movie/tv)
+            from .catalog import detect_category
+
+            cat = detect_category(self.input_path.name)
+            media_type = "tv" if cat == "TV" else "movie"
+
+            if self.tmdb_id:
+                # Busca direta por ID se fornecido
+                from .tmdb import _get_details
+
+                tmdb_data = {"id": self.tmdb_id}
+                details = _get_details(
+                    api_key,
+                    self.tmdb_id,
+                    media_type,
+                    self.env_vars.get("TMDB_LANGUAGE", "pt-BR"),
+                )
+                if details:
+                    tmdb_data.update(details)
+            else:
+                # Busca automática por nome
+                clean_title, year = parse_title_and_year(self.input_path.name)
+                tmdb_data = search_media(
+                    api_key,
+                    clean_title,
+                    year=year,
+                    media_type=media_type,
+                    language=self.env_vars.get("TMDB_LANGUAGE", "pt-BR"),
+                )
+
+            if tmdb_data and bar:
+                title = tmdb_data.get("title") or tmdb_data.get("name")
+                bar.log(_("✅ TMDb: {title} encontrado.").format(title=title))
+
         banner = self.env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
         if not self.input_path.is_dir():
-            ok = generate_nfo_single_file(str(self.input_path), nfo_path)
+            ok = generate_nfo_single_file(str(self.input_path), nfo_path, tmdb_metadata=tmdb_data)
             if ok:
                 self.nfo_file = nfo_path
                 if not bar:
@@ -269,7 +321,9 @@ class UpaPastaOrchestrator:
                         )
                     )
             return ok
-        ok = generate_nfo_folder(str(self.input_path), nfo_path, banner=banner)
+        ok = generate_nfo_folder(
+            str(self.input_path), nfo_path, banner=banner, tmdb_metadata=tmdb_data
+        )
         if ok:
             self.nfo_file = nfo_path
             if not bar:

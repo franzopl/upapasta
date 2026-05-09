@@ -9,7 +9,7 @@ def test_orchestrator_generates_nfo_even_with_skip_upload(tmp_path, monkeypatch)
     # Mock NFO generation to avoid external dependencies (mediainfo)
     import upapasta.nfo as nfo_mod
 
-    def mock_gen_nfo(src, dst):
+    def mock_gen_nfo(src, dst, **kwargs):
         with open(dst, "w") as f:
             f.write("Fake NFO Content")
         return True

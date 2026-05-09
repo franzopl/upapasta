@@ -166,6 +166,11 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
         "# Args extras repassados ao nyuu (ex: --article-threads=8 --queue=20)",
         f"NYUU_EXTRA_ARGS={v('NYUU_EXTRA_ARGS')}",
         "",
+        "# *** TMDb Metadata ***",
+        "# Chave da API do TMDb (opcional)",
+        f"TMDB_API_KEY={v('TMDB_API_KEY')}",
+        f"TMDB_LANGUAGE={v('TMDB_LANGUAGE') or 'pt-BR'}",
+        "",
         "# Compressor padrão (rar/7z) usado quando a compactação é necessária",
         f"DEFAULT_COMPRESSOR={v('DEFAULT_COMPRESSOR')}",
         "",
@@ -274,6 +279,14 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         _("Output path for .nzb ({{filename}} = upload name)"),
         default=ex("NZB_OUT", "{filename}.nzb"),
     )
+    tmdb_key = _ask(
+        _("TMDb API Key (optional, get at themoviedb.org)"),
+        default=ex("TMDB_API_KEY", ""),
+    )
+    tmdb_lang = _ask(
+        _("TMDb Language (e.g., pt-BR, en-US)"),
+        default=ex("TMDB_LANGUAGE", "pt-BR"),
+    )
     # Se o usuário indicou apenas uma pasta (não contém {filename} e não termina em .nzb)
     if "{filename}" not in nzb_out and not nzb_out.lower().endswith(".nzb"):
         nzb_out = os.path.join(nzb_out, "{filename}.nzb")
@@ -300,6 +313,8 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         "DUMP_FAILED_POSTS": "",
         "QUIET": "false",
         "LOG_TIME": "true",
+        "TMDB_API_KEY": tmdb_key,
+        "TMDB_LANGUAGE": tmdb_lang,
     }
 
     print()
@@ -313,6 +328,8 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         )
     )
     print(_("  NZB out   : {nzb}").format(nzb=nzb_out))
+    if tmdb_key:
+        print(_("  TMDb Key  : Set"))
     print()
 
     _write_full_env(env_file, values)
