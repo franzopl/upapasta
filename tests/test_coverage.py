@@ -786,7 +786,10 @@ class TestFindNyuu:
     def test_nyuu_nao_encontrado(self):
         from upapasta.upfolder import find_nyuu
 
-        with patch("shutil.which", return_value=None):
+        with (
+            patch("shutil.which", return_value=None),
+            patch("os.path.exists", return_value=False),
+        ):
             result = find_nyuu()
         assert result is None
 
