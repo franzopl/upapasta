@@ -94,8 +94,8 @@ class UpaPastaOrchestrator:
         nzb_subject_prefix: Optional[str] = None,
         resume: bool = False,
         compressor: str = "rar",
+        tmdb: bool = False,
         tmdb_id: Optional[int] = None,
-        disable_tmdb: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -111,8 +111,8 @@ class UpaPastaOrchestrator:
         self.keep_files = keep_files
         self.backend = backend
         self.compressor = compressor
+        self.tmdb = tmdb
         self.tmdb_id = tmdb_id
-        self.disable_tmdb = disable_tmdb
 
         self._user_rar_threads = rar_threads
         self._user_par_threads = par_threads
@@ -231,8 +231,8 @@ class UpaPastaOrchestrator:
             rename_extensionless=getattr(args, "rename_extensionless", False),
             resume=getattr(args, "resume", False),
             compressor=final_compressor,
+            tmdb=getattr(args, "tmdb", False),
             tmdb_id=getattr(args, "tmdb_id", None),
-            disable_tmdb=getattr(args, "disable_tmdb", False),
         )
 
     @staticmethod
@@ -267,9 +267,9 @@ class UpaPastaOrchestrator:
 
         tmdb_data: Optional[dict[str, Any]] = None
 
-        # Tenta buscar metadados no TMDb se houver chave e não estiver desativado
+        # Tenta buscar metadados no TMDb se houver chave e flag --tmdb
         api_key = self.env_vars.get("TMDB_API_KEY")
-        if api_key and not self.disable_tmdb and not self.dry_run:
+        if api_key and self.tmdb and not self.dry_run:
             from .tmdb import parse_title_and_year, search_media
 
             if bar:

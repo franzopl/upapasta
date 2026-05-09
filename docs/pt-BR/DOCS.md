@@ -104,6 +104,7 @@ O que acontece ao executar `upapasta Pasta/`:
 | `--each` | Cada arquivo da pasta = release separado com NZB próprio |
 | `--season` | Como `--each`, mas gera também um NZB único com toda a temporada |
 | `--obfuscate` | Stealth máximo: nomes aleatórios em arquivos, PAR2 e subjects do NZB |
+| `--tmdb` | Enriquece o .nfo com dados do TMDb (requer API Key no `.env`) |
 | `--password [SENHA]` | Senha de criptografia; usa `DEFAULT_COMPRESSOR` se não especificado |
 | `--compress` / `-c` | Ativa compactação usando o compressor padrão do `.env` |
 | `--rar` | Força empacotamento em RAR5 (ignora `.env`) |

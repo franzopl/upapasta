@@ -318,16 +318,16 @@ def parse_args() -> argparse.Namespace:
         help=_("Comportamento quando .nzb já existe: rename (padrão), overwrite, fail"),
     )
     advanced.add_argument(
-        "--tmdb-id",
-        type=int,
-        help=_("Força um ID específico do TMDb para a busca de metadados."),
-    )
-    advanced.add_argument(
-        "--disable-tmdb",
+        "--tmdb",
         action="store_true",
         help=_(
-            "Desativa a busca automática de metadados no TMDb, mesmo se a API Key estiver configurada."
+            "Busca metadados no TMDb (sinopse, poster, etc.) para enriquecer o .nfo (requer API Key no .env)."
         ),
+    )
+    advanced.add_argument(
+        "--tmdb-id",
+        type=int,
+        help=_("Força um ID específico do TMDb para a busca de metadados (implica --tmdb)."),
     )
     advanced.add_argument(
         "--env-file",
@@ -529,5 +529,9 @@ def _validate_flags(args: argparse.Namespace) -> bool:
                 "   Nomes externos ofuscados; estrutura preservada via parpar."
             )
         )
+
+    # --tmdb-id implica --tmdb
+    if getattr(args, "tmdb_id", None):
+        args.tmdb = True
 
     return True

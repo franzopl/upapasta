@@ -110,6 +110,7 @@ What happens when you run `upapasta Folder/`:
 | `--each` | Each file in the folder = separate release with its own NZB |
 | `--season` | Like `--each`, but also generates a single NZB with the entire season |
 | `--obfuscate` | Maximum privacy: random names for files, PAR2 and NZB subjects |
+| `--tmdb` | Enrich NFO with TMDb metadata (requires API Key in `.env`) |
 | `--password [PASS]` | Encryption password; uses `DEFAULT_COMPRESSOR` if unspecified |
 | `--compress` / `-c` | Activates packaging using default compressor from `.env` |
 | `--rar` | Forces RAR5 packaging (ignores `.env`) |
