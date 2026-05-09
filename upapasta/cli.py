@@ -39,8 +39,9 @@ COMPORTAMENTO PADRÃO
   Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
   Com --rar: cria RAR primeiro, depois PAR2 + upload
 
-  --obfuscate: nomes aleatórios (sem RAR por padrão; proteção via parpar + ofuscação).
-  --obfuscate --password abc: nomes aleatórios + RAR com senha.
+  --obfuscate: ofuscação máxima — nomes aleatórios em arquivos, subjects e NZB;
+              poster por artigo, ordem embaralhada, jitter de tamanho, fragmentação multigrupo.
+  --obfuscate --password abc: ofuscação máxima + RAR com senha.
   --password sozinho: presume --rar automaticamente (precisa de RAR para proteger).
   Arquivo único com --obfuscate ou --password: cria RAR automaticamente.
 
@@ -140,18 +141,16 @@ def parse_args() -> argparse.Namespace:
         "--obfuscate",
         action="store_true",
         help=_(
-            "Release privado: nomes aleatórios no RAR/PAR2 + senha gerada automaticamente. "
-            "Em arquivo único, cria RAR automaticamente. "
-            "Use --password junto para definir a senha manualmente."
+            "Ofuscação máxima: nomes aleatórios nos arquivos, subjects da Usenet e dentro do NZB. "
+            "Nenhum nome original visível em indexadores. "
+            "Inclui: poster aleatório por artigo, ordem embaralhada, jitter de tamanho e fragmentação multigrupo. "
+            "Downloaders modernos (SABnzbd/NZBGet) usam PAR2 para renomear automaticamente após download."
         ),
     )
     essential.add_argument(
         "--strong-obfuscate",
         action="store_true",
-        help=_(
-            "Ofuscação máxima: nomes aleatórios no RAR/PAR2 E dentro do NZB (nenhum nome original visível em indexadores). "
-            "Requer renomeação manual ou via PAR2 após download. Implica --obfuscate."
-        ),
+        help=_("Obsoleto. Use --obfuscate (comportamento idêntico desde v0.28.0)."),
     )
     essential.add_argument(
         "--password",
@@ -445,10 +444,15 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         print(_("ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger)."))
         args.rar = True
 
-    # --strong-obfuscate presume --obfuscate
+    # --strong-obfuscate é deprecated desde v0.28.0; --obfuscate já aplica ofuscação máxima
     if getattr(args, "strong_obfuscate", False):
         args.obfuscate = True
-        print(_("ℹ️  --strong-obfuscate ativa --obfuscate automaticamente."))
+        print(
+            _(
+                "⚠️  --strong-obfuscate está obsoleto desde v0.28.0. "
+                "Use --obfuscate (comportamento idêntico)."
+            )
+        )
 
     # --jobs requer múltiplos inputs
     jobs = getattr(args, "jobs", 1)

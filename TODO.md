@@ -96,20 +96,21 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 - 1026 lines → 612 lines in `orchestrator.py` + `_pipeline.py` with the 3 classes
 - Goal: `orchestrator.py < 600 lines`; each new class tested in isolation
 
-### 3.0 · Obfuscation Improvements
-- [x] ✅ Implement `--strong-obfuscate`: keeps random names inside the NZB as well (maximum privacy in indexers, requires manual renaming or via par2 after download). **Implemented in 0.23.0**
-- [ ] **v0.25.0+ · Refactor Obfuscation Model (Unified Standard)**
-    - Unificar `--obfuscate` e `--strong-obfuscate` em um único comportamento de segurança máxima.
-    - Adotar "Strong Obfuscation" como padrão: nomes aleatórios em arquivos, subjects da Usenet e subjects do NZB.
-    - **Randomização de Identidade por File-Entry**: Gerar um "Poster" (nome/e-mail) aleatório para cada arquivo/volume individual dentro do mesmo NZB, dificultando o agrupamento por autor.
-    - **Modo Schizo Avançado**: Comprimentos de nomes variáveis (10-30 chars) e domínios de e-mail aleatórios.
-    - **Deep Obfuscation Protocols (Elite)**:
-        - *Fragmentação Multigrupo*: Distribuir volumes de um mesmo release entre múltiplos grupos (ex: boneless, mom, etc) para evitar takedowns focados em um único grupo.
-        - *Upload Embaralhado (Shuffled)*: Postar partes e arquivos em ordem não-linear para quebrar detecção de sequenciamento lógico.
-        - *Jitter de Tamanho*: Variar levemente o `ARTICLE_SIZE` entre posts para quebrar assinaturas de tráfego.
-        - *Camuflagem de NFO*: Suporte a NFOs falsos/genéricos para esconder a natureza do conteúdo de indexadores "peepers".
-    - Motivação: Downloaders modernos (SABnzbd/NZBGet) já usam PAR2 para renomeação automática; a ofuscação reversível é considerada insegura pois vaza metadados em indexadores.
-    - Manter apenas o nome do arquivo `.nzb` legível no disco local.
+### ~~3.0 · Elite Obfuscation Suite~~ ✅ Completed (0.27.0–0.28.0)
+
+- [x] ✅ `--strong-obfuscate`: nomes aleatórios no NZB (0.23.0)
+- [x] ✅ Modo schizo: comprimentos de nome variáveis (10–30 chars), domínios de e-mail aleatórios (0.27.0)
+- [x] ✅ Poster aleatório por artigo via tokens nyuu (`{rand-an:12}@{rand-an:8}.com`) (0.27.0)
+- [x] ✅ Upload embaralhado (shuffle) da lista de arquivos ao obfuscar (0.27.0)
+- [x] ✅ Jitter de ARTICLE_SIZE (±5%) por sessão de upload (0.27.0)
+- [x] ✅ Fragmentação multigrupo (cross-group fragmentation) via nyuu JS config (0.27.0)
+- [x] ✅ Unificação `--obfuscate` / `--strong-obfuscate` (0.28.0):
+    - `--obfuscate` agora aplica ofuscação máxima (comportamento anterior do `--strong-obfuscate`)
+    - `--strong-obfuscate` deprecated com aviso; alias para `--obfuscate`
+    - `orchestrator.py`: `strong_obfuscate` sempre `True` quando `obfuscate=True`
+- [ ] **3.0.1 · Camuflagem de NFO** `Low · Low effort`
+    - Flag `--decoy-nfo`: substitui o NFO real por um genérico antes do upload; NFO local permanece intacto
+    - Útil para esconder metadados de indexadores "peepers" sem comprometer a experiência do downloader
 
 ### ~~2.7 · Refactor `makepar.py::obfuscate_and_par` into sub-functions by mode~~ ✅ Completed
 - Function reduced from 195 lines → 72 lines with 5 sub-functions (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure)

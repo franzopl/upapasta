@@ -161,7 +161,8 @@ class UpaPastaOrchestrator:
             par_profile=args.par_profile,
             nzb_conflict=args.nzb_conflict,
             obfuscate=args.obfuscate,
-            strong_obfuscate=getattr(args, "strong_obfuscate", False),
+            # Desde v0.28.0 --obfuscate já implica ofuscação máxima (era --strong-obfuscate)
+            strong_obfuscate=args.obfuscate,
             rar_password=args.password,
             par_slice_size=args.par_slice_size,
             upload_timeout=args.upload_timeout,
