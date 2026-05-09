@@ -35,24 +35,24 @@ _DESCRIPTION = _("UpaPasta — uploader automatizado para Usenet")
 
 _EPILOG = _("""\
 COMPORTAMENTO PADRÃO
-  Pasta   → PAR2 (balanced) + upload direto (sem RAR) → NZB + NFO
-  Arquivo → PAR2 + upload direto (sem RAR) → NZB + NFO
-  Com --rar: cria RAR primeiro, depois PAR2 + upload
+  Pasta   → PAR2 (balanced) + upload direto (sem compactação) → NZB + NFO
+  Arquivo → PAR2 + upload direto (sem compactação) → NZB + NFO
+  Com --rar ou --compressor 7z: cria arquivo compactado primeiro, depois PAR2 + upload
 
-  --obfuscate: ofuscação máxima — nomes aleatórios em arquivos, subjects e NZB;
+  --obfuscate: stealth máximo — nomes aleatórios em arquivos, subjects e NZB;
               poster por artigo, ordem embaralhada, jitter de tamanho, fragmentação multigrupo.
-  --obfuscate --password abc: ofuscação máxima + RAR com senha.
-  --password sozinho: presume --rar automaticamente (precisa de RAR para proteger).
-  Arquivo único com --obfuscate ou --password: cria RAR automaticamente.
+  --obfuscate --password abc: stealth máximo + arquivo protegido com senha.
+  --password sozinho: ativa compactação automaticamente (precisa de container para proteger).
+  Arquivo único com --obfuscate ou --password: cria container automaticamente.
 
 FLUXO RECOMENDADO 2026 (padrão moderno)
   upapasta Pasta/ --obfuscate --backend parpar \\
       --filepath-format common --par-profile safe
 
   Por quê: parpar grava a estrutura de pastas nos .par2; SABnzbd/NZBGet
-  recentes reconstroem a árvore no download. RAR é opcional — ofuscação
+  recentes reconstroem a árvore no download. Compactação é opcional — ofuscação
   forte + PAR2 já protege contra scans automáticos de copyright. Use --rar
-  apenas se precisar do RAR-com-senha (casos legados).
+  ou --compressor 7z apenas se precisar de senha (casos legados).
 
   No SABnzbd: desative "Recursive Unpacking" e revise "Unwanted Extensions".
   Use --rename-extensionless se houver arquivos sem extensão (evita .txt do SAB).
@@ -60,12 +60,12 @@ FLUXO RECOMENDADO 2026 (padrão moderno)
 EXEMPLOS
   upapasta Pasta/ --obfuscate                 fluxo moderno (recomendado)
   upapasta Filme.2024/ --rar                  pasta como release único (com RAR)
-  upapasta Episodio.S01E01.mkv               arquivo único, sem RAR
+  upapasta Episodio.S01E01.mkv               arquivo único, sem compactação
   upapasta A.mkv B.mkv C.mkv                múltiplos arquivos, processamento sequencial
   upapasta Pasta1/ Pasta2/ --jobs 2          duas pastas em paralelo
   upapasta Temporada.1/ --each               cada arquivo da pasta separado
-  upapasta Pasta/ --password "abc123"         RAR com senha (presume --rar automaticamente)
-  upapasta Pasta/ --filepath-format keep     preserva caminho completo
+  upapasta Pasta/ --password "abc123"         compactado com senha (usa compressor padrão)
+  upapasta Pasta/ --compressor 7z             usa 7z em vez de RAR
 """)
 
 
@@ -451,10 +451,11 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         args.password = "".join(secrets.choice(chars) for _ in range(16))
         print(_("🔑  Senha gerada automaticamente: {password}").format(password=args.password))
 
-    # --password presume --rar (precisa de RAR para proteger com senha)
-    if args.password and not args.rar:
-        print(_("ℹ️  --password ativa --rar automaticamente (precisa de RAR para proteger)."))
-        args.rar = True
+    # --password ativa compactação automaticamente (precisa de container para proteger com senha)
+    if args.password and not args.rar and not getattr(args, "compressor", None):
+        print(_("ℹ️  --password ativa compactação automaticamente (usa compressor padrão do .env)."))
+        # Deixamos args.rar como False se o usuário não pediu,
+        # o orchestrator decidirá entre RAR/7z baseando-se no .env
 
     # --strong-obfuscate é deprecated desde v0.28.0; --obfuscate já aplica ofuscação máxima
     if getattr(args, "strong_obfuscate", False):

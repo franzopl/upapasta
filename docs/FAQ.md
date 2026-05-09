@@ -26,7 +26,13 @@ A: Install it via npm: `npm install -g nyuu`. If Node is not installed: `apt ins
 
 **Q: `parpar: command not found`.**
 
-A: Install it via pip: `pip install parpar`. Confirm with `parpar --version`.
+A: Install it via npm: `npm install -g @animetosho/parpar`. Confirm with `parpar --version`.
+
+---
+
+**Q: `7z: command not found` (using `--compressor 7z`).**
+
+A: Install it: `apt install p7zip-full` (Debian/Ubuntu), `brew install p7zip` (macOS), or from [7-zip.org](https://www.7-zip.org/) (Windows).
 
 ---
 
@@ -113,16 +119,7 @@ A: Two options:
 
 **Q: What is the difference between `--obfuscate` and `--strong-obfuscate`?**
 
-A:
-
-| | `--obfuscate` | `--strong-obfuscate` |
-|--|--------------|---------------------|
-| Filenames on Usenet | random | random |
-| Subjects in NZB | **original names** | random |
-| Do indexers see content? | no | no |
-| Does downloader see names? | yes (via NZB) | no (requires PAR2) |
-
-Use `--obfuscate` for normal use (DMCA protection with download convenience). Use `--strong-obfuscate` only when maximum privacy is critical.
+A: Since v0.28.0, `--obfuscate` is the **recommended and only** flag for stealth. It provides maximum privacy by default: random filenames on Usenet AND random subjects in the NZB. Downloaders like SABnzbd will still restore names automatically using NZB headers.
 
 ---
 
@@ -134,7 +131,7 @@ A: This should not happen — rollback is guaranteed via `finally`. Check if the
 
 **Q: Does `--password` without `--rar` work?**
 
-A: `--password` automatically implies `--rar` since version 0.18.0. You don't need to type `--rar` separately. The combination `--skip-rar --password` is still a fatal error.
+A: `--password` automatically implies packaging since version 0.18.0. It will use your `DEFAULT_COMPRESSOR` (from `.env`) or an explicit `--compressor {rar,7z}`. The combination `--skip-rar --password` is still a fatal error.
 
 ---
 
@@ -184,12 +181,12 @@ A: Disable "Recursive Unpacking" in SABnzbd settings (`Config → General → Re
 
 **Q: Empty subfolders disappear after downloading.**
 
-A: Usenet and PAR2 only transport files. Without RAR, empty directories do not exist. Solution:
-- Add `--rar` to preserve the structure via a RAR container
+A: Usenet and PAR2 only transport files. Without a container (RAR or 7z), empty directories do not exist. Solution:
+- Use a container via `--rar` or `--compressor 7z`
 - Or place a sentinel file (`.keep`) in each empty subfolder before uploading
 
 ---
 
-**Q: I have a folder with a single file. Does UpaPasta create a RAR?**
+**Q: I have a folder with a single file. Does UpaPasta create an archive?**
 
-A: Not by default. RAR is only created with `--rar`, `--password`, or `--obfuscate` on a single file. If you don't use any of these flags, the file is uploaded directly.
+A: Not by default. A container is only created with `--rar`, `--compressor`, `--password`, or `--obfuscate` on a single file. If you don't use any of these flags, the file is uploaded directly.

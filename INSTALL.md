@@ -31,9 +31,6 @@ UpaPasta orchestrates external binaries. Install the ones you will use:
 ```bash
 # Via npm (recommended)
 npm install -g nyuu
-
-# Or download the compiled binary
-# https://github.com/nicowillis/nyuu/releases
 ```
 
 Confirm with: `nyuu --version`
@@ -41,25 +38,28 @@ Confirm with: `nyuu --version`
 ### parpar (mandatory for PAR2 — recommended)
 
 ```bash
-pip install parpar
+# Cross-platform via npm
+npm install -g @animetosho/parpar
 ```
 
 Confirm with: `parpar --version`
 
-### par2 (parpar alternative)
+### 7z (recommended alternative to RAR)
 
 ```bash
 # Debian / Ubuntu
-sudo apt install par2
+sudo apt install p7zip-full
 
 # macOS
-brew install par2
+brew install p7zip
 
 # Windows
-# Download from: https://github.com/Parchive/par2cmdline/releases
+# Install from: https://www.7-zip.org/
 ```
 
-### rar (only with `--rar`)
+Confirm with: `7z --help`
+
+### rar (optional — only with `--rar`)
 
 ```bash
 # Debian / Ubuntu

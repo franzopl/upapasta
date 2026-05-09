@@ -20,10 +20,9 @@ upapasta /tv/Night.of.the.Living.Dead.S01/
 - Generates PAR2 with redundancy profiles (5 / 10 / 20%)
 - Uploads via nyuu without staging in `/tmp` (direct paths)
 - Delivers NZB + NFO with video metadata
-- (Optional) Creates RAR5 with password before upload
-- Logs everything in `~/.config/upapasta/history.jsonl`
-
-Zero Python dependencies — system binaries only.
+- (Optional) Creates RAR5 or 7z with password before upload
+- Logs everything in a centralized history (JSONL)
+- Cross-platform: works on Linux, macOS, and Windows
 
 ---
 
@@ -38,9 +37,9 @@ pip install upapasta
 | Binary | Function | Install |
 |---------|--------|----------|
 | `nyuu` | NNTP Upload | `npm install -g nyuu` |
-| `parpar` | PAR2 Generation (recommended) | `pip install parpar` |
-| `par2` | parpar alternative | `apt install par2` |
-| `rar` | RAR5 (only with `--rar`) | `apt install rar` |
+| `parpar` | PAR2 Generation (recommended) | `npm install -g @animetosho/parpar` |
+| `7z` | Open source packaging (recommended) | `apt install p7zip-full` / `brew install p7zip` |
+| `rar` | RAR5 support | `apt install rar` / `brew install rar` |
 | `ffprobe` | Video metadata in NFO | `apt install ffmpeg` |
 | `mediainfo` | Technical media info in NFO | `apt install mediainfo` |
 
@@ -50,13 +49,14 @@ See [INSTALL.md](INSTALL.md) for detailed instructions per platform.
 
 ## Configuration
 
-On the first run, an interactive wizard creates `~/.config/upapasta/.env`:
+On the first run, an interactive wizard creates your configuration file:
 
 ```bash
 upapasta --config
 ```
 
-To configure failover with multiple NNTP servers, edit `.env` directly — see [DOCS.md § Multiple NNTP servers](DOCS.md#7-multiple-nntp-servers).
+- **Linux/macOS:** `~/.config/upapasta/.env`
+- **Windows:** `%APPDATA%\upapasta\.env`
 
 ---
 
@@ -66,38 +66,30 @@ To configure failover with multiple NNTP servers, edit `.env` directly — see [
 |------|---------|
 | Entire folder | `upapasta Folder/` |
 | Single file | `upapasta Episode.S01E01.mkv` |
-| Multiple inputs | `upapasta A/ B/ C/` |
-| Parallel | `upapasta A/ B/ C/ --jobs 3` |
 | Reversible obfuscation | `upapasta Folder/ --obfuscate` |
-| Maximum privacy | `upapasta Folder/ --strong-obfuscate` |
-| RAR Password | `upapasta Folder/ --password "abc123"` |
+| 7z + Password | `upapasta Folder/ --password "abc123" --compressor 7z` |
+| RAR + Password | `upapasta Folder/ --password "abc123" --compressor rar` |
 | Each file = release | `upapasta /tv/Show.S04/ --each` |
 | Season + Single NZB | `upapasta /tv/Show.S04/ --season` |
 | Daemon (watch folder) | `upapasta /downloads/ --watch` |
-| No upload (files only) | `upapasta Folder/ --skip-upload` |
-| Dry run (simulate) | `upapasta Folder/ --dry-run` |
 | Resume interrupted upload | `upapasta Folder/ --resume` |
 
 ---
 
 ## Recommended Workflow 2026
 
-RAR is no longer necessary for most cases. parpar stores the folder hierarchy in `.par2` files, and recent SABnzbd/NZBGet versions rebuild the tree upon download:
+RAR/7z is no longer necessary for most cases. parpar stores the folder hierarchy in `.par2` files, and recent SABnzbd/NZBGet versions rebuild the tree upon download:
 
 ```bash
-upapasta Folder/ --obfuscate --backend parpar \
-    --filepath-format common --par-profile safe
+upapasta Folder/ --obfuscate --par-profile safe
 ```
 
-Use `--rar` only when you need a password (legacy cases) or when the downloader does not support reconstruction via PAR2.
+### Obfuscation
 
-### Obfuscation levels
-
-| Flag | What is obfuscated | NZB shows original name? |
-|------|-------------|--------------------------|
-| (none) | nothing | yes |
-| `--obfuscate` | files + PAR2 | yes (reversible) |
-| `--strong-obfuscate` | files + PAR2 + NZB subjects | no |
+Since v0.28.0, the `--obfuscate` flag provides maximum stealth by default:
+- Files and PAR2 volumes are renamed to random strings.
+- NZB subjects are obfuscated (protected from indexer "peepers").
+- NZB file headers allow downloaders to restore original names automatically.
 
 ---
 
@@ -105,14 +97,14 @@ Use `--rar` only when you need a password (legacy cases) or when the downloader 
 
 ```
 --rar                    Create RAR5 before upload
---obfuscate              Random names; NZB restores original names
---strong-obfuscate       Maximum privacy: random names for everything
---password PASSWORD      RAR password (automatically implies --rar)
+--compressor {rar,7z}    Choose compressor (default: from .env)
+--password PASSWORD      Encryption password (implies --rar or --compressor)
+--obfuscate              Maximum privacy: random names for everything
 --par-profile PROFILE    fast (5%) · balanced (10%) · safe (20%)
 --jobs N                 Parallel uploads for multiple inputs
 --resume                 Resume interrupted upload
 --dry-run                Simulate without sending
---skip-upload            Generate RAR/PAR2/NFO without uploading
+--skip-upload            Generate files without uploading
 --each                   Each file in folder = separate release
 --season                 Like --each + single season NZB
 --watch                  Daemon: automatically process new items

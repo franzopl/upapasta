@@ -4,6 +4,13 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.29.0 - 2026-05-09
+
+### Funcionalidades
+- **Suporte ao 7z**: Adicionada compatibilidade total com 7-Zip como alternativa ao RAR. Inclui suporte a volumes múltiplos (`.7z.001`), criptografia de cabeçalhos (`-mhe=on`) e barra de progresso em tempo real no Dashboard.
+- **Compressor Padrão**: Nova configuração `DEFAULT_COMPRESSOR` no `.env` e no assistente inicial para escolher entre `rar` e `7z`.
+- **Neutralidade de Empacotamento**: Refatoração interna do pipeline e UI para usar terminologia genérica "PACK", permitindo suporte transparente a diferentes formatos de container.
+
 ## 0.28.0 - 2026-05-09
 
 ### Funcionalidades

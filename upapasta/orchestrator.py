@@ -165,7 +165,7 @@ class UpaPastaOrchestrator:
             post_size=args.post_size,
             subject=args.subject,
             group=args.group,
-            skip_rar=not args.rar,
+            skip_rar=not args.rar and not args.password and not getattr(args, "compressor", None),
             skip_par=args.skip_par,
             skip_upload=args.skip_upload,
             force=args.force,

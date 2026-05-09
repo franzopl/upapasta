@@ -24,7 +24,13 @@ R: Instale via npm: `npm install -g nyuu`. Se o Node não estiver instalado: `ap
 
 **P: `parpar: command not found`.**
 
-R: Instale via pip: `pip install parpar`. Confirme com `parpar --version`.
+R: Instale via npm: `npm install -g @animetosho/parpar`. Confirme com `parpar --version`.
+
+---
+
+**P: `7z: command not found` (usando `--compressor 7z`).**
+
+R: Instale o utilitário: `apt install p7zip-full` (Debian/Ubuntu), `brew install p7zip` (macOS), ou de [7-zip.org](https://www.7-zip.org/) (Windows).
 
 ---
 
@@ -111,16 +117,7 @@ R: Duas opções:
 
 **P: Qual a diferença entre `--obfuscate` e `--strong-obfuscate`?**
 
-R:
-
-| | `--obfuscate` | `--strong-obfuscate` |
-|--|--------------|---------------------|
-| Nomes dos arquivos na Usenet | aleatórios | aleatórios |
-| Subjects no NZB | **nomes originais** | aleatórios |
-| Indexadores veem o conteúdo? | não | não |
-| Downloader vê os nomes? | sim (via NZB) | não (requer PAR2) |
-
-Use `--obfuscate` para o uso normal (proteção contra DMCA com conveniência de download). Use `--strong-obfuscate` apenas quando privacidade máxima for crítica.
+R: Desde a v0.28.0, o flag `--obfuscate` é a única e **recomendada** forma de stealth. Ela oferece privacidade máxima por padrão: nomes de arquivos aleatórios na Usenet E subjects aleatórios no NZB. Downloaders modernos (SABnzbd) restauram os nomes automaticamente usando os headers do NZB.
 
 ---
 
@@ -132,7 +129,7 @@ R: Isso não deveria acontecer — o rollback é garantido via `finally`. Verifi
 
 **P: `--password` sem `--rar` funciona?**
 
-R: `--password` presume `--rar` automaticamente desde a versão 0.18.0. Não é necessário digitar `--rar` separado. A combinação `--skip-rar --password` ainda é erro fatal.
+R: `--password` presume empacotamento automaticamente desde a versão 0.18.0. Ele usará seu `DEFAULT_COMPRESSOR` (do `.env`) ou uma flag `--compressor {rar,7z}` explícita. A combinação `--skip-rar --password` ainda é erro fatal.
 
 ---
 
@@ -182,12 +179,12 @@ R: Desative "Recursive Unpacking" nas configurações do SABnzbd (`Config → Ge
 
 **P: Subpastas vazias somem depois do download.**
 
-R: Usenet e PAR2 só transportam arquivos. Sem RAR, diretórios vazios não existem. Solução:
-- Adicione `--rar` para preservar a estrutura via container RAR
+R: Usenet e PAR2 só transportam arquivos. Sem um container (RAR ou 7z), diretórios vazios não existem. Solução:
+- Use um container via `--rar` ou `--compressor 7z`
 - Ou coloque um arquivo sentinela (`.keep`) em cada subpasta vazia antes do upload
 
 ---
 
-**P: Tenho uma pasta com um único arquivo. O UpaPasta cria RAR?**
+**P: Tenho uma pasta com um único arquivo. O UpaPasta cria um arquivo compactado?**
 
-R: Não por padrão. RAR só é criado com `--rar`, `--password` ou `--obfuscate` em arquivo único. Se não usar nenhuma dessas flags, o arquivo é enviado diretamente.
+R: Não por padrão. Um container só é criado com `--rar`, `--compressor`, `--password` ou `--obfuscate` em arquivo único. Se não usar nenhuma dessas flags, o arquivo é enviado diretamente.

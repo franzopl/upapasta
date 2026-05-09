@@ -662,7 +662,8 @@ class TestValidateFlags:
 
         args = self._args(password="senha123")
         _validate_flags(args)
-        assert args.rar is True
+        # v0.29.0: --password não força mais --rar, o orchestrator usa DEFAULT_COMPRESSOR
+        assert args.password == "senha123"
 
     def test_password_random(self, capsys):
         from upapasta.cli import _validate_flags

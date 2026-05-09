@@ -34,16 +34,16 @@ class TestPasswordRandomGeneration:
         assert args.password.isalnum()
 
     def test_password_sem_argumento_ativa_rar(self):
-        """--password sem argumento deve ativar --rar automaticamente."""
+        """--password sem argumento não ativa mais --rar automaticamente desde v0.29.0."""
         args = _make_args(password="__random__")
         _validate_flags(args)
-        assert args.rar is True
+        assert args.rar is False
 
     def test_password_explicito_ativa_rar(self):
-        """--password com valor explícito deve ativar --rar automaticamente."""
+        """--password com valor explícito não ativa mais --rar automaticamente desde v0.29.0."""
         args = _make_args(password="minhaSenha123")
         _validate_flags(args)
-        assert args.rar is True
+        assert args.rar is False
         assert args.password == "minhaSenha123"
 
     def test_password_explicito_com_rar_ja_ativo(self):

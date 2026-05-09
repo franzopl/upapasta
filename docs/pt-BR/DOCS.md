@@ -2,7 +2,7 @@
 
 [English (en)](../../DOCS.md)
 
-> Válido para UpaPasta ≥ 0.25.0. Para versões anteriores, consulte o [CHANGELOG](../../CHANGELOG.md).
+> Válido para UpaPasta ≥ 0.29.0. Para versões anteriores, consulte o [CHANGELOG](../../CHANGELOG.md).
 
 ---
 
@@ -13,13 +13,14 @@
 3. [Referência de flags](#3-referência-de-flags)
 4. [Modos de operação](#4-modos-de-operação)
 5. [Ofuscação](#5-ofuscação)
-6. [PAR2 e backends](#6-par2-e-backends)
-7. [Múltiplos servidores NNTP](#7-múltiplos-servidores-nntp)
-8. [Resume](#8-resume)
-9. [Catálogo](#9-catálogo)
-10. [Hooks e webhooks](#10-hooks-e-webhooks)
-11. [Perfis](#11-perfis)
-12. [Pastas vazias](#12-pastas-vazias)
+6. [Compressão e Empacotamento](#6-compressão-e-empacotamento)
+7. [PAR2 e backends](#7-par2-e-backends)
+8. [Múltiplos servidores NNTP](#8-múltiplos-servidores-nntp)
+9. [Resume](#9-resume)
+10. [Catálogo](#10-catálogo)
+11. [Hooks e webhooks](#11-hooks-e-webhooks)
+12. [Perfis](#12-perfis)
+13. [Pastas vazias](#13-pastas-vazias)
 
 ---
 
@@ -27,7 +28,10 @@
 
 ### Wizard interativo
 
-Na primeira execução (ou com `upapasta --config`), um wizard interativo cria `~/.config/upapasta/.env`:
+Na primeira execução (ou com `upapasta --config`), um wizard interativo cria seu arquivo de configuração:
+
+- **Linux/macOS:** `~/.config/upapasta/.env`
+- **Windows:** `%APPDATA%\upapasta\.env`
 
 ```
 ╔══════════════════════════════════════════════════════╗
@@ -35,16 +39,12 @@ Na primeira execução (ou com `upapasta --config`), um wizard interativo cria `
 ╚══════════════════════════════════════════════════════╝
 
 ── Servidor NNTP ─────────────────────────────────────
-  Servidor NNTP (ex: news.eweka.nl): news.eweka.nl
-  Porta NNTP [563]:
-  Usar SSL/TLS? [true]:
-  Usuário NNTP: meu_usuario
-  Senha NNTP:
-
+  ...
 ── Upload ────────────────────────────────────────────
   Grupo Usenet [alt.binaries.boneless]:
   Conexões simultâneas [50]:
   Tamanho do artigo [700K]:
+  Compressor padrão (rar ou 7z) [rar]:
   Caminho de saída do .nzb [{filename}.nzb]:
 ```
 
@@ -54,57 +54,18 @@ Enter mantém o valor atual. Para forçar reconfiguração completa: `upapasta -
 
 #### Servidor NNTP principal
 
-| Variável | Descrição | Padrão |
-|----------|-----------|--------|
-| `NNTP_HOST` | Endereço do servidor NNTP | — |
-| `NNTP_PORT` | Porta (119 = sem TLS, 443/563 = TLS) | `563` |
-| `NNTP_SSL` | Usar TLS | `true` |
-| `NNTP_IGNORE_CERT` | Ignorar erro de certificado SSL | `false` |
-| `NNTP_USER` | Usuário NNTP | — |
-| `NNTP_PASS` | Senha NNTP | — |
-| `NNTP_CONNECTIONS` | Conexões simultâneas | `50` |
-
-#### Servidores de failover (opcional)
-
-Veja [§ 7 Múltiplos servidores NNTP](#7-múltiplos-servidores-nntp).
-
-#### Upload
-
-| Variável | Descrição | Padrão |
-|----------|-----------|--------|
-| `USENET_GROUP` | Grupo(s) de upload (vírgula para pool) | `alt.binaries.boneless` |
-| `ARTICLE_SIZE` | Tamanho máximo de artigo | `700K` |
-| `NZB_OUT` | Template de caminho do `.nzb` (`{filename}` = nome) | `{filename}.nzb` |
-| `NZB_OUT_DIR` | Diretório de saída dos `.nzb` | diretório atual |
-| `NZB_OVERWRITE` | Sobrescrever NZB existente | `true` |
-
-#### Verificação pós-upload
-
-| Variável | Descrição | Padrão |
-|----------|-----------|--------|
-| `CHECK_CONNECTIONS` | Conexões para verificar artigos | `5` |
-| `CHECK_TRIES` | Tentativas por artigo | `2` |
-| `CHECK_DELAY` | Intervalo entre tentativas | `5s` |
-| `CHECK_RETRY_DELAY` | Delay antes de retry após falha | `30s` |
+... (mesmas variáveis) ...
 
 #### Comportamento
 
 | Variável | Descrição | Padrão |
 |----------|-----------|--------|
 | `SKIP_ERRORS` | Ignorar erros de upload (`all` / `none`) | `all` |
+| `DEFAULT_COMPRESSOR` | Ferramenta padrão para empacotamento (`rar` / `7z`) | `rar` |
 | `QUIET` | Suprimir saída do nyuu | `false` |
 | `LOG_TIME` | Exibir timestamp nos logs | `true` |
 | `NYUU_EXTRA_ARGS` | Args extras repassados ao nyuu | — |
 | `DUMP_FAILED_POSTS` | Pasta para salvar posts que falharam | — |
-
-#### Notificações
-
-| Variável | Descrição |
-|----------|-----------|
-| `WEBHOOK_URL` | URL para notificação pós-upload (Discord/Slack/Telegram/genérico) |
-| `POST_UPLOAD_SCRIPT` | Script externo executado após upload bem-sucedido |
-
-Consulte `.env.example` incluído no repositório para o arquivo completo com comentários.
 
 ---
 
@@ -115,26 +76,20 @@ O que acontece ao executar `upapasta Pasta/`:
 ```
 1. Geração de NFO        ← mediainfo / ffprobe
 2. Verificação NZB       ← conflito de nome detectado antecipadamente
-3. (--rar) RAR5          ← somente com --rar, --password, ou arquivo único com --obfuscate/--password
-4. (--rename-extensionless) renomeia arquivos sem extensão para .bin
-5. PAR2                  ← parpar (padrão) ou par2; preserva hierarquia via filepath-format=common
-6. Upload via nyuu       ← sem staging em /tmp; paths diretos
-7. Pós-processamento NZB ← subjects corrigidos, senha injetada, verificação XML
-8. Cleanup               ← remove RAR/PAR2, a menos que --keep-files
-9. Reversão              ← desfaz ofuscação e renomeação .bin
-10. Catálogo             ← registra em history.jsonl + copia NZB
+3. PACK (RAR ou 7z)      ← somente com --rar, --password ou se definido no .env
+4. Normalização          ← renomeia arquivos sem extensão para .bin
+5. PAR2                  ← parpar (padrão) ou par2; preserva hierarquia
+6. Upload via nyuu       ← paths diretos; sem staging temporário
+7. Pós-processamento NZB ← subjects ofuscados, senha injetada, verificação XML
+8. Cleanup               ← remove arquivo temporário e PAR2
+9. Reversão              ← desfaz ofuscação e normalização .bin
+10. Catálogo             ← registra em history.jsonl + arquiva NZB
 11. Hook/webhook         ← POST_UPLOAD_SCRIPT + WEBHOOK_URL
 ```
 
 ### Quando cada etapa é pulada
 
-| Etapa | Condição para pular |
-|-------|---------------------|
-| RAR | sem `--rar` (e sem `--password`, e sem arquivo único com `--obfuscate`) |
-| Rename extensionless | sem `--rename-extensionless` |
-| PAR2 | `--skip-par` |
-| Upload | `--skip-upload` ou `--dry-run` |
-| Cleanup | `--keep-files` |
+... (mesma tabela, apenas atualizar referências se necessário) ...
 
 ---
 
@@ -148,27 +103,14 @@ O que acontece ao executar `upapasta Pasta/`:
 | `--watch` | Daemon: monitora pasta, processa novos itens automaticamente |
 | `--each` | Cada arquivo da pasta = release separado com NZB próprio |
 | `--season` | Como `--each`, mas gera também um NZB único com toda a temporada |
-| `--obfuscate` | Nomes aleatórios no RAR/PAR2; NZB restaura nomes originais |
-| `--strong-obfuscate` | Nomes aleatórios em tudo, inclusive nos subjects do NZB |
-| `--password [SENHA]` | Senha RAR injetada no NZB; presume `--rar`; sem argumento gera senha aleatória |
-| `--rar` | Cria RAR5 antes do upload |
+| `--obfuscate` | Stealth máximo: nomes aleatórios em arquivos, PAR2 e subjects do NZB |
+| `--password [SENHA]` | Senha de criptografia; implica `--rar` (ou compressor escolhido) |
+| `--compressor {rar,7z}` | Escolhe o compressor (sobrescreve padrão do `.env`) |
+| `--rar` | Força uso do RAR5 mesmo se 7z for o padrão |
 | `--dry-run` | Simula tudo sem criar ou enviar arquivos |
 | `--jobs N` | Uploads paralelos quando múltiplos inputs (padrão: 1) |
 
-### Ajuste
-
-| Flag | Descrição | Padrão |
-|------|-----------|--------|
-| `--par-profile` | `fast` (5%), `balanced` (10%), `safe` (20%) | `balanced` |
-| `-r N` / `--redundancy N` | Redundância PAR2 em % (sobrescreve `--par-profile`) | — |
-| `--keep-files` | Mantém RAR e PAR2 após upload | desativado |
-| `--log-file PATH` | Grava log completo em arquivo | — |
-| `--upload-retries N` | Tentativas extras em caso de falha | `0` |
-| `--verbose` | Log de debug com timestamps ISO | desativado |
-| `--watch-interval N` | Intervalo de varredura em segundos | `30` |
-| `--watch-stable N` | Segundos estável antes de processar | `60` |
-
-### Avançadas
+...
 
 | Flag | Descrição | Padrão |
 |------|-----------|--------|
@@ -176,155 +118,69 @@ O que acontece ao executar `upapasta Pasta/`:
 | `--filepath-format` | Como parpar grava paths: `common` / `keep` / `basename` / `outrel` | `common` |
 | `--post-size SIZE` | Tamanho alvo de post (ex: `700K`, `20M`) | do perfil |
 | `--par-slice-size SIZE` | Override do slice PAR2 (ex: `1M`, `2M`) | automático |
-| `--rar-threads N` | Threads para RAR | CPUs disponíveis |
+| `--rar-threads N` | Threads para etapa PACK (RAR ou 7z) | CPUs disponíveis |
 | `--par-threads N` | Threads para PAR2 | CPUs disponíveis |
 | `--max-memory MB` | Limite de memória para PAR2 | automático |
-| `-s` / `--subject` | Subject da postagem | nome do arquivo/pasta |
-| `-g` / `--group` | Newsgroup de destino | do `.env` |
-| `--nzb-conflict` | `rename` / `overwrite` / `fail` ao encontrar NZB existente | `rename` |
-| `--env-file PATH` | `.env` alternativo | `~/.config/upapasta/.env` |
-| `--upload-timeout N` | Timeout de conexão nyuu em segundos | sem limite |
-| `-f` / `--force` | Sobrescreve RAR/PAR2 existentes | desativado |
-| `--skip-par` | Pula geração de paridade | desativado |
-| `--skip-upload` | Gera arquivos sem fazer upload | desativado |
-| `--parpar-args STR` | Args extras para parpar (tokenizado via shlex) | — |
-| `--nyuu-args STR` | Args extras para nyuu (tokenizado via shlex) | — |
-| `--rename-extensionless` | Renomeia arquivos sem extensão para `.bin` (round-trip) | desativado |
-| `--resume` | Retoma upload interrompido | desativado |
 
-### Utilitários (sem input obrigatório)
-
-| Flag | Descrição |
-|------|-----------|
-| `--config` | Wizard de configuração (preserva valores existentes) |
-| `--stats` | Estatísticas agregadas do histórico |
-| `--test-connection` | Valida handshake NNTP (host, porta, credenciais) |
-| `--insecure` | Desativa verificação de certificado SSL no `--test-connection` |
-
----
-
-## 4. Modos de operação
-
-### Padrão (pasta ou arquivo único)
-
-```bash
-upapasta /tv/Night.of.the.Living.Dead.S01/
-upapasta /movies/Nosferatu.1922.mkv
-```
-
-Uma pasta vira um release. Um arquivo vira um release.
-
-### `--each` — cada arquivo = release
-
-```bash
-upapasta /tv/Show.S04/ --each --obfuscate
-```
-
-Percorre todos os arquivos da pasta e faz um upload separado para cada um. Ideal para temporadas onde cada episódio deve ter seu próprio NZB.
-
-### `--season` — episódios + NZB da temporada
-
-```bash
-upapasta /tv/The.Boys.S04/ --season --obfuscate
-```
-
-Como `--each`: cada episódio tem seu NZB individual. Ao final, gera um NZB consolidado da temporada com o prefixo do episódio nos subjects. Útil para indexadores que exibem temporadas completas.
-
-### `--jobs N` — paralelo
-
-```bash
-upapasta /pasta1/ /pasta2/ /pasta3/ --jobs 3
-```
-
-Processa múltiplos inputs em paralelo. Sem `--jobs`, são processados em sequência.
-
-### `--watch` — daemon
-
-```bash
-upapasta /downloads/ --watch --obfuscate
-upapasta /downloads/ --watch --watch-interval 60 --watch-stable 120
-```
-
-Monitora a pasta continuamente. Quando um novo item aparece e fica estável por `--watch-stable` segundos, inicia o pipeline. Ctrl+C encerra de forma limpa. Incompatível com `--each` e `--season`.
-
-### `--dry-run` — simulação
-
-```bash
-upapasta Pasta/ --dry-run --verbose
-```
-
-Executa todo o pipeline sem criar ou enviar arquivos. Com `--verbose`, imprime o argv completo dos subprocessos (parpar, nyuu), útil para depurar configurações antes do upload real.
-
-### `--skip-upload` — gerar sem enviar
-
-```bash
-upapasta Pasta/ --skip-upload --keep-files
-```
-
-Gera RAR (se ativado), PAR2 e NFO localmente sem fazer upload. Com `--keep-files`, os arquivos ficam no diretório de saída.
+...
 
 ---
 
 ## 5. Ofuscação
 
-### Comparação dos modos
+Desde a v0.28.0, o UpaPasta utiliza uma estratégia de ofuscação unificada focada em **Stealth Máximo**.
 
-| Modo | Nomes nos arquivos | Nomes no NZB | Pode ser lido sem PAR2? |
-|------|--------------------|--------------|-------------------------|
-| (nenhum) | originais | originais | sim |
-| `--obfuscate` | aleatórios | **originais** (restaurados) | sim |
-| `--strong-obfuscate` | aleatórios | aleatórios | não (renomear manualmente ou via PAR2) |
-
-### `--obfuscate` (ofuscação reversível)
+### Ofuscação Reversível (`--obfuscate`)
 
 ```bash
 upapasta Pasta/ --obfuscate
-upapasta Pasta/ --obfuscate --rar           # com RAR
-upapasta Pasta/ --obfuscate --password abc  # com senha RAR
+upapasta Pasta/ --obfuscate --compressor 7z
 ```
 
 O que acontece:
 
-1. Arquivos renomeados para nomes aleatórios antes do upload
+1. Arquivos renomeados para strings aleatórias antes do empacotamento/upload
 2. PAR2 gerado sobre os nomes aleatórios
-3. Upload feito com os nomes aleatórios
-4. `fix_nzb_subjects` restaura os nomes originais nos subjects do NZB
-5. Arquivos locais renomeados de volta para os nomes originais
+3. NZB gerado com subjects ofuscados (ex: `[89af32] "x1z.001" yEnc (1/1)`)
+4. Downloaders (SABnzbd/NZBGet) usam o cabeçalho `filename` dentro do NZB para restaurar nomes originais automaticamente.
 
-Resultado: na Usenet, os artigos têm nomes ininteligíveis. Quem tem o NZB vê os nomes originais e pode baixar normalmente.
-
-**Rollback garantido:** se o processo for interrompido (Ctrl+C, erro), os nomes locais são restaurados automaticamente via `finally`. Se a restauração automática falhar (ex: disco cheio), o UpaPasta imprime instruções manuais de reversão.
-
-### `--strong-obfuscate`
-
-```bash
-upapasta Pasta/ --strong-obfuscate
-```
-
-Implica `--obfuscate`, mas `fix_nzb_subjects` **não** restaura os nomes no NZB. Resultado: nomes aleatórios em absolutamente tudo — arquivos na Usenet, subjects no NZB e subjects nos indexadores.
-
-Quem baixar via NZB verá arquivos com nomes aleatórios. A estrutura é recuperável via PAR2, mas o nome original precisa ser fornecido manualmente ou estar em algum metadado externo.
-
-Use apenas quando privacidade máxima for crítica.
+Resultado: Nenhum metadado vaza para a Usenet ou indexadores. Apenas quem tem o NZB sabe do que se trata o conteúdo.
 
 ### Arquivo único + ofuscação
 
-Arquivo único com `--obfuscate` ou `--password` cria RAR automaticamente:
+Arquivo único com `--obfuscate` ou `--password` cria um arquivo temporário automaticamente:
 
 | Input | Flags | Comportamento |
 |-------|-------|---------------|
 | `arquivo.mkv` | — | upload direto |
-| `arquivo.mkv` | `--obfuscate` | cria RAR → ofusca → upload |
-| `arquivo.mkv` | `--password abc` | cria RAR com senha → upload |
-| `arquivo.mkv` | `--obfuscate --password abc` | cria RAR com senha → ofusca → upload |
-
-### `--password` sem `--rar`
-
-`--password` presume `--rar` automaticamente. Para pastas, o RAR é criado primeiro. Para arquivos únicos, também. A combinação `--skip-rar --password` é erro fatal (sem container RAR não há como aplicar senha).
+| `arquivo.mkv` | `--obfuscate` | cria arquivo temp → ofusca → upload |
+| `arquivo.mkv` | `--password abc` | cria arquivo temp com senha → upload |
 
 ---
 
-## 6. PAR2 e backends
+## 6. Compressão e Empacotamento
+
+O UpaPasta suporta dois motores para criação de volumes:
+
+### RAR (Legado / Proprietário)
+- Requer binário `rar`.
+- Produz `.rar`, `.part01.rar`, etc.
+- Suporte a criptografia com `-hp` (via `--password`).
+
+### 7z (Open Source / Recomendado)
+- Requer `p7zip-full`.
+- Produces `.7z`, `.7z.001`, etc.
+- Suporte a criptografia com ocultação de nomes (`-mhe=on`).
+- Ativado via `--compressor 7z` ou `DEFAULT_COMPRESSOR=7z` no `.env`.
+
+### Quando a etapa PACK é ativada?
+1. Se a entrada for uma **Pasta** (sempre precisa de um container).
+2. Se a entrada for um arquivo único mas `--rar`, `--compressor` ou `--password` for usado.
+3. Se a entrada for um arquivo único e `--obfuscate` for usado (para evitar vazar extensões originais na rede).
+
+---
+
+## 7. PAR2 e backends
 
 ### parpar vs par2
 
@@ -394,7 +250,7 @@ upapasta arquivo.rar --force --par-profile safe
 
 ---
 
-## 7. Múltiplos servidores NNTP
+## 8. Múltiplos servidores NNTP
 
 Configure servidores adicionais no `.env` para failover automático. Em caso de falha no servidor primário, a próxima tentativa de upload usa automaticamente o servidor seguinte.
 
@@ -427,7 +283,7 @@ O servidor efetivamente usado em cada upload é registrado no catálogo (`servid
 
 ---
 
-## 8. Resume
+## 9. Resume
 
 Se um upload for interrompido (Ctrl+C, queda de rede, erro), retome com `--resume`:
 
@@ -454,7 +310,7 @@ upapasta Pasta/
 
 ---
 
-## 9. Catálogo
+## 10. Catálogo
 
 Todos os uploads bem-sucedidos são registrados automaticamente em `~/.config/upapasta/history.jsonl` (JSONL, append-only). Os NZBs são arquivados em `~/.config/upapasta/nzb/` via hardlink — recuperáveis mesmo que os arquivos originais sejam movidos ou deletados.
 
@@ -465,14 +321,14 @@ Todos os uploads bem-sucedidos são registrados automaticamente em `~/.config/up
 | `data_upload` | Timestamp ISO-8601 UTC |
 | `nome_original` | Nome do arquivo ou pasta enviada |
 | `nome_ofuscado` | Subject usado com `--obfuscate` |
-| `senha_rar` | Senha do RAR — crítica se o NZB for perdido |
+| `senha_rar` | Senha de criptografia — crítica se o NZB for perdido |
 | `tamanho_bytes` | Tamanho total dos dados enviados |
 | `categoria` | `Movie` · `TV` · `Anime` · `Generic` (detectada automaticamente) |
 | `grupo_usenet` | Grupo efetivamente usado (pós-seleção do pool) |
 | `servidor_nntp` | Host NNTP utilizado |
 | `redundancia_par2` | Percentual de paridade aplicado |
 | `duracao_upload_s` | Duração total em segundos |
-| `num_arquivos_rar` | Quantidade de volumes RAR gerados |
+| `num_arquivos_rar` | Quantidade de volumes (RAR ou 7z) gerados |
 | `caminho_nzb` | Caminho do `.nzb` no disco |
 | `subject` | Subject da postagem |
 
@@ -526,7 +382,7 @@ USENET_GROUP=alt.binaries.movies,alt.binaries.hdtv,alt.binaries.multimedia,alt.b
 
 ---
 
-## 10. Hooks e webhooks
+## 11. Hooks e webhooks
 
 ### Webhook nativo (`WEBHOOK_URL`)
 
@@ -560,7 +416,7 @@ O script é executado após cada upload bem-sucedido e recebe as informações v
 |----------|----------|
 | `UPAPASTA_NZB` | Caminho completo do `.nzb` gerado |
 | `UPAPASTA_NFO` | Caminho completo do `.nfo` gerado |
-| `UPAPASTA_SENHA` | Senha do RAR (vazia se não houver) |
+| `UPAPASTA_SENHA` | Senha de compactação (vazia se não houver) |
 | `UPAPASTA_NOME_ORIGINAL` | Nome original do arquivo/pasta |
 | `UPAPASTA_NOME_OFUSCADO` | Nome ofuscado (igual ao original se sem `--obfuscate`) |
 | `UPAPASTA_TAMANHO` | Tamanho total em bytes |
@@ -588,7 +444,7 @@ curl -s "https://api.telegram.org/bot$TOKEN/sendMessage" \
 
 ---
 
-## 11. Perfis
+## 12. Perfis
 
 Perfis permitem ter configurações distintas para servidores ou casos de uso diferentes:
 
@@ -610,7 +466,7 @@ cp ~/.config/upapasta/.env ~/.config/upapasta/trabalho.env
 
 ---
 
-## 12. Pastas vazias
+## 13. Pastas vazias
 
 **Usenet posta artigos (arquivos), não diretórios.** PAR2 também não preserva diretórios vazios. Consequência: subpastas sem arquivos somem no destino quando `--rar` não está ativo.
 

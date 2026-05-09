@@ -212,7 +212,8 @@ class TestRarFlagWithCliParsing:
 
         args = MockArgs()
         _validate_flags(args)
-        assert args.rar is True  # Força --rar
+        # v0.29.0: não força mais --rar, o orchestrator usa DEFAULT_COMPRESSOR
+        assert args.rar is False
 
     def test_cli_validate_strong_obfuscate_implies_obfuscate(self):
         """Validação CLI: --strong-obfuscate implica --obfuscate."""
