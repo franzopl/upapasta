@@ -873,7 +873,7 @@ class TestUploadToUsenet:
         f.write_text("fake rar")
         # Precisa de .par2 para chegar na verificação de nyuu
         (tmp_path / "test.par2").write_text("fake par2")
-        with patch("shutil.which", return_value=None), patch.dict(os.environ, {}, clear=True):
+        with patch("upapasta.upfolder.find_nyuu", return_value=None):
             rc = upload_to_usenet(
                 str(f),
                 env_vars={

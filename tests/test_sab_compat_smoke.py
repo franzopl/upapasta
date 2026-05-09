@@ -7,14 +7,18 @@ Skip se parpar ausente.
 """
 
 import os
-import shutil
 import subprocess
 
 import pytest
 
+from upapasta.makepar import find_parpar
+
+parpar_info = find_parpar()
+parpar_exe = parpar_info[1] if parpar_info else None
+
 pytestmark = pytest.mark.skipif(
-    shutil.which("parpar") is None,
-    reason="parpar nao encontrado no PATH",
+    not parpar_exe,
+    reason="parpar nao encontrado no PATH ou node_modules",
 )
 
 
@@ -33,7 +37,7 @@ def test_parpar_preserves_subdirs_in_par2(tmp_path):
 
     rc = subprocess.run(
         [
-            "parpar",
+            parpar_exe,
             "-s",
             "1M",
             "--min-input-slices=1",
