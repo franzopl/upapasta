@@ -34,8 +34,9 @@ Versão em inglês disponível em [TODO.md](../../TODO.md).
 
 ### ~~3.1 · Múltiplas entradas posicionais: `upapasta a b c`~~ ✅ Concluído (commit 2b1be9a)
 
-### ~~3.2 · Compressor alternativo: `--compressor 7z` (novo `make7z.py`)~~ ✅ Concluído (0.29.0)
+### ~~3.2 · Compressor alternativo: `--7z` e `--compress` (v0.30.0)~~ ✅ Concluído
 - Suporte a volumes 7z (.7z.001), senhas (-mhe=on) e UI de progresso ao vivo
+- CLI simplificada: flags explícitas `--rar`, `--7z` e genérica `--compress`
 
 ### ~~3.3 · Webhooks nativos: Discord/Telegram/Slack via `WEBHOOK_URL`~~ ✅ Concluído
 - `_webhook.py`: `send_webhook()` + `_build_payload()` com detecção automática Discord/Slack/Telegram/genérico

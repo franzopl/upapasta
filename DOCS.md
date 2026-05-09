@@ -2,7 +2,7 @@
 
 [Português (pt-BR)](docs/pt-BR/DOCS.md)
 
-> Valid for UpaPasta ≥ 0.29.0. For earlier versions, consult the [CHANGELOG](CHANGELOG.md).
+> Valid for UpaPasta ≥ 0.30.0. For earlier versions, consult the [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -48,7 +48,7 @@ On the first run (or with `upapasta --config`), an interactive wizard creates yo
   .nzb output path [{filename}.nzb]:
 ```
 
-Pressing Enter keeps the current value. To force a full reconfiguration: `upapasta --config`.
+Pressing Enter keeps the current value. If `DEFAULT_COMPRESSOR` is missing, **RAR** is used as the global fallback.
 
 ### `.env` Variables
 
@@ -91,7 +91,7 @@ What happens when you run `upapasta Folder/`:
 
 | Stage | Condition to skip |
 |-------|-------------------|
-| RAR | without `--rar` (and without `--password`, and without single file with `--obfuscate`) |
+| PACK | without `--rar`, `--7z`, `--compress`, `--password`, or if not a folder/obfuscated single file |
 | Rename extensionless | without `--rename-extensionless` |
 | PAR2 | `--skip-par` |
 | Upload | `--skip-upload` or `--dry-run` |
@@ -110,11 +110,15 @@ What happens when you run `upapasta Folder/`:
 | `--each` | Each file in the folder = separate release with its own NZB |
 | `--season` | Like `--each`, but also generates a single NZB with the entire season |
 | `--obfuscate` | Maximum privacy: random names for files, PAR2 and NZB subjects |
-| `--password [PASS]` | Encryption password; implies `--rar` (or selected compressor) |
-| `--compressor {rar,7z}` | Choose packaging tool (overrides `.env` default) |
-| `--rar` | Forces RAR5 even if 7z is default |
+| `--password [PASS]` | Encryption password; uses `DEFAULT_COMPRESSOR` if unspecified |
+| `--compress` / `-c` | Activates packaging using default compressor from `.env` |
+| `--rar` | Forces RAR5 packaging (ignores `.env`) |
+| `--7z` | Forces 7z packaging (ignores `.env`) |
 | `--dry-run` | Simulates everything without creating or sending files |
 | `--jobs N` | Parallel uploads for multiple inputs (default: 1) |
+
+> **Note:** `--rar`, `--7z`, and `--compress` are mutually exclusive.
+
 
 ### Adjustment
 
@@ -234,7 +238,7 @@ Since v0.28.0, UpaPasta uses a unified obfuscation strategy centered on **Maximu
 
 ```bash
 upapasta Folder/ --obfuscate
-upapasta Folder/ --obfuscate --compressor 7z
+upapasta Folder/ --obfuscate --7z
 ```
 
 What happens:

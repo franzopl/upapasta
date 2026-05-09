@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.30.0 - 2026-05-09
+
+### Features
+- **Simplified CLI Flags**: Refactored compression interface. Replaced `--compressor {rar,7z}` with explicit `--rar` and `--7z` flags. Added a generic `--compress` (or `-c`) flag that respects the `.env` default.
+- **Intelligent Defaults**: `--password` now automatically uses the `DEFAULT_COMPRESSOR` from `.env`. Added a global fallback to **RAR** for systems without a configured preference.
+- **Mutual Exclusivity**: Ensured that `--rar`, `--7z`, and `--compress` cannot be used together, preventing configuration conflicts.
+
 ## 0.29.0 - 2026-05-09
 
 ### Features

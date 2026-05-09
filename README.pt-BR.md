@@ -67,8 +67,9 @@ upapasta --config
 | Pasta inteira | `upapasta Pasta/` |
 | Arquivo único | `upapasta Episodio.S01E01.mkv` |
 | Ofuscação reversível | `upapasta Pasta/ --obfuscate` |
-| 7z + Senha | `upapasta Pasta/ --password "abc123" --compressor 7z` |
-| RAR + Senha | `upapasta Pasta/ --password "abc123" --compressor rar` |
+| Pack + Senha (padrão) | `upapasta Pasta/ --password "abc123"` |
+| Forçar 7z | `upapasta Pasta/ --7z` |
+| Forçar RAR | `upapasta Pasta/ --rar` |
 | Cada arquivo = release | `upapasta /tv/Show.S04/ --each` |
 | Temporada + NZB único | `upapasta /tv/Show.S04/ --season` |
 | Daemon (monitorar pasta) | `upapasta /downloads/ --watch` |
@@ -84,6 +85,8 @@ RAR/7z não é mais necessário para a maioria dos casos. O parpar grava a hiera
 upapasta Pasta/ --obfuscate --par-profile safe
 ```
 
+Use empacotamento (`--compress`, `--rar` ou `--7z`) apenas quando precisar de senha ou quando o downloader não suporta reconstrução de pastas via PAR2.
+
 ### Ofuscação
 
 Desde a v0.28.0, a flag `--obfuscate` oferece stealth máximo por padrão:
@@ -96,9 +99,10 @@ Desde a v0.28.0, a flag `--obfuscate` oferece stealth máximo por padrão:
 ## Opções principais
 
 ```
---rar                    Cria RAR5 antes do upload
---compressor {rar,7z}    Escolhe o compressor (padrão: via .env)
---password SENHA         Senha de criptografia (presume --rar ou --compressor)
+-c, --compress           Ativa compactação usando compressor padrão do .env
+--rar                    Força empacotamento em RAR5 (ignora .env)
+--7z                     Força empacotamento em 7z (ignora .env)
+--password SENHA         Senha de criptografia (usa compressor padrão se não especificado)
 --obfuscate              Máxima privacidade: nomes aleatórios em tudo
 --par-profile PERFIL     fast (5%) · balanced (10%) · safe (20%)
 --jobs N                 Uploads paralelos quando múltiplos inputs

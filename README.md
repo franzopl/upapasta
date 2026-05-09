@@ -67,8 +67,9 @@ upapasta --config
 | Entire folder | `upapasta Folder/` |
 | Single file | `upapasta Episode.S01E01.mkv` |
 | Reversible obfuscation | `upapasta Folder/ --obfuscate` |
-| 7z + Password | `upapasta Folder/ --password "abc123" --compressor 7z` |
-| RAR + Password | `upapasta Folder/ --password "abc123" --compressor rar` |
+| Pack + Password (default) | `upapasta Folder/ --password "abc123"` |
+| Force 7z | `upapasta Folder/ --7z` |
+| Force RAR | `upapasta Folder/ --rar` |
 | Each file = release | `upapasta /tv/Show.S04/ --each` |
 | Season + Single NZB | `upapasta /tv/Show.S04/ --season` |
 | Daemon (watch folder) | `upapasta /downloads/ --watch` |
@@ -84,6 +85,8 @@ RAR/7z is no longer necessary for most cases. parpar stores the folder hierarchy
 upapasta Folder/ --obfuscate --par-profile safe
 ```
 
+Use packaging (`--compress`, `--rar` or `--7z`) only when you need a password or when the downloader does not support folder reconstruction via PAR2.
+
 ### Obfuscation
 
 Since v0.28.0, the `--obfuscate` flag provides maximum stealth by default:
@@ -96,9 +99,10 @@ Since v0.28.0, the `--obfuscate` flag provides maximum stealth by default:
 ## Main options
 
 ```
---rar                    Create RAR5 before upload
---compressor {rar,7z}    Choose compressor (default: from .env)
---password PASSWORD      Encryption password (implies --rar or --compressor)
+-c, --compress           Activate packaging using default compressor from .env
+--rar                    Force RAR5 packaging (ignores .env)
+--7z                     Force 7z packaging (ignores .env)
+--password PASSWORD      Encryption password (uses default compressor if unspecified)
 --obfuscate              Maximum privacy: random names for everything
 --par-profile PROFILE    fast (5%) · balanced (10%) · safe (20%)
 --jobs N                 Parallel uploads for multiple inputs

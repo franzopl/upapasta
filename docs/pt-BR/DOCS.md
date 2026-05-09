@@ -2,7 +2,7 @@
 
 [English (en)](../../DOCS.md)
 
-> Válido para UpaPasta ≥ 0.29.0. Para versões anteriores, consulte o [CHANGELOG](../../CHANGELOG.md).
+> Válido para UpaPasta ≥ 0.30.0. Para versões anteriores, consulte o [CHANGELOG](../../CHANGELOG.md).
 
 ---
 
@@ -48,7 +48,7 @@ Na primeira execução (ou com `upapasta --config`), um wizard interativo cria s
   Caminho de saída do .nzb [{filename}.nzb]:
 ```
 
-Enter mantém o valor atual. Para forçar reconfiguração completa: `upapasta --config`.
+Enter mantém o valor atual. Se `DEFAULT_COMPRESSOR` não estiver definido, o programa assume **RAR** como fallback global.
 
 ### Variáveis do `.env`
 
@@ -104,11 +104,14 @@ O que acontece ao executar `upapasta Pasta/`:
 | `--each` | Cada arquivo da pasta = release separado com NZB próprio |
 | `--season` | Como `--each`, mas gera também um NZB único com toda a temporada |
 | `--obfuscate` | Stealth máximo: nomes aleatórios em arquivos, PAR2 e subjects do NZB |
-| `--password [SENHA]` | Senha de criptografia; implica `--rar` (ou compressor escolhido) |
-| `--compressor {rar,7z}` | Escolhe o compressor (sobrescreve padrão do `.env`) |
-| `--rar` | Força uso do RAR5 mesmo se 7z for o padrão |
+| `--password [SENHA]` | Senha de criptografia; usa `DEFAULT_COMPRESSOR` se não especificado |
+| `--compress` / `-c` | Ativa compactação usando o compressor padrão do `.env` |
+| `--rar` | Força empacotamento em RAR5 (ignora `.env`) |
+| `--7z` | Força empacotamento em 7z (ignora `.env`) |
 | `--dry-run` | Simula tudo sem criar ou enviar arquivos |
 | `--jobs N` | Uploads paralelos quando múltiplos inputs (padrão: 1) |
+
+> **Nota:** `--rar`, `--7z` e `--compress` são mutuamente exclusivos.
 
 ...
 
@@ -166,17 +169,19 @@ O UpaPasta suporta dois motores para criação de volumes:
 - Requer binário `rar`.
 - Produz `.rar`, `.part01.rar`, etc.
 - Suporte a criptografia com `-hp` (via `--password`).
+- Forçado via `--rar`.
 
 ### 7z (Open Source / Recomendado)
 - Requer `p7zip-full`.
-- Produces `.7z`, `.7z.001`, etc.
+- Produz `.7z`, `.7z.001`, etc.
 - Suporte a criptografia com ocultação de nomes (`-mhe=on`).
-- Ativado via `--compressor 7z` ou `DEFAULT_COMPRESSOR=7z` no `.env`.
+- Forçado via `--7z`.
 
 ### Quando a etapa PACK é ativada?
-1. Se a entrada for uma **Pasta** (sempre precisa de um container).
-2. Se a entrada for um arquivo único mas `--rar`, `--compressor` ou `--password` for usado.
+1. Se a entrada for uma **Pasta** (comportamento padrão: empacota a menos que se use `--skip-rar`).
+2. Se a entrada for um arquivo único mas `--rar`, `--7z`, `--compress` ou `--password` for usado.
 3. Se a entrada for um arquivo único e `--obfuscate` for usado (para evitar vazar extensões originais na rede).
+
 
 ---
 
@@ -484,3 +489,4 @@ upapasta MeuProjeto/
 ```
 
 O orchestrator detecta subpastas vazias em runtime quando `--rar` não está ativo e imprime aviso com instrução de workaround.
+time quando `--rar` não está ativo e imprime aviso com instrução de workaround.

@@ -4,6 +4,13 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.30.0 - 2026-05-09
+
+### Funcionalidades
+- **Simplificação de Flags**: Refatoração da interface de compressão. Substituída a flag `--compressor {rar,7z}` por flags explícitas `--rar` e `--7z`. Introduzida a flag genérica `--compress` (ou `-c`) que respeita o padrão definido no `.env`.
+- **Padrões Inteligentes**: O uso de `--password` agora utiliza automaticamente o `DEFAULT_COMPRESSOR` do `.env`. Adicionado um fallback global para **RAR** em sistemas sem preferência configurada.
+- **Exclusividade Mútua**: Garantido que `--rar`, `--7z` e `--compress` não possam ser usadas simultaneamente, evitando conflitos de configuração.
+
 ## 0.29.0 - 2026-05-09
 
 ### Funcionalidades

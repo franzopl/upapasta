@@ -167,8 +167,9 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 ### ~~3.1 · Multiple positional inputs: `upapasta a b c`~~ ✅ Completed (commit 2b1be9a)
 - Multiple positional inputs processed in sequence or `--jobs N` in parallel
 
-### ~~3.2 · Alternative compressor: `--compressor 7z` (new `make7z.py`)~~ ✅ Completed (0.29.0)
+### ~~3.2 · Alternative compressor: `--7z` and `--compress` (v0.30.0)~~ ✅ Completed
 - Support for 7z volumes (.7z.001), passwords (-mhe=on), and live progress UI
+- Simplified CLI: explicit `--rar`, `--7z`, and generic `--compress` flags
 
 ### ~~3.3 · Native webhooks: Discord/Telegram/Slack via `WEBHOOK_URL`~~ ✅ Completed
 - `_webhook.py`: `send_webhook()` + `_build_payload()` with automatic detection Discord/Slack/Telegram/generic
