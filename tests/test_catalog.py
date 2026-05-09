@@ -1,7 +1,7 @@
 """Testes para catalog.py: detecção de categoria, registro e hook pós-upload."""
 
 import json
-import stat
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -118,23 +118,29 @@ def test_hook_nao_executado_com_path_invalido(tmp_path, capsys):
 
 
 def test_hook_executado_com_envvars(tmp_path):
-    script = tmp_path / "hook.sh"
+    script = tmp_path / "hook.py"
     out_file = tmp_path / "result.txt"
-    script.write_text(f'#!/bin/sh\necho "$UPAPASTA_NOME_ORIGINAL" > {out_file}\n')
-    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    # Script Python cross-platform
+    content = f"""
+import os
+import sys
+name = os.environ.get("UPAPASTA_NOME_ORIGINAL", "")
+with open(r"{out_file}", "w") as f:
+    f.write(name)
+"""
+    script.write_text(content.strip())
 
-    env = {"POST_UPLOAD_SCRIPT": str(script)}
+    env = {"POST_UPLOAD_SCRIPT": f"{sys.executable} {script}"}
     run_post_upload_hook(env, nome_original="Dune.2021.mkv", senha_rar="s3cr3t")
 
     assert out_file.read_text().strip() == "Dune.2021.mkv"
 
 
 def test_hook_avisa_codigo_nao_zero(tmp_path, capsys):
-    script = tmp_path / "fail.sh"
-    script.write_text("#!/bin/sh\nexit 42\n")
-    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    script = tmp_path / "fail.py"
+    script.write_text("import sys; sys.exit(42)")
 
-    env = {"POST_UPLOAD_SCRIPT": str(script)}
+    env = {"POST_UPLOAD_SCRIPT": f"{sys.executable} {script}"}
     run_post_upload_hook(env, nome_original="test.mkv")
 
     captured = capsys.readouterr()

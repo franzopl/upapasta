@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import shutil
 import ssl
 from pathlib import Path
@@ -332,7 +333,7 @@ def test_watch_loop_processes_new_item(tmp_path, monkeypatch):
         parpar_args = None
         nyuu_args = None
         rename_extensionless = False
-        env_file = "/dev/null"
+        env_file = os.devnull
         force = False
 
     # Cria arquivo na pasta monitorada DEPOIS de inicializar o loop

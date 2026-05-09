@@ -1,4 +1,5 @@
 import io
+import os
 import shutil
 import unittest
 from pathlib import Path
@@ -54,7 +55,7 @@ class TestFolderObfuscation(unittest.TestCase):
             force=True,
             obfuscate=True,
             keep_files=True,
-            env_file="/dev/null",
+            env_file=os.devnull,
         )
         # Com o fix de hardlinks, a pasta original DEVE continuar existindo durante todo o processo
         # e os arquivos internos devem ter o mesmo inode (hardlink).

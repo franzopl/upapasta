@@ -75,7 +75,9 @@ def detect_category(name: str) -> str:
 
 
 def _cfg_dir() -> Path:
-    cfg = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "upapasta"
+    from .config import CONFIG_DIR
+
+    cfg = Path(CONFIG_DIR)
     cfg.mkdir(parents=True, exist_ok=True)
     return cfg
 
@@ -245,7 +247,9 @@ def run_post_upload_hook(
         return
 
     script = os.path.expanduser(script)
-    if not os.path.exists(script):
+    # Se o script não contiver espaços, verificamos se o arquivo existe.
+    # Se contiver espaços, assumimos que é um comando completo (ex: "python hook.py")
+    if " " not in script and not os.path.exists(script):
         print(_("⚠️  POST_UPLOAD_SCRIPT não encontrado: {path}").format(path=script))
         return None
 
@@ -263,11 +267,13 @@ def run_post_upload_hook(
     )
 
     try:
+        # shell=True permite comandos complexos e funciona melhor para hooks cross-platform
         result = subprocess.run(
-            [script],
+            script,
             env=hook_env,
             timeout=60,
             check=False,
+            shell=True,
         )
         if result.returncode != 0:
             print(_("⚠️  POST_UPLOAD_SCRIPT saiu com código {rc}").format(rc=result.returncode))

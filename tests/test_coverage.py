@@ -1990,7 +1990,7 @@ class TestUpfolderAdditional:
         from upapasta.upfolder import _save_upload_state
 
         _save_upload_state(
-            "/dev/null/impossible/path/state.json",
+            os.devnull + "/impossible/path/state.json",
             files=["video.mkv"],
             par2_files=["video.par2"],
             working_dir=str(tmp_path),
@@ -2530,7 +2530,7 @@ class TestNfoAdditional:
         ):
             result = generate_nfo_folder(str(folder), nfo_path)
         assert result is True
-        content = Path(nfo_path).read_text()
+        content = Path(nfo_path).read_text(encoding="utf-8")
         assert "2024" in content
 
     def test_generate_nfo_folder_sem_videos(self, tmp_path):
@@ -2557,7 +2557,7 @@ class TestNfoAdditional:
         nfo_path = str(tmp_path / "test.nfo")
         result = generate_nfo_folder(str(folder), nfo_path, banner="=== MEU BANNER ===")
         assert result is True
-        content = Path(nfo_path).read_text()
+        content = Path(nfo_path).read_text(encoding="utf-8")
         assert "MEU BANNER" in content
 
     def test_generate_nfo_folder_com_video_meta(self, tmp_path):
@@ -2585,7 +2585,7 @@ class TestNfoAdditional:
         ):
             result = generate_nfo_folder(str(folder), nfo_path)
         assert result is True
-        content = Path(nfo_path).read_text()
+        content = Path(nfo_path).read_text(encoding="utf-8")
         assert "PT" in content
 
     def test_generate_nfo_folder_exception(self, tmp_path):
@@ -2655,6 +2655,7 @@ class TestUpfolderNzbConflict:
         )
         assert rc == 6
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Windows doesn't support os.mkfifo")
     def test_input_nao_e_arquivo_nem_pasta(self, tmp_path, monkeypatch):
         """FIFO (special file) não é arquivo nem pasta → retorna rc=1 (linhas 274-275)."""
         from upapasta.upfolder import upload_to_usenet

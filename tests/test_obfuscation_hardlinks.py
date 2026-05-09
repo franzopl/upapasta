@@ -46,7 +46,7 @@ class TestObfuscationHardlinks(unittest.TestCase):
         }
 
         orchestrator = UpaPastaOrchestrator(
-            input_path=str(self.test_dir), skip_rar=True, obfuscate=True, env_file="/dev/null"
+            input_path=str(self.test_dir), skip_rar=True, obfuscate=True, env_file=os.devnull
         )
 
         result = orchestrator.run()
@@ -86,7 +86,7 @@ class TestObfuscationHardlinks(unittest.TestCase):
             skip_rar=True,
             skip_upload=True,  # focus on par phase
             obfuscate=True,
-            env_file="/dev/null",
+            env_file=os.devnull,
         )
 
         # We need to mock os.path.exists for the par2 file success check

@@ -51,8 +51,7 @@ class TestStats:
     def test_print_stats_empty(self, tmp_path, monkeypatch):
         from upapasta.catalog import print_stats
 
-        monkeypatch.setenv("HOME", str(tmp_path))
-        monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+        monkeypatch.setattr("upapasta.config.CONFIG_DIR", str(tmp_path))
         # diretório de config não existe → sem histórico
         out = StringIO()
         with patch(
@@ -65,8 +64,10 @@ class TestStats:
     def test_print_stats_with_records(self, tmp_path, monkeypatch):
         from upapasta.catalog import print_stats
 
-        cfg_dir = tmp_path / ".config" / "upapasta"
+        cfg_dir = tmp_path / "upapasta"
         cfg_dir.mkdir(parents=True)
+        monkeypatch.setattr("upapasta.config.CONFIG_DIR", str(cfg_dir))
+
         history = cfg_dir / "history.jsonl"
         records = [
             {
@@ -86,12 +87,10 @@ class TestStats:
                 "duracao_upload_s": 60.0,
             },
         ]
-        with open(history, "w") as f:
+        with open(history, "w", encoding="utf-8") as f:
             for r in records:
                 f.write(json.dumps(r) + "\n")
 
-        monkeypatch.setenv("HOME", str(tmp_path))
-        monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
         lines: list[str] = []
         with patch(
             "builtins.print", side_effect=lambda *a, **kw: lines.append(" ".join(str(x) for x in a))
