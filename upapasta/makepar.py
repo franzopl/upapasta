@@ -596,11 +596,13 @@ def find_parpar() -> tuple[str, str] | None:
         if path:
             return ("parpar", path)
 
-    # Fallback para node_modules local (comum em CI)
+    # Fallback para node_modules local (comum em CI e dev)
     if sys.platform == "win32":
-        local_bin = os.path.join(os.getcwd(), "node_modules", ".bin", "parpar.cmd")
+        # upapasta/upapasta/makepar.py -> upapasta/
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        local_bin = os.path.join(root_dir, "node_modules", ".bin", "parpar.cmd")
         if os.path.exists(local_bin):
-            return "parpar", local_bin
+            return ("parpar", local_bin)
 
     return None
 

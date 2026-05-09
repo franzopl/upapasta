@@ -43,8 +43,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
           pip install pytest pytest-cov ruff mypy
-          npm install nyuu parpar
-          python -c "import os; p = os.path.abspath('node_modules/.bin'); open(os.environ['GITHUB_PATH'], 'a').write(p + '\n')"
+          npm install nyuu @animetosho/parpar
 
       - name: Add node_modules to PATH (Windows)
         if: runner.os == 'Windows'
@@ -57,10 +56,10 @@ jobs:
         shell: bash
         run: |
           ls -F node_modules/.bin || echo "node_modules/.bin not found"
-          echo "PATH=$PATH"
-          echo "PATHEXT=$PATHEXT"
-          which nyuu || echo "which nyuu failed"
-          which parpar || echo "which parpar failed"
+          # Check for nyuu and parpar (officially parpar on Windows npm installs as parpar.cmd)
+          which nyuu || echo "nyuu not found in PATH"
+          which parpar || echo "parpar not found in PATH"
+          parpar --version || echo "parpar --version failed"
 
       - name: Lint (ruff)
         shell: bash
