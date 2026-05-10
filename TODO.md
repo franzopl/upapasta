@@ -310,9 +310,6 @@ Order by impact (most visible strings first):
 | i18n | v0.26.x→v0.28 | Internacionalization | I1–I5: gettext, en/pt-BR strings, English docs, CI |
 
 **Immediate next steps** (in order):
-1. **F3.4** → TMDb integration (enriches NFO with synopsis/poster URL/IMDB ID) `High · High effort`
-2. **F3.5** → NZB with enriched `<meta>` (title/poster/category) `Medium · Medium effort`
-3. **F3.6** → Customizable NFO template: `--nfo-template <file>` `Medium · Medium effort`
-4. **F3.2** → Alternative compressor: `--compressor 7z` (new `make7z.py`) `Medium · High effort`
-5. **F3.8** → Interactive TUI mode (`--interactive`) `Low · High effort`
-6. **3.17** → Plugin system: Python hooks in `~/.config/upapasta/hooks/<name>.py` `Low · High effort`
+1. **F3.6** → Customizable NFO template: `--nfo-template <file>` `Medium · Medium effort`
+2. **F3.8** → Interactive TUI mode (`--interactive`) `Low · High effort`
+3. **3.17** → Plugin system: Python hooks `Low · High effort`

@@ -102,8 +102,6 @@ Versão em inglês disponível em [TODO.md](../../TODO.md).
 ## 📋 Resumo de Prioridades
 
 **Próximos passos imediatos** (em ordem):
-1. **F3.4** → Integração TMDb (sinopse/poster/ID IMDB) `Alta · Alto esforço`
-2. **F3.5** → NZB enriquecido com `<meta>` (título/poster/categoria) `Média · Médio esforço`
-3. **F3.6** → Template de NFO customizável: `--nfo-template <arquivo>` `Média · Médio esforço`
-4. **F3.8** → Modo interativo TUI (`--interactive`) `Baixa · Alto esforço`
-5. **3.17** → Sistema de Plugins: hooks Python em `~/.config/upapasta/hooks/<name>.py` `Baixa · Alto esforço`
+1. **F3.6** → Template de NFO customizável: `--nfo-template <arquivo>` `Média · Médio esforço`
+2. **F3.8** → Modo interativo TUI (`--interactive`) `Baixa · Alto esforço`
+3. **3.17** → Sistema de Plugins: hooks Python `Baixa · Alto esforço`
