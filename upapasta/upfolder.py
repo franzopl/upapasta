@@ -47,6 +47,7 @@ from upapasta import nfo
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
 from .i18n import _
+from .tools import get_tool_path
 
 if TYPE_CHECKING:
     from .ui import PhaseBar
@@ -244,10 +245,10 @@ def _verify_nzb(nzb_path: str) -> bool:
 
 
 def find_nyuu() -> Optional[str]:
-    """Procura executável 'nyuu' no PATH."""
+    """Procura executável 'nyuu' no PATH ou pasta bin local."""
     cmds = ["nyuu", "nyuu.cmd", "nyuu.exe"]
     for cmd in cmds:
-        path = shutil.which(cmd)
+        path = get_tool_path(cmd)
         if path:
             return path
 

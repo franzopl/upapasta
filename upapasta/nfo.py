@@ -16,13 +16,20 @@ import subprocess
 from typing import Any, Optional
 
 from .i18n import _
+from .tools import get_tool_path
 
 
 def find_mediainfo() -> str | None:
-    import shutil
-
     for cmd in ("mediainfo", "mediainfo.exe"):
-        path = shutil.which(cmd)
+        path = get_tool_path(cmd)
+        if path:
+            return path
+    return None
+
+
+def find_ffprobe() -> str | None:
+    for cmd in ("ffprobe", "ffprobe.exe"):
+        path = get_tool_path(cmd)
         if path:
             return path
     return None
@@ -58,8 +65,12 @@ def _get_video_info(file_path: str) -> tuple[float, dict[str, Any]]:
         "subtitle_tracks": [],
     }
     try:
+        ffprobe_exe = find_ffprobe()
+        if not ffprobe_exe:
+            return 0.0, metadata
+
         cmd = [
-            "ffprobe",
+            ffprobe_exe,
             "-v",
             "error",
             "-show_entries",

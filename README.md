@@ -28,20 +28,25 @@ upapasta /tv/Night.of.the.Living.Dead.S01/
 
 ## Installation
 
+### 🚀 Portable (Windows / Linux)
+**Recommended for most users.** Download the latest ZIP from [Releases](https://github.com/franzopl/upapasta/releases), extract and run. No Python or Node.js required.
+
+### 📦 Via pip
 ```bash
 pip install upapasta
 ```
 
-**System dependencies:**
+**System dependencies (if not using Portable):**
 
-| Binary | Function | Install |
-|---------|--------|----------|
-| `nyuu` | NNTP Upload | `npm install -g nyuu` |
-| `parpar` | PAR2 Generation (recommended) | `npm install -g @animetosho/parpar` |
-| `7z` | Open source packaging (recommended) | `apt install p7zip-full` / `brew install p7zip` |
-| `rar` | RAR5 support | `apt install rar` / `brew install rar` |
-| `ffprobe` | Video metadata in NFO | `apt install ffmpeg` |
-| `mediainfo` | Technical media info in NFO | `apt install mediainfo` |
+| Binary | Function | Status | Install |
+|---------|--------|----------|----------|
+| `nyuu` | NNTP Upload | Mandatory | `npm install -g nyuu` |
+| `parpar` | PAR2 Generation | Mandatory | `npm install -g @animetosho/parpar` |
+| `7z` | Packaging | **Default** | `apt install p7zip-full` |
+| `rar` | RAR5 support | Optional | `apt install rar` (or auto-download) |
+| `ffprobe` | Video metadata | Optional | `apt install ffmpeg` |
+| `mediainfo` | Technical info | Optional | `apt install mediainfo` |
+
 
 See [INSTALL.md](INSTALL.md) for detailed instructions per platform.
 

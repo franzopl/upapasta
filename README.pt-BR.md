@@ -28,20 +28,24 @@ upapasta /tv/Night.of.the.Living.Dead.S01/
 
 ## Instalação
 
+### 🚀 Portable (Windows / Linux)
+**Recomendado para a maioria dos usuários.** Baixe o ZIP mais recente em [Releases](https://github.com/franzopl/upapasta/releases), extraia e use. Não requer Python ou Node.js instalados no sistema.
+
+### 📦 Via pip
 ```bash
 pip install upapasta
 ```
 
-**Dependências do sistema:**
+**Dependências do sistema (se não usar o Portable):**
 
-| Binário | Função | Instalar |
-|---------|--------|----------|
-| `nyuu` | Upload NNTP | `npm install -g nyuu` |
-| `parpar` | Geração de PAR2 (recomendado) | `npm install -g @animetosho/parpar` |
-| `7z` | Empacotamento open-source (recomendado) | `apt install p7zip-full` / `brew install p7zip` |
-| `rar` | Suporte a RAR5 | `apt install rar` / `brew install rar` |
-| `ffprobe` | Metadados de vídeo no NFO | `apt install ffmpeg` |
-| `mediainfo` | Info técnica de mídia no NFO | `apt install mediainfo` |
+| Binário | Função | Status | Instalar |
+|---------|--------|----------|----------|
+| `nyuu` | Upload NNTP | Obrigatório | `npm install -g nyuu` |
+| `parpar` | Geração de PAR2 | Obrigatório | `npm install -g @animetosho/parpar` |
+| `7z` | Compactação | **Padrão** | `apt install p7zip-full` |
+| `rar` | Suporte a RAR5 | Opcional | `apt install rar` (ou auto-download) |
+| `ffprobe` | Metadados de vídeo | Opcional | `apt install ffmpeg` |
+| `mediainfo` | Info técnica | Opcional | `apt install mediainfo` |
 
 Veja [INSTALL.md](INSTALL.md) para instruções detalhadas por plataforma.
 

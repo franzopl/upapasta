@@ -7,11 +7,11 @@ Definição de interface de linha de comando (CLI) e verificação de dependênc
 from __future__ import annotations
 
 import argparse
-import shutil
 from pathlib import Path
 
 from .config import DEFAULT_ENV_FILE
 from .i18n import _
+from .tools import get_tool_path
 
 _USAGE_SHORT = _("""\
 UpaPasta — uploader automatizado para Usenet
@@ -418,7 +418,25 @@ def check_dependencies(pack_needed: bool = True, compressor: str = "rar") -> boo
 
     missing_commands = []
     for cmd in required_commands:
-        if not shutil.which(cmd):
+        if not get_tool_path(cmd):
+            # Tenta auto-download para ferramentas suportadas (ex: rar)
+            if cmd == "rar":
+                from .tools import download_tool
+
+                print(_("⚠️  Ferramenta 'rar' não encontrada."))
+                resp = (
+                    input(
+                        _(
+                            "   Deseja baixar o binário proprietário da RARLAB automaticamente? [S/n]: "
+                        )
+                    )
+                    .strip()
+                    .lower()
+                )
+                if resp in ("", "s", "sim", "y", "yes"):
+                    if download_tool("rar"):
+                        continue
+
             missing_commands.append(cmd)
 
     if missing_commands:
@@ -431,7 +449,7 @@ def check_dependencies(pack_needed: bool = True, compressor: str = "rar") -> boo
 
     # Verificação de dependências opcionais (para NFO)
     optional_commands = ["mediainfo", "ffprobe"]
-    missing_optional = [cmd for cmd in optional_commands if not shutil.which(cmd)]
+    missing_optional = [cmd for cmd in optional_commands if not get_tool_path(cmd)]
     if missing_optional:
         print(
             _("⚠️  Dependências opcionais ausentes: {missing}").format(

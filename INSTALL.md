@@ -4,6 +4,16 @@
 
 ## 1. Install UpaPasta
 
+### Option A: Portable (Recommended for Windows / Non-technical users)
+
+Download the latest `upapasta-portable-windows.zip` (or linux) from the [Releases](https://github.com/franzopl/upapasta/releases) page.
+
+1. Extract the ZIP to a folder.
+2. Run `upapasta.exe` (Windows) or `./upapasta` (Linux).
+3. All core dependencies (Nyuu, ParPar, 7z) are included in the `bin/` folder.
+
+### Option B: Via pip
+
 ```bash
 pip install upapasta
 ```
@@ -44,7 +54,9 @@ npm install -g @animetosho/parpar
 
 Confirm with: `parpar --version`
 
-### 7z (recommended alternative to RAR)
+### 7z (Recommended default)
+
+UpaPasta now uses **7z** as the default compressor for its open-source nature.
 
 ```bash
 # Debian / Ubuntu
@@ -54,12 +66,14 @@ sudo apt install p7zip-full
 brew install p7zip
 
 # Windows
-# Install from: https://www.7-zip.org/
+# Bundled in Portable version. Otherwise: https://www.7-zip.org/
 ```
 
 Confirm with: `7z --help`
 
-### rar (optional — only with `--rar`)
+### rar (Optional — only with `--rar`)
+
+If not found, UpaPasta will offer to **automatically download** the proprietary binary from RARLAB during its first use with the `--rar` flag.
 
 ```bash
 # Debian / Ubuntu
@@ -69,7 +83,7 @@ sudo apt install rar
 brew install rar
 
 # Windows
-# Install WinRAR (rar.exe must be in PATH) or download standalone rar.exe from RARLAB
+# Auto-downloaded by UpaPasta if missing, or install WinRAR manually.
 ```
 
 Confirm with: `rar --version`

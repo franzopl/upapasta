@@ -273,10 +273,10 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
     )
     article_sz = _ask(_("Article size"), default=ex("ARTICLE_SIZE", "700K"))
     default_compressor = _ask(
-        _("Default compressor (rar or 7z)"),
-        default=ex("DEFAULT_COMPRESSOR", "rar") or "rar",
+        _("Default compressor (7z or rar)"),
+        default=ex("DEFAULT_COMPRESSOR", "7z") or "7z",
         validator=lambda v: (
-            True if v.lower() in ("rar", "7z") else (print(_("    Enter 'rar' or '7z'.")) or False)
+            True if v.lower() in ("rar", "7z") else (print(_("    Enter '7z' or 'rar'.")) or False)
         ),
     )
     nzb_out = _ask(

@@ -49,6 +49,7 @@ from ._process import managed_popen
 from ._progress import _process_output, _read_output
 from .i18n import _
 from .profiles import DEFAULT_PROFILE, PROFILES
+from .tools import get_tool_path
 
 if TYPE_CHECKING:
     from .ui import PhaseBar
@@ -573,17 +574,17 @@ def obfuscate_and_par(
 
 def find_par2() -> tuple[str, str] | None:
     for cmd in ("par2", "par2create", "par2.exe", "par2create.exe"):
-        path = shutil.which(cmd)
+        path = get_tool_path(cmd)
         if path:
             return ("par2", path)
     return None
 
 
 def find_parpar() -> tuple[str, str] | None:
-    """Procura 'parpar' ou 'par2' no PATH."""
+    """Procura 'parpar' ou 'par2' no PATH ou pasta bin local."""
     cmds = ["parpar", "parpar.cmd", "parpar.exe", "par2", "par2.exe"]
     for cmd in cmds:
-        path = shutil.which(cmd)
+        path = get_tool_path(cmd)
         if path:
             return ("parpar", path)
 

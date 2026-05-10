@@ -26,7 +26,6 @@ import argparse
 import glob
 import math
 import os
-import shutil
 import subprocess
 import threading
 from queue import Queue
@@ -35,15 +34,16 @@ from typing import TYPE_CHECKING, Optional, Tuple
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
 from .i18n import _
+from .tools import get_tool_path
 
 if TYPE_CHECKING:
     from .ui import PhaseBar
 
 
 def find_7z() -> str | None:
-    """Procura o executável '7z' no PATH."""
+    """Procura o executável '7z' no PATH ou pasta bin local."""
     for cmd in ("7z", "7z.exe", "7za", "7za.exe"):
-        path = shutil.which(cmd)
+        path = get_tool_path(cmd)
         if path:
             return path
     return None
