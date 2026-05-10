@@ -65,8 +65,8 @@ def test_season_mixed_file_and_folder_episodes(tmp_path):
     assert any("Episode02/Subs.srt" in s for s in subjects), subjects
 
 
-def test_season_obfuscated_subjects_not_prefixed(tmp_path):
-    """Com --obfuscate, fix_season_nzb_subjects NÃO é chamado: subjects permanecem ofuscados."""
+def test_season_obfuscated_subjects_numeric_prefixed(tmp_path):
+    """Com --obfuscate, fix_season_nzb_subjects usa prefixos numéricos (01/, 02/)."""
     ep_nzb = tmp_path / "S01E01.nzb"
     season_nzb = tmp_path / "Season01.nzb"
 
@@ -74,13 +74,15 @@ def test_season_obfuscated_subjects_not_prefixed(tmp_path):
     _make_nzb(ep_nzb, ['"a1b2c3d4.mkv" yEnc (1/1)', '"a1b2c3d4.par2" yEnc (1/1)'])
     merge_nzbs([str(ep_nzb)], str(season_nzb))
 
-    # fix_season_nzb_subjects NÃO é chamado (args.obfuscate=True no main.py)
-    # Verifica que subjects permanecem ofuscados sem prefixo de ep_name
+    # fix_season_nzb_subjects é chamado com numeric_eps
+    fix_season_nzb_subjects(str(season_nzb), [(str(ep_nzb), "01")])
+
+    # Verifica que subjects agora têm o prefixo numérico
     ns = {"nzb": NS}
     root = ET.parse(season_nzb).getroot()
     subjects = [f.get("subject", "") for f in root.findall("nzb:file", ns)]
-    assert any('"a1b2c3d4.mkv"' in s for s in subjects), subjects
-    assert not any("S01E01" in s for s in subjects), f"ep_name vazou: {subjects}"
+    assert any('"01/a1b2c3d4.mkv"' in s for s in subjects), subjects
+    assert not any("S01E01" in s for s in subjects), f"Nome real vazou: {subjects}"
 
 
 def test_merge_nzbs_combines_files(tmp_path):
