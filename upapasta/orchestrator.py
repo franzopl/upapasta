@@ -27,7 +27,14 @@ from ._pipeline import (
 from .config import check_or_prompt_credentials
 from .i18n import _
 from .make7z import make_7z
-from .makepar import handle_par_failure, make_parity, obfuscate_and_par
+from .makepar import (
+    deep_obfuscate_tree,
+    generate_random_name,
+    handle_par_failure,
+    make_parity,
+    perform_obfuscation,
+    rename_par2_files,
+)
 from .makerar import make_rar
 from .nzb import enrich_nzb_metadata, resolve_nzb_out
 from .resources import get_total_size
@@ -523,71 +530,71 @@ class UpaPastaOrchestrator:
             print(_("🛡️  ETAPA 2: Gerar arquivo de paridade PAR2"))
             print("=" * 60)
 
-        if self.obfuscate and not self.dry_run:
-            return self._run_makepar_obfuscated(resolver, bar=bar)
         return self._run_makepar_plain(resolver, bar=bar)
 
-    def _run_makepar_obfuscated(
-        self, resolver: PathResolver, bar: Optional[PhaseBar] = None
-    ) -> bool:
-        if not bar:
-            print(_("🔐 Ofuscando arquivos e gerando paridade..."))
-            print("-" * 60)
-        assert self.input_target is not None, _("input_target não foi configurado")
-        try:
-            rc, obfuscated_path, obf_map, was_linked = obfuscate_and_par(
-                self.input_target,
-                redundancy=self.redundancy,
-                force=True,
-                backend=self.backend,
-                usenet=True,
-                post_size=self.post_size,
-                threads=self.par_threads,
-                profile=self.par_profile,
-                slice_size=self.par_slice_size,
-                memory_mb=self.par_memory_mb,
-                filepath_format=self.filepath_format,
-                parpar_extra_args=self.parpar_extra_args,
-                bar=bar,
-            )
-        except (FileNotFoundError, PermissionError, OSError) as e:
-            if not bar:
-                label = (
-                    _("binário de paridade não encontrado")
-                    if isinstance(e, FileNotFoundError)
-                    else str(e)
-                )
-                print(_("❌ Erro ao ofuscar/gerar paridade: {label}").format(label=label))
-            return False
-
-        if not bar:
-            print("-" * 60)
-        if rc != 0:
-            if not bar:
-                print(_("\n❌ Erro ao ofuscar/gerar paridade (código {rc}).").format(rc=rc))
-            return False
-
-        assert obfuscated_path is not None, _("obfuscated_path não definido")
-        self.obfuscated_map = obf_map
-        self.obfuscate_was_linked = was_linked
-        self.input_target = obfuscated_path
-        if self.rar_file:
-            self.rar_file = obfuscated_path
-
-        obf_basename = os.path.basename(obfuscated_path)
-        obf_base_no_ext = re.sub(r"\.part\d+\.rar$", "", obf_basename)
-        obf_base_no_ext = re.sub(r"\.rar$", "", obf_base_no_ext)
-        self.subject = obf_base_no_ext
-        if not bar:
-            print(_("✨ Subject ofuscado: {subject}").format(subject=self.subject))
-
-        assert self.input_target is not None, _("input_target não foi configurado após ofuscação")
-        self.par_file = resolver.par_file_path(self.input_target)
-        if os.path.exists(self.par_file):
+    def run_obfuscation(self, bar: Optional[PhaseBar] = None) -> bool:
+        if not self.obfuscate:
             return True
+
         if not bar:
-            print(_("❌ Erro: Arquivo de paridade não encontrado após ofuscação."))
-        return False
+            print("\n" + "=" * 60)
+            print(_("🔐 ETAPA 2.5: Ofuscar arquivos"))
+            print("=" * 60)
+            print(_("🔐 Ofuscando arquivos e ajustando paridade..."))
+            print("-" * 60)
+        else:
+            bar.log(_("🔐 Ofuscando arquivos e ajustando paridade..."))
+
+        assert self.input_target is not None, _("input_target não foi configurado")
+        input_target_before = self.input_target
+
+        try:
+            # 1. Ofusca arquivos principais
+            random_base = generate_random_name()
+            obfuscated_path, obf_map, was_linked = perform_obfuscation(
+                input_target_before, random_base=random_base
+            )
+
+            self.obfuscated_map = obf_map
+            self.obfuscate_was_linked = was_linked
+
+            # 2. Renomeia .par2 para bater com o novo random_base
+            parent_dir = os.path.dirname(input_target_before)
+            is_folder = os.path.isdir(input_target_before)
+            is_rar_vol_set = (
+                not is_folder
+                and input_target_before.endswith(".rar")
+                and ".part" in os.path.basename(input_target_before)
+            )
+
+            rename_par2_files(parent_dir, input_target_before, is_rar_vol_set, random_base)
+
+            # 3. Deep obfuscation se for pasta
+            if is_folder and self.obfuscate:
+                self.obfuscated_map.update(deep_obfuscate_tree(obfuscated_path))
+
+            # 4. Atualiza estado do orchestrator
+            self.input_target = obfuscated_path
+            if self.rar_file:
+                self.rar_file = obfuscated_path
+
+            # Atualiza subject para o NZB refletir o nome ofuscado
+            obf_basename = os.path.basename(obfuscated_path)
+            obf_base_no_ext = re.sub(r"\.part\d+\.rar$", "", obf_basename)
+            obf_base_no_ext = re.sub(r"\.rar$", "", obf_base_no_ext)
+            self.subject = obf_base_no_ext
+
+            if not bar:
+                print(_("✨ Subject ofuscado: {subject}").format(subject=self.subject))
+                print("-" * 60)
+
+            self.par_file = self._path_resolver().par_file_path(self.input_target)
+            return True
+
+        except Exception as e:
+            if not bar:
+                print(_("❌ Erro ao ofuscar: {error}").format(error=e))
+            return False
 
     def _run_makepar_plain(self, resolver: PathResolver, bar: Optional[PhaseBar] = None) -> bool:
         if not bar:
@@ -803,6 +810,8 @@ class UpaPastaOrchestrator:
                 bar.skip("PACK")
             if self.skip_par:
                 bar.skip("PAR2")
+            if not self.obfuscate:
+                bar.skip("OBF")
             if self.skip_upload:
                 bar.skip("UPLOAD")
 
@@ -853,6 +862,18 @@ class UpaPastaOrchestrator:
                 if not self.run_makepar(bar=bar):
                     self._cleanup_on_error()
                     return 2
+
+            # ── OBFUSCATION ──────────────────────────────────────────────────────
+            if self.obfuscate and not self.dry_run:
+                bar.start("OBF")
+                if not self.run_obfuscation(bar=bar):
+                    bar.error("OBF")
+                    self._cleanup_on_error()
+                    return 1
+                bar.log(_("Arquivos ofuscados com sucesso."))
+                bar.done("OBF")
+            else:
+                bar.skip("OBF")
 
             stats = PipelineReporter.collect_stats(self.input_target, self.rar_file, self.par_file)
 

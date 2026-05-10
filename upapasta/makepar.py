@@ -437,7 +437,42 @@ def _obfuscate_single_file(
     return obfuscated_path, {random_base: name_no_ext}, was_linked, par_input
 
 
-def _rename_par2_files(
+def perform_obfuscation(
+    input_path: str,
+    random_base: Optional[str] = None,
+) -> Tuple[str, dict[str, str], bool]:
+    """
+    Cria visão ofuscada da entrada (hardlinks ou rename).
+    Retorna (novo_caminho, obfuscated_map, was_linked).
+    """
+    input_path = os.path.abspath(input_path)
+    if not os.path.exists(input_path):
+        return input_path, {}, False
+
+    parent_dir = os.path.dirname(input_path)
+    is_folder = os.path.isdir(input_path)
+    base = os.path.basename(input_path)
+    name_no_ext = os.path.splitext(base)[0]
+    random_base = random_base or generate_random_name()
+    is_rar_vol_set = not is_folder and base.endswith(".rar") and ".part" in name_no_ext
+
+    if is_folder:
+        obfuscated_path, obfuscated_map, was_linked, _ = _obfuscate_folder(
+            input_path, parent_dir, base, random_base
+        )
+    elif is_rar_vol_set:
+        obfuscated_path, obfuscated_map, was_linked, _ = _obfuscate_rar_vol_set(
+            input_path, parent_dir, name_no_ext, random_base
+        )
+    else:
+        obfuscated_path, obfuscated_map, was_linked, _ = _obfuscate_single_file(
+            input_path, parent_dir, base, random_base
+        )
+
+    return obfuscated_path, obfuscated_map, was_linked
+
+
+def rename_par2_files(
     parent_dir: str, actual_par_input: str, is_rar_vol_set: bool, random_base: str
 ) -> None:
     """Renomeia .par2 criados com nome original para o nome ofuscado."""
@@ -448,45 +483,19 @@ def _rename_par2_files(
         p_suffix = os.path.basename(p_file)[len(orig_stem) :]
         new_p_path = os.path.join(parent_dir, random_base + p_suffix)
         if os.path.exists(new_p_path):
-            os.remove(new_p_path)
-        os.replace(p_file, new_p_path)
-
-
-def _cleanup_on_par_failure(
-    parent_dir: str,
-    random_base: str,
-    input_path: str,
-    is_rar_vol_set: bool,
-    is_folder: bool,
-    obfuscated_path: str,
-    obfuscated_map: dict[str, str],
-    was_linked: bool,
-) -> None:
-    """Remove PAR2 parciais e reverte ofuscação após falha na geração de paridade."""
-    print("\nErro ao gerar paridade. Revertendo ofuscação...")
-    for par_file in glob.glob(os.path.join(parent_dir, glob.escape(random_base) + "*.par2")):
+            try:
+                os.remove(new_p_path)
+            except OSError:
+                pass
         try:
-            os.remove(par_file)
+            os.replace(p_file, new_p_path)
         except OSError:
             pass
-    orig_stem = os.path.splitext(os.path.basename(input_path))[0]
-    if is_rar_vol_set:
-        orig_stem = orig_stem.rsplit(".part", 1)[0]
-    for par_file in glob.glob(os.path.join(parent_dir, glob.escape(orig_stem) + "*.par2")):
-        try:
-            os.remove(par_file)
-        except OSError:
-            pass
-    _revert_obfuscation(
-        is_folder=is_folder,
-        is_rar_vol_set=is_rar_vol_set,
-        obfuscated_path=obfuscated_path,
-        input_path=input_path,
-        parent_dir=parent_dir,
-        random_base=random_base,
-        obfuscated_map=obfuscated_map,
-        was_linked=was_linked,
-    )
+
+
+def deep_obfuscate_tree(path: str) -> dict[str, str]:
+    """Wrapper público para _deep_obfuscate_tree."""
+    return _deep_obfuscate_tree(path)
 
 
 def obfuscate_and_par(
@@ -505,94 +514,58 @@ def obfuscate_and_par(
     bar: Optional[PhaseBar] = None,
 ) -> Tuple[int, Optional[str], dict[str, str], bool]:
     """
-    Cria visão ofuscada da entrada (hardlinks ou rename) e gera paridade.
-
-    Garante reversão em qualquer saída anormal, inclusive KeyboardInterrupt.
-    Retorna (rc, novo_caminho, obfuscated_map, was_linked).
+    Legado: gera paridade e ofusca a entrada.
+    Agora refatorado para sempre gerar paridade sobre os nomes originais primeiro.
     """
     input_path = os.path.abspath(input_path)
     if not os.path.exists(input_path):
-        print(f"Erro: '{input_path}' não existe.")
         return 2, None, {}, False
 
     parent_dir = os.path.dirname(input_path)
     is_folder = os.path.isdir(input_path)
     base = os.path.basename(input_path)
     name_no_ext = os.path.splitext(base)[0]
-    random_base = generate_random_name()
     is_rar_vol_set = not is_folder and base.endswith(".rar") and ".part" in name_no_ext
 
-    try:
-        if is_folder:
-            obfuscated_path, obfuscated_map, was_linked, par_input = _obfuscate_folder(
-                input_path, parent_dir, base, random_base
-            )
-        elif is_rar_vol_set:
-            obfuscated_path, obfuscated_map, was_linked, par_input = _obfuscate_rar_vol_set(
-                input_path, parent_dir, name_no_ext, random_base
-            )
-        else:
-            obfuscated_path, obfuscated_map, was_linked, par_input = _obfuscate_single_file(
-                input_path, parent_dir, base, random_base
-            )
-    except Exception as e:
-        print(f"❌ Erro crítico na ofuscação: {e}")
-        return 1, None, {}, False
+    # 1. Gera paridade sobre os nomes ORIGINAIS
+    rc = make_parity(
+        input_path,
+        redundancy=redundancy,
+        force=force,
+        backend=backend,
+        usenet=usenet,
+        post_size=post_size,
+        threads=threads,
+        profile=profile,
+        slice_size=slice_size,
+        memory_mb=memory_mb,
+        filepath_format=filepath_format,
+        parpar_extra_args=parpar_extra_args,
+        bar=bar,
+    )
 
-    actual_par_input = par_input
-    _par_succeeded = False
+    if rc != 0:
+        return rc, None, {}, False
 
-    # ── Geração de Paridade (com nomes REAIS quando hardlinked) ────────────
-    # Se foi hardlink (was_linked=True), par_input aponta para o arquivo/pasta
-    # original com nome REAL. O PAR2 gerado terá nomes reais internamente.
-    # Depois _rename_par2_files renomeia apenas os .par2 para máscaras aleatórias.
-    # Se foi rename fallback (was_linked=False), par_input aponta para o arquivo
-    # já renomeado (aleatório), e o PAR2 terá nomes aleatórios — isso é aceitável
-    # porque rename fallback raramente ocorre em produção (hardlinks falham só em
-    # cross-device ou permissões).
+    # 2. Ofusca arquivos
+    random_base = generate_random_name()
     try:
-        rc = make_parity(
-            actual_par_input,
-            redundancy=redundancy,
-            force=force,
-            backend=backend,
-            usenet=usenet,
-            post_size=post_size,
-            threads=threads,
-            profile=profile,
-            slice_size=slice_size,
-            memory_mb=memory_mb,
-            filepath_format=filepath_format,
-            parpar_extra_args=parpar_extra_args,
-            bar=bar,
+        obfuscated_path, obfuscated_map, was_linked = perform_obfuscation(
+            input_path, random_base=random_base
         )
-        if rc == 0:
-            _par_succeeded = True
-            # Renomeia os .par2 gerados para o nome randômico (mask externo)
-            # Se foi usado hardlink, os PAR2 foram criados com o nome real de 'actual_par_input' (input_path).
-            # Se foi usado rename, os PAR2 foram criados com o nome já ofuscado de 'par_input'.
-            if was_linked:
-                _rename_par2_files(parent_dir, input_path, is_rar_vol_set, random_base)
 
-            if is_folder and usenet and obfuscated_path:
-                print("  🔒 Ofuscando estrutura interna (deep obfuscation)...")
-                obfuscated_map.update(_deep_obfuscate_tree(obfuscated_path))
-    except KeyboardInterrupt:
-        raise
-    finally:
-        if not _par_succeeded and obfuscated_path and obfuscated_map:
-            _cleanup_on_par_failure(
-                parent_dir,
-                random_base,
-                input_path,
-                is_rar_vol_set,
-                is_folder,
-                obfuscated_path,
-                obfuscated_map,
-                was_linked,
-            )
+        # 3. Renomeia PAR2
+        rename_par2_files(parent_dir, input_path, is_rar_vol_set, random_base)
 
-    return (0, obfuscated_path, obfuscated_map, was_linked) if rc == 0 else (rc, None, {}, False)
+        # 4. Deep obfuscation
+        if is_folder and usenet:
+            obfuscated_map.update(deep_obfuscate_tree(obfuscated_path))
+
+        return 0, obfuscated_path, obfuscated_map, was_linked
+
+    except Exception as e:
+        print(f"Erro na ofuscação pós-paridade: {e}")
+        return 5, None, {}, False
 
 
 # ── Detecção de backends ──────────────────────────────────────────────────────
