@@ -136,9 +136,9 @@ def test_tmdb_search_main_logic(monkeypatch, capsys):
 
     monkeypatch.setattr(sys, "argv", ["upapasta", "--tmdb-search", "Matrix"])
 
-    # Mock do .env
-    monkeypatch.setattr("upapasta.config.load_env_file", lambda f: {"TMDB_API_KEY": "fake_key"})
-    monkeypatch.setattr("upapasta.config.resolve_env_file", lambda f=None: ".env")
+    # Mock do .env (precisa ser no namespace de main, não de config)
+    monkeypatch.setattr("upapasta.main.load_env_file", lambda f: {"TMDB_API_KEY": "fake_key"})
+    monkeypatch.setattr("upapasta.main.resolve_env_file", lambda f=None: ".env")
 
     # Mock do search_media
     mock_item = {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"}
