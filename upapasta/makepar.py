@@ -374,7 +374,8 @@ def _obfuscate_folder(
             os.replace(input_path, obfuscated_path)
 
         was_linked = False
-    return obfuscated_path, {random_base: base}, was_linked, obfuscated_path
+    par_input = input_path if was_linked else obfuscated_path
+    return obfuscated_path, {random_base: base}, was_linked, par_input
 
 
 def _obfuscate_rar_vol_set(
@@ -408,7 +409,10 @@ def _obfuscate_rar_vol_set(
         was_linked = False
     first_suffix = os.path.basename(volumes[0])[len(original_base) :]
     obfuscated_path = os.path.join(parent_dir, random_base + first_suffix)
-    return obfuscated_path, {random_base: original_base}, was_linked, obfuscated_path
+    par_input = (
+        os.path.join(parent_dir, original_base + first_suffix) if was_linked else obfuscated_path
+    )
+    return obfuscated_path, {random_base: original_base}, was_linked, par_input
 
 
 def _obfuscate_single_file(
@@ -429,7 +433,8 @@ def _obfuscate_single_file(
         print(_("  ⚠️ Hardlink falhou. Usando rename."))
         os.replace(input_path, obfuscated_path)
         was_linked = False
-    return obfuscated_path, {random_base: name_no_ext}, was_linked, obfuscated_path
+    par_input = input_path if was_linked else obfuscated_path
+    return obfuscated_path, {random_base: name_no_ext}, was_linked, par_input
 
 
 def _rename_par2_files(
@@ -537,14 +542,14 @@ def obfuscate_and_par(
     actual_par_input = par_input
     _par_succeeded = False
 
-    # ── Geração de Paridade (sempre com nomes REAIS) ────────────────────────
-    # Geramos a paridade olhando para o input original para que o PAR2 guarde
-    # internamente o nome real. Isso permite que o SABnzbd recupere o nome
-    # original mesmo que o NZB esteja ofuscado ou renomeado.
-    # OBS: Se a ofuscação usou rename (fallback), o 'input_path' original não existe
-    # mais no disco, o arquivo agora está em 'par_input'. O parpar permite passar
-    # o nome original via flag ou, no nosso fluxo simplificado, geramos com o nome
-    # que estiver no disco e garantimos que o PAR2 contenha o que queremos.
+    # ── Geração de Paridade (com nomes REAIS quando hardlinked) ────────────
+    # Se foi hardlink (was_linked=True), par_input aponta para o arquivo/pasta
+    # original com nome REAL. O PAR2 gerado terá nomes reais internamente.
+    # Depois _rename_par2_files renomeia apenas os .par2 para máscaras aleatórias.
+    # Se foi rename fallback (was_linked=False), par_input aponta para o arquivo
+    # já renomeado (aleatório), e o PAR2 terá nomes aleatórios — isso é aceitável
+    # porque rename fallback raramente ocorre em produção (hardlinks falham só em
+    # cross-device ou permissões).
     try:
         rc = make_parity(
             actual_par_input,
