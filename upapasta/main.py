@@ -254,6 +254,11 @@ def main() -> None:
             )
         )
         failed: list[str] = []
+        # Tracking em memória: evita redescoberta frágil via glob
+        # season_all_nzbs: todos os episódios (arquivo + pasta) — para o merge
+        # season_folder_eps: só episódios-pasta — precisam de prefixo no season NZB
+        season_all_nzbs: list[str] = []
+        season_folder_eps: list[tuple[str, str]] = []  # (nzb_path, ep_name)
 
         for i, item_path in enumerate(items, 1):
             print(f"\n{'=' * 60}")
@@ -263,17 +268,19 @@ def main() -> None:
             input_name = item_path.name
             log_path, log_fh = setup_session_log(input_name, env_file=env_file)
             rc = 1
+            orch_ref: UpaPastaOrchestrator | None = None
             try:
                 orchestrator = UpaPastaOrchestrator.from_args(args, str(item_path))
 
-                # No modo --season, se o item for uma pasta, usamos o nome dela como
-                # prefixo nos subjects do NZB. Isso evita colisões em NZBs mesclados
-                # e preserva a estrutura de subpastas no download.
+                # Pastas de episódio recebem prefixo no subject (ex: S01E01/video.mkv),
+                # evitando colisões de nome quando os NZBs forem mesclados.
+                # Arquivos únicos já têm nome distinto — prefixo não é necessário.
                 if args.season and item_path.is_dir():
                     orchestrator.nzb_subject_prefix = item_path.name
 
                 with UpaPastaSession(orchestrator) as orch:
                     rc = orch.run()
+                    orch_ref = orch
             except KeyboardInterrupt:
                 rc = 130
                 teardown_session_log(log_fh, log_path)
@@ -288,6 +295,14 @@ def main() -> None:
 
             if rc != 0:
                 failed.append(item_path.name)
+            elif args.season and orch_ref is not None and orch_ref.generated_nzb:
+                nzb_path = orch_ref.generated_nzb
+                season_all_nzbs.append(nzb_path)
+                # Episódios-pasta precisam de prefixo no NZB consolidado para distinguir
+                # arquivos com mesmo nome (ex: Video.mkv em S01E01 e S01E02).
+                # Episódios-arquivo já têm nome único após fix_nzb_subjects — sem prefixo.
+                if item_path.is_dir():
+                    season_folder_eps.append((nzb_path, item_path.name))
 
         # No --each, falhas são fatais
         if args.each and failed:
@@ -308,41 +323,46 @@ def main() -> None:
 
         # ── Pós-processamento da Temporada ────────────────────────────────────
         if args.season:
-            # Coleta NZBs de episódios gerados na pasta
             env_vars = load_env_file(env_file)
-            nzb_out_dir = env_vars.get("NZB_OUT_DIR")
-            if not nzb_out_dir:
-                nzb_out_dir = env_vars.get("NZB_OUT")
-                if nzb_out_dir:
-                    # Se NZB_OUT é um template, extrai o diretório
-                    nzb_out_dir = str(Path(nzb_out_dir).parent)
-            working_dir = nzb_out_dir or "."
-            working_dir_path = Path(working_dir).expanduser().resolve()
 
-            episode_data = collect_season_nzbs(str(working_dir_path), folder.name)
+            # Fallback para glob se o tracking em memória ficou vazio (ex: --skip-upload)
+            if not season_all_nzbs:
+                nzb_out_dir = env_vars.get("NZB_OUT_DIR")
+                if not nzb_out_dir:
+                    raw = env_vars.get("NZB_OUT")
+                    nzb_out_dir = str(Path(raw).parent) if raw else None
+                working_dir_path = Path(nzb_out_dir or ".").expanduser().resolve()
+                # No fallback não sabemos quais eram pastas — passamos tudo para fix
+                fallback_eps = collect_season_nzbs(str(working_dir_path), folder.name)
+                season_all_nzbs = [p for p, _ in fallback_eps]
+                season_folder_eps = fallback_eps
+            else:
+                working_dir_path = Path(season_all_nzbs[0]).parent
 
-            if episode_data:
+            if season_all_nzbs:
                 print(f"\n{'=' * 60}")
                 print(_("🌟 Finalizing Season: {folder}").format(folder=folder.name))
                 print("=" * 60)
 
-                # O nome do NZB da temporada é o nome da pasta
                 season_nzb_name = f"{folder.name}.nzb"
                 season_nzb_path = working_dir_path / season_nzb_name
 
-                nzb_paths = [p for p, _ in episode_data]
                 print(
                     _("📦 Merging {count} NZBs into: {name}").format(
-                        count=len(nzb_paths), name=season_nzb_name
+                        count=len(season_all_nzbs), name=season_nzb_name
                     )
                 )
-                if merge_nzbs(nzb_paths, str(season_nzb_path)):
-                    fix_season_nzb_subjects(str(season_nzb_path), episode_data)
+                if merge_nzbs(season_all_nzbs, str(season_nzb_path)):
+                    # Com --obfuscate os subjects ficam propositalmente ofuscados —
+                    # adicionar prefixo de ep_name revelaria os nomes dos episódios.
+                    # Sem ofuscação: aplica prefixo só em episódios-pasta (arquivos
+                    # únicos já têm subjects corretos e não precisam de tratamento).
+                    if season_folder_eps and not args.obfuscate:
+                        fix_season_nzb_subjects(str(season_nzb_path), season_folder_eps)
                     print(_("✅ Season NZB generated successfully!"))
                 else:
                     print(_("❌ Failed to generate season NZB."))
 
-                # Geração do NFO da temporada
                 season_nfo_path = season_nzb_path.with_suffix(".nfo")
                 banner = env_vars.get("NFO_BANNER")
                 print(_("📄 Generating season NFO..."))
@@ -351,7 +371,7 @@ def main() -> None:
                 else:
                     print(_("⚠️  Failed to generate season NFO."))
             elif not failed:
-                print(_("⚠️  No episode NZBs found in {path}").format(path=working_dir_path))
+                print(_("⚠️  No episode NZBs found for: {folder}").format(folder=folder.name))
 
         sys.exit(0)
 

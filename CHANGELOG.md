@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 1.0.0 - 2026-05-09
+
+### Features
+- **Customizable NFO Templates** (F3.6): Added `--nfo-template <file>` flag to use user-defined text templates with placeholders: `{{title}}`, `{{synopsis}}`, `{{size}}`, `{{files}}`, `{{mediainfo}}`. Falls back to built-in NFO generation when not specified.
+- **Native Python Plugin System** (F3.17): Implemented `hooks.py` to discover and execute `.py` files from `~/.config/upapasta/hooks/` after each upload. Hooks receive a standardized metadata dictionary (`title`, `nzb_path`, `size_bytes`, `category`, `tmdb_id`, etc.) without needing shell wrappers.
+
+### Fixes
+- **TMDb test isolation**: Corrected `load_env_file` patching path in `test_tmdb_search_main_logic` to use the fully-qualified import target.
+
+### Documentation
+- Updated CLAUDE.md to v1.0.0: architecture table with all 24 modules, feature map reflecting full completion, corrected line counts.
+- All v1.0.0 launch criteria met. Post-v1.0.0 items (`--resume`, multi-server NNTP, TUI) moved to future roadmap.
+
 ## 0.31.0 - 2026-05-09
 
 ### Features

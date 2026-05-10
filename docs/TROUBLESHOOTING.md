@@ -60,7 +60,7 @@ Upload failed
 PAR2 failed
 │
 ├─ "parpar: command not found"
-│   └─ Install: pip install parpar
+│   └─ Install: npm install -g @animetosho/parpar
 │       Alternative: apt install par2 and use --backend par2
 │
 ├─ "par2: command not found" (using --backend par2)
@@ -202,6 +202,34 @@ History problem
 
 ---
 
+## TMDb / NFO issues
+
+```
+TMDb or NFO problem
+│
+├─ "--tmdb: TMDB_API_KEY not set"
+│   └─ Add to .env: TMDB_API_KEY=your_api_key_here
+│       Get a free key at https://www.themoviedb.org/settings/api
+│
+├─ TMDb found wrong match or no match
+│   └─ Check: upapasta --tmdb-search "Title Year"
+│       If match is wrong: folder/file name may have unexpected tokens
+│       Rename to include year: "Movie.Name.2019.1080p/"
+│       If no match available: upload proceeds with built-in NFO (non-fatal)
+│
+├─ NFO template placeholder not replaced
+│   └─ TMDb placeholders ({{title}}, {{synopsis}}, {{year}}) require --tmdb
+│       Without --tmdb they are replaced with folder name or left empty
+│       Check template path is readable: ls -la ~/templates/my.txt
+│
+└─ NFO generated but content looks wrong
+    └─ Run with --verbose to see mediainfo/ffprobe output
+        Ensure ffprobe is installed: which ffprobe
+        Ensure mediainfo is installed: which mediainfo
+```
+
+---
+
 ## Information collection to report a bug
 
 If none of the above scenarios solve it, collect the following info before opening an issue:
@@ -214,7 +242,7 @@ upapasta --help | head -1
 python3 --version
 
 # Available binaries
-which nyuu parpar par2 rar ffprobe mediainfo 2>&1
+which nyuu parpar par2 rar 7z ffprobe mediainfo 2>&1
 
 # Detailed log of failed execution
 upapasta Folder/ --verbose --log-file /tmp/upapasta_debug.log

@@ -29,7 +29,7 @@ from .i18n import _
 from .make7z import make_7z
 from .makepar import handle_par_failure, make_parity, obfuscate_and_par
 from .makerar import make_rar
-from .nzb import enrich_nzb_metadata
+from .nzb import enrich_nzb_metadata, resolve_nzb_out
 from .resources import get_total_size
 from .ui import PhaseBar, format_time
 from .upfolder import upload_to_usenet
@@ -688,6 +688,16 @@ class UpaPastaOrchestrator:
                 resume=self.resume,
                 bar=bar,
             )
+            if rc == 0:
+                _nzb_rel, nzb_abs = resolve_nzb_out(
+                    self.input_target,
+                    self.env_vars,
+                    os.path.isdir(self.input_target),
+                    self.skip_rar,
+                    os.path.dirname(self.input_target),
+                    self.obfuscated_map or None,
+                )
+                self.generated_nzb = nzb_abs
             return rc == 0
         except (FileNotFoundError, PermissionError, OSError) as e:
             if not bar:

@@ -30,7 +30,7 @@ A: Install it via npm: `npm install -g @animetosho/parpar`. Confirm with `parpar
 
 ---
 
-**Q: `7z: command not found` (using `--compressor 7z`).**
+**Q: `7z: command not found` (using `--7z`).**
 
 A: Install it: `apt install p7zip-full` (Debian/Ubuntu), `brew install p7zip` (macOS), or from [7-zip.org](https://www.7-zip.org/) (Windows).
 
@@ -66,7 +66,7 @@ A: The NNTP server is overloaded or under maintenance. Try again in a few minute
 
 **Q: Upload stops in the middle without a clear error message.**
 
-A: Likely a connection timeout. Add `--upload-timeout 300` (5 minutes). If the problem persists, configure a failover server — see [DOCS.md § 7](DOCS.md#7-multiple-nntp-servers).
+A: Likely a connection timeout. Add `--upload-timeout 300` (5 minutes). If the problem persists, configure a failover server — see [DOCS.md § 9](../DOCS.md#9-multiple-nntp-servers).
 
 ---
 
@@ -131,7 +131,7 @@ A: This should not happen — rollback is guaranteed via `finally`. Check if the
 
 **Q: Does `--password` without `--rar` work?**
 
-A: `--password` automatically implies packaging since version 0.18.0. It will use your `DEFAULT_COMPRESSOR` (from `.env`) or an explicit `--compressor {rar,7z}`. The combination `--skip-rar --password` is still a fatal error.
+A: `--password` automatically implies packaging since version 0.18.0. It uses your `DEFAULT_COMPRESSOR` (from `.env`) or an explicit `--rar` / `--7z`. The combination `--skip-rar --password` is still a fatal error.
 
 ---
 
@@ -177,16 +177,74 @@ A: Disable "Recursive Unpacking" in SABnzbd settings (`Config → General → Re
 
 ---
 
+## TMDb and NFO
+
+**Q: How do I enable TMDb metadata in the NFO?**
+
+A: Add your API Key to `.env`:
+```ini
+TMDB_API_KEY=your_api_key_here
+```
+Then use `--tmdb` when uploading:
+```bash
+upapasta "Alien.1979.2160p/" --tmdb --obfuscate
+```
+UpaPasta will search TMDb automatically using the folder/file name. You can also test the match first with `upapasta --tmdb-search "Alien 1979"`.
+
+---
+
+**Q: TMDb found the wrong movie / no match.**
+
+A: The matching uses strict heuristics (year required + title similarity ≥ 85%). If there's no match, UpaPasta logs suggestions and continues with the built-in NFO. To force a specific TMDb ID, set `TMDB_ID=12345` in `.env` or use `--tmdb-search` to find the correct ID.
+
+---
+
+**Q: How do I use a custom NFO template?**
+
+A: Create a text file with any layout you want, using placeholders like `{{title}}`, `{{synopsis}}`, `{{size}}`, `{{files}}`, and `{{mediainfo}}`. Then pass it with `--nfo-template`:
+```bash
+upapasta Folder/ --nfo-template ~/templates/movie.txt --tmdb
+```
+See [DOCS.md § 7](../DOCS.md#7-nfo-templates) for the full placeholder reference.
+
+---
+
+## Hooks and Notifications
+
+**Q: How do I get a Discord/Telegram notification after each upload?**
+
+A: Add `WEBHOOK_URL` to your `.env`:
+```ini
+# Discord
+WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>
+# Telegram
+WEBHOOK_URL=https://api.telegram.org/bot<token>/sendMessage?chat_id=<id>
+```
+UpaPasta detects the URL pattern and formats the payload accordingly.
+
+---
+
+**Q: How do I run custom Python code after an upload?**
+
+A: Drop a `.py` file in `~/.config/upapasta/hooks/` with an `on_upload_complete` function:
+```python
+def on_upload_complete(metadata: dict) -> None:
+    print(metadata["original_name"], metadata["nzb_path"])
+```
+All `.py` files in that directory are auto-loaded and executed in alphabetical order. See [DOCS.md § 12](../DOCS.md#12-hooks-and-webhooks) for the full metadata dictionary.
+
+---
+
 ## Folders and Structure
 
 **Q: Empty subfolders disappear after downloading.**
 
 A: Usenet and PAR2 only transport files. Without a container (RAR or 7z), empty directories do not exist. Solution:
-- Use a container via `--rar` or `--compressor 7z`
+- Use a container via `--rar` or `--7z`
 - Or place a sentinel file (`.keep`) in each empty subfolder before uploading
 
 ---
 
 **Q: I have a folder with a single file. Does UpaPasta create an archive?**
 
-A: Not by default. A container is only created with `--rar`, `--compressor`, `--password`, or `--obfuscate` on a single file. If you don't use any of these flags, the file is uploaded directly.
+A: Not by default. A container is only created with `--rar`, `--7z`, `--compress`, `--password`, or `--obfuscate` on a single file. If you don't use any of these flags, the file is uploaded directly.

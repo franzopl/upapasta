@@ -2,7 +2,7 @@
 
 [Português (pt-BR)](docs/pt-BR/DOCS.md)
 
-> Valid for UpaPasta ≥ 0.30.0. For earlier versions, consult the [CHANGELOG](CHANGELOG.md).
+> Valid for UpaPasta 1.0.0. For earlier versions, consult the [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -14,13 +14,14 @@
 4. [Operating modes](#4-operating-modes)
 5. [Obfuscation](#5-obfuscation)
 6. [Compression and packaging](#6-compression-and-packaging)
-7. [PAR2 and backends](#7-par2-and-backends)
-8. [Multiple NNTP servers](#8-multiple-nntp-servers)
-9. [Resume](#9-resume)
-10. [Catalog](#10-catalog)
-11. [Hooks and webhooks](#11-hooks-and-webhooks)
-12. [Profiles](#12-profiles)
-13. [Empty folders](#13-empty-folders)
+7. [NFO templates](#7-nfo-templates)
+8. [PAR2 and backends](#8-par2-and-backends)
+9. [Multiple NNTP servers](#9-multiple-nntp-servers)
+10. [Resume](#10-resume)
+11. [Catalog](#11-catalog)
+12. [Hooks and webhooks](#12-hooks-and-webhooks)
+13. [Profiles](#13-profiles)
+14. [Empty folders](#14-empty-folders)
 
 ---
 
@@ -252,6 +253,14 @@ What happens:
 
 Result: No metadata leaks to Usenet or indexers. Only users with the NZB can see what the files are.
 
+### Maximum Obfuscation (`--strong-obfuscate`)
+
+```bash
+upapasta Folder/ --strong-obfuscate
+```
+
+Implies `--obfuscate`, but the NZB subjects are **not** restored to original names. All file names, folder names, and NZB subjects remain as random strings. Use for private releases or when maximum anonymity is required. After downloading, files must be renamed manually or via PAR2 repair.
+
 ### Single file + obfuscation
 
 A single file with `--obfuscate` or `--password` creates a temporary archive automatically:
@@ -277,16 +286,56 @@ UpaPasta supports two main backends for creating multi-volume archives:
 - Requires `p7zip-full`.
 - Produces `.7z`, `.7z.001`, etc.
 - Support for encryption with header encryption (`-mhe=on`).
-- Enabled via `--compressor 7z` or `DEFAULT_COMPRESSOR=7z` in `.env`.
+- Enabled via `--7z` (explicit) or `DEFAULT_COMPRESSOR=7z` in `.env` (used by `--compress`).
 
 ### When is PACK stage active?
 1. If the input is a **Folder** (always needs a container).
-2. If the input is a single file but `--rar`, `--compressor` or `--password` is used.
+2. If the input is a single file but `--rar`, `--7z`, `--compress` or `--password` is used.
 3. If the input is a single file and `--obfuscate` is used (to avoid leaking original extensions on Usenet).
 
 ---
 
-## 7. PAR2 and backends
+## 7. NFO templates
+
+By default, UpaPasta generates NFOs automatically using `mediainfo` (for single files) or `ffprobe` + `tree` (for folders), optionally enriched with TMDb metadata (`--tmdb`).
+
+You can replace the built-in NFO with a fully custom text file via `--nfo-template`:
+
+```bash
+upapasta Folder/ --nfo-template ~/templates/movie.txt
+```
+
+### Placeholders
+
+| Placeholder | Replaced with |
+|-------------|---------------|
+| `{{title}}` | TMDb title (or folder/file name if TMDb is not used) |
+| `{{synopsis}}` | TMDb synopsis (empty if not used) |
+| `{{year}}` | TMDb release year (empty if not used) |
+| `{{genres}}` | TMDb genres, comma-separated (empty if not used) |
+| `{{size}}` | Total size of the upload (human-readable) |
+| `{{files}}` | List of files in the upload |
+| `{{mediainfo}}` | Raw mediainfo/ffprobe output |
+
+### Example template
+
+```
+{{title}} ({{year}})
+{{genres}}
+
+{{synopsis}}
+
+--- Technical Info ---
+Size: {{size}}
+
+{{mediainfo}}
+```
+
+If `--nfo-template` is used without `--tmdb`, TMDb placeholders (`{{title}}`, `{{synopsis}}`, `{{year}}`, `{{genres}}`) fall back to the folder/file name or remain empty.
+
+---
+
+## 8. PAR2 and backends
 
 
 ### parpar vs par2
@@ -357,7 +406,7 @@ upapasta file.rar --force --par-profile safe
 
 ---
 
-## 8. Multiple NNTP servers
+## 9. Multiple NNTP servers
 
 Configure additional servers in `.env` for automatic failover. In case of primary server failure, the next upload attempt automatically uses the following server.
 
@@ -390,7 +439,7 @@ The server actually used in each upload is recorded in the catalog (`servidor_nn
 
 ---
 
-## 9. Resume
+## 10. Resume
 
 If an upload is interrupted (Ctrl+C, network drop, error), resume with `--resume`:
 
@@ -417,7 +466,7 @@ upapasta Folder/
 
 ---
 
-## 10. Catalog
+## 11. Catalog
 
 All successful uploads are automatically recorded in `~/.config/upapasta/history.jsonl` (JSONL, append-only). NZBs are archived in `~/.config/upapasta/nzb/` via hardlink — recoverable even if original files are moved or deleted.
 
@@ -489,7 +538,7 @@ USENET_GROUP=alt.binaries.movies,alt.binaries.hdtv,alt.binaries.multimedia,alt.b
 
 ---
 
-## 11. Hooks and webhooks
+## 12. Hooks and webhooks
 
 ### Native Webhook (`WEBHOOK_URL`)
 
@@ -553,7 +602,7 @@ Hooks are executed in alphabetical order. If a hook fails, a traceback is printe
 
 ---
 
-## 12. Profiles
+## 13. Profiles
 
 Profiles allow having distinct configurations for different servers or use cases:
 
@@ -575,7 +624,7 @@ cp ~/.config/upapasta/.env ~/.config/upapasta/work.env
 
 ---
 
-## 13. Empty folders
+## 14. Empty folders
 
 **Usenet posts articles (files), not directories.** PAR2 also doesn't preserve empty directories. Consequence: subfolders without files disappear at the destination when `--rar` is not active.
 

@@ -97,8 +97,9 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 - [x] All Phases 1 and 2 completed ✅
 - [x] Green CI (pytest + mypy + ruff) ✅
 - [x] Coverage ≥ 90% in core modules ✅
-- [ ] **F3.6** and **F3.17** implemented
-- [ ] **Final Polish**: 100% Documentation and Test coverage focus
+- [x] **F3.6** NFO templates implemented (commit bb9784d) ✅
+- [x] **F3.17** Python plugin system implemented (commit fd3abf8) ✅
+- [x] **Final Polish**: Documentation updated to v1.0.0 ✅
 - [x] PyPI published ✅
 - [x] Multi-platform support (Linux/macOS/Windows) ✅
 

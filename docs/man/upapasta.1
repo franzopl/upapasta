@@ -1,4 +1,4 @@
-.TH UPAPASTA 1 "2026-05" "upapasta 0.25.0" "User Manual"
+.TH UPAPASTA 1 "2026-05" "upapasta 1.0.0" "User Manual"
 .SH NAME
 upapasta \- automated Usenet uploader
 .SH SYNOPSIS
@@ -15,9 +15,10 @@ upapasta \- automated Usenet uploader
 \fB\-\-test\-connection\fR
 .SH DESCRIPTION
 .B upapasta
-automates the full Usenet upload pipeline: NFO generation, optional RAR5
-creation, PAR2 parity generation, upload via nyuu without staging in /tmp,
-and NZB post-processing with corrected subjects. Zero Python dependencies \(em
+automates the full Usenet upload pipeline: NFO generation (with optional
+custom templates and TMDb metadata), optional RAR5 or 7z packaging, PAR2
+parity generation, upload via nyuu without staging in /tmp, and NZB
+post-processing with corrected subjects. Zero Python dependencies \(em
 system binaries only.
 .PP
 On the first run, an interactive wizard creates
@@ -56,8 +57,21 @@ RAR password, injected into the NZB for automatic extraction.
 Automatically implies \fB\-\-rar\fR. Without an argument, generates a random
 16-character password.
 .TP
+.B \-\-7z
+Creates 7z archives before upload (header encryption enabled). Disabled by default.
+.TP
+.B \-\-compress, \-c
+Activates packaging using the default compressor defined in \fBDEFAULT_COMPRESSOR\fR (.env).
+.TP
 .B \-\-rar
 Creates RAR5 files before upload. Disabled by default.
+.TP
+.B \-\-tmdb
+Enriches NFO with metadata from The Movie Database (requires \fBTMDB_API_KEY\fR in .env).
+.TP
+.B \-\-nfo\-template \fIPATH\fR
+Path to a custom NFO template file. Supports placeholders: \fB{{title}}\fR, \fB{{synopsis}}\fR,
+\fB{{size}}\fR, \fB{{files}}\fR, \fB{{mediainfo}}\fR.
 .TP
 .B \-\-dry\-run
 Simulates the entire process without creating or sending files.
@@ -122,6 +136,9 @@ Behavior when an NZB with the same name already exists. Default: rename.
 Alternative path for the .env file.
 .SH UTILITIES
 .TP
+.B \-\-tmdb\-search \fITERM\fR
+Searches TMDb for movies or TV shows matching TERM and lists IDs. Does not start an upload.
+.TP
 .B \-\-config
 Opens the interactive configuration wizard. Preserves existing values (Enter
 keeps current value).
@@ -154,6 +171,12 @@ Upload with RAR password:
 .TP
 Daemon monitoring folder:
 .B upapasta /downloads/ \-\-watch \-\-watch\-stable 120
+.TP
+Upload with TMDb metadata enrichment:
+.B upapasta "Alien.1979/" \-\-tmdb \-\-obfuscate
+.TP
+Custom NFO template:
+.B upapasta Folder/ \-\-nfo\-template ~/templates/movie.txt
 .TP
 Resume interrupted upload:
 .B upapasta Folder/ \-\-resume
@@ -203,19 +226,28 @@ Script executed after successful upload (receives UPAPASTA_* variables).
 .TP
 .B WEBHOOK_URL
 URL for post-upload notification (Discord, Slack, Telegram, or generic).
+.TP
+.B DEFAULT_COMPRESSOR
+Default packaging tool: \fBrar\fR or \fB7z\fR. Used by \fB\-\-compress\fR and \fB\-\-password\fR.
+.TP
+.B TMDB_API_KEY
+API Key for The Movie Database. Required for \fB\-\-tmdb\fR and \fB\-\-tmdb\-search\fR.
 .SH DEPENDENCIES
 .TP
 .B nyuu
 NNTP upload. Install: npm install \-g nyuu
 .TP
 .B parpar
-PAR2 generation (recommended). Install: pip install parpar
+PAR2 generation (recommended). Install: npm install \-g @animetosho/parpar
 .TP
 .B par2
 Alternative to parpar. Install: apt install par2
 .TP
 .B rar
 RAR5 (required only with \fB\-\-rar\fR). Install: apt install rar
+.TP
+.B 7z
+7-Zip (required only with \fB\-\-7z\fR). Install: apt install p7zip\-full
 .TP
 .B ffprobe
 Video metadata in NFO (optional). Install: apt install ffmpeg

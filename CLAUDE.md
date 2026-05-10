@@ -19,20 +19,21 @@
 
 **UpaPasta** é uma ferramenta CLI Python que automatiza o pipeline completo de upload para Usenet com o mínimo de configuração possível.
 
-Versão atual: **0.25.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
+Versão atual: **1.0.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
 
 Pipeline padrão executado por `UpaPastaOrchestrator.run()`:
 
-1. Geração de NFO (mediainfo / ffprobe / tree+stats).
-2. Verificação antecipada de conflito de NZB.
-3. (Opcional) Criação de RAR5 — **somente** com `--rar`, ou implícito via `--password`, ou para arquivo único com `--obfuscate`/`--password`.
-4. (Opcional) Normalização de extensões (`.bin`) com `--rename-extensionless`.
-5. Geração de PAR2 (parpar default; preserva estrutura via `filepath-format=common`).
-6. Upload via nyuu **sem staging em /tmp** (paths diretos).
-7. Pós-processamento do NZB (subjects corrigidos, senha injetada, verificação XML).
-8. Cleanup de RAR/PAR2 (a menos que `--keep-files`).
-9. Reversão de ofuscação / extensões.
-10. Registro em catálogo + execução de hook pós-upload.
+1. Geração de NFO (mediainfo / ffprobe / tree+stats; template customizável via `--nfo-template`).
+2. (Opcional) Enriquecimento de metadados TMDb (`--tmdb`): título, sinopse, gêneros, poster.
+3. Verificação antecipada de conflito de NZB.
+4. (Opcional) Empacotamento: RAR5 (`--rar`) ou 7z (`--7z`) ou compressor padrão (`--compress`).
+5. (Opcional) Normalização de extensões (`.bin`) com `--rename-extensionless`.
+6. Geração de PAR2 (parpar default; preserva estrutura via `filepath-format=common`).
+7. Upload via nyuu **sem staging em /tmp** (paths diretos).
+8. Pós-processamento do NZB (subjects corrigidos, senha injetada, metadados TMDb, verificação XML).
+9. Cleanup de RAR/PAR2/7z (a menos que `--keep-files`).
+10. Reversão de ofuscação / extensões.
+11. Registro em catálogo + execução de hooks pós-upload (shell via `POST_UPLOAD_SCRIPT` ou Python nativo em `~/.config/upapasta/hooks/`).
 
 ---
 
@@ -51,29 +52,36 @@ upapasta Pasta/ --obfuscate --backend parpar \
 
 ---
 
-## 3. Arquitetura Modular (v0.22.3)
+## 3. Arquitetura Modular (v1.0.0)
 
-Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas via `wc -l upapasta/*.py`.
+Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas via `wc -l upapasta/*.py`.
 
 | Módulo | Linhas | Responsabilidade |
 |---|---|---|
 | `__init__.py` | 1 | Marcador de package |
-| `_process.py` | 89 | **OBRIGATÓRIO**: `managed_popen` (context manager SIGTERM→SIGKILL para todo subprocess externo) |
-| `nntp_test.py` | 93 | `--test-connection`: handshake CONNECT/LOGIN/QUIT via `nntplib` (gracefully degraded em Python 3.14+) |
-| `resources.py` | 118 | `calculate_optimal_resources` (threads + memória escalonadas por tamanho da fonte e CPUs); leitura de `/proc/meminfo` |
-| `watch.py` | 141 | Modo daemon `--watch` (polling + janela de estabilidade) |
-| `ui.py` | 255 | `PhaseBar` (5 fases NFO→RAR→PAR2→UPLOAD→DONE), `_TeeStream` (logging dual stdout+arquivo, strip ANSI), `setup_logging` / `setup_session_log` / `teardown_session_log` |
-| `catalog.py` | 269 | **JSONL** local (`~/.config/upapasta/history.jsonl`) + arquivamento de NZB via hardlink em `~/.config/upapasta/nzb/`; detecção de categoria (Anime/TV/Movie/Generic); `run_post_upload_hook` (timeout 60s, env vars `UPAPASTA_*`) |
-| `main.py` | 303 | Entry point (~150 linhas reais). Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection` ou para o orquestrador via `from_args`; modos `--each`/`--season`/`--watch` |
-| `nfo.py` | 341 | mediainfo (single file) + tree/stats/ffprobe (folder). Detecção de pasta de série via regex `S\d{2}` |
-| `config.py` | 287 | `PROFILES` PAR2 (fast/balanced/safe), `REQUIRED_CRED_KEYS`, `DEFAULT_GROUP_POOL` (10 grupos), `prompt_for_credentials`, `load_env_file`, `render_template`, `resolve_env_file(profile)` |
-| `makerar.py` | 237 | RAR5 com progresso ao vivo; volumes dinâmicos (≤10 GB → único; senão ≥1 GB por volume, máx 100 partes, redondo a 5 MB); flags `-m0 -ma5 -hp$PASSWORD`; aceita arquivo único e pasta |
-| `nzb.py` | 491 | `resolve_nzb_template`, `resolve_nzb_basename`, `resolve_nzb_out`, `handle_nzb_conflict` (rename/overwrite/fail), `inject_nzb_password` (`<meta type="password">`), `fix_nzb_subjects` (deofuscação + path), `fix_season_nzb_subjects`, `merge_nzbs`, `collect_season_nzbs` |
-| `cli.py` | 476 | `argparse` com 3 grupos (essenciais/ajuste/avançadas), `_USAGE_SHORT`, `_DESCRIPTION`, `_EPILOG`, `check_dependencies`, `_validate_flags` |
-| `upfolder.py` | 664 | `upload_to_usenet`: nyuu **sem cópia para /tmp** (paths relativos preservam subpastas); pool de grupos via `random.choice`; uploader anônimo aleatório; retry automático; verificação XML do NZB; injeção de senha pós-upload |
-| `makepar.py` | 856 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `make_parity` aceita `filepath_format` e `parpar_extra_args`; `obfuscate_and_par` refatorado em subfunções (_obfuscate_folder, _obfuscate_rar_vol_set, _obfuscate_single_file, _rename_par2_files, _cleanup_on_par_failure); `handle_par_failure` (retry conservador automático) |
-| `_pipeline.py` | 633 | Classes auxiliares do orchestrator: `DependencyChecker` (valida entrada/disco), `PathResolver` (NZB/NFO/PAR2 paths), `PipelineReporter` (banner/stats/sumário/catálogo); funções standalone: `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources` |
-| `orchestrator.py` | 602 | `UpaPastaOrchestrator` (workflow completo, delegando às classes de `_pipeline.py`) + `UpaPastaSession` (context manager de cleanup); `from_args` classmethod |
+| `_process.py` | 85 | **OBRIGATÓRIO**: `managed_popen` (context manager SIGTERM→SIGKILL para todo subprocess externo) |
+| `_progress.py` | 220 | Dashboard de progresso moderno: `PhaseBar`, parsing de saída de rar/parpar/nyuu, ANSI handling |
+| `_pipeline.py` | 757 | Classes auxiliares do orchestrator: `DependencyChecker`, `PathResolver`, `PipelineReporter`; funções standalone: `normalize_extensionless`, `revert_extensionless`, `do_cleanup_files`, `revert_obfuscation`, `recalculate_resources` |
+| `_webhook.py` | 77 | Webhooks nativos: Discord/Telegram/Slack via `WEBHOOK_URL`; payload JSON por evento (`upload_complete`, `upload_failed`) |
+| `catalog.py` | 283 | **JSONL** local (`~/.config/upapasta/history.jsonl`) + arquivamento de NZB via hardlink em `~/.config/upapasta/nzb/`; detecção de categoria; `run_post_upload_hook`; `--stats` agregado |
+| `cli.py` | 547 | `argparse` com 3 grupos (essenciais/ajuste/avançadas); flags `--rar`/`--7z`/`--compress`; `check_dependencies`, `_validate_flags` |
+| `config.py` | 362 | `PROFILES` PAR2 (fast/balanced/safe), `REQUIRED_CRED_KEYS`, `DEFAULT_GROUP_POOL` (10 grupos), `prompt_for_credentials`, `load_env_file`, `render_template`, `resolve_env_file(profile)` |
+| `hooks.py` | 57 | **Plugin system nativo** (F3.17): carrega e executa arquivos `.py` em `~/.config/upapasta/hooks/`; passa dicionário de metadados padronizado |
+| `i18n.py` | 66 | Infraestrutura i18n via gettext; detecção automática de locale via `UPAPASTA_LANG` ou configuração do sistema |
+| `main.py` | 376 | Entry point. Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection`/`--tmdb-search`/`--stats` ou para o orquestrador; modos `--each`/`--season`/`--watch` |
+| `make7z.py` | 237 | 7z com progresso ao vivo; volumes dinâmicos; header encryption `-mhe=on`; flags de senha; aceita arquivo único e pasta |
+| `makerar.py` | 268 | RAR5 com progresso ao vivo; volumes dinâmicos (≤10 GB → único; ≥1 GB por volume, máx 100 partes, redondo a 5 MB); flags `-m0 -ma5 -hp$PASSWORD` |
+| `makepar.py` | 981 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `obfuscate_and_par` com subfunções; `handle_par_failure` (retry conservador automático) |
+| `nfo.py` | 534 | mediainfo (single file) + tree/stats/ffprobe (folder); templates customizáveis via `--nfo-template` (F3.6); injeção de metadados TMDb; detecção de pasta de série via regex `S\d{2}` |
+| `nntp_test.py` | 95 | `--test-connection`: handshake CONNECT/LOGIN/QUIT via `nntplib` (gracefully degraded em Python 3.14+) |
+| `nzb.py` | 579 | `resolve_nzb_template`, `resolve_nzb_basename`, `resolve_nzb_out`, `handle_nzb_conflict` (rename/overwrite/fail), `inject_nzb_password`, `fix_nzb_subjects`, `fix_season_nzb_subjects`, `merge_nzbs`, `collect_season_nzbs`; injeção de metadados Newznab (`<meta>`) |
+| `orchestrator.py` | 914 | `UpaPastaOrchestrator` (workflow completo, delegando às classes de `_pipeline.py`) + `UpaPastaSession` (context manager de cleanup); `from_args` classmethod |
+| `profiles.py` | 31 | Definições de perfis PAR2 separadas de `config.py` |
+| `resources.py` | 123 | `calculate_optimal_resources` (threads + memória escalonadas por tamanho da fonte e CPUs); leitura de `/proc/meminfo` |
+| `tmdb.py` | 194 | **TMDb integration** (F3.4): lookup de metadados de filmes/séries; heurísticas de matching estrito (ano obrigatório + similaridade de título); `--tmdb-search` utility |
+| `ui.py` | 361 | `_TeeStream` (logging dual stdout+arquivo, strip ANSI), `setup_logging` / `setup_session_log` / `teardown_session_log` |
+| `upfolder.py` | 961 | `upload_to_usenet`: nyuu **sem cópia para /tmp** (paths relativos preservam subpastas); pool de grupos via `random.choice`; uploader anônimo aleatório (schizo mode); jitter de `ARTICLE_SIZE`; retry automático; verificação XML do NZB; injeção de senha pós-upload |
+| `watch.py` | 155 | Modo daemon `--watch` (polling + janela de estabilidade) |
 
 ---
 
@@ -94,20 +102,21 @@ Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas v
 
 ---
 
-## 5. Estado da Versão (0.25.0 — 2026-05-06)
+## 5. Estado da Versão (1.0.0 — 2026-05-09)
 
 ### Histórico recente (últimas releases relevantes)
 
-- **0.18.0** — Inversão de `--skip-rar` (negativa) → `--rar` (positiva); `--password` presume `--rar`; `--obfuscate` permanece independente.
-- **0.17.x** — Fixes de `--each`/`--season` (ignorar hardlinks, NZB_OUT_DIR, `S02E` collection); refatoração do NZB de temporada baseado em varredura.
-- **0.16.x** — Modo `--season`: episódios individuais + NZB consolidado da temporada com prefixo por episódio nos subjects.
-- **0.15.x** — Deep obfuscation para pastas em `--skip-rar`; ofuscação via hardlinks (preserva seeding); restauração automática do nome original; aviso de pastas vazias.
-- **0.14.x** — Hardlink fallback; reversão garantida em `--skip-rar`; cobertura de paths nested (8 testes em `test_nested_paths.py`).
-- **0.13.x** — Compatibilidade `nntplib` Python 3.14+ (graceful import).
-- **0.12.x** — Catálogo JSONL (`history.jsonl`); detecção automática de categoria; hook pós-upload via `POST_UPLOAD_SCRIPT` + variáveis `UPAPASTA_*`; `from_args` classmethod centralizado.
-- **0.11.x** — Pool de grupos Usenet aleatório; refatoração modular (main.py de 1400 linhas → cli/orchestrator/ui/watch).
-- **0.10.x** — `--each`, `--watch`, `--watch-interval`, `--watch-stable`; RAR automático para arquivo único quando há `--obfuscate`/`--password`.
-- **0.9.0** — `_process.py` (managed_popen) + upload sem cópia em /tmp.
+- **1.0.0** — Release estável: NFO templates customizáveis (F3.6); plugin system Python nativo (F3.17); todos os critérios v1.0.0 cumpridos.
+- **0.31.0** — TMDb integration (F3.4): lookup automático de metadados; heurísticas de matching estrito; `--tmdb-search`; metadados Newznab enriquecidos no NZB.
+- **0.30.0** — CLI de compressão simplificada: `--rar`/`--7z`/`--compress`; `DEFAULT_COMPRESSOR` no `.env`; exclusividade mútua entre flags.
+- **0.29.0** — Suporte completo a 7z: multi-volume, header encryption (`-mhe=on`), progresso ao vivo no dashboard.
+- **0.28.0** — Suporte nativo Windows (CI matrix); detecção de ferramentas cross-platform; processos sem console window.
+- **0.27.0** — Elite Obfuscation Suite: schizo mode, jitter de ARTICLE_SIZE, poster randomization via nyuu tokens, fragmentação cross-group.
+- **0.26.x** — Dashboard moderno (PhaseBar, `_progress.py`); barras de progresso responsivas; i18n via gettext; `mypy --strict` no CI.
+- **0.25.x** — `mypy --strict` habilitado; `_TeeStream` refatorado; múltiplas entradas posicionais.
+- **0.18.0** — Inversão de `--skip-rar` → `--rar`; `--password` presume `--rar`.
+- **0.12.0** — Catálogo JSONL; hook pós-upload; `from_args` centralizado.
+- **0.9.0** — `managed_popen`; upload sem staging em /tmp.
 
 ### Mapa de Features
 
@@ -115,8 +124,10 @@ Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas v
 |---|---|
 | RAR opt-in (`--rar`) | ✅ 0.18.0 |
 | `--password` presume `--rar` | ✅ 0.18.0 |
+| Compressor alternativo 7z (`--7z`) | ✅ 0.29.0 |
+| `--compress` (usa `DEFAULT_COMPRESSOR`) | ✅ 0.30.0 |
 | Ofuscação via hardlink + fallback rename | ✅ 0.14.2 |
-| Deep obfuscation em `--skip-rar` | ✅ 0.15.x |
+| Elite obfuscation (schizo, jitter, cross-group) | ✅ 0.27.0 |
 | Reversão de ofuscação em Ctrl+C (try/finally) | ✅ 0.9.0+ |
 | `managed_popen` para subprocessos | ✅ 0.9.0 |
 | Upload sem staging /tmp | ✅ 0.9.0 |
@@ -124,9 +135,19 @@ Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas v
 | `--season` (episódios + NZB consolidado) | ✅ 0.16.0 |
 | `--watch` (daemon polling) | ✅ 0.10.4 |
 | Pool de grupos aleatório | ✅ 0.11.0 |
-| Catálogo de uploads (JSONL) | ✅ 0.12.0 (docs erradas) |
-| Hook pós-upload `POST_UPLOAD_SCRIPT` | ✅ 0.12.0 |
-| Detecção automática de categoria | ✅ 0.12.0 |
+| Catálogo de uploads (JSONL) | ✅ 0.12.0 |
+| Hook pós-upload shell (`POST_UPLOAD_SCRIPT`) | ✅ 0.12.0 |
+| Plugin system Python nativo (`hooks/`) | ✅ 1.0.0 (F3.17) |
+| NFO templates customizáveis (`--nfo-template`) | ✅ 1.0.0 (F3.6) |
+| TMDb metadata (`--tmdb`) | ✅ 0.31.0 |
+| NZB Newznab meta enrichment | ✅ 0.31.0 |
+| Webhook nativo Discord/Telegram/Slack | ✅ 0.26.x |
+| Múltiplas entradas (`upapasta a b c`) | ✅ 0.25.x |
+| CI/CD GitHub Actions | ✅ 0.26.x |
+| `mypy --strict` no CI | ✅ 0.26.x |
+| Suporte Windows nativo testado | ✅ 0.28.0 |
+| PyPI publication | ✅ 0.26.x |
+| `--stats` (histórico agregado) | ✅ 0.26.x |
 | Slice PAR2 dinâmico via ARTICLE_SIZE | ✅ |
 | `--filepath-format` (common/keep/basename/outrel) | ✅ |
 | `--parpar-args` / `--nyuu-args` (passthrough shlex) | ✅ |
@@ -136,16 +157,10 @@ Diretório: `upapasta/` (17 módulos, ~5.3k linhas Python). Linhas atualizadas v
 | Retry automático de upload (`--upload-retries`) | ✅ |
 | Verificação XML do NZB pós-upload | ✅ |
 | Reset/retry conservador de PAR2 (`handle_par_failure`) | ✅ |
-| `--resume` / upload parcial | ❌ Pendente |
-| Múltiplos servidores NNTP (failover) | ❌ Pendente |
-| CI/CD GitHub Actions | ❌ Pendente |
-| `mypy --strict` no CI | ❌ Pendente |
-| Webhook nativo (Discord/Telegram) | ❌ Pendente |
-| TMDb metadata | ❌ Pendente |
-| Múltiplas entradas (`upapasta a b c`) | ❌ Pendente |
-| Compressor alternativo (7z) | ❌ Pendente |
-| ETA de upload pré-pipeline | ❌ Pendente |
-| Suporte Windows nativo testado | ❌ Pendente |
+| `--resume` / upload parcial | ❌ Pós-v1.0.0 |
+| Múltiplos servidores NNTP (failover) | ❌ Pós-v1.0.0 |
+| ETA de upload pré-pipeline | ❌ Pós-v1.0.0 |
+| TUI interativa (`--interactive`) | ❌ Pós-v1.0.0 |
 
 ---
 
@@ -168,7 +183,7 @@ Configuração: na primeira execução o wizard interativo cria `~/.config/upapa
 ## 7. Comandos Comuns
 
 ```bash
-pytest tests/                              # toda a suíte (~146 testes coletados)
+pytest tests/                              # toda a suíte (~586 testes coletados)
 pytest tests/test_orchestrator.py -v       # arquivo específico
 pytest -k "obfuscate" -v                   # filtro por padrão
 pytest tests/test_nested_paths.py -x       # para no primeiro fail
@@ -215,8 +230,8 @@ ls -la ~/.config/upapasta/nzb/
 
 ```
 upapasta/
-├── upapasta/                    # Pacote Python (16 módulos)
-├── tests/                       # Suíte pytest (~146 testes em 22 arquivos)
+├── upapasta/                    # Pacote Python (24 módulos)
+├── tests/                       # Suíte pytest (~586 testes)
 ├── scripts/                     # Utilitários standalone (NÃO integrados ao pacote)
 │   ├── check_header.py          # stdlib-only (sem dependências)
 │   ├── post_upload_nzbfelipe.sh # ignorado via .gitignore
