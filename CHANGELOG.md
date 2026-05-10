@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.33.0 - 2026-05-10
+
+### Features
+- **PAR2/Obfuscation Separation**: Refactored the pipeline to separate PAR2 generation from obfuscation. PAR2 is now always generated over original file names first, ensuring internal metadata remains accurate for recovery. Obfuscation follows as a subsequent masking step that renames both data and parity files.
+- **Pipeline UI Update**: Added an explicit **OBF** (Obfuscation) phase to the dashboard progress tracker.
+- **Improved Elite Obfuscation Flow**: Hardlinks/renames and deep obfuscation are now handled after parities are secured, improving reliability and atomicity.
+
+### CI/CD
+- **Optimized GitHub Actions**: Removed Windows from the CI test matrix to focus resources on Linux/macOS and reduce build times.
+
+## 0.32.0 - 2026-05-10
+
+### Chore
+- **Workspace Cleanup**: Removed legacy obfuscated test directories and temporary files from the repository root.
+
 ## 0.31.0 - 2026-05-10
 
 ### Features
