@@ -270,7 +270,7 @@ class TestMakeRar:
         folder = tmp_path / "pasta"
         folder.mkdir()
         (folder / "a.txt").write_text("x")
-        with patch("shutil.which", return_value=None):
+        with patch("upapasta.makerar.get_tool_path", return_value=None):
             rc, path = make_rar(str(folder))
         assert rc == 4
         assert path is None
@@ -303,7 +303,7 @@ class TestMakeRar:
         mock_proc.__exit__ = MagicMock(return_value=False)
 
         with (
-            patch("shutil.which", return_value="/usr/bin/rar"),
+            patch("upapasta.makerar.get_tool_path", return_value="/usr/bin/rar"),
             patch("upapasta.makerar.managed_popen", return_value=mock_proc),
         ):
             rc, path = make_rar(str(folder))
@@ -524,7 +524,7 @@ class TestCheckDependencies:
     def test_tudo_disponivel(self):
         from upapasta.cli import check_dependencies
 
-        with patch("shutil.which", return_value="/usr/bin/rar"):
+        with patch("upapasta.cli.get_tool_path", return_value="/usr/bin/rar"):
             result = check_dependencies(pack_needed=True)
         assert result is True
 
@@ -534,7 +534,7 @@ class TestCheckDependencies:
         def which_sem_nyuu(cmd: str) -> str | None:
             return None if cmd == "nyuu" else "/usr/bin/" + cmd
 
-        with patch("shutil.which", side_effect=which_sem_nyuu):
+        with patch("upapasta.cli.get_tool_path", side_effect=which_sem_nyuu):
             result = check_dependencies(pack_needed=False)
         assert result is False
 
@@ -544,7 +544,7 @@ class TestCheckDependencies:
         def which_sem_rar(cmd: str) -> str | None:
             return None if cmd == "rar" else "/usr/bin/" + cmd
 
-        with patch("shutil.which", side_effect=which_sem_rar):
+        with patch("upapasta.cli.get_tool_path", side_effect=which_sem_rar):
             result = check_dependencies(pack_needed=False)
         assert result is True
 
@@ -556,7 +556,7 @@ class TestCheckDependencies:
                 return None
             return "/usr/bin/" + cmd
 
-        with patch("shutil.which", side_effect=which_sem_opcionals):
+        with patch("upapasta.cli.get_tool_path", side_effect=which_sem_opcionals):
             result = check_dependencies(pack_needed=False)
         captured = capsys.readouterr()
         assert "opcionais" in captured.out.lower() or result is True
@@ -698,7 +698,7 @@ class TestFindNyuu:
     def test_nyuu_encontrado(self):
         from upapasta.upfolder import find_nyuu
 
-        with patch("shutil.which", return_value="/usr/bin/nyuu"):
+        with patch("upapasta.upfolder.get_tool_path", return_value="/usr/bin/nyuu"):
             result = find_nyuu()
         assert result == "/usr/bin/nyuu"
 
@@ -706,7 +706,7 @@ class TestFindNyuu:
         from upapasta.upfolder import find_nyuu
 
         with (
-            patch("shutil.which", return_value=None),
+            patch("upapasta.upfolder.get_tool_path", return_value=None),
             patch("os.path.exists", return_value=False),
         ):
             result = find_nyuu()
@@ -982,7 +982,7 @@ class TestMakeRarAdditional:
 
         f = tmp_path / "video.mkv"
         f.write_text("conteudo")
-        with patch("shutil.which", return_value=None):
+        with patch("upapasta.makerar.get_tool_path", return_value=None):
             rc, path = make_rar(str(f))
         assert rc == 4
 
@@ -1000,7 +1000,7 @@ class TestMakeRarAdditional:
         mock_proc.__exit__ = MagicMock(return_value=False)
 
         with (
-            patch("shutil.which", return_value="/usr/bin/rar"),
+            patch("upapasta.makerar.get_tool_path", return_value="/usr/bin/rar"),
             patch("upapasta.makerar.managed_popen", return_value=mock_proc),
         ):
             rc, path = make_rar(str(f))
@@ -1020,7 +1020,7 @@ class TestMakeRarAdditional:
         mock_proc.__exit__ = MagicMock(return_value=False)
 
         with (
-            patch("shutil.which", return_value="/usr/bin/rar"),
+            patch("upapasta.makerar.get_tool_path", return_value="/usr/bin/rar"),
             patch("upapasta.makerar.managed_popen", return_value=mock_proc),
         ):
             rc, path = make_rar(str(folder), password="senha123")
@@ -1042,7 +1042,7 @@ class TestMakeRarAdditional:
         mock_proc.__exit__ = MagicMock(return_value=False)
 
         with (
-            patch("shutil.which", return_value="/usr/bin/rar"),
+            patch("upapasta.makerar.get_tool_path", return_value="/usr/bin/rar"),
             patch("upapasta.makerar.managed_popen", return_value=mock_proc),
         ):
             rc, path = make_rar(str(folder), force=True)
@@ -1062,7 +1062,7 @@ class TestMakeRarAdditional:
         mock_proc.__exit__ = MagicMock(return_value=False)
 
         with (
-            patch("shutil.which", return_value="/usr/bin/rar"),
+            patch("upapasta.makerar.get_tool_path", return_value="/usr/bin/rar"),
             patch("upapasta.makerar.managed_popen", return_value=mock_proc),
         ):
             rc, path = make_rar(str(folder))
@@ -1077,7 +1077,7 @@ class TestMakeRarAdditional:
         (folder / "a.txt").write_text("x")
 
         with (
-            patch("shutil.which", return_value="/usr/bin/rar"),
+            patch("upapasta.makerar.get_tool_path", return_value="/usr/bin/rar"),
             patch("upapasta.makerar.managed_popen", side_effect=PermissionError("negado")),
         ):
             rc, path = make_rar(str(folder))
@@ -1091,7 +1091,7 @@ class TestMakeRarAdditional:
         (folder / "a.txt").write_text("x")
 
         with (
-            patch("shutil.which", return_value="/usr/bin/rar"),
+            patch("upapasta.makerar.get_tool_path", return_value="/usr/bin/rar"),
             patch("upapasta.makerar.managed_popen", side_effect=OSError("io erro")),
         ):
             rc, path = make_rar(str(folder))

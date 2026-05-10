@@ -1,14 +1,14 @@
 import os
-import shutil
 from unittest.mock import patch
 
 import pytest
 
 from upapasta.make7z import _volume_size_bytes, find_7z, make_7z
+from upapasta.tools import get_tool_path
 
 
 def test_find_7z():
-    with patch("shutil.which", return_value="/usr/bin/7z"):
+    with patch("upapasta.make7z.get_tool_path", return_value="/usr/bin/7z"):
         assert find_7z() == "/usr/bin/7z"
 
 
@@ -36,7 +36,7 @@ class TestMake7z:
         rc, path = make_7z(str(folder), force=False)
         assert rc == 3
 
-    @pytest.mark.skipif(shutil.which("7z") is None, reason="7z não instalado")
+    @pytest.mark.skipif(get_tool_path("7z") is None, reason="7z não instalado")
     def test_make_7z_success_file(self, tmp_path):
         f = tmp_path / "test.txt"
         f.write_text("hello world")
@@ -47,7 +47,7 @@ class TestMake7z:
         assert path.endswith(".7z")
         assert os.path.exists(path)
 
-    @pytest.mark.skipif(shutil.which("7z") is None, reason="7z não instalado")
+    @pytest.mark.skipif(get_tool_path("7z") is None, reason="7z não instalado")
     def test_make_7z_success_folder(self, tmp_path):
         folder = tmp_path / "mypasta"
         folder.mkdir()
@@ -59,7 +59,7 @@ class TestMake7z:
         assert path.endswith(".7z")
         assert os.path.exists(path)
 
-    @pytest.mark.skipif(shutil.which("7z") is None, reason="7z não instalado")
+    @pytest.mark.skipif(get_tool_path("7z") is None, reason="7z não instalado")
     def test_make_7z_with_password(self, tmp_path):
         f = tmp_path / "secret.txt"
         f.write_text("top secret")
@@ -68,7 +68,7 @@ class TestMake7z:
         assert rc == 0
         assert os.path.exists(path)
 
-    @pytest.mark.skipif(shutil.which("7z") is None, reason="7z não instalado")
+    @pytest.mark.skipif(get_tool_path("7z") is None, reason="7z não instalado")
     def test_make_7z_volumes(self, tmp_path):
         folder = tmp_path / "big_data"
         folder.mkdir()

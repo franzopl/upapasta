@@ -70,6 +70,7 @@ upapasta.db
 nzb
 
 # Temporários
+bin/
 tmp_test_folder/
 temporary/
 test_upload.log
