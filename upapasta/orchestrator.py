@@ -190,7 +190,6 @@ class UpaPastaOrchestrator:
             or getattr(args, "sevenzip", False)
             or getattr(args, "compress", False)
             or args.password
-            or args.obfuscate
         ):
             skip_pack = False
 
