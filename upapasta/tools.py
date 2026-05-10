@@ -24,11 +24,22 @@ def get_base_dir() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def get_app_data_dir() -> str:
+    """Retorna o diretório de dados do usuário para o UpaPasta."""
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA") or os.path.expanduser("~/AppData/Roaming")
+        return os.path.join(base, "upapasta")
+    return os.path.expanduser("~/.config/upapasta")
+
+
 def get_tool_path(tool_name: str) -> str | None:
     """
     Localiza o caminho de um binário.
-    1. Verifica na pasta bin/ local.
-    2. Verifica no PATH do sistema.
+    Prioridade:
+    1. Pasta bin/ relativa ao executável/script (Modo Portable).
+    2. Pasta bin/ no diretório de trabalho atual (CWD).
+    3. Pasta bin/ no diretório de dados do usuário (Config/AppData).
+    4. PATH do sistema.
     """
     # No Windows, garante que a extensão .exe seja considerada na busca local
     if sys.platform == "win32" and not tool_name.lower().endswith(".exe"):
@@ -36,27 +47,38 @@ def get_tool_path(tool_name: str) -> str | None:
     else:
         executable_name = tool_name
 
-    base_dir = get_base_dir()
-    local_bin = os.path.join(base_dir, "bin", executable_name)
+    search_dirs = [
+        os.path.join(get_base_dir(), "bin"),
+        os.path.join(os.getcwd(), "bin"),
+        os.path.join(get_app_data_dir(), "bin"),
+    ]
 
-    if os.path.exists(local_bin) and os.access(local_bin, os.X_OK):
-        return local_bin
+    for bin_dir in search_dirs:
+        local_bin = os.path.join(bin_dir, executable_name)
+        if os.path.exists(local_bin) and os.access(local_bin, os.X_OK):
+            return local_bin
 
     # Fallback para o PATH do sistema
+    # No Windows, shutil.which retorna .exe, .cmd, .bat dependendo do PATHEXT.
+    # Se chegamos aqui, preferimos o .exe se disponível no PATH para evitar o erro do .cmd (Node)
+    if sys.platform == "win32" and not tool_name.lower().endswith(".exe"):
+        path_exe = shutil.which(f"{tool_name}.exe")
+        if path_exe:
+            return path_exe
+
     return shutil.which(tool_name)
 
 
 def download_tool(tool_name: str) -> str | None:
     """
     Tenta baixar um binário automaticamente.
-    Atualmente suporta apenas 'rar' no Windows/Linux como demonstração.
     """
     if tool_name.lower() != "rar":
         return None
 
     print(f"\n⬇️  Baixando '{tool_name}' automaticamente...")
-    base_dir = get_base_dir()
-    bin_dir = os.path.join(base_dir, "bin")
+    # Para o auto-download do usuário via pip, preferimos salvar na pasta de dados do usuário
+    bin_dir = os.path.join(get_app_data_dir(), "bin")
     os.makedirs(bin_dir, exist_ok=True)
 
     try:

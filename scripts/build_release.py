@@ -16,7 +16,7 @@ import tempfile
 import sys
 import lzma
 
-# URLs validadas via API do GitHub
+# URLs EXATAS validadas via API do GitHub
 BINARIES = {
     "windows": {
         "nyuu": "https://github.com/animetosho/Nyuu/releases/download/v0.4.2/nyuu-v0.4.2-win32.7z",
@@ -45,52 +45,91 @@ def build_executable():
     except subprocess.CalledProcessError:
         return False
 
-def extract_7z_with_python(archive_path, extract_dir, name):
-    """Tenta extrair .7z usando py7zr se disponível, senão avisa."""
+def extract_7z(archive_path, extract_dir):
+    """Extrai .7z usando o binário 7z do sistema ou py7zr."""
+    # Tenta usar o binário do sistema primeiro (mais rápido/confiável)
+    exe_7z = shutil.which("7z") or shutil.which("7za")
+    if exe_7z:
+        try:
+            subprocess.run([exe_7z, "x", archive_path, f"-o{extract_dir}", "-y"], check=True, stdout=subprocess.DEVNULL)
+            return True
+        except subprocess.CalledProcessError:
+            pass
+            
+    # Fallback para py7zr
     try:
         import py7zr
         with py7zr.SevenZipFile(archive_path, mode='r') as z:
             z.extractall(path=extract_dir)
             return True
     except ImportError:
-        # Fallback: se tivermos 7z no sistema, usamos ele
-        exe_7z = shutil.which("7z") or shutil.which("7za")
-        if exe_7z:
-            subprocess.run([exe_7z, "x", archive_path, f"-o{extract_dir}", "-y"], check=True)
+        print(f"⚠️  Erro: Para extrair .7z sem o comando '7z' no sistema, instale 'pip install py7zr'.")
+        return False
+
+def download_file(url, local_path):
+    """Downloads a file using curl, wget, or urllib as a fallback."""
+    print(f"   Download: {url}")
+    if shutil.which("curl"):
+        try:
+            subprocess.run(["curl", "-Lk", "--connect-timeout", "30", "--retry", "5", "-o", local_path, url], check=True)
             return True
-        else:
-            print(f"⚠️  Aviso: Não foi possível extrair {name} (.7z). Instale 'py7zr' ou 'p7zip'.")
-            return False
+        except subprocess.CalledProcessError:
+            pass
+    if shutil.which("wget"):
+        try:
+            subprocess.run(["wget", "-q", "--timeout=30", "--tries=5", "-O", local_path, url], check=True)
+            return True
+        except subprocess.CalledProcessError:
+            pass
+    try:
+        urllib.request.urlretrieve(url, local_path)
+        return True
+    except Exception as e:
+        print(f"      ❌ Erro no download: {e}")
+        return False
 
 def download_and_extract(name, url, platform, bin_dir):
     print(f"⬇️  Baixando {name}...")
     temp_dir = tempfile.mkdtemp()
     local_file = os.path.join(temp_dir, os.path.basename(url))
     
+    if not download_file(url, local_file):
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return
+
     try:
-        urllib.request.urlretrieve(url, local_file)
-        
         if local_file.endswith(".7z"):
-            if extract_7z_with_python(local_file, temp_dir, name):
-                # Procura o binário nas pastas extraídas
+            if extract_7z(local_file, temp_dir):
                 ext = ".exe" if platform == "windows" else ""
                 target_name = f"{name}{ext}"
+                found = False
                 for root, _, files in os.walk(temp_dir):
                     for f in files:
-                        if f.lower() == target_name.lower() or f.lower() == f"{name}.exe".lower():
-                            shutil.move(os.path.join(root, f), os.path.join(bin_dir, target_name))
+                        if f.lower() in (target_name.lower(), f"{name}.exe".lower(), name.lower()):
+                            # Evita mover diretórios ou arquivos irrelevantes
+                            src = os.path.join(root, f)
+                            dst = os.path.join(bin_dir, target_name)
+                            if os.path.exists(dst): os.remove(dst)
+                            shutil.move(src, dst)
+                            found = True
                             break
+                    if found: break
         
-        elif local_file.endswith(".tar.xz"):
-            with tarfile.open(local_file, "r:xz") as tar:
+        elif local_file.endswith((".tar.gz", ".tar.xz")):
+            mode = "r:gz" if local_file.endswith(".tar.gz") else "r:xz"
+            with tarfile.open(local_file, mode) as tar:
                 tar.extractall(path=temp_dir)
+                found = False
                 for root, _, files in os.walk(temp_dir):
                     for f in files:
-                        if f == name or f == f"{name}-v0.4.2-linux-amd64": # Caso nyuu
+                        if f == name or f.startswith(f"{name}-v") or f.startswith(f"{name}-0."):
                             final_path = os.path.join(bin_dir, name)
+                            if os.path.exists(final_path): os.remove(final_path)
                             shutil.move(os.path.join(root, f), final_path)
                             os.chmod(final_path, 0o755)
+                            found = True
                             break
+                    if found: break
                             
         elif local_file.endswith(".xz") and not local_file.endswith(".tar.xz"):
             # Caso do parpar linux que é o binário puro comprimido em xz
