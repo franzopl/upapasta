@@ -399,6 +399,28 @@ def fix_nzb_subjects(
                     if obf in suffix:
                         suffix = suffix.replace(obf, real)
 
+                # Nyuu com `-t comment` gera subjects como: `comment [1/6] - "nome_do_arquivo" yEnc...`
+                # Quando usamos --obfuscate, o comment costuma ser o nome original do arquivo.
+                # O SABnzbd se confunde ao ver o nome do arquivo repetido no comment e nas aspas.
+                m_comment = re.match(r"^(.*?)\s*\[\d+/\d+\]\s*-\s*$", prefix)
+                if m_comment:
+                    comment = m_comment.group(1).strip()
+                    # Verifica se o comment é muito parecido com o arquivo base (removendo extensões)
+                    base_comment = re.sub(
+                        r"\.(mkv|mp4|avi|rar|zip|7z)$", "", comment, flags=re.IGNORECASE
+                    )
+                    base_original = re.sub(
+                        r"\.(part\d+\.rar|vol\d+\+\d+\.par2|par2|mkv|mp4|avi|rar|zip|7z)$",
+                        "",
+                        original_filename,
+                        flags=re.IGNORECASE,
+                    )
+
+                    if base_comment and (
+                        base_comment in base_original or base_original in base_comment
+                    ):
+                        prefix = ""  # Remove todo o prefixo "Comment [1/X] - " para ficar como post nativo do nyuu
+
             if strong_obfuscate:
                 final_filename = current_filename
             elif folder_name:
