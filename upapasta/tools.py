@@ -61,15 +61,13 @@ def download_tool(tool_name: str) -> str | None:
 
     try:
         if sys.platform == "win32":
-            # Baixa o RAR para Windows (é um ZIP ou SFX que podemos tratar)
-            # Link para o RAR de console do Windows
+            # Baixa o RAR para Windows
             url = "https://www.rarlab.com/rar/rarwin-x64-701.zip"
             local_zip = os.path.join(tempfile.gettempdir(), "rar.zip")
             urllib.request.urlretrieve(url, local_zip)
 
             with zipfile.ZipFile(local_zip, "r") as zip_ref:
                 # Extrai apenas o rar.exe
-                # O ZIP da RARLAB costuma ter uma pasta 'rar/' dentro
                 zip_ref.extract("rar/rar.exe", tempfile.gettempdir())
                 shutil.move(
                     os.path.join(tempfile.gettempdir(), "rar", "rar.exe"),
@@ -80,7 +78,7 @@ def download_tool(tool_name: str) -> str | None:
             return os.path.join(bin_dir, "rar.exe")
 
         elif sys.platform == "linux":
-            # Baixa o RAR para Linux (tar.gz)
+            # Baixa o RAR para Linux
             url = "https://www.rarlab.com/rar/rarlinux-x64-701.tar.gz"
             local_tgz = os.path.join(tempfile.gettempdir(), "rar.tar.gz")
             urllib.request.urlretrieve(url, local_tgz)
