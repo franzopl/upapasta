@@ -4,6 +4,21 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.33.0 - 2026-05-10
+
+### Funcionalidades
+- **Separação PAR2/Ofuscação**: Refatoração do pipeline para separar a geração de paridade da ofuscação. O PAR2 agora é sempre gerado sobre os nomes originais primeiro, garantindo que os metadados internos permaneçam precisos para recuperação. A ofuscação segue como um passo de máscara posterior que renomeia tanto os arquivos de dados quanto os de paridade.
+- **Atualização na UI do Pipeline**: Adicionada uma fase explícita **OBF** (Ofuscação) no rastreador de progresso do dashboard.
+- **Fluxo de Elite Obfuscation Aprimorado**: Hardlinks, renomes e ofuscação profunda (deep obfuscation) agora são processados após a garantia das paridades, melhorando a confiabilidade e atomicidade.
+
+### CI/CD
+- **Otimização do GitHub Actions**: Remoção do Windows da matriz de testes do CI para focar recursos em Linux/macOS e reduzir tempos de build.
+
+## 0.32.0 - 2026-05-10
+
+### Limpeza
+- **Faxina no Workspace**: Remoção de diretórios de teste de ofuscação legados e arquivos temporários da raiz do repositório.
+
 ## 0.31.0 - 2026-05-10
 
 ### Funcionalidades
