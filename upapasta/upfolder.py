@@ -516,6 +516,7 @@ def upload_to_usenet(
 
         nyuu_extra_args = shlex.split(env_nyuu_args)
 
+    # ── Determinar caminho de saída do NZB ───────────────────────────────────
     nzb_out_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR")
     nzb_out, nzb_out_abs = resolve_nzb_out(
         input_path, env_vars, is_folder, skip_rar, nzb_out_dir or working_dir, obfuscated_map
@@ -525,6 +526,10 @@ def upload_to_usenet(
     )
     if not ok:
         return 6
+
+    # Garante que a pasta do NZB existe antes do upload
+    if nzb_out_abs:
+        os.makedirs(os.path.dirname(nzb_out_abs), exist_ok=True)
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print(_("Erro: credenciais incompletas. Configure .env com:"))
