@@ -68,7 +68,7 @@ Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas v
 | `config.py` | 362 | `PROFILES` PAR2 (fast/balanced/safe), `REQUIRED_CRED_KEYS`, `DEFAULT_GROUP_POOL` (10 grupos), `prompt_for_credentials`, `load_env_file`, `render_template`, `resolve_env_file(profile)` |
 | `hooks.py` | 57 | **Plugin system nativo** (F3.17): carrega e executa arquivos `.py` em `~/.config/upapasta/hooks/`; passa dicionário de metadados padronizado |
 | `i18n.py` | 66 | Infraestrutura i18n via gettext; detecção automática de locale via `UPAPASTA_LANG` ou configuração do sistema |
-| `main.py` | 376 | Entry point. Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection`/`--tmdb-search`/`--stats` ou para o orquestrador; modos `--each`/`--season`/`--watch` |
+| `main.py` | 376 | Entry point. Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection`/`--tmdb-search`/`--stats` ou para o orquestrador; modos `--each`/`--watch` |
 | `make7z.py` | 237 | 7z com progresso ao vivo; volumes dinâmicos; header encryption `-mhe=on`; flags de senha; aceita arquivo único e pasta |
 | `makerar.py` | 268 | RAR5 com progresso ao vivo; volumes dinâmicos (≤10 GB → único; ≥1 GB por volume, máx 100 partes, redondo a 5 MB); flags `-m0 -ma5 -hp$PASSWORD` |
 | `makepar.py` | 981 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `obfuscate_and_par` com subfunções; `handle_par_failure` (retry conservador automático) |

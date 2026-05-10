@@ -129,14 +129,6 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     essential.add_argument(
-        "--season",
-        action="store_true",
-        help=_(
-            "Similar ao --each: upload individual de cada episódio, mas ao final "
-            "gera um NZB único contendo toda a temporada, além dos NZBs individuais."
-        ),
-    )
-    essential.add_argument(
         "--obfuscate",
         action="store_true",
         help=_(
@@ -506,15 +498,13 @@ def _validate_flags(args: argparse.Namespace) -> bool:
     if jobs > 1 and len(inputs) < 2:
         print(_("⚠️  --jobs > 1 é ignorado com apenas um input."))
 
-    # --each, --season e --watch requerem exatamente um input
-    if args.each or args.season:
+    # --each e --watch requerem exatamente um input
+    if getattr(args, "each", False):
         if len(inputs) > 1:
-            mode = "--each" if args.each else "--season"
-            print(_("❌  {mode} requer exatamente um input (pasta).").format(mode=mode))
+            print(_("❌  --each requer exatamente um input (pasta)."))
             return False
         if not args.input or not Path(args.input).is_dir():
-            mode = "--each" if args.each else "--season"
-            print(_("❌  {mode} requer uma pasta como entrada.").format(mode=mode))
+            print(_("❌  --each requer uma pasta como entrada."))
             return False
 
     if args.watch:
@@ -524,8 +514,8 @@ def _validate_flags(args: argparse.Namespace) -> bool:
         if not args.input or not Path(args.input).is_dir():
             print(_("❌  --watch requer uma pasta como entrada."))
             return False
-        if args.each or args.season:
-            print(_("❌  --watch é incompatível com --each e --season."))
+        if getattr(args, "each", False):
+            print(_("❌  --watch é incompatível com --each."))
             return False
 
     if args.obfuscate and not args.rar:

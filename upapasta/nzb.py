@@ -421,69 +421,6 @@ def fix_nzb_subjects(
         print(_("Aviso: não foi possível corrigir o NZB: {error}").format(error=e))
 
 
-def fix_season_nzb_subjects(season_nzb_path: str, episode_data: list[tuple[str, str]]) -> None:
-    """Garante que cada subject no NZB consolidado da temporada tem o prefixo ep_name/.
-
-    Lê os subjects dos NZBs individuais (já processados) e os mapeia para o nome
-    do episódio correspondente. No NZB consolidado, substitui ou adiciona o prefixo
-    correto (ex: S01E01/video.mkv) independente do que fix_nzb_subjects fez antes.
-    """
-    ns_url = "http://www.newzbin.com/DTD/2003/nzb"
-
-    # Mapeia subject → ep_name lendo cada NZB individual
-    subject_to_ep: dict[str, str] = {}
-    for ep_nzb_path, ep_name in episode_data:
-        try:
-            ep_root = ET.parse(ep_nzb_path).getroot()
-            files = ep_root.findall(f".//{{{ns_url}}}file") or ep_root.findall(".//file")
-            for f in files:
-                subj = f.get("subject", "")
-                if subj:
-                    subject_to_ep[subj] = ep_name
-        except Exception as e:
-            print(
-                _("Aviso: não foi possível ler NZB do episódio '{name}': {error}").format(
-                    name=ep_name, error=e
-                )
-            )
-
-    if not subject_to_ep:
-        return
-
-    ET.register_namespace("", ns_url)
-    try:
-        tree = ET.parse(season_nzb_path)
-        root = tree.getroot()
-        files = root.findall(f".//{{{ns_url}}}file") or root.findall(".//file")
-
-        for file_elem in files:
-            old_subj = file_elem.get("subject", "")
-            episode_name: str | None = subject_to_ep.get(old_subj)
-            if episode_name is None:
-                continue
-
-            m = re.search(r'"(.*?)"', old_subj)
-            if not m:
-                continue
-
-            fname = m.group(1)
-            # Remove prefixo de pasta existente (pode ser nome ofuscado ou errado)
-            if "/" in fname:
-                fname = fname.split("/", 1)[1]
-
-            if not fname:
-                continue
-
-            new_fname = f"{episode_name}/{fname}"
-            new_subj = re.sub(r'".*?"', f'"{new_fname}"', old_subj, count=1)
-            file_elem.set("subject", new_subj)
-
-        tree.write(season_nzb_path, encoding="UTF-8", xml_declaration=True)
-        print(_("NZB da temporada corrigido: subjects atualizados com nomes dos episódios."))
-    except Exception as e:
-        print(_("Erro ao corrigir subjects do NZB da temporada: {error}").format(error=e))
-
-
 def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
     """Mescla múltiplos arquivos NZB em um único, preservando o head do primeiro."""
     if not nzb_paths:
@@ -511,40 +448,7 @@ def merge_nzbs(nzb_paths: list[str], output_path: str) -> bool:
         first_tree.write(output_path, encoding="UTF-8", xml_declaration=True)
         return True
     except Exception as e:
+        from .i18n import _
+
         print(_("Erro ao mesclar NZBs: {error}").format(error=e))
         return False
-
-
-def collect_season_nzbs(nzb_dir: str, season_prefix: str) -> list[tuple[str, str]]:
-    """Fallback: descobre NZBs de episódios na pasta por glob quando o tracking em memória falha.
-
-    Extrai padrão de temporada (ex: S02) do nome da pasta, busca NZBs que
-    contenham esse padrão e deriva o nome do episódio a partir do stem do arquivo.
-
-    Retorna lista ordenada de (nzb_path, episode_name).
-    """
-    import glob
-    from pathlib import Path
-
-    nzb_dir_path = Path(nzb_dir)
-    if not nzb_dir_path.exists():
-        return []
-
-    season_match = re.search(r"(S\d{2})", season_prefix, re.IGNORECASE)
-    if not season_match:
-        return []
-
-    season_pattern = season_match.group(1).upper()
-    season_final_nzb = str(nzb_dir_path / f"{season_prefix}.nzb")
-
-    all_nzbs = sorted(glob.glob(str(nzb_dir_path / "*.nzb")))
-    episode_data = []
-    for nzb_path in all_nzbs:
-        stem = Path(nzb_path).stem
-        if season_pattern not in stem.upper():
-            continue
-        if nzb_path == season_final_nzb:
-            continue
-        episode_data.append((nzb_path, stem))
-
-    return episode_data
