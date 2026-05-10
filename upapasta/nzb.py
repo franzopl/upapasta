@@ -320,13 +320,14 @@ def fix_nzb_subjects(
     file_sizes: dict[str, int] | None = None,
     article_size_bytes: int = 716800,
 ) -> None:
-    """Corrige os subjects no NZB para incluir o caminho relativo do arquivo.
+    """Adiciona prefixo de pasta ao subject do NZB quando necessário.
 
-    Usa _parse_subject para decompor cada subject em (prefixo, nome, sufixo),
-    preservando indicadores de parte (N/M), yEnc e demais metadados.
+    Quando file_sizes é fornecido, faz matching por contagem de segmentos para
+    associar corretamente o nome da pasta a cada arquivo — necessário porque
+    o nyuu não preserva a ordem de upload no NZB.
 
-    Quando file_sizes é fornecido, faz matching por contagem de segmentos em vez de
-    por índice — necessário porque o nyuu não preserva a ordem de upload no NZB.
+    Com --obfuscate, mantém nomes aleatórios no NZB. O PAR2 contém os nomes
+    reais internamente e os restaura automaticamente na verificação.
     """
     try:
         ns_url = "http://www.newzbin.com/DTD/2003/nzb"
@@ -384,22 +385,12 @@ def fix_nzb_subjects(
             if not current_filename:
                 continue
 
-            # Deofuscação usando o mapa de ofuscação
-            if obfuscated_map:
-                original_filename = _deobfuscate_filename(current_filename, obfuscated_map)
-                # Desofusca também o prefixo/sufixo do subject (ex: "nome_aleatorio.mkv [1/6] - ")
-                for obf, real in obfuscated_map.items():
-                    if obf in prefix:
-                        prefix = prefix.replace(obf, real)
-                    if obf in suffix:
-                        suffix = suffix.replace(obf, real)
-            else:
-                original_filename = current_filename
-
+            # Com --obfuscate, mantém o nome aleatório no NZB.
+            # O PAR2 contém os nomes reais internamente.
             if folder_name:
-                final_filename = f"{folder_name}/{original_filename}"
+                final_filename = f"{folder_name}/{current_filename}"
             else:
-                final_filename = original_filename
+                final_filename = current_filename
 
             # Reconstrói o subject preservando prefixo e sufixo
             quoted = '"' in old_subject

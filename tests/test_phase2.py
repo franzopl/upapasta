@@ -631,7 +631,7 @@ class TestParseSubject:
 
         result = ET.parse(str(nzb)).getroot()
         subj = result.find(f".//{{{ns}}}file").get("subject")
-        assert '"MyRelease/original.mkv"' in subj
+        assert '"MyRelease/obfuscated.mkv"' in subj
         assert "yEnc" in subj
         assert "(1/5)" in subj
 
