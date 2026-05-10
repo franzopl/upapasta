@@ -19,7 +19,7 @@
 
 **UpaPasta** é uma ferramenta CLI Python que automatiza o pipeline completo de upload para Usenet com o mínimo de configuração possível.
 
-Versão atual: **1.0.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
+Versão atual: **0.31.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
 
 Pipeline padrão executado por `UpaPastaOrchestrator.run()`:
 
@@ -100,14 +100,14 @@ Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas v
 7. **Stdlib-only**: zero dependências Python (nem `requests`, nem `dotenv`, nem `pyyaml`). Apenas binários externos (`rar`, `nyuu`, `parpar`/`par2`, `mediainfo`, `ffprobe`).
 8. **Type hints**: usar `from __future__ import annotations` em todos os módulos para compatibilidade Python 3.9+.
 
----
-
-## 5. Estado da Versão (1.0.0 — 2026-05-09)
+## 3. Arquitetura Modular (v0.31.0)
+...
+## 5. Estado da Versão (0.31.0 — 2026-05-10)
 
 ### Histórico recente (últimas releases relevantes)
 
-- **1.0.0** — Release estável: NFO templates customizáveis (F3.6); plugin system Python nativo (F3.17); todos os critérios v1.0.0 cumpridos.
-- **0.31.0** — TMDb integration (F3.4): lookup automático de metadados; heurísticas de matching estrito; `--tmdb-search`; metadados Newznab enriquecidos no NZB.
+- **0.31.0** — Release estável: Templates de NFO customizáveis (F3.6); plugin system Python nativo (F3.17); TMDb integration (F3.4); todos os critérios cumpridos.
+
 - **0.30.0** — CLI de compressão simplificada: `--rar`/`--7z`/`--compress`; `DEFAULT_COMPRESSOR` no `.env`; exclusividade mútua entre flags.
 - **0.29.0** — Suporte completo a 7z: multi-volume, header encryption (`-mhe=on`), progresso ao vivo no dashboard.
 - **0.28.0** — Suporte nativo Windows (CI matrix); detecção de ferramentas cross-platform; processos sem console window.

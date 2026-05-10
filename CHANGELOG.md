@@ -4,27 +4,24 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
-## 1.0.0 - 2026-05-09
+## 0.31.0 - 2026-05-10
 
 ### Features
 - **Customizable NFO Templates** (F3.6): Added `--nfo-template <file>` flag to use user-defined text templates with placeholders: `{{title}}`, `{{synopsis}}`, `{{size}}`, `{{files}}`, `{{mediainfo}}`. Falls back to built-in NFO generation when not specified.
 - **Native Python Plugin System** (F3.17): Implemented `hooks.py` to discover and execute `.py` files from `~/.config/upapasta/hooks/` after each upload. Hooks receive a standardized metadata dictionary (`title`, `nzb_path`, `size_bytes`, `category`, `tmdb_id`, etc.) without needing shell wrappers.
-
-### Fixes
-- **TMDb test isolation**: Corrected `load_env_file` patching path in `test_tmdb_search_main_logic` to use the fully-qualified import target.
-
-### Documentation
-- Updated CLAUDE.md to v1.0.0: architecture table with all 24 modules, feature map reflecting full completion, corrected line counts.
-- All v1.0.0 launch criteria met. Post-v1.0.0 items (`--resume`, multi-server NNTP, TUI) moved to future roadmap.
-
-## 0.31.0 - 2026-05-09
-
-### Features
 - **TMDb Integration**: Added automated movie and TV show metadata fetching (synopsis, genres, etc.) to enrich NFO files.
 - **Enriched NZB Metadata**: Injected standard Newznab meta tags (`title`, `poster`, `imdb`, `tag`, `tagline`) directly into generated NZBs for better indexer automation.
 - **TMDb Search Utility**: New `--tmdb-search <term>` command to manually list and find media IDs without starting an upload.
 - **Strict Matching Heuristics**: Improved metadata accuracy with mandatory year matching and title similarity validation.
 - **Intelligent Suggestions**: Dashboard now logs probable TMDb ID suggestions when an automatic match is ambiguous.
+
+### Fixes
+- **TMDb test isolation**: Corrected `load_env_file` patching path in `test_tmdb_search_main_logic` to use the fully-qualified import target.
+- **Season mode improvements**: Fixed `--season` mode with in-memory NZB tracking and proper obfuscation support to prevent metadata leaks in pack NZBs.
+
+### Documentation
+- Updated CLAUDE.md: architecture table with all 24 modules, feature map reflecting full completion, corrected line counts.
+- All release criteria met for v0.31.0.
 
 ## 0.30.0 - 2026-05-09
 

@@ -4,14 +4,20 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
-## 0.31.0 - 2026-05-09
+## 0.31.0 - 2026-05-10
 
 ### Funcionalidades
+- **Templates de NFO Customizáveis** (F3.6): Adicionada flag `--nfo-template <arquivo>` para usar templates de texto definidos pelo usuário com placeholders: `{{title}}`, `{{synopsis}}`, `{{size}}`, `{{files}}`, `{{mediainfo}}`.
+- **Sistema de Plugins Nativo em Python** (F3.17): Implementação do `hooks.py` para descobrir e executar arquivos `.py` da pasta `~/.config/upapasta/hooks/` após cada upload.
 - **Integração com TMDb**: Busca automática de metadados de filmes e séries (sinopse, gêneros, etc.) para enriquecer arquivos NFO.
 - **Metadados no NZB**: Injeção de tags meta padrão Newznab (`title`, `poster`, `imdb`, `tag`, `tagline`) diretamente nos NZBs para melhor automação em indexadores.
 - **Utilitário de Busca TMDb**: Novo comando `--tmdb-search <termo>` para listar e encontrar IDs de mídia manualmente.
 - **Heurística de Match Estrito**: Precisão aprimorada com validação obrigatória de ano e similaridade de título.
 - **Sugestões Inteligentes**: O Dashboard agora lista IDs prováveis do TMDb quando a busca automática é ambígua.
+
+### Correções
+- **Isolamento de testes TMDb**: Corrigido path de patch do `load_env_file` no `test_tmdb_search_main_logic`.
+- **Melhorias no modo Season**: Corrigido modo `--season` com rastreamento de NZBs em memória e suporte correto a ofuscação para evitar vazamento de metadados no NZB consolidado.
 
 ## 0.30.0 - 2026-05-09
 
