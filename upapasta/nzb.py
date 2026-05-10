@@ -317,7 +317,6 @@ def fix_nzb_subjects(
     file_list: list[str] | None = None,
     folder_name: str | None = None,
     obfuscated_map: dict[str, str] | None = None,
-    strong_obfuscate: bool = False,
     file_sizes: dict[str, int] | None = None,
     article_size_bytes: int = 716800,
 ) -> None:
@@ -328,8 +327,6 @@ def fix_nzb_subjects(
 
     Quando file_sizes é fornecido, faz matching por contagem de segmentos em vez de
     por índice — necessário porque o nyuu não preserva a ordem de upload no NZB.
-
-    Se strong_obfuscate=True, mantém os nomes aleatórios (máxima privacidade).
     """
     try:
         ns_url = "http://www.newzbin.com/DTD/2003/nzb"
@@ -387,10 +384,8 @@ def fix_nzb_subjects(
             if not current_filename:
                 continue
 
-            # Deofuscação (pulada quando strong_obfuscate ou sem mapa)
-            if strong_obfuscate or not obfuscated_map:
-                original_filename = current_filename
-            else:
+            # Deofuscação usando o mapa de ofuscação
+            if obfuscated_map:
                 original_filename = _deobfuscate_filename(current_filename, obfuscated_map)
                 # Desofusca também o prefixo/sufixo do subject (ex: "nome_aleatorio.mkv [1/6] - ")
                 for obf, real in obfuscated_map.items():
@@ -398,10 +393,10 @@ def fix_nzb_subjects(
                         prefix = prefix.replace(obf, real)
                     if obf in suffix:
                         suffix = suffix.replace(obf, real)
+            else:
+                original_filename = current_filename
 
-            if strong_obfuscate:
-                final_filename = current_filename
-            elif folder_name:
+            if folder_name:
                 final_filename = f"{folder_name}/{original_filename}"
             else:
                 final_filename = original_filename

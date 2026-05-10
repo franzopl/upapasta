@@ -14,7 +14,6 @@ def _make_args(**kwargs) -> argparse.Namespace:
         rar=False,
         skip_rar_deprecated=False,
         obfuscate=False,
-        strong_obfuscate=False,
         each=False,
         season=False,
         watch=False,

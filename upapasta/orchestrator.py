@@ -81,7 +81,6 @@ class UpaPastaOrchestrator:
         par_profile: str = "balanced",
         nzb_conflict: Optional[str] = None,
         obfuscate: bool = False,
-        strong_obfuscate: bool = False,
         rar_password: Optional[str] = None,
         par_slice_size: Optional[str] = None,
         upload_timeout: Optional[int] = None,
@@ -127,7 +126,6 @@ class UpaPastaOrchestrator:
         self.par_profile = par_profile
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
-        self.strong_obfuscate = strong_obfuscate
         self.obfuscated_map: dict[str, str] = {}
         self.obfuscate_was_linked = False
         self.rar_password = rar_password
@@ -215,7 +213,6 @@ class UpaPastaOrchestrator:
             par_profile=args.par_profile,
             nzb_conflict=args.nzb_conflict,
             obfuscate=args.obfuscate,
-            strong_obfuscate=getattr(args, "strong_obfuscate", False),
             rar_password=args.password,
             par_slice_size=args.par_slice_size,
             upload_timeout=args.upload_timeout,
@@ -681,7 +678,6 @@ class UpaPastaOrchestrator:
                 password=self.rar_password,
                 nyuu_extra_args=self.nyuu_extra_args,
                 folder_name=self.nzb_subject_prefix,
-                strong_obfuscate=self.strong_obfuscate,
                 resume=self.resume,
                 bar=bar,
             )

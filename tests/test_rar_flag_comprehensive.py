@@ -6,7 +6,6 @@ Cobre:
 - --rar --obfuscate
 - --rar --password
 - --rar --password --obfuscate
-- --strong-obfuscate (que implica --obfuscate)
 
 Para: arquivos únicos e pastas
 """
@@ -78,19 +77,6 @@ class TestRarFlagWithFile:
         assert orch.obfuscate is True
         assert orch.rar_password == "mysecret123"
 
-    def test_strong_obfuscate_file(self, temp_file):
-        """--strong-obfuscate (implica --obfuscate): arquivo → cria RAR se houver senha."""
-        orch = UpaPastaOrchestrator(
-            input_path=temp_file,
-            skip_rar=False,  # --rar ativado
-            obfuscate=True,  # --strong-obfuscate implica --obfuscate
-            strong_obfuscate=True,
-            rar_password=None,
-        )
-        assert orch.skip_rar is False
-        assert orch.obfuscate is True
-        assert orch.strong_obfuscate is True
-
 
 class TestRarFlagWithFolder:
     """Testes para pasta com várias flags --rar."""
@@ -154,19 +140,6 @@ class TestRarFlagWithFolder:
         assert orch.obfuscate is True
         assert orch.rar_password == "mysecret123"
 
-    def test_strong_obfuscate_folder(self, temp_folder):
-        """--strong-obfuscate (implica --obfuscate): pasta → cria RAR, depois ofusca (nomes aleatórios não revertidos)."""
-        orch = UpaPastaOrchestrator(
-            input_path=temp_folder,
-            skip_rar=False,  # --rar ativado (presume-se por --obfuscate)
-            obfuscate=True,  # Implicado
-            strong_obfuscate=True,
-            rar_password=None,
-        )
-        assert orch.skip_rar is False
-        assert orch.obfuscate is True
-        assert orch.strong_obfuscate is True
-
 
 class TestRarFlagWithCliParsing:
     """Testes de validação para --rar."""
@@ -214,48 +187,6 @@ class TestRarFlagWithCliParsing:
         _validate_flags(args)
         # v0.29.0: não força mais --rar, o orchestrator usa DEFAULT_COMPRESSOR
         assert args.rar is False
-
-    def test_cli_validate_strong_obfuscate_implies_obfuscate(self):
-        """Validação CLI: --strong-obfuscate implica --obfuscate."""
-
-        class MockArgs:
-            rar = False
-            password = None
-            obfuscate = False
-            strong_obfuscate = True
-            skip_rar_deprecated = False
-            dry_run = False
-            redundancy = None
-            backend = "parpar"
-            post_size = None
-            subject = None
-            group = None
-            skip_par = False
-            skip_upload = False
-            force = False
-            env_file = ".env"
-            keep_files = False
-            rar_threads = None
-            par_threads = None
-            par_profile = "balanced"
-            nzb_conflict = None
-            par_slice_size = None
-            upload_timeout = None
-            upload_retries = 0
-            verbose = False
-            max_memory = None
-            filepath_format = "common"
-            parpar_args = None
-            nyuu_args = None
-            rename_extensionless = False
-            each = False
-            season = False
-            watch = False
-            input = None
-
-        args = MockArgs()
-        _validate_flags(args)
-        assert args.obfuscate is True  # --strong-obfuscate implica --obfuscate
 
 
 class TestRarDecisionLogic:

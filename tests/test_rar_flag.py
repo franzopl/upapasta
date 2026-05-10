@@ -124,7 +124,6 @@ def test_password_presumes_rar():
         keep_files = False
         skip_rar_deprecated = False
         obfuscate = False
-        strong_obfuscate = False
         each = False
         season = False
         watch = False
@@ -168,7 +167,6 @@ def test_obfuscate_without_rar():
         env_file = ".env"
         keep_files = False
         skip_rar_deprecated = False
-        strong_obfuscate = False
         each = False
         season = False
         watch = False

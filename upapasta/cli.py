@@ -139,11 +139,6 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     essential.add_argument(
-        "--strong-obfuscate",
-        action="store_true",
-        help=_("Obsoleto. Use --obfuscate (comportamento idêntico desde v0.28.0)."),
-    )
-    essential.add_argument(
         "--password",
         nargs="?",
         const="__random__",
@@ -483,12 +478,6 @@ def _validate_flags(args: argparse.Namespace) -> bool:
     # --strong-obfuscate é deprecated desde v0.28.0; --obfuscate já aplica ofuscação máxima
     if getattr(args, "strong_obfuscate", False):
         args.obfuscate = True
-        print(
-            _(
-                "⚠️  --strong-obfuscate está obsoleto desde v0.28.0. "
-                "Use --obfuscate (comportamento idêntico)."
-            )
-        )
 
     # --jobs requer múltiplos inputs
     jobs = getattr(args, "jobs", 1)

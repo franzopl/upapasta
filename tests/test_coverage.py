@@ -570,7 +570,6 @@ class TestValidateFlags:
             "rar": False,
             "password": None,
             "obfuscate": False,
-            "strong_obfuscate": False,
             "each": False,
             "season": False,
             "watch": False,
@@ -598,13 +597,6 @@ class TestValidateFlags:
         _validate_flags(args)
         assert args.password != "__random__"
         assert len(args.password) == 16
-
-    def test_strong_obfuscate_ativa_obfuscate(self, capsys):
-        from upapasta.cli import _validate_flags
-
-        args = self._args(strong_obfuscate=True)
-        _validate_flags(args)
-        assert args.obfuscate is True
 
     def test_each_requer_pasta(self, tmp_path, capsys):
         from upapasta.cli import _validate_flags

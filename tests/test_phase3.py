@@ -242,7 +242,6 @@ class TestMultiInput:
             rar=False,
             password=None,
             obfuscate=False,
-            strong_obfuscate=False,
             each=False,
             season=False,
             watch=False,

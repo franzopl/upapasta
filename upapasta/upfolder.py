@@ -389,7 +389,6 @@ def upload_to_usenet(
     password: Optional[str] = None,
     nyuu_extra_args: Optional[list[str]] = None,
     folder_name: Optional[str] = None,
-    strong_obfuscate: bool = False,
     resume: bool = False,
     bar: Optional[PhaseBar] = None,
 ) -> int:
@@ -930,7 +929,6 @@ def upload_to_usenet(
             all_files,
             folder_name,
             obfuscated_map,
-            strong_obfuscate,
             file_sizes=_file_sizes,
             article_size_bytes=_art_bytes,
         )
