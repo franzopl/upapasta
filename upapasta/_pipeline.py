@@ -389,8 +389,11 @@ class PipelineReporter:
         obfuscated_map: dict[str, str],
         redundancy: Optional[int],
         nzb_path: Optional[str],
+        tmdb_id: Optional[int] = None,
+        compressor: Optional[str] = None,
     ) -> None:
-        from .catalog import record_upload, run_post_upload_hook
+        from .catalog import detect_category, record_upload, run_post_upload_hook
+        from .hooks import run_python_hooks
         from .nzb import resolve_nzb_out
 
         working_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR") or os.getcwd()
@@ -414,6 +417,7 @@ class PipelineReporter:
 
         tamanho = int(stats["archive_size_mb"] * 1024 * 1024) if stats["archive_size_mb"] else None
         nome_ofuscado = subject if obfuscate else None
+        categoria = detect_category(input_path.name)
 
         try:
             record_upload(
@@ -421,6 +425,7 @@ class PipelineReporter:
                 nome_ofuscado=nome_ofuscado,
                 senha_rar=rar_password,
                 tamanho_bytes=tamanho,
+                tmdb_id=str(tmdb_id) if tmdb_id else None,
                 grupo_usenet=effective_group or None,
                 servidor_nntp=env_vars.get("NNTP_HOST") or os.environ.get("NNTP_HOST"),
                 redundancia_par2=f"{redundancy}%" if redundancy else None,
@@ -435,6 +440,22 @@ class PipelineReporter:
             print(_("⚠️  Falha ao registrar no catálogo: {error}").format(error=e))
 
         if not skip_upload:
+            # Novo: Hooks nativos em Python (F3.17)
+            metadata_dict = {
+                "original_name": input_path.name,
+                "obfuscated_name": nome_ofuscado,
+                "nzb_path": _nzb_abs_final,
+                "nfo_path": nfo_file,
+                "password": rar_password,
+                "size_bytes": tamanho,
+                "usenet_group": effective_group or None,
+                "category": categoria,
+                "tmdb_id": tmdb_id,
+                "compressor": compressor,
+            }
+            run_python_hooks(metadata_dict)
+
+            # Hook de legado (shell script)
             run_post_upload_hook(
                 env_vars,
                 nzb_path=_nzb_abs_final,
@@ -449,9 +470,7 @@ class PipelineReporter:
             webhook_url = env_vars.get("WEBHOOK_URL") or os.environ.get("WEBHOOK_URL")
             if webhook_url:
                 from ._webhook import send_webhook
-                from .catalog import detect_category
 
-                categoria = detect_category(input_path.name)
                 send_webhook(
                     webhook_url,
                     input_path.name,

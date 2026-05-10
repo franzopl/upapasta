@@ -511,43 +511,45 @@ WEBHOOK_URL=https://my-server.com/webhook
 
 UpaPasta automatically detects destination type by URL pattern and formats the payload accordingly (Discord uses `embeds`, Telegram uses `text`, Slack uses `blocks`, generic uses free JSON).
 
-### External Hook (`POST_UPLOAD_SCRIPT`)
+### Post-Upload Hooks
 
-```ini
-POST_UPLOAD_SCRIPT=/home/user/notify.sh
+UpaPasta supports two types of hooks that are executed after every successful upload.
+
+#### 1. Shell Script (Legacy)
+Configured via `POST_UPLOAD_SCRIPT` in your `.env`. It receives information through environment variables:
+- `UPAPASTA_NZB`, `UPAPASTA_NFO`, `UPAPASTA_SENHA`, `UPAPASTA_NOME_ORIGINAL`, `UPAPASTA_NOME_OFUSCADO`, `UPAPASTA_TAMANHO`, `UPAPASTA_GRUPO`.
+
+Timeout: 60 seconds.
+
+#### 2. Native Python Plugins (Recommended)
+You can drop `.py` files in `~/.config/upapasta/hooks/`. Every file ending in `.py` will be loaded and executed automatically.
+
+**Plugin Interface:**
+Your script must define a function named `on_upload_complete`:
+
+```python
+def on_upload_complete(metadata: dict) -> None:
+    print(f"Uploaded: {metadata['original_name']}")
 ```
 
-The script is executed after each successful upload and receives information via environment variables:
+**Standardized Metadata:**
+The `metadata` dictionary contains:
 
-| Variable | Content |
-|----------|---------|
-| `UPAPASTA_NZB` | Full path of generated `.nzb` |
-| `UPAPASTA_NFO` | Full path of generated `.nfo` |
-| `UPAPASTA_SENHA` | RAR password (empty if none) |
-| `UPAPASTA_NOME_ORIGINAL` | Original file/folder name |
-| `UPAPASTA_NOME_OFUSCADO` | Obfuscated name (same as original if without `--obfuscate`) |
-| `UPAPASTA_TAMANHO` | Total size in bytes |
-| `UPAPASTA_GRUPO` | Usenet group actually used |
+| Key | Type | Description |
+|-----|------|-------------|
+| `original_name` | `str` | Original file/folder name |
+| `obfuscated_name` | `str \| None` | Obfuscated subject name (if used) |
+| `nzb_path` | `str \| None` | Absolute path to the .nzb file |
+| `nfo_path` | `str \| None` | Absolute path to the .nfo file |
+| `password` | `str \| None` | Archive password (RAR/7z) |
+| `size_bytes` | `int \| None` | Total size in bytes |
+| `usenet_group` | `str \| None` | Usenet group used |
+| `category` | `str` | Detected category (Movie, TV, Anime, Generic) |
+| `tmdb_id` | `int \| None` | Resolved TMDb ID |
+| `compressor` | `str \| None` | 'rar', '7z' or `None` |
 
-60-second timeout. Non-zero return generates a warning but does not affect UpaPasta exit code.
+Hooks are executed in alphabetical order. If a hook fails, a traceback is printed but the program continues to execute remaining hooks and finishes normally.
 
-```bash
-# examples/post_upload_debug.sh — prints all received variables
-POST_UPLOAD_SCRIPT=/path/to/upapasta/examples/post_upload_debug.sh
-```
-
-Usage Examples:
-
-```bash
-#!/bin/sh
-# Send NZB via FTP
-curl -T "$UPAPASTA_NZB" "ftp://user:password@server/nzbs/"
-
-# Telegram Notification
-curl -s "https://api.telegram.org/bot$TOKEN/sendMessage" \
-  -d "chat_id=$CHAT_ID" \
-  -d "text=Upload: $UPAPASTA_NOME_ORIGINAL ($UPAPASTA_GRUPO)"
-```
 
 ---
 

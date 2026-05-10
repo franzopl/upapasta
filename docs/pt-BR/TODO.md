@@ -48,9 +48,9 @@ Versão em inglês disponível em [TODO.md](../../TODO.md).
 ### ~~3.6 · Template de NFO customizável: `--nfo-template <arquivo>` (v0.31.x)~~ ✅ Concluído
 - Suporte a arquivos de texto customizados com placeholders: `{{title}}`, `{{synopsis}}`, `{{size}}`, `{{files}}`, `{{mediainfo}}`
 
-### 3.17 · Sistema de Plugins: Hooks em Python `Média · Alto esforço`
+### ~~3.17 · Sistema de Plugins: Hooks em Python (v0.31.x)~~ ✅ Concluído
 - Suporte nativo a lógica pós-upload via scripts `.py` em `~/.config/upapasta/hooks/`
-- Padronização do objeto de metadados passado para os hooks
+- Dicionário de metadados padronizado passado para os hooks
 
 ### ~~3.7 · `upapasta --stats` (histórico agregado)~~ ✅ Concluído
 
@@ -99,5 +99,5 @@ Versão em inglês disponível em [TODO.md](../../TODO.md).
 | Final | v1.0.0 | Packaging | Templates NFO, Hooks Python, 100% QA |
 
 **Reta final para v1.0.0** (em ordem):
-1. **F3.17** → Sistema de Plugins (Hooks em Python)
-2. **Validação** → Foco 100% em Documentação e Testes
+1. **Validação** → Foco 100% em Documentação e Testes
+2. **Lançamento** → v1.0.0 stable

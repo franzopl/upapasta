@@ -907,6 +907,8 @@ class UpaPastaOrchestrator:
             obfuscated_map=self.obfuscated_map,
             redundancy=self.redundancy,
             nzb_path=self.generated_nzb,
+            tmdb_id=self.tmdb_id or (self.tmdb_data.get("id") if self.tmdb_data else None),
+            compressor=self.compressor if not self.skip_rar else None,
         )
 
         return 0
