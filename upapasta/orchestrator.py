@@ -127,8 +127,7 @@ class UpaPastaOrchestrator:
         self.par_profile = par_profile
         self.nzb_conflict = nzb_conflict
         self.obfuscate = obfuscate
-        # Desde v0.28.0: obfuscate implica strong_obfuscate (ofuscação máxima)
-        self.strong_obfuscate = strong_obfuscate or obfuscate
+        self.strong_obfuscate = strong_obfuscate
         self.obfuscated_map: dict[str, str] = {}
         self.obfuscate_was_linked = False
         self.rar_password = rar_password
@@ -216,8 +215,7 @@ class UpaPastaOrchestrator:
             par_profile=args.par_profile,
             nzb_conflict=args.nzb_conflict,
             obfuscate=args.obfuscate,
-            # Desde v0.28.0 --obfuscate já implica ofuscação máxima (era --strong-obfuscate)
-            strong_obfuscate=args.obfuscate,
+            strong_obfuscate=getattr(args, "strong_obfuscate", False),
             rar_password=args.password,
             par_slice_size=args.par_slice_size,
             upload_timeout=args.upload_timeout,

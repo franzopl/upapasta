@@ -345,20 +345,19 @@ class TestNzbSubjectsFullyRandom:
 # ---------------------------------------------------------------------------
 
 
-class TestOrchestratorStrongObfuscateUnified:
+class TestOrchestratorObfuscationLevels:
     """
-    Verifica que --obfuscate no orchestrator implica strong_obfuscate=True
-    (unificação v0.28.0). Isso garante que o NZB nunca vaza nomes originais.
+    Verifica a distinção entre ofuscação reversível e forte (v0.31.0).
     """
 
-    def test_obfuscate_flag_sets_strong_obfuscate_true(self):
-        orch = UpaPastaOrchestrator(
-            input_path="fake_tmp",
-            obfuscate=True,
-        )
-        assert orch.strong_obfuscate is True, (
-            "obfuscate=True deve implicar strong_obfuscate=True (v0.28.0)"
-        )
+    def test_obfuscate_flag_is_reversible_by_default(self):
+        orch = UpaPastaOrchestrator(input_path="fake_tmp", obfuscate=True, strong_obfuscate=False)
+        # No novo padrão, --obfuscate sozinho não é strong
+        assert orch.strong_obfuscate is False
+
+    def test_strong_obfuscate_flag_is_honored(self):
+        orch = UpaPastaOrchestrator(input_path="fake_tmp", obfuscate=True, strong_obfuscate=True)
+        assert orch.strong_obfuscate is True
 
     def test_no_obfuscate_keeps_strong_obfuscate_false(self):
         orch = UpaPastaOrchestrator(

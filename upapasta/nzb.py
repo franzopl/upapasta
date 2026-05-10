@@ -392,6 +392,12 @@ def fix_nzb_subjects(
                 original_filename = current_filename
             else:
                 original_filename = _deobfuscate_filename(current_filename, obfuscated_map)
+                # Desofusca também o prefixo/sufixo do subject (ex: "nome_aleatorio.mkv [1/6] - ")
+                for obf, real in obfuscated_map.items():
+                    if obf in prefix:
+                        prefix = prefix.replace(obf, real)
+                    if obf in suffix:
+                        suffix = suffix.replace(obf, real)
 
             if strong_obfuscate:
                 final_filename = current_filename

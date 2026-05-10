@@ -353,18 +353,20 @@ def main() -> None:
                     )
                 )
                 if merge_nzbs(season_all_nzbs, str(season_nzb_path)):
-                    if args.obfuscate:
-                        # Ofuscação: usa prefixos numéricos (01/, 02/...) para isolar eps no SABnzbd
+                    if getattr(args, "strong_obfuscate", False):
+                        # Ofuscação forte: usa prefixos numéricos para isolar eps no SABnzbd
                         # sem vazar os nomes originais nos subjects da Usenet.
                         numeric_eps = [
                             (nzb_path, f"{i:02d}") for i, nzb_path in enumerate(season_all_nzbs, 1)
                         ]
                         fix_season_nzb_subjects(str(season_nzb_path), numeric_eps)
-                    elif season_folder_eps:
-                        # Sem ofuscação: aplica prefixo de nome original só em episódios-pasta
-                        # (arquivos únicos já têm subjects corretos e não precisam de tratamento).
+                    elif season_folder_eps and not args.obfuscate:
+                        # Sem ofuscação (ou ofuscação reversível): aplica prefixo só em
+                        # episódios-pasta para evitar colisões. Arquivos únicos já têm
+                        # subjects corretos e não precisam de tratamento.
                         fix_season_nzb_subjects(str(season_nzb_path), season_folder_eps)
                     print(_("✅ Season NZB generated successfully!"))
+
                 else:
                     print(_("❌ Failed to generate season NZB."))
 
