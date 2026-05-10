@@ -28,6 +28,10 @@ def find_mediainfo() -> str | None:
     return None
 
 
+def center(text: str, width: int = 78) -> str:
+    return text.center(width)
+
+
 def _format_size(size_bytes: int) -> str:
     size_float: float = float(size_bytes)
     for unit in ("B", "KB", "MB", "GB", "TB"):
@@ -226,8 +230,120 @@ def _format_tmdb_section(data: dict[str, Any]) -> list[str]:
     return lines
 
 
-def center(text: str, width: int = 78) -> str:
-    return text.center(width)
+def generate_nfo_from_template(
+    template_path: str,
+    input_path: str,
+    nfo_path: str,
+    tmdb_metadata: Optional[dict[str, Any]] = None,
+) -> bool:
+    """Gera .nfo a partir de um arquivo de template, substituindo placeholders."""
+    if not os.path.exists(template_path):
+        print(_("Atenção: arquivo de template não encontrado: {path}").format(path=template_path))
+        return False
+
+    try:
+        from pathlib import Path
+
+        # 1. Coleta metadados básicos
+        folder_name = os.path.basename(input_path.rstrip(os.sep))
+        clean_title, clean_year = folder_name, "N/A"
+        # Tenta extrair ano básico do nome
+        year_match = re.search(r"[\s._\[(](19\d{2}|20[0-2]\d)([\s._\])]|$)", folder_name)
+        if year_match:
+            clean_year = year_match.group(1)
+            clean_title = (
+                folder_name[: year_match.start()] + folder_name[year_match.end() :]
+            ).strip()
+            # Remove extensões se sobrar
+            clean_title = re.sub(
+                r"\.(mkv|mp4|avi|mov|rar|7z)$", "", clean_title, flags=re.IGNORECASE
+            )
+            clean_title = clean_title.replace(".", " ").strip()
+
+        # 2. Coleta dados do TMDb
+        tmdb = tmdb_metadata or {}
+        title = tmdb.get("title") or tmdb.get("name") or clean_title
+        year = (tmdb.get("release_date") or tmdb.get("first_air_date") or clean_year)[:4]
+        synopsis = tmdb.get("overview") or "N/A"
+        genres = ", ".join(tmdb.get("genres", [])) or "N/A"
+        imdb_id = tmdb.get("imdb_id")
+        imdb_url = f"https://www.imdb.com/title/{imdb_id}" if imdb_id else "N/A"
+        poster_path = tmdb.get("poster_path")
+        poster_url = f"https://image.tmdb.org/t/p/original{poster_path}" if poster_path else "N/A"
+
+        # 3. Coleta dados de arquivos
+        is_dir = os.path.isdir(input_path)
+        if is_dir:
+            root_path = Path(input_path)
+            all_files = [
+                p for p in root_path.rglob("*") if p.is_file() and p.name != f"{folder_name}.nfo"
+            ]
+            file_sizes: dict[str, int] = {os.path.abspath(f): f.stat().st_size for f in all_files}
+            total_size_bytes = sum(file_sizes.values())
+
+            # Gera árvore
+            video_exts = {".mp4", ".mkv", ".mov", ".avi", ".flv", ".ts", ".webm", ".wmv"}
+            video_files = [f for f in all_files if f.suffix.lower() in video_exts]
+            video_metadata_map = {}
+            for video in video_files:
+                duration_sec, meta = _get_video_info(str(video))
+                meta["duration_str"] = _format_duration(duration_sec)
+                video_metadata_map[os.path.abspath(video)] = meta
+
+            tree_lines, total_dirs, total_files = _generate_tree(
+                input_path, video_metadata_map, file_sizes
+            )
+            files_content = "\n".join(tree_lines)
+
+            # Mediainfo do primeiro video representativo
+            mi_target = _find_first_episode(input_path)
+        else:
+            total_size_bytes = os.path.getsize(input_path)
+            files_content = os.path.basename(input_path)
+            mi_target = input_path
+
+        size_str = _format_size(total_size_bytes)
+
+        # 4. Mediainfo
+        mediainfo_content = "N/A"
+        if mi_target:
+            mi_exe = find_mediainfo()
+            if mi_exe:
+                try:
+                    res = subprocess.run(
+                        [mi_exe, mi_target], capture_output=True, text=True, check=True
+                    )
+                    mediainfo_content = res.stdout
+                except Exception:
+                    pass
+
+        # 5. Substituição
+        with open(template_path, "r", encoding="utf-8", errors="ignore") as tf:
+            content = tf.read()
+
+        replacements = {
+            "{{title}}": title,
+            "{{year}}": year,
+            "{{synopsis}}": synopsis,
+            "{{overview}}": synopsis,
+            "{{genres}}": genres,
+            "{{imdb_url}}": imdb_url,
+            "{{poster_url}}": poster_url,
+            "{{size}}": size_str,
+            "{{files}}": files_content,
+            "{{mediainfo}}": mediainfo_content,
+        }
+
+        for placeholder, value in replacements.items():
+            content = content.replace(placeholder, str(value))
+
+        with open(nfo_path, "w", encoding="utf-8") as nf:
+            nf.write(content)
+
+        return True
+    except Exception as e:
+        print(_("Erro ao gerar NFO a partir do template: {error}").format(error=e))
+        return False
 
 
 def generate_nfo_single_file(
@@ -346,9 +462,6 @@ def generate_nfo_folder(
         for f in all_files:
             ext = f.suffix.lower() if f.suffix else ".sem_extensao"
             extension_counts[ext] = extension_counts.get(ext, 0) + 1
-
-        def center(text: str, width: int = 78) -> str:
-            return text.center(width)
 
         lines: list[str] = []
 

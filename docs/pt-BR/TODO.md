@@ -45,9 +45,8 @@ Versão em inglês disponível em [TODO.md](../../TODO.md).
 ### ~~3.5 · Metadados enriquecidos no NZB (v0.31.0)~~ ✅ Concluído
 - Injeção de title, poster, imdbid, genres, tagline no NZB <head> (Newznab standard)
 
-### 3.6 · Template de NFO customizável: `--nfo-template <arquivo>` `Média · Médio esforço`
-- Suporte a arquivos de texto customizados com placeholders: `{{title}}`, `{{synopsis}}`, `{{size}}`, `{{files}}`
-- Permite que usuários desenhem seu próprio estilo de NFO
+### ~~3.6 · Template de NFO customizável: `--nfo-template <arquivo>` (v0.31.x)~~ ✅ Concluído
+- Suporte a arquivos de texto customizados com placeholders: `{{title}}`, `{{synopsis}}`, `{{size}}`, `{{files}}`, `{{mediainfo}}`
 
 ### 3.17 · Sistema de Plugins: Hooks em Python `Média · Alto esforço`
 - Suporte nativo a lógica pós-upload via scripts `.py` em `~/.config/upapasta/hooks/`
@@ -100,6 +99,5 @@ Versão em inglês disponível em [TODO.md](../../TODO.md).
 | Final | v1.0.0 | Packaging | Templates NFO, Hooks Python, 100% QA |
 
 **Reta final para v1.0.0** (em ordem):
-1. **F3.6** → Template de NFO customizável
-2. **F3.17** → Sistema de Plugins (Hooks em Python)
-3. **Validação** → Foco 100% em Documentação e Testes
+1. **F3.17** → Sistema de Plugins (Hooks em Python)
+2. **Validação** → Foco 100% em Documentação e Testes

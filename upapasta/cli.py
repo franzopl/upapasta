@@ -335,6 +335,11 @@ def parse_args() -> argparse.Namespace:
         help=_("Busca manual por filmes/séries no TMDb e lista os resultados e IDs."),
     )
     advanced.add_argument(
+        "--nfo-template",
+        metavar=_("PATH"),
+        help=_("Caminho para um arquivo .txt a ser usado como template para o .nfo."),
+    )
+    advanced.add_argument(
         "--env-file",
         default=DEFAULT_ENV_FILE,
         metavar=_("PATH"),

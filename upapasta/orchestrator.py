@@ -97,6 +97,7 @@ class UpaPastaOrchestrator:
         compressor: str = "rar",
         tmdb: bool = False,
         tmdb_id: Optional[int] = None,
+        nfo_template: Optional[str] = None,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -114,6 +115,7 @@ class UpaPastaOrchestrator:
         self.compressor = compressor
         self.tmdb = tmdb
         self.tmdb_id = tmdb_id
+        self.nfo_template = nfo_template
 
         self._user_rar_threads = rar_threads
         self._user_par_threads = par_threads
@@ -235,6 +237,7 @@ class UpaPastaOrchestrator:
             compressor=final_compressor,
             tmdb=getattr(args, "tmdb", False),
             tmdb_id=getattr(args, "tmdb_id", None),
+            nfo_template=getattr(args, "nfo_template", None) or env_vars.get("NFO_TEMPLATE"),
         )
 
     @staticmethod
@@ -258,7 +261,11 @@ class UpaPastaOrchestrator:
         return self._path_resolver().nfo_path()
 
     def run_generate_nfo(self, bar: Optional[PhaseBar] = None) -> bool:
-        from .nfo import generate_nfo_folder, generate_nfo_single_file
+        from .nfo import (
+            generate_nfo_folder,
+            generate_nfo_from_template,
+            generate_nfo_single_file,
+        )
 
         nfo_path, nzb_dir = self._resolve_nfo_path()
         nfo_filename = os.path.basename(nfo_path)
@@ -267,7 +274,8 @@ class UpaPastaOrchestrator:
         except OSError:
             pass
 
-        tmdb_data: Optional[dict[str, Any]] = None
+        self.tmdb_data = None
+        # ... (TMDb lookup logic same as before, but saving to self.tmdb_data)
 
         # Tenta buscar metadados no TMDb se houver chave e flag --tmdb
         api_key = self.env_vars.get("TMDB_API_KEY")
@@ -283,11 +291,13 @@ class UpaPastaOrchestrator:
             cat = detect_category(self.input_path.name)
             media_type = "tv" if cat == "TV" else "movie"
 
+            lookup_data: Optional[dict[str, Any]] = None
+
             if self.tmdb_id:
                 # Busca direta por ID se fornecido
                 from .tmdb import _get_details
 
-                tmdb_data = {"id": self.tmdb_id}
+                lookup_data = {"id": self.tmdb_id}
                 details = _get_details(
                     api_key,
                     self.tmdb_id,
@@ -295,12 +305,12 @@ class UpaPastaOrchestrator:
                     self.env_vars.get("TMDB_LANGUAGE", "pt-BR"),
                 )
                 if details:
-                    tmdb_data.update(details)
+                    lookup_data.update(details)
             else:
                 # Busca automática por nome
                 clean_title, year = parse_title_and_year(self.input_path.name)
                 strict_mode = self.env_vars.get("TMDB_STRICT", "true").lower() == "true"
-                tmdb_data, suggestions = search_media(
+                lookup_data, suggestions = search_media(
                     api_key,
                     clean_title,
                     year=year,
@@ -309,10 +319,10 @@ class UpaPastaOrchestrator:
                     strict=strict_mode,
                 )
 
-                if tmdb_data and bar:
-                    title = tmdb_data.get("title") or tmdb_data.get("name")
+                if lookup_data and bar:
+                    title = lookup_data.get("title") or lookup_data.get("name")
                     bar.log(_("✅ TMDb: {title} encontrado.").format(title=title))
-                elif not tmdb_data and bar and not self.tmdb_id:
+                elif not lookup_data and bar and not self.tmdb_id:
                     # Se tínhamos chave mas não veio nada, pode ser por conta do strict
                     bar.log(
                         _("⚠️ TMDb: nenhum resultado confiável para '{title}'.").format(
@@ -329,7 +339,24 @@ class UpaPastaOrchestrator:
                             s_id = s.get("id")
                             bar.log(f"  • {s_title} ({s_year}) ID: {s_id}")
 
-                self.tmdb_data = tmdb_data
+                self.tmdb_data = lookup_data
+
+        if self.nfo_template and os.path.exists(self.nfo_template):
+            ok = generate_nfo_from_template(
+                self.nfo_template, str(self.input_path), nfo_path, tmdb_metadata=self.tmdb_data
+            )
+            if ok:
+                self.nfo_file = nfo_path
+                if not bar:
+                    print(
+                        _("  ✔️ NFO gerado a partir do template: {name}").format(
+                            name=os.path.basename(self.nfo_template)
+                        )
+                    )
+                return True
+            else:
+                if not bar:
+                    print(_("⚠️ Falha ao usar template de NFO. Usando geração automática."))
 
         banner = self.env_vars.get("NFO_BANNER") or os.environ.get("NFO_BANNER")
         if not self.input_path.is_dir():
