@@ -536,8 +536,15 @@ def obfuscate_and_par(
 
     actual_par_input = par_input
     _par_succeeded = False
-    rc = 5
 
+    # ── Geração de Paridade (sempre com nomes REAIS) ────────────────────────
+    # Geramos a paridade olhando para o input original para que o PAR2 guarde
+    # internamente o nome real. Isso permite que o SABnzbd recupere o nome
+    # original mesmo que o NZB esteja ofuscado ou renomeado.
+    # OBS: Se a ofuscação usou rename (fallback), o 'input_path' original não existe
+    # mais no disco, o arquivo agora está em 'par_input'. O parpar permite passar
+    # o nome original via flag ou, no nosso fluxo simplificado, geramos com o nome
+    # que estiver no disco e garantimos que o PAR2 contenha o que queremos.
     try:
         rc = make_parity(
             actual_par_input,
@@ -556,6 +563,12 @@ def obfuscate_and_par(
         )
         if rc == 0:
             _par_succeeded = True
+            # Renomeia os .par2 gerados para o nome randômico (mask externo)
+            # Se foi usado hardlink, os PAR2 foram criados com o nome real de 'actual_par_input' (input_path).
+            # Se foi usado rename, os PAR2 foram criados com o nome já ofuscado de 'par_input'.
+            if was_linked:
+                _rename_par2_files(parent_dir, input_path, is_rar_vol_set, random_base)
+
             if is_folder and usenet and obfuscated_path:
                 print("  🔒 Ofuscando estrutura interna (deep obfuscation)...")
                 obfuscated_map.update(_deep_obfuscate_tree(obfuscated_path))
