@@ -384,7 +384,7 @@ def upload_to_usenet(
     subject: Optional[str] = None,
     group: Optional[str] = None,
     skip_rar: bool = False,
-    obfuscated_map: Optional[dict[str, str]] = None,
+    obfuscated_map: dict[str, str] | None = None,
     upload_timeout: Optional[int] = None,
     upload_retries: int = 0,
     password: Optional[str] = None,
@@ -392,6 +392,7 @@ def upload_to_usenet(
     folder_name: Optional[str] = None,
     resume: bool = False,
     bar: Optional[PhaseBar] = None,
+    nzb_out_abs: Optional[str] = None,
 ) -> int:
     """
     Upload de arquivos para Usenet usando nyuu.
@@ -517,15 +518,24 @@ def upload_to_usenet(
         nyuu_extra_args = shlex.split(env_nyuu_args)
 
     # ── Determinar caminho de saída do NZB ───────────────────────────────────
-    nzb_out_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR")
-    nzb_out, nzb_out_abs = resolve_nzb_out(
-        input_path, env_vars, is_folder, skip_rar, nzb_out_dir or working_dir, obfuscated_map
-    )
-    nzb_out, nzb_out_abs, nzb_overwrite, ok = handle_nzb_conflict(
-        nzb_out, nzb_out_abs, env_vars, nzb_overwrite_env, nzb_out_dir or working_dir
-    )
-    if not ok:
-        return 6
+    # Se subject foi fornecido ou alterado (ofuscação), usamos ele para o NZB
+    if not nzb_out_abs:
+        nzb_out_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR")
+        nzb_out, nzb_out_abs = resolve_nzb_out(
+            input_path, env_vars, is_folder, skip_rar, nzb_out_dir or working_dir, obfuscated_map
+        )
+        nzb_out, nzb_out_abs, nzb_overwrite, ok = handle_nzb_conflict(
+            nzb_out, nzb_out_abs, env_vars, nzb_overwrite_env, nzb_out_dir or working_dir
+        )
+        if not ok:
+            return 6
+    else:
+        # Se nzb_out_abs veio de fora, derivamos nzb_out para exibição
+        nzb_out = os.path.basename(nzb_out_abs)
+        nzb_conflict_val = (
+            env_vars.get("NZB_CONFLICT") or os.environ.get("NZB_CONFLICT") or "rename"
+        )
+        nzb_overwrite = nzb_conflict_val == "overwrite"
 
     # Garante que a pasta do NZB existe antes do upload
     if nzb_out_abs:

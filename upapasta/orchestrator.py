@@ -672,6 +672,17 @@ class UpaPastaOrchestrator:
             assert self.input_target is not None, _("input_target não foi configurado")
             if self.nzb_conflict:
                 self.env_vars["NZB_CONFLICT"] = self.nzb_conflict
+
+            # Resolve NZB uma única vez aqui
+            nzb_rel, nzb_abs = resolve_nzb_out(
+                self.input_target,
+                self.env_vars,
+                os.path.isdir(self.input_target),
+                self.skip_rar,
+                os.path.dirname(self.input_target),
+                self.obfuscated_map or None,
+            )
+
             rc = upload_to_usenet(
                 self.input_target,
                 env_vars=self.env_vars,
@@ -687,16 +698,9 @@ class UpaPastaOrchestrator:
                 folder_name=self.nzb_subject_prefix,
                 resume=self.resume,
                 bar=bar,
+                nzb_out_abs=nzb_abs,
             )
             if rc == 0:
-                _nzb_rel, nzb_abs = resolve_nzb_out(
-                    self.input_target,
-                    self.env_vars,
-                    os.path.isdir(self.input_target),
-                    self.skip_rar,
-                    os.path.dirname(self.input_target),
-                    self.obfuscated_map or None,
-                )
                 self.generated_nzb = nzb_abs
             return rc == 0
         except (FileNotFoundError, PermissionError, OSError) as e:
