@@ -90,7 +90,9 @@ def _read_output(pipe: Optional[Any], queue: Queue[Optional[str]]) -> None:
 
 
 def _process_output(
-    queue: Queue[Optional[str]], bar: Optional[PhaseBar] = None
+    queue: Queue[Optional[str]],
+    bar: Optional[PhaseBar] = None,
+    captured_lines: Optional[list[str]] = None,
 ) -> tuple[int, bool]:
     """Consome tokens da fila e atualiza o progresso.
 
@@ -122,6 +124,9 @@ def _process_output(
         line = _strip_ansi(line).strip()
         if not line:
             continue
+
+        if captured_lines is not None:
+            captured_lines.append(line)
 
         # Regex para capturar velocidade do nyuu (ex: "1.23 MB/s")
         # Útil para mostrar no label do upload.

@@ -207,6 +207,7 @@ def make_rar(
         # Executa o rar e captura stdout/stderr para parsear progresso.
         # managed_popen garante SIGTERM → SIGKILL no filho se o Python receber
         # KeyboardInterrupt (Ctrl+C) ou qualquer outra exceção.
+        captured_output: list[str] = []
         with managed_popen(
             cmd,
             cwd=parent,
@@ -226,7 +227,9 @@ def make_rar(
             reader_thread.start()
 
             # Processa output na thread principal
-            last_percent, teve_percentual = _process_output(output_queue, bar=bar)
+            last_percent, teve_percentual = _process_output(
+                output_queue, bar=bar, captured_lines=captured_output
+            )
 
             # Aguarda o fim do processo
             rc = proc.wait()
@@ -244,6 +247,13 @@ def make_rar(
                 print(_("Aviso: volumes RAR não encontrados, usando arquivo único."))
             return 0, out_rar
         else:
+            error_context = "\n".join(captured_output[-10:])
+            if error_context.strip():
+                print(_("\n--- Log de erro do RAR ---"))
+                for _l in error_context.splitlines():
+                    if _l.strip():
+                        print(f"  {_l}")
+                print("--------------------------\n")
             if not bar:
                 print(_("Erro: 'rar' retornou código {rc}.").format(rc=rc))
             return 5, None

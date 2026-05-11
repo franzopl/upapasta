@@ -859,6 +859,7 @@ def make_parity(
 
     try:
         # managed_popen garante SIGTERM → SIGKILL no filho se receber Ctrl+C
+        captured_output: list[str] = []
         with managed_popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0
         ) as proc:
@@ -867,7 +868,7 @@ def make_parity(
                 target=_read_output, args=(proc.stdout, output_queue), daemon=True
             )
             reader_thread.start()
-            _process_output(output_queue, bar=bar)
+            _process_output(output_queue, bar=bar, captured_lines=captured_output)
             rc = proc.wait()
 
         if rc == 0:
@@ -875,6 +876,13 @@ def make_parity(
                 print(_("Arquivos de paridade criados com sucesso."))
             return 0
         else:
+            error_context = "\n".join(captured_output[-10:])
+            if error_context.strip():
+                print(_("\n--- Log de erro do PAR2 ({chosen}) ---").format(chosen=chosen))
+                for _l in error_context.splitlines():
+                    if _l.strip():
+                        print(f"  {_l}")
+                print("--------------------------------------\n")
             if not bar:
                 print(_("Erro: '{chosen}' retornou código {rc}.").format(chosen=chosen, rc=rc))
             return 5

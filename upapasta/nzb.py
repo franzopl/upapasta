@@ -84,7 +84,7 @@ def resolve_nzb_out(
     if os.path.isabs(nzb_out):
         nzb_out_abs = nzb_out
     else:
-        nzb_out_abs = os.path.join(working_dir, nzb_out)
+        nzb_out_abs = os.path.abspath(os.path.join(working_dir, nzb_out))
 
     return nzb_out, nzb_out_abs
 

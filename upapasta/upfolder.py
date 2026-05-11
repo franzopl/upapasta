@@ -519,27 +519,39 @@ def upload_to_usenet(
 
     # ── Determinar caminho de saída do NZB ───────────────────────────────────
     # Se subject foi fornecido ou alterado (ofuscação), usamos ele para o NZB
+    nzb_out_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR")
     if not nzb_out_abs:
-        nzb_out_dir = env_vars.get("NZB_OUT_DIR") or os.environ.get("NZB_OUT_DIR")
         nzb_out, nzb_out_abs = resolve_nzb_out(
             input_path, env_vars, is_folder, skip_rar, nzb_out_dir or working_dir, obfuscated_map
         )
-        nzb_out, nzb_out_abs, nzb_overwrite, ok = handle_nzb_conflict(
-            nzb_out, nzb_out_abs, env_vars, nzb_overwrite_env, nzb_out_dir or working_dir
-        )
-        if not ok:
-            return 6
     else:
-        # Se nzb_out_abs veio de fora, derivamos nzb_out para exibição
-        nzb_out = os.path.basename(nzb_out_abs)
-        nzb_conflict_val = (
-            env_vars.get("NZB_CONFLICT") or os.environ.get("NZB_CONFLICT") or "rename"
-        )
-        nzb_overwrite = nzb_conflict_val == "overwrite"
+        # Se nzb_out_abs veio de fora, garantimos que seja absoluto
+        if not os.path.isabs(nzb_out_abs):
+            nzb_out_abs = os.path.abspath(os.path.join(working_dir, nzb_out_abs))
+        nzb_out = nzb_out_abs
+
+    # Sempre valida conflito (para renomear se necessário)
+    nzb_out, nzb_out_abs, nzb_overwrite, ok = handle_nzb_conflict(
+        nzb_out,
+        nzb_out_abs,
+        env_vars,
+        nzb_overwrite_env,
+        nzb_out_dir if nzb_out_dir else os.path.dirname(nzb_out_abs),
+    )
+    if not ok:
+        return 6
+
+    # No Windows, nyuu (Node.js) pode interpretar backslashes como escapes.
+    # Usar forward slashes é mais seguro e suportado nativamente pelo Python e Node.js no Windows.
+    if os.name == "nt" and nzb_out_abs:
+        nzb_out_abs = nzb_out_abs.replace("\\", "/")
 
     # Garante que a pasta do NZB existe antes do upload
     if nzb_out_abs:
         os.makedirs(os.path.dirname(nzb_out_abs), exist_ok=True)
+
+    # Para o nyuu, o target do NZB deve ser o caminho absoluto normalizado
+    nzb_target = nzb_out_abs
 
     if not all([nntp_host, nntp_user, nntp_pass, usenet_group]):
         print(_("Erro: credenciais incompletas. Configure .env com:"))
@@ -856,6 +868,7 @@ def upload_to_usenet(
             cmd.extend(remaining_par2)
 
             try:
+                captured_output: list[str] = []
                 with managed_popen(
                     cmd,
                     cwd=working_dir,
@@ -870,11 +883,39 @@ def upload_to_usenet(
                         daemon=True,
                     )
                     reader_thread.start()
-                    _process_output(output_queue, bar=bar)
+                    _process_output(output_queue, bar=bar, captured_lines=captured_output)
                     last_rc = proc.wait()
 
                 if last_rc == 0:
                     break
+
+                full_stderr = "\n".join(captured_output)
+
+                # Exibe log de erro detalhado (últimas 30 linhas)
+                error_context = "\n".join(captured_output[-30:])
+                if error_context.strip():
+                    print(_("\n--- Log de erro do Nyuu ---"))
+                    for _l in error_context.splitlines():
+                        if _l.strip():
+                            print(f"  {_l}")
+                    print("---------------------------\n")
+
+                parsed_msg = _parse_nyuu_stderr(full_stderr)
+                if parsed_msg:
+                    print(_("\nTradução do erro: {msg}").format(msg=parsed_msg))
+
+                if last_rc == 7:
+                    print(
+                        _(
+                            "\n💡 Dica: Código 7 geralmente indica esgotamento de recursos do Node.js (falha SSL ou muitas conexões)."
+                        )
+                    )
+                    print(
+                        _(
+                            "   Recomendação: Reduza NNTP_CONNECTIONS no seu arquivo .env (ex: NNTP_CONNECTIONS=20)."
+                        )
+                    )
+
                 print(
                     _("\nErro: nyuu retornou código {rc} no servidor {host}.").format(
                         rc=last_rc, host=srv["host"]

@@ -683,6 +683,18 @@ class UpaPastaOrchestrator:
                 self.obfuscated_map or None,
             )
 
+            # Trata conflito aqui para saber o caminho final (renomeado se necessário)
+            # para o catálogo e TMDb.
+            from .nzb import handle_nzb_conflict
+
+            _nzb_rel, nzb_abs, _nzb_overwrite, ok = handle_nzb_conflict(
+                nzb_rel, nzb_abs, self.env_vars, working_dir=os.path.dirname(self.input_target)
+            )
+            if not ok:
+                return False
+
+            self.generated_nzb = nzb_abs
+
             rc = upload_to_usenet(
                 self.input_target,
                 env_vars=self.env_vars,
@@ -698,10 +710,8 @@ class UpaPastaOrchestrator:
                 folder_name=self.nzb_subject_prefix,
                 resume=self.resume,
                 bar=bar,
-                nzb_out_abs=nzb_abs,
+                nzb_out_abs=self.generated_nzb,
             )
-            if rc == 0:
-                self.generated_nzb = nzb_abs
             return rc == 0
         except (FileNotFoundError, PermissionError, OSError) as e:
             if not bar:

@@ -182,6 +182,7 @@ def make_7z(
     cmd += [out_7z, archive_target]
 
     try:
+        captured_output: list[str] = []
         with managed_popen(
             cmd,
             cwd=parent,
@@ -198,7 +199,7 @@ def make_7z(
             reader_thread.start()
 
             # Processa progresso (7z emite 0%... 50%... 100%)
-            _process_output(output_queue, bar=bar)
+            _process_output(output_queue, bar=bar, captured_lines=captured_output)
             rc = proc.wait()
 
         if rc == 0:
@@ -211,6 +212,13 @@ def make_7z(
                 return 0, matches[0]
             return 0, out_7z
         else:
+            error_context = "\n".join(captured_output[-10:])
+            if error_context.strip():
+                print(_("\n--- Log de erro do 7z ---"))
+                for _l in error_context.splitlines():
+                    if _l.strip():
+                        print(f"  {_l}")
+                print("--------------------------\n")
             if not bar:
                 print(_("Erro: '7z' retornou código {rc}.").format(rc=rc))
             return 5, None
