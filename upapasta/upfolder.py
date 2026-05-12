@@ -597,11 +597,16 @@ def upload_to_usenet(
             mediainfo_path = nfo.find_mediainfo()
             if mediainfo_path:
                 try:
-                    nfo_proc = subprocess.run(
-                        [mediainfo_path, input_path], capture_output=True, text=True, check=True
-                    )
-                    with open(nfo_path, "w", encoding="utf-8") as nfo_fh:
-                        nfo_fh.write(nfo_proc.stdout)
+                    with managed_popen(
+                        [mediainfo_path, input_path],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                    ) as nfo_proc:
+                        stdout, stderr = nfo_proc.communicate()
+                        if nfo_proc.returncode == 0:
+                            with open(nfo_path, "w", encoding="utf-8") as nfo_fh:
+                                nfo_fh.write(stdout)
                 except Exception:
                     pass
 

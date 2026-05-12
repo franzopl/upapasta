@@ -26,12 +26,7 @@ def test_upload_single_file_generates_nfo(monkeypatch, tmp_path):
     # Monkeypatch find_nyuu to avoid requiring nyuu on PATH
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
-    class DummyCompletedProcess:
-        def __init__(self, stdout: str = ""):
-            self.stdout = stdout
-
-    def fake_run(args, capture_output=False, text=False, check=False, cwd=None):
-        return DummyCompletedProcess(stdout="MediaInfo Test Content\nVideo: 1\nAudio: 2\n")
+    from contextlib import contextmanager
 
     import upapasta.nfo as _nfo_mod
 
@@ -43,7 +38,19 @@ def test_upload_single_file_generates_nfo(monkeypatch, tmp_path):
         return True
 
     monkeypatch.setattr(_nfo_mod, "generate_nfo_single_file", mock_gen_nfo)
-    monkeypatch.setattr(upfolder.subprocess, "run", fake_run)
+
+    class DummyProcess:
+        def __init__(self):
+            self.returncode = 0
+
+        def communicate(self):
+            return "MediaInfo Test Content\nVideo: 1\nAudio: 2\n", ""
+
+    @contextmanager
+    def fake_managed_popen(*args, **kwargs):
+        yield DummyProcess()
+
+    monkeypatch.setattr(upfolder, "managed_popen", fake_managed_popen)
 
     out = io.StringIO()
     import contextlib
@@ -97,12 +104,7 @@ def test_upload_single_file_generates_nfo_in_nzb_out_dir(monkeypatch, tmp_path):
 
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
 
-    class DummyCompletedProcess:
-        def __init__(self, stdout: str = ""):
-            self.stdout = stdout
-
-    def fake_run(args, capture_output=False, text=False, check=False, cwd=None):
-        return DummyCompletedProcess(stdout="MediaInfo Test Content\nVideo: 1\nAudio: 2\n")
+    from contextlib import contextmanager
 
     import upapasta.nfo as _nfo_mod
 
@@ -114,7 +116,19 @@ def test_upload_single_file_generates_nfo_in_nzb_out_dir(monkeypatch, tmp_path):
         return True
 
     monkeypatch.setattr(_nfo_mod, "generate_nfo_single_file", mock_gen_nfo)
-    monkeypatch.setattr(upfolder.subprocess, "run", fake_run)
+
+    class DummyProcess:
+        def __init__(self):
+            self.returncode = 0
+
+        def communicate(self):
+            return "MediaInfo Test Content\nVideo: 1\nAudio: 2\n", ""
+
+    @contextmanager
+    def fake_managed_popen(*args, **kwargs):
+        yield DummyProcess()
+
+    monkeypatch.setattr(upfolder, "managed_popen", fake_managed_popen)
 
     rc = upload_to_usenet(str(input_file), env_vars=env_vars, dry_run=True)
     assert rc == 0
@@ -147,33 +161,24 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
 
     # Capture the args passed to nyuu (the non-mediainfo call)
     captured = {}
-
-    class DummyCompletedProcess:
-        def __init__(self, stdout: str = "", returncode: int = 0):
-            self.stdout = stdout
-            self.returncode = returncode
-
-    def fake_run(args, **kwargs):
-        # If calling mediainfo, return test stdout
-        if args and (args[0].endswith("mediainfo") or args[0] == "/usr/bin/mediainfo"):
-            return DummyCompletedProcess(stdout="MediaInfo Test Content\nVideo: 1\n")
-        # nyuu call is no longer via subprocess.run, it uses managed_popen
-        return DummyCompletedProcess(returncode=0)
+    from contextlib import contextmanager
 
     class MockProc:
         def __init__(self, args):
             self.args = args
-            self.stdout = io.StringIO("")
+            self.returncode = 0
+            self.stdout = io.BytesIO(b"")
+
+        def communicate(self):
+            captured["args"] = self.args
+            return "", ""
 
         def wait(self):
-            captured["args"] = self.args
-            return 0
+            return self.returncode
 
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            pass
+    @contextmanager
+    def fake_managed_popen(args, **kwargs):
+        yield MockProc(args)
 
     import upapasta.nfo as _nfo_mod
 
@@ -185,8 +190,7 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
         return True
 
     monkeypatch.setattr(_nfo_mod, "generate_nfo_single_file", mock_gen_nfo)
-    monkeypatch.setattr(upfolder.subprocess, "run", fake_run)
-    monkeypatch.setattr(upfolder, "managed_popen", lambda args, **kw: MockProc(args))
+    monkeypatch.setattr(upfolder, "managed_popen", fake_managed_popen)
 
     rc = upload_to_usenet(str(input_file), env_vars=env_vars, dry_run=False)
     assert rc == 0
