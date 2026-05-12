@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .catalog import print_stats
 from .cli import _USAGE_SHORT, _validate_flags, check_dependencies, parse_args
 from .config import check_or_prompt_credentials, load_env_file, resolve_env_file
@@ -25,6 +26,7 @@ from .watch import _watch_loop
 def _run_single_input(args: Any, item_path: str, env_file: str) -> int:
     """Processa um único input e retorna o código de saída."""
     input_name = Path(item_path).name
+    print(f"UpaPasta v{__version__}")
     log_path, log_fh = setup_session_log(input_name, env_file=env_file)
     rc = 1
     try:
