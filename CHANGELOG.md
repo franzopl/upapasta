@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.34.2 - 2026-05-12
+
+### Enhancements
+- **Ramdisk Feedback Messages**: Added clear diagnostic messages when ramdisk is NOT automatically activated, explaining why:
+  - System not Linux
+  - `/dev/shm` not available
+  - Filesystem does not support symlinks
+  - Insufficient RAM (with concrete GB values shown)
+  - Could not estimate PAR2 size
+  - Generic validation error
+  - Explicit `--no-ramdisk` flag used
+- **Improved Diagnostics**: Users can now quickly understand why ramdisk optimization was skipped and what to fix if needed.
+
 ## 0.34.1 - 2026-05-12
 
 ### Fixes
