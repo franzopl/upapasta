@@ -743,6 +743,7 @@ def recalculate_resources(
     user_rar_threads: Optional[int],
     user_par_threads: Optional[int],
     user_memory_mb: Optional[int],
+    use_ramdisk: bool = False,
 ) -> tuple[dict[str, Any], str, str]:
     """Recalcula threads e memória ótimos baseados no tamanho real da entrada."""
     total_bytes = get_total_size(str(input_path))
@@ -750,6 +751,7 @@ def recalculate_resources(
         total_bytes,
         user_threads=user_rar_threads if user_rar_threads == user_par_threads else None,
         user_memory_mb=user_memory_mb,
+        use_ramdisk=use_ramdisk,
     )
     conservative_tag = _(" (conservador)") if res["conservative_mode"] else ""
     rar_src = _("manual") if user_rar_threads is not None else f"auto{conservative_tag}"

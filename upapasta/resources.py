@@ -52,6 +52,7 @@ def calculate_optimal_resources(
     total_size_bytes: int,
     user_threads: int | None = None,
     user_memory_mb: int | None = None,
+    use_ramdisk: bool = False,
 ) -> dict[str, int | float | bool]:
     """
     Calcula threads e limite de memória para o job atual.
@@ -61,12 +62,16 @@ def calculate_optimal_resources(
       pois esses são I/O-bound e monopolizar CPU não ajuda.
     - Memória: 70% do disponível (60% para jobs >200GB), com mínimo de 2GB
       livres para o sistema. Cap em 8GB — parpar não se beneficia além disso.
-    - conservative_mode: ativado se job >200GB ou <4GB disponíveis.
+    - conservative_mode: ativado se job >200GB, <4GB disponíveis, ou ramdisk ativo.
+    - Ramdisk: quando ativo, reduz threads em 30-40% e limita RAM a 70% do normal
+      (ramdisk consome espaço para PAR2 gerados; sincronização de muitas threads
+      piora latência em I/O pesado de disco lento).
 
     Args:
         total_size_bytes: tamanho total da fonte em bytes.
         user_threads: override manual (--rar-threads / --par-threads).
         user_memory_mb: override manual (--max-memory).
+        use_ramdisk: se ramdisk está ativado para PAR2 (default: False).
 
     Returns:
         dict com threads, max_memory_mb, conservative_mode, total_gb.
@@ -74,7 +79,7 @@ def calculate_optimal_resources(
     cpu = os.cpu_count() or 2
     mem_avail = get_mem_available_mb()
     total_gb = total_size_bytes / (1024**3)
-    conservative = total_gb > 200 or mem_avail < 4096
+    conservative = total_gb > 200 or mem_avail < 4096 or use_ramdisk
 
     # Threads RAR: RAR é CPU+I/O bound e escala bem até ~32 threads
     if user_threads is not None:
@@ -89,6 +94,7 @@ def calculate_optimal_resources(
     # Threads parpar: escalamento revisado.
     # Jobs menores (<50GB) podem usar mais threads em segurança.
     # Jobs grandes escalam para baixo percentualmente para preservar largura de banda e evitar OOM/SIGSEGV.
+    # Com ramdisk: reduz ~30-40% para evitar sincronização pesada e deixar espaço em RAM.
     if user_threads is not None:
         par_threads = max(1, user_threads)
     elif total_gb > 200:
@@ -103,11 +109,19 @@ def calculate_optimal_resources(
         # Arquivos pequenos (<10GB) podem usar a maior parte da CPU sem estourar memória.
         par_threads = min(24, max(4, int(cpu * 0.75)))
 
+    # Com ramdisk ativo, reduz threads em ~30-40% (sincronização pesada em I/O lento)
+    if use_ramdisk and user_threads is None:
+        par_threads = max(4, int(par_threads * 0.65))
+
     # Memória: mantém ao menos 2GB livres para o sistema
+    # Com ramdisk: reduz 20% adicional (ramdisk consome espaço para PAR2 gerados)
     if user_memory_mb is not None:
         max_memory_mb = max(256, user_memory_mb)
     else:
         pct = 0.60 if conservative else 0.70
+        # Com ramdisk, reduz percentual de memória em 20% (ramdisk consome)
+        if use_ramdisk:
+            pct *= 0.80
         raw = int(mem_avail * pct)
         # Garantia de headroom mínimo para o sistema
         safe = min(raw, mem_avail - 2048)

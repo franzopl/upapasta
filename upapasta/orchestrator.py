@@ -1005,7 +1005,11 @@ class UpaPastaOrchestrator:
 
     def _recalculate_resources(self) -> tuple[dict[str, Any], str, str]:
         res, rar_src, par_src = recalculate_resources(
-            self.input_path, self._user_rar_threads, self._user_par_threads, self._user_memory_mb
+            self.input_path,
+            self._user_rar_threads,
+            self._user_par_threads,
+            self._user_memory_mb,
+            self.use_ramdisk,
         )
         if self._user_rar_threads is None:
             self.rar_threads = res["threads"]
