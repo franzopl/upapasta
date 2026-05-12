@@ -104,6 +104,14 @@ class UpaPastaOrchestrator:
         tmdb: bool = False,
         tmdb_id: Optional[int] = None,
         nfo_template: Optional[str] = None,
+        verify_uploads: bool = False,
+        check_delay: int = 5,
+        check_retry_delay: int = 30,
+        check_tries: int = 5,
+        check_host: Optional[str] = None,
+        check_port: Optional[int] = None,
+        check_user: Optional[str] = None,
+        check_password: Optional[str] = None,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -155,6 +163,14 @@ class UpaPastaOrchestrator:
         self.env_vars: dict[str, str] = {}
         self.generated_nzb: Optional[str] = None
         self.tmdb_data: Optional[dict[str, Any]] = None
+        self.verify_uploads = verify_uploads
+        self.check_delay = check_delay
+        self.check_retry_delay = check_retry_delay
+        self.check_tries = check_tries
+        self.check_host = check_host
+        self.check_port = check_port
+        self.check_user = check_user
+        self.check_password = check_password
 
     @classmethod
     def from_args(
@@ -248,6 +264,14 @@ class UpaPastaOrchestrator:
             tmdb=getattr(args, "tmdb", False),
             tmdb_id=getattr(args, "tmdb_id", None),
             nfo_template=getattr(args, "nfo_template", None) or env_vars.get("NFO_TEMPLATE"),
+            verify_uploads=getattr(args, "verify_uploads", False),
+            check_delay=getattr(args, "check_delay", 5),
+            check_retry_delay=getattr(args, "check_retry_delay", 30),
+            check_tries=getattr(args, "check_tries", 5),
+            check_host=getattr(args, "check_host", None),
+            check_port=getattr(args, "check_port", None),
+            check_user=getattr(args, "check_user", None),
+            check_password=getattr(args, "check_password", None),
         )
 
     @staticmethod
@@ -720,6 +744,14 @@ class UpaPastaOrchestrator:
                 resume=self.resume,
                 bar=bar,
                 nzb_out_abs=self.generated_nzb,
+                verify_uploads=self.verify_uploads,
+                check_delay=self.check_delay,
+                check_retry_delay=self.check_retry_delay,
+                check_tries=self.check_tries,
+                check_host=self.check_host,
+                check_port=self.check_port,
+                check_user=self.check_user,
+                check_password=self.check_password,
             )
             return rc == 0
         except (FileNotFoundError, PermissionError, OSError) as e:

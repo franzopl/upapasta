@@ -400,6 +400,63 @@ def parse_args() -> argparse.Namespace:
             "e faz upload apenas dos restantes, mesclando os NZBs ao final."
         ),
     )
+    advanced.add_argument(
+        "--verify-uploads",
+        action="store_true",
+        help=_(
+            "Verifica se cada post foi aceito pelo servidor antes de finalizar o upload. "
+            "Aumenta confiança de entrega. Usa banda de download da conta Usenet."
+        ),
+    )
+    advanced.add_argument(
+        "--check-delay",
+        type=int,
+        default=5,
+        metavar=_("N"),
+        help=_("Delay inicial (em segundos) antes de fazer a primeira verificação (padrão: 5)"),
+    )
+    advanced.add_argument(
+        "--check-retry-delay",
+        type=int,
+        default=30,
+        metavar=_("N"),
+        help=_("Delay entre tentativas de verificação (em segundos, padrão: 30)"),
+    )
+    advanced.add_argument(
+        "--check-tries",
+        type=int,
+        default=5,
+        metavar=_("N"),
+        help=_("Número máximo de tentativas de verificação (padrão: 5)"),
+    )
+    advanced.add_argument(
+        "--check-host",
+        default=None,
+        metavar=_("HOST"),
+        help=_(
+            "Servidor para verificação de posts (se diferente do servidor de upload). "
+            "Útil quando upload e verificação usam servidores diferentes."
+        ),
+    )
+    advanced.add_argument(
+        "--check-port",
+        type=int,
+        default=None,
+        metavar=_("N"),
+        help=_("Porta do servidor de verificação (padrão: mesmo do servidor de upload)"),
+    )
+    advanced.add_argument(
+        "--check-user",
+        default=None,
+        metavar=_("USER"),
+        help=_("Usuário para conta de verificação (padrão: mesmo do upload)"),
+    )
+    advanced.add_argument(
+        "--check-password",
+        default=None,
+        metavar=_("PASS"),
+        help=_("Senha para conta de verificação (padrão: mesmo do upload)"),
+    )
 
     return p.parse_args()
 

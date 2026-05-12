@@ -393,6 +393,14 @@ def upload_to_usenet(
     resume: bool = False,
     bar: Optional[PhaseBar] = None,
     nzb_out_abs: Optional[str] = None,
+    verify_uploads: bool = False,
+    check_delay: int = 5,
+    check_retry_delay: int = 30,
+    check_tries: int = 5,
+    check_host: Optional[str] = None,
+    check_port: Optional[int] = None,
+    check_user: Optional[str] = None,
+    check_password: Optional[str] = None,
 ) -> int:
     """
     Upload de arquivos para Usenet usando nyuu.
@@ -866,6 +874,19 @@ def upload_to_usenet(
                 cmd.append("-O")
             if upload_timeout is not None:
                 cmd.extend(["--timeout", str(upload_timeout)])
+            if verify_uploads:
+                cmd.extend(["--check-connections", "1"])
+                cmd.extend(["--check-delay", str(check_delay)])
+                cmd.extend(["--check-retry-delay", str(check_retry_delay)])
+                cmd.extend(["--check-tries", str(check_tries)])
+                if check_host:
+                    cmd.extend(["--check-host", check_host])
+                if check_port is not None:
+                    cmd.extend(["--check-port", str(check_port)])
+                if check_user:
+                    cmd.extend(["--check-user", check_user])
+                if check_password:
+                    cmd.extend(["--check-password", check_password])
             if nyuu_extra_args:
                 cmd.extend(nyuu_extra_args)
             # Arquivos a postar: restantes (resume) ou todos (upload normal)
