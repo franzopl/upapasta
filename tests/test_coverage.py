@@ -323,27 +323,27 @@ class TestMakeRar:
 
 class TestParseSize:
     def test_kilobytes(self):
-        from upapasta.makepar import _parse_size
+        from upapasta.par_utils import parse_size as _parse_size
 
         assert _parse_size("768K") == 768 * 1024
 
     def test_megabytes(self):
-        from upapasta.makepar import _parse_size
+        from upapasta.par_utils import parse_size as _parse_size
 
         assert _parse_size("1M") == 1024 * 1024
 
     def test_gigabytes(self):
-        from upapasta.makepar import _parse_size
+        from upapasta.par_utils import parse_size as _parse_size
 
         assert _parse_size("1G") == 1024**3
 
     def test_numero_puro(self):
-        from upapasta.makepar import _parse_size
+        from upapasta.par_utils import parse_size as _parse_size
 
         assert _parse_size("100") == 100
 
     def test_vazio_levanta(self):
-        from upapasta.makepar import _parse_size
+        from upapasta.par_utils import parse_size as _parse_size
 
         with pytest.raises(ValueError):
             _parse_size("")
@@ -351,24 +351,24 @@ class TestParseSize:
 
 class TestFmtSize:
     def test_megabytes_exato(self):
-        from upapasta.makepar import _fmt_size
+        from upapasta.par_utils import fmt_size as _fmt_size
 
         assert _fmt_size(2 * 1024 * 1024) == "2M"
 
     def test_kilobytes_exato(self):
-        from upapasta.makepar import _fmt_size
+        from upapasta.par_utils import fmt_size as _fmt_size
 
         assert _fmt_size(512 * 1024) == "512K"
 
     def test_bytes_puros(self):
-        from upapasta.makepar import _fmt_size
+        from upapasta.par_utils import fmt_size as _fmt_size
 
         assert _fmt_size(1234) == "1234"
 
 
 class TestComputeDynamicSlice:
     def test_pequeno_50gb(self):
-        from upapasta.makepar import _compute_dynamic_slice
+        from upapasta.par_utils import compute_dynamic_slice as _compute_dynamic_slice
 
         article_size = 786432  # 768K
         slice_str, min_slices, max_slices = _compute_dynamic_slice(10 * 1024**3, article_size)
@@ -376,25 +376,25 @@ class TestComputeDynamicSlice:
         assert max_slices == 12000
 
     def test_medio_100gb(self):
-        from upapasta.makepar import _compute_dynamic_slice
+        from upapasta.par_utils import compute_dynamic_slice as _compute_dynamic_slice
 
         slice_str, min_slices, _ = _compute_dynamic_slice(80 * 1024**3, 786432)
         assert min_slices == 80
 
     def test_grande_200gb(self):
-        from upapasta.makepar import _compute_dynamic_slice
+        from upapasta.par_utils import compute_dynamic_slice as _compute_dynamic_slice
 
         slice_str, min_slices, _ = _compute_dynamic_slice(150 * 1024**3, 786432)
         assert min_slices == 100
 
     def test_enorme_acima_200gb(self):
-        from upapasta.makepar import _compute_dynamic_slice
+        from upapasta.par_utils import compute_dynamic_slice as _compute_dynamic_slice
 
         slice_str, min_slices, _ = _compute_dynamic_slice(250 * 1024**3, 786432)
         assert min_slices == 120
 
     def test_clamp_maximo_4mib(self):
-        from upapasta.makepar import _compute_dynamic_slice
+        from upapasta.par_utils import compute_dynamic_slice as _compute_dynamic_slice
 
         # Artigo enorme → clamp em 4 MiB
         slice_str, _, _ = _compute_dynamic_slice(10 * 1024**3, 10 * 1024 * 1024)
@@ -405,7 +405,7 @@ class TestComputeDynamicSlice:
 
 class TestGetParparMemoryLimit:
     def test_retorna_valor_ou_none(self):
-        from upapasta.makepar import get_parpar_memory_limit
+        from upapasta.par_utils import get_parpar_memory_limit
 
         result = get_parpar_memory_limit()
         # Pode ser None em ambientes sem /proc/meminfo, ou uma string "NNM"/"NNG"
@@ -414,7 +414,7 @@ class TestGetParparMemoryLimit:
             assert result.endswith("M") or result.endswith("G")
 
     def test_fallback_em_excecao(self):
-        from upapasta.makepar import get_parpar_memory_limit
+        from upapasta.par_utils import get_parpar_memory_limit
 
         with patch("builtins.open", side_effect=OSError):
             result = get_parpar_memory_limit()

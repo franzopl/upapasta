@@ -48,120 +48,20 @@ from typing import TYPE_CHECKING, Optional, Tuple
 from ._process import managed_popen
 from ._progress import _process_output, _read_output
 from .i18n import _
+from .par_utils import (
+    compute_dynamic_slice,
+    fmt_size,
+    get_article_size_bytes,
+    get_parpar_memory_limit,
+    parse_size,
+)
 from .profiles import DEFAULT_PROFILE, PROFILES
 from .tools import get_tool_path
 
 if TYPE_CHECKING:
     from .ui import PhaseBar
 
-# ── Helpers de tamanho ────────────────────────────────────────────────────────
-
-
-def _parse_size(s: str) -> int:
-    """Converte string de tamanho (ex: '700K', '1M', '768000') para bytes."""
-    s = str(s).strip()
-    if not s:
-        raise ValueError("string de tamanho vazia")
-    unit = s[-1].upper()
-    if unit == "K":
-        return int(float(s[:-1]) * 1024)
-    if unit == "M":
-        return int(float(s[:-1]) * 1024 * 1024)
-    if unit == "G":
-        return int(float(s[:-1]) * 1024 * 1024 * 1024)
-    return int(float(s))
-
-
-def _fmt_size(b: int) -> str:
-    """Formata bytes para string compacta (ex: 1572864 → '1536K' ou '1M')."""
-    if b % (1024 * 1024) == 0:
-        return f"{b // (1024 * 1024)}M"
-    if b % 1024 == 0:
-        return f"{b // 1024}K"
-    return str(b)
-
-
-# ── Leitura de ARTICLE_SIZE do .env ──────────────────────────────────────────
-
-
-def _get_article_size_bytes() -> int:
-    """
-    Lê ARTICLE_SIZE do ~/.config/upapasta/.env.
-    Retorna o valor em bytes. Fallback: 786432 (768K).
-    """
-    try:
-        from .config import DEFAULT_ENV_FILE, load_env_file
-
-        env = load_env_file(DEFAULT_ENV_FILE)
-        raw = env.get("ARTICLE_SIZE", "").strip()
-        if raw:
-            return _parse_size(raw)
-    except Exception:
-        pass
-    return 786432  # 768K
-
-
-# ── Cálculo dinâmico de slice size ────────────────────────────────────────────
-
-
-def _compute_dynamic_slice(total_bytes: int, article_size: int) -> Tuple[str, int, int]:
-    """
-    Calcula slice size, min-input-slices e max-input-slices para parpar.
-
-    Regras:
-      base_slice = article_size * 2
-      ≤ 50 GB  → base_slice           (min_slices=60)
-      ≤ 100 GB → base_slice * 1.5     (min_slices=80)
-      ≤ 200 GB → base_slice * 2       (min_slices=100)
-      > 200 GB → base_slice * 2.5     (min_slices=120)
-
-    Clamp final: mínimo 1 MiB, máximo 4 MiB.
-    max_input_slices fixo em 12000 (limite seguro para NZBGet/SABnzbd).
-
-    Retorna (slice_str, min_slices, max_slices).
-    """
-    GB = 1024**3
-    base = article_size * 2  # ex: 768K → 1.536M
-
-    if total_bytes <= 50 * GB:
-        slice_bytes = base
-        min_slices = 60
-    elif total_bytes <= 100 * GB:
-        slice_bytes = int(base * 1.5)
-        min_slices = 80
-    elif total_bytes <= 200 * GB:
-        slice_bytes = base * 2
-        min_slices = 100
-    else:
-        slice_bytes = int(base * 2.5)
-        min_slices = 120
-
-    # Clamp: 1 MiB ≤ slice ≤ 4 MiB
-    slice_bytes = max(1024 * 1024, min(slice_bytes, 4 * 1024 * 1024))
-
-    return _fmt_size(slice_bytes), min_slices, 12000
-
-
 # ── Memória disponível ────────────────────────────────────────────────────────
-
-
-def get_parpar_memory_limit() -> Optional[str]:
-    """
-    Retorna limite de memória seguro para parpar (75% da RAM livre).
-    Mínimo 256M, máximo 3G. Retorna None se não conseguir detectar.
-    """
-    try:
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemAvailable:"):
-                    kb = int(line.split()[1])
-                    safe_mb = max(256, min(int((kb // 1024) * 0.75), 3 * 1024))
-                    if safe_mb >= 1024 and safe_mb % 1024 == 0:
-                        return f"{safe_mb // 1024}G"
-                    return f"{safe_mb}M"
-    except Exception:
-        pass
-    return None
 
 
 # ── Obfuscação ────────────────────────────────────────────────────────────────
@@ -477,12 +377,25 @@ def rename_par2_files(
     parent_dir: str, actual_par_input: str, is_rar_vol_set: bool, random_base: str
 ) -> None:
     """Renomeia .par2 criados com nome original para o nome ofuscado."""
-    orig_stem = os.path.splitext(os.path.basename(actual_par_input))[0]
+    # Se actual_par_input já for um nome base (string), usa ele.
+    # Se for caminho completo, pega o stem.
+    if os.sep in actual_par_input or (os.altsep and os.altsep in actual_par_input):
+        orig_stem = os.path.splitext(os.path.basename(actual_par_input))[0]
+    else:
+        orig_stem = os.path.splitext(actual_par_input)[0]
+
     if is_rar_vol_set:
         orig_stem = orig_stem.rsplit(".part", 1)[0]
+
     for p_file in glob.glob(os.path.join(parent_dir, glob.escape(orig_stem) + "*.par2")):
-        p_suffix = os.path.basename(p_file)[len(orig_stem) :]
+        p_base = os.path.basename(p_file)
+        # Pega tudo após o stem original (ex: ".vol00+01.par2")
+        p_suffix = p_base[len(orig_stem) :]
         new_p_path = os.path.join(parent_dir, random_base + p_suffix)
+
+        if os.path.abspath(p_file) == os.path.abspath(new_p_path):
+            continue
+
         if os.path.exists(new_p_path):
             try:
                 os.remove(new_p_path)
@@ -490,8 +403,8 @@ def rename_par2_files(
                 pass
         try:
             os.replace(p_file, new_p_path)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"  ⚠️ Falha ao renomear paridade {p_base}: {e}")
 
 
 def deep_obfuscate_tree(path: str) -> dict[str, str]:
@@ -681,6 +594,8 @@ def make_parity(
     parpar_extra_args: Optional[list[str]] = None,
     dry_run: bool = False,
     bar: Optional[PhaseBar] = None,
+    output_dir: Optional[str] = None,
+    input_names: Optional[list[str]] = None,
 ) -> int:
     """
     Gera arquivos .par2 para rar_path (arquivo único, volume set ou pasta).
@@ -735,7 +650,11 @@ def make_parity(
     if is_rar_volume_set:
         name_no_ext = name_no_ext.rsplit(".part", 1)[0]
 
-    out_par2 = os.path.join(parent, name_no_ext + ".par2")
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        out_par2 = os.path.join(output_dir, name_no_ext + ".par2")
+    else:
+        out_par2 = os.path.join(parent, name_no_ext + ".par2")
 
     if os.path.exists(out_par2) and not force:
         print(f"Erro: '{out_par2}' já existe. Use --force para sobrescrever.")
@@ -789,14 +708,14 @@ def make_parity(
     if chosen == "parpar":
         total_bytes = sum(os.path.getsize(f) for f in files_to_process if os.path.isfile(f))
         if used_slice is None:
-            article_size = _get_article_size_bytes()
-            used_slice, min_input_slices, max_input_slices = _compute_dynamic_slice(
+            article_size = get_article_size_bytes()
+            used_slice, min_input_slices, max_input_slices = compute_dynamic_slice(
                 total_bytes, article_size
             )
             if not bar:
                 total_gb = total_bytes / (1024**3)
                 print(
-                    f"  [parpar] ARTICLE_SIZE={_fmt_size(article_size)} | "
+                    f"  [parpar] ARTICLE_SIZE={fmt_size(article_size)} | "
                     f"total={total_gb:.1f} GB → slice={used_slice} "
                     f"min-slices={min_input_slices} max-slices={max_input_slices}"
                 )
@@ -820,7 +739,7 @@ def make_parity(
         # (parpar rejeita min-input-slices se o arquivo for menor que slice*min_slices)
         if (
             min_input_slices is not None
-            and total_bytes >= _parse_size(used_slice or "1M") * min_input_slices
+            and total_bytes >= parse_size(used_slice or "1M") * min_input_slices
         ):
             cmd.append(f"--min-input-slices={min_input_slices}")
         if max_input_slices is not None:
@@ -836,7 +755,13 @@ def make_parity(
         if parpar_extra_args:
             cmd.extend(parpar_extra_args)
         cmd.extend(["-o", out_par2])
-        cmd.extend(files_to_process)
+
+        # Se temos nomes alternativos (para deofuscação via PAR2), usamos --input-name
+        if input_names and len(input_names) == len(files_to_process):
+            for orig_name, current_path in zip(input_names, files_to_process):
+                cmd.extend(["--input-name", orig_name, current_path])
+        else:
+            cmd.extend(files_to_process)
     else:
         cmd = [exe_path, "create", f"-r{redundancy}", out_par2] + files_to_process
 
