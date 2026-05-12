@@ -93,3 +93,12 @@ INDEX.md
 # Local test venv
 .venv_test
 scripts/post_upload_nzbfelipe.sh
+
+# Pastas e arquivos gerados por testes ou uploads locais
+test_hardlinks_dir/
+test_folder_obfuscation_dir/
+*.upapasta-state.json
+ROADMAP_ON_THE_FLY_PAR2.md
+*.mkv
+*.mp4
+*.avi

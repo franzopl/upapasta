@@ -1,6 +1,7 @@
 import io
 import os
 import shutil
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -10,24 +11,17 @@ from upapasta.orchestrator import UpaPastaOrchestrator
 
 class TestFolderObfuscation(unittest.TestCase):
     def setUp(self):
-        self.test_dir = Path("test_folder_obfuscation_dir")
-        self.test_dir.mkdir(exist_ok=True)
+        self._tmpdir = tempfile.mkdtemp()
+        self.test_dir = Path(self._tmpdir) / "test_folder_obfuscation_dir"
+        self.test_dir.mkdir()
         self.sub_dir = self.test_dir / "sub"
-        self.sub_dir.mkdir(exist_ok=True)
+        self.sub_dir.mkdir()
         self.test_file = self.sub_dir / "file.txt"
         with open(self.test_file, "w") as f:
             f.write("This is a test file inside a sub-folder.")
 
     def tearDown(self):
-        if self.test_dir.exists():
-            shutil.rmtree(self.test_dir)
-        # Remove pasta ofuscada (nome aleatório de 12 chars) que possa ter sobrado
-        for item in Path(".").glob("*"):
-            if item.is_dir() and len(item.name) == 12 and item.name.isalnum():
-                shutil.rmtree(item, ignore_errors=True)
-            # Remove par2 files gerados
-            if item.is_file() and item.suffix == ".par2" and len(item.stem) >= 12:
-                item.unlink(missing_ok=True)
+        shutil.rmtree(self._tmpdir, ignore_errors=True)
 
     @patch("upapasta.orchestrator.check_or_prompt_credentials")
     @patch("upapasta.upfolder.find_nyuu", return_value="/usr/local/bin/nyuu")

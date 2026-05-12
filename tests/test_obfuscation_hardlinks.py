@@ -1,6 +1,7 @@
 import io
 import os
 import shutil
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -10,22 +11,16 @@ from upapasta.orchestrator import UpaPastaOrchestrator
 
 class TestObfuscationHardlinks(unittest.TestCase):
     def setUp(self):
-        self.test_dir = Path("test_hardlinks_dir")
-        self.test_dir.mkdir(exist_ok=True)
+        self._tmpdir = tempfile.mkdtemp()
+        self.test_dir = Path(self._tmpdir) / "test_hardlinks_dir"
+        self.test_dir.mkdir()
         self.test_file = self.test_dir / "video.mkv"
         with open(self.test_file, "w") as f:
             f.write("dummy video data")
         self.original_inode = self.test_file.stat().st_ino
 
     def tearDown(self):
-        if self.test_dir.exists():
-            shutil.rmtree(self.test_dir)
-        # Cleanup any leftover obfuscated dirs
-        for item in Path(".").glob("*"):
-            if item.is_dir() and len(item.name) == 12 and item.name.isalnum():
-                shutil.rmtree(item, ignore_errors=True)
-            if item.is_file() and item.suffix == ".par2":
-                item.unlink(missing_ok=True)
+        shutil.rmtree(self._tmpdir, ignore_errors=True)
 
     @patch("upapasta.orchestrator.check_or_prompt_credentials")
     @patch("upapasta.upfolder.find_nyuu", return_value="/usr/local/bin/nyuu")
