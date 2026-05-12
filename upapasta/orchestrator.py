@@ -328,14 +328,25 @@ class UpaPastaOrchestrator:
 
             orch_temp = object.__new__(cls)
             orch_temp.input_target = input_path
+            orch_temp.redundancy = None
+            orch_temp.skip_rar = True
             try:
                 estimated_par2 = orch_temp._estimate_par2_size()
-            except Exception:
-                estimated_par2 = 0
+            except Exception as e:
+                return (
+                    False,
+                    _("💾 Ramdisk não disponível: erro ao estimar tamanho PAR2 ({error})").format(
+                        error=e
+                    ),
+                )
 
             if estimated_par2 == 0:
-                return False, _(
-                    "💾 Ramdisk não disponível: não foi possível estimar tamanho do PAR2"
+                return (
+                    False,
+                    _(
+                        "💾 Ramdisk não disponível: não foi possível calcular "
+                        "tamanho do PAR2 (input vazio ou inacessível?)"
+                    ),
                 )
 
             margin = 0.35
@@ -1010,6 +1021,7 @@ class UpaPastaOrchestrator:
         """
         try:
             if not self.input_target:
+                logger.debug("Estimativa PAR2: input_target não foi definido, retornando 0")
                 return 0
             target = self.input_target
             redundancy = self.redundancy or 10
@@ -1021,9 +1033,13 @@ class UpaPastaOrchestrator:
             else:
                 total_bytes = os.path.getsize(target)
             par2_estimate = int(total_bytes * (redundancy / 100))
+            logger.debug(
+                f"Estimativa PAR2: {total_bytes / (1024**3):.1f} GB entrada × "
+                f"{redundancy}% = {par2_estimate / (1024**3):.1f} GB"
+            )
             return max(par2_estimate, 50 * 1024 * 1024)
         except Exception as e:
-            logger.warning(_("Não foi possível estimar tamanho PAR2: {e}").format(e=e))
+            logger.debug(f"Estimativa PAR2 falhou: {type(e).__name__}: {e}")
             return 0
 
     def _setup_ramdisk(self) -> Optional[str]:
