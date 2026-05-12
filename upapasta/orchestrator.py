@@ -1114,7 +1114,8 @@ class UpaPastaOrchestrator:
             base = os.path.basename(self.input_target)
             name_no_ext = base if os.path.isdir(self.input_target) else os.path.splitext(base)[0]
 
-            par2_pattern = os.path.join(self.ramdisk_path, name_no_ext + "*.par2")
+            # Escapar caracteres especiais em glob (ex: [2020] não deve ser classe de caracteres)
+            par2_pattern = os.path.join(self.ramdisk_path, glob.escape(name_no_ext) + "*.par2")
             par2_files = glob.glob(par2_pattern)
 
             if not par2_files:

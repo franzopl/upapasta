@@ -724,7 +724,7 @@ def make_parity(
 
     # ── Montagem do comando ───────────────────────────────────────────────────
     if force:
-        for f in glob.glob(os.path.join(parent, name_no_ext + "*.par2")):
+        for f in glob.glob(os.path.join(parent, glob.escape(name_no_ext) + "*.par2")):
             try:
                 os.remove(f)
             except Exception:
