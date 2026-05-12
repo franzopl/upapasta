@@ -772,10 +772,20 @@ def make_parity(
     msg = _("Criando paridade para {input} -> '{out}' ({red}%)...").format(
         input=input_desc, out=os.path.basename(out_par2), red=redundancy
     )
+
+    # Mostrar threads/memória que serão utilizados
+    cpu_count = os.cpu_count() or 4
+    num_threads = threads if threads is not None else (os.cpu_count() or 4)
+    msg_resources = f"  Processadores: {num_threads}/{cpu_count}"
+    if memory_mb:
+        msg_resources += f" | RAM: {memory_mb}MB"
+
     if bar:
         bar.log(msg)
+        bar.log(msg_resources)
     else:
         print(msg)
+        print(msg_resources)
 
     if dry_run:
         print("[DRY-RUN] Comando PAR2:")
