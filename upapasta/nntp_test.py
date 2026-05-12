@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import ssl
 import sys
+import warnings
 from typing import Any
 
 from .i18n import _
 
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*nntplib.*")
 try:
     import nntplib
 except ImportError:

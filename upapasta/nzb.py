@@ -159,7 +159,9 @@ def inject_nzb_password(nzb_path: str, password: str) -> None:
         tree = ET.parse(nzb_path)
         root = tree.getroot()
 
-        head = root.find(f"{{{ns}}}head") or root.find("head")
+        head = root.find(f"{{{ns}}}head")
+        if head is None:
+            head = root.find("head")
         if head is None:
             head = ET.Element(f"{{{ns}}}head")
             root.insert(0, head)
@@ -188,7 +190,9 @@ def enrich_nzb_metadata(nzb_path: str, metadata: dict[str, Any]) -> None:
         tree = ET.parse(nzb_path)
         root = tree.getroot()
 
-        head = root.find(f"{{{ns}}}head") or root.find("head")
+        head = root.find(f"{{{ns}}}head")
+        if head is None:
+            head = root.find("head")
         if head is None:
             head = ET.Element(f"{{{ns}}}head")
             root.insert(0, head)
