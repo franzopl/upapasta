@@ -281,19 +281,116 @@ class UpaPastaOrchestrator:
             use_ramdisk=getattr(args, "use_ramdisk", False),
         )
 
-        # Validação de SO e setup do ramdisk
-        if orch.use_ramdisk:
-            import platform
+        # ── Validação e auto-ativação de ramdisk ──────────────────────────────
+        import platform
 
-            if platform.system() != "Linux":
+        use_ramdisk_explicit = getattr(args, "use_ramdisk", False)
+        no_ramdisk_explicit = getattr(args, "no_ramdisk", False)
+
+        if platform.system() != "Linux":
+            if use_ramdisk_explicit:
                 logger.warning(
                     _(
                         "--use-ramdisk é suportado apenas em Linux. Flag será ignorado nesta plataforma."
                     )
                 )
-                orch.use_ramdisk = False
+            orch.use_ramdisk = False
+        elif no_ramdisk_explicit:
+            orch.use_ramdisk = False
+        elif use_ramdisk_explicit:
+            orch.use_ramdisk = True
+        else:
+            orch.use_ramdisk = cls._should_enable_ramdisk_auto(input_path)
 
         return orch
+
+    @classmethod
+    def _should_enable_ramdisk_auto(cls, input_path: str) -> bool:
+        """
+        Decide se deve ativar ramdisk automaticamente.
+        Valida: SO, filesystem suporte, RAM disponível.
+        """
+        try:
+            import platform
+
+            if platform.system() != "Linux":
+                return False
+
+            dev_shm = "/dev/shm"
+            if not os.path.exists(dev_shm):
+                return False
+
+            input_dir = os.path.dirname(os.path.abspath(input_path))
+
+            if not cls._test_symlink_support(input_dir):
+                logger.warning(
+                    _(
+                        "⚠️  Sistema de arquivos não suporta symlinks. "
+                        "--use-ramdisk não disponível neste diretório."
+                    )
+                )
+                return False
+
+            stat_shm = os.statvfs(dev_shm)
+            available_bytes = stat_shm.f_bavail * stat_shm.f_frsize
+
+            orch_temp = object.__new__(cls)
+            orch_temp.input_target = input_path
+            try:
+                estimated_par2 = orch_temp._estimate_par2_size()
+            except Exception:
+                estimated_par2 = 0
+
+            if estimated_par2 == 0:
+                return False
+
+            margin = 0.35
+            required_bytes = int(estimated_par2 * (1 + margin))
+
+            if available_bytes >= required_bytes:
+                available_gb = available_bytes / (1024**3)
+                required_gb = required_bytes / (1024**3)
+                logger.info(
+                    _(
+                        "💾 Ramdisk ativado automaticamente "
+                        "({avail:.1f}GB > {req:.1f}GB com margem 35%)"
+                    ).format(avail=available_gb, req=required_gb)
+                )
+                return True
+            else:
+                logger.debug(
+                    _(
+                        "RAM insuficiente para ramdisk: {avail:.1f}GB < {req:.1f}GB necessário"
+                    ).format(avail=available_bytes / (1024**3), req=required_bytes / (1024**3))
+                )
+                return False
+
+        except Exception as e:
+            logger.debug(_("Erro ao verificar ramdisk automático: {e}").format(e=e))
+            return False
+
+    @staticmethod
+    def _test_symlink_support(test_dir: str) -> bool:
+        """
+        Testa se o filesystem suporta symlinks.
+        Cria symlink de teste e remove se bem-sucedido.
+        """
+        try:
+            test_link = os.path.join(test_dir, ".upapasta_symlink_test")
+            test_target = os.path.join(test_dir, ".upapasta_symlink_target")
+
+            Path(test_target).touch()
+            os.symlink(test_target, test_link)
+            os.remove(test_link)
+            os.remove(test_target)
+            return True
+        except (OSError, NotImplementedError):
+            try:
+                Path(test_target).unlink(missing_ok=True)
+                Path(test_link).unlink(missing_ok=True)
+            except Exception:
+                pass
+            return False
 
     @staticmethod
     def _generate_password(length: int = 16) -> str:

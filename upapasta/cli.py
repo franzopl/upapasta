@@ -461,9 +461,16 @@ def parse_args() -> argparse.Namespace:
         "--use-ramdisk",
         action="store_true",
         help=_(
-            "[Linux only] Gera arquivos PAR2 em /dev/shm (tmpfs), acelerando I/O em disco. "
-            "Em outros SOs, um aviso será exibido e o flag será ignorado. "
-            "Requer espaço livre em RAM igual ou maior que o tamanho dos PAR2 gerados."
+            "[Linux only] Força uso de ramdisk para PAR2. "
+            "Normalmente ativado automaticamente se RAM suficiente e filesystem suporta symlinks."
+        ),
+    )
+    advanced.add_argument(
+        "--no-ramdisk",
+        action="store_true",
+        help=_(
+            "[Linux only] Desativa ramdisk mesmo se RAM suficiente. "
+            "Útil para forçar geração de PAR2 em disco."
         ),
     )
 
