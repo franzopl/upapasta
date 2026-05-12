@@ -15,6 +15,7 @@ import re
 import subprocess
 from typing import Any, Optional
 
+from ._process import managed_popen
 from .i18n import _
 from .tools import get_tool_path
 
@@ -48,6 +49,19 @@ def _format_size(size_bytes: int) -> str:
     return f"{size_float:.2f} TB"
 
 
+def _run_command(cmd: list[str], encoding: str = "utf-8", errors: str = "ignore") -> str:
+    """Executa um comando com managed_popen e retorna stdout como string."""
+    output = ""
+    try:
+        with managed_popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as proc:
+            stdout, _stderr = proc.communicate()
+            if proc.returncode == 0:
+                output = stdout
+    except Exception:
+        pass
+    return output
+
+
 def _get_video_info(file_path: str) -> tuple[float, dict[str, Any]]:
     """Retorna (duration_seconds, metadata) com uma única chamada ao ffprobe.
 
@@ -79,10 +93,8 @@ def _get_video_info(file_path: str) -> tuple[float, dict[str, Any]]:
             "json",
             file_path,
         ]
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", check=True
-        )
-        data = _json.loads(result.stdout)
+        output = _run_command(cmd)
+        data = _json.loads(output) if output else {}
         fmt = data.get("format", {})
         try:
             duration = float(fmt.get("duration") or 0)
@@ -320,13 +332,7 @@ def generate_nfo_from_template(
         if mi_target:
             mi_exe = find_mediainfo()
             if mi_exe:
-                try:
-                    res = subprocess.run(
-                        [mi_exe, mi_target], capture_output=True, text=True, check=True
-                    )
-                    mediainfo_content = res.stdout
-                except Exception:
-                    pass
+                mediainfo_content = _run_command([mi_exe, mi_target]) or "N/A"
 
         # 5. Substituição
         with open(template_path, "r", encoding="utf-8", errors="ignore") as tf:
@@ -367,10 +373,10 @@ def generate_nfo_single_file(
         return False
 
     try:
-        proc = subprocess.run(
-            [mediainfo_path, input_path], capture_output=True, text=True, check=True
-        )
-        output = proc.stdout
+        output = _run_command([mediainfo_path, input_path])
+        if not output:
+            print(_("Atenção: falha ao gerar NFO com mediainfo: {error}").format(error="sem saída"))
+            return False
 
         video_exts = (".mkv", ".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm")
         if os.path.splitext(input_path)[1].lower() in video_exts:
@@ -382,7 +388,7 @@ def generate_nfo_single_file(
                     lines.append(f"{parts[0]}: {filename_only}")
                 else:
                     lines.append(line)
-            output = "\n".join(lines) + ("\n" if proc.stdout.endswith("\n") else "")
+            output = "\n".join(lines) + ("\n" if output.endswith("\n") else "")
 
         if tmdb_metadata:
             tmdb_lines = _format_tmdb_section(tmdb_metadata)

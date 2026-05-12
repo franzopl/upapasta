@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from ._process import managed_popen
 from .i18n import _
 
 # ── Detecção de categoria ────────────────────────────────────────────────────
@@ -267,17 +268,12 @@ def run_post_upload_hook(
     )
 
     try:
-        # shell=True permite comandos complexos e funciona melhor para hooks cross-platform
-        result = subprocess.run(
-            script,
-            env=hook_env,
-            timeout=60,
-            check=False,
-            shell=True,
-        )
-        if result.returncode != 0:
-            print(_("⚠️  POST_UPLOAD_SCRIPT saiu com código {rc}").format(rc=result.returncode))
-    except subprocess.TimeoutExpired:
-        print(_("⚠️  POST_UPLOAD_SCRIPT ultrapassou o timeout de 60s"))
+        with managed_popen(script, env=hook_env, shell=True) as proc:
+            try:
+                returncode = proc.wait(timeout=60)
+                if returncode != 0:
+                    print(_("⚠️  POST_UPLOAD_SCRIPT saiu com código {rc}").format(rc=returncode))
+            except subprocess.TimeoutExpired:
+                print(_("⚠️  POST_UPLOAD_SCRIPT ultrapassou o timeout de 60s"))
     except OSError as e:
         print(_("⚠️  Falha ao executar POST_UPLOAD_SCRIPT: {error}").format(error=e))

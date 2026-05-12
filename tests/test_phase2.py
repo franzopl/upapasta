@@ -525,7 +525,7 @@ class TestNfoMultiTrack:
     def test_get_video_info_parses_json_output(self, tmp_path, monkeypatch):
         """_get_video_info parseia corretamente o JSON do ffprobe."""
         import json
-        import subprocess
+        from contextlib import contextmanager
 
         import upapasta.nfo as nfo_mod
 
@@ -547,11 +547,17 @@ class TestNfoMultiTrack:
             }
         )
 
-        class FakeResult:
-            stdout = ffprobe_output
+        class FakeProc:
             returncode = 0
 
-        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FakeResult())
+            def communicate(self):
+                return ffprobe_output, ""
+
+        @contextmanager
+        def fake_managed_popen(*args, **kwargs):
+            yield FakeProc()
+
+        monkeypatch.setattr(nfo_mod, "managed_popen", fake_managed_popen)
         monkeypatch.setattr(nfo_mod, "find_ffprobe", lambda: "ffprobe")
         duration, meta = nfo_mod._get_video_info("fakefile.mkv")
         assert duration == pytest.approx(3600.0)
