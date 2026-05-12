@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.34.1 - 2026-05-12
+
+### Fixes
+- **Default Behavior Correction**: Fixed folder-to-RAR auto-compression regression. Folders now upload directly without compression by default (2026 behavior per CLAUDE.md), matching the documented behavior. Use `--rar`, `--7z`, or `--compress` to explicitly enable compression.
+- **Ramdisk Feedback**: Added visual feedback when ramdisk is activated (`💾 Configurando ramdisk para PAR2 (zero-copy)...`), making it clear when PAR2 generation uses RAM instead of disk.
+- **Simplified Compression Logic**: Removed redundant obfuscation-specific compression check; compression decision now depends solely on explicit flags.
+
 ## 0.34.0 - 2026-05-12
 
 ### Features
