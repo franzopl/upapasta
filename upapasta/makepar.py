@@ -468,7 +468,7 @@ def obfuscate_and_par(
             input_path, random_base=random_base
         )
 
-        # 3. Renomeia PAR2
+        # 3. Renomeia PAR2 para nome aleatório (internamente preserva referências aos nomes reais)
         rename_par2_files(parent_dir, input_path, is_rar_vol_set, random_base)
 
         # 4. Deep obfuscation

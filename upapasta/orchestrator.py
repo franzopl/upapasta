@@ -201,6 +201,15 @@ class UpaPastaOrchestrator:
         if getattr(args, "skip_rar_deprecated", False):
             skip_pack = True
 
+        # Se --obfuscate sem compressor explícito, não criar RAR (usar parpar direto)
+        if getattr(args, "obfuscate", False) and not (
+            getattr(args, "rar", False)
+            or getattr(args, "sevenzip", False)
+            or getattr(args, "compress", False)
+            or args.password
+        ):
+            skip_pack = True
+
         return cls(
             input_path=input_path,
             dry_run=args.dry_run,
@@ -558,7 +567,7 @@ class UpaPastaOrchestrator:
             self.obfuscated_map = obf_map
             self.obfuscate_was_linked = was_linked
 
-            # 2. Renomeia .par2 para bater com o novo random_base
+            # 2. Renomeia .par2 para nome aleatório (internamente preserva referências reais)
             parent_dir = os.path.dirname(input_target_before)
             is_folder = os.path.isdir(input_target_before)
             is_rar_vol_set = (
