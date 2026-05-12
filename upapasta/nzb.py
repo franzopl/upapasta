@@ -368,12 +368,17 @@ def fix_nzb_subjects(
                 file_options = seg_to_files.get(nzb_segs)
                 if file_options:
                     current_filename = file_options.pop(0)
+                    if not file_options:
+                        del seg_to_files[nzb_segs]
                 else:
                     # Vizinho mais próximo se a contagem exata não existir (raro)
-                    closest_seg = min(seg_to_files.keys(), key=lambda k: abs(k - nzb_segs))
-                    current_filename = seg_to_files[closest_seg].pop(0)
-                    if not seg_to_files[closest_seg]:
-                        del seg_to_files[closest_seg]
+                    if seg_to_files:
+                        closest_seg = min(seg_to_files.keys(), key=lambda k: abs(k - nzb_segs))
+                        current_filename = seg_to_files[closest_seg].pop(0)
+                        if not seg_to_files[closest_seg]:
+                            del seg_to_files[closest_seg]
+                    else:
+                        current_filename = None
                 prefix, suffix = "", ""
             elif from_file_list:
                 # Index-based: usado quando file_sizes não está disponível (ex: testes, --season)
