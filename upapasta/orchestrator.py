@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import logging
 import os
 import re
@@ -987,6 +988,57 @@ class UpaPastaOrchestrator:
             self.ramdisk_path = None
             return None
 
+    def _copy_par2_from_ramdisk(self) -> bool:
+        """
+        Copia arquivos PAR2 do ramdisk para o disco.
+        Necessário antes de ofuscação ou upload quando --use-ramdisk é ativo.
+        """
+        if not self.ramdisk_path or not os.path.exists(self.ramdisk_path):
+            return True
+
+        try:
+            assert self.input_target is not None, _("input_target não foi configurado")
+            input_dir = os.path.dirname(self.input_target)
+            base = os.path.basename(self.input_target)
+            name_no_ext = base if os.path.isdir(self.input_target) else os.path.splitext(base)[0]
+
+            par2_pattern = os.path.join(self.ramdisk_path, name_no_ext + "*.par2")
+            par2_files = glob.glob(par2_pattern)
+
+            if not par2_files:
+                logger.warning(
+                    _("Nenhum arquivo PAR2 encontrado no ramdisk: {pattern}").format(
+                        pattern=par2_pattern
+                    )
+                )
+                return False
+
+            copied_count = 0
+            for src in par2_files:
+                dst = os.path.join(input_dir, os.path.basename(src))
+                try:
+                    shutil.copy2(src, dst)
+                    logger.debug(_("PAR2 copiado: {src} → {dst}").format(src=src, dst=dst))
+                    copied_count += 1
+                except Exception as e:
+                    logger.warning(
+                        _("Falha ao copiar PAR2 {src}: {error}").format(src=src, error=e)
+                    )
+                    return False
+
+            if copied_count > 0:
+                logger.info(
+                    _("Copiados {count} arquivo(s) PAR2 do ramdisk para disco").format(
+                        count=copied_count
+                    )
+                )
+                self.par_file = os.path.join(input_dir, name_no_ext + ".par2")
+            return True
+
+        except Exception as e:
+            logger.warning(_("Erro ao copiar PAR2 do ramdisk: {error}").format(error=e))
+            return False
+
     def _cleanup_ramdisk(self) -> None:
         """Remove o ramdisk temporário se foi criado."""
         if self.ramdisk_path and os.path.exists(self.ramdisk_path):
@@ -1108,6 +1160,13 @@ class UpaPastaOrchestrator:
                 bar.done("PAR2")
             else:
                 if not self.run_makepar(bar=bar):
+                    self._cleanup_on_error()
+                    return 2
+
+            # ── CÓPIA DO RAMDISK (se necessário) ──────────────────────────────────
+            if self.ramdisk_path and (self.obfuscate or not self.skip_upload):
+                if not self._copy_par2_from_ramdisk():
+                    bar.error("PAR2")
                     self._cleanup_on_error()
                     return 2
 
