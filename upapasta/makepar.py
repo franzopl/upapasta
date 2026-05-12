@@ -731,7 +731,7 @@ def make_parity(
                 pass
 
     if chosen == "parpar":
-        cmd = [exe_path, "--progress", "stderr"]
+        cmd = [exe_path]
         cmd.append(f"-s{used_slice or '1M'}")
         if use_auto_scale:
             cmd.append("-S")
