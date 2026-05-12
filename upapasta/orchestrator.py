@@ -283,43 +283,48 @@ class UpaPastaOrchestrator:
                 )
             orch.use_ramdisk = False
         elif no_ramdisk_explicit:
+            logger.info(_("💾 Ramdisk desativado explicitamente (--no-ramdisk)"))
             orch.use_ramdisk = False
         elif use_ramdisk_explicit:
             orch.use_ramdisk = True
         else:
-            orch.use_ramdisk = cls._should_enable_ramdisk_auto(input_path)
+            orch.use_ramdisk, reason = cls._should_enable_ramdisk_auto(input_path)
+            if not orch.use_ramdisk and reason:
+                logger.info(reason)
 
         return orch
 
     @classmethod
-    def _should_enable_ramdisk_auto(cls, input_path: str) -> bool:
+    def _should_enable_ramdisk_auto(cls, input_path: str) -> tuple[bool, str | None]:
         """
         Decide se deve ativar ramdisk automaticamente.
         Valida: SO, filesystem suporte, RAM disponível.
+        Retorna: (ativado: bool, motivo_se_desativado: str | None)
         """
         try:
             import platform
 
             if platform.system() != "Linux":
-                return False
+                return False, _("💾 Ramdisk disponível apenas em Linux")
 
             dev_shm = "/dev/shm"
             if not os.path.exists(dev_shm):
-                return False
+                return False, _("💾 Ramdisk não disponível: /dev/shm não encontrado")
 
             input_dir = os.path.dirname(os.path.abspath(input_path))
 
             if not cls._test_symlink_support(input_dir):
-                logger.warning(
+                return (
+                    False,
                     _(
-                        "⚠️  Sistema de arquivos não suporta symlinks. "
-                        "--use-ramdisk não disponível neste diretório."
-                    )
+                        "💾 Ramdisk não disponível: filesystem não suporta symlinks "
+                        "(tente em ext4, BTRFS, NFS ou WSL em NTFS)"
+                    ),
                 )
-                return False
 
             stat_shm = os.statvfs(dev_shm)
             available_bytes = stat_shm.f_bavail * stat_shm.f_frsize
+            available_gb = available_bytes / (1024**3)
 
             orch_temp = object.__new__(cls)
             orch_temp.input_target = input_path
@@ -329,32 +334,33 @@ class UpaPastaOrchestrator:
                 estimated_par2 = 0
 
             if estimated_par2 == 0:
-                return False
+                return False, _(
+                    "💾 Ramdisk não disponível: não foi possível estimar tamanho do PAR2"
+                )
 
             margin = 0.35
             required_bytes = int(estimated_par2 * (1 + margin))
+            required_gb = required_bytes / (1024**3)
 
             if available_bytes >= required_bytes:
-                available_gb = available_bytes / (1024**3)
-                required_gb = required_bytes / (1024**3)
                 logger.info(
                     _(
                         "💾 Ramdisk ativado automaticamente "
                         "({avail:.1f}GB > {req:.1f}GB com margem 35%)"
                     ).format(avail=available_gb, req=required_gb)
                 )
-                return True
+                return True, None
             else:
-                logger.debug(
+                return (
+                    False,
                     _(
-                        "RAM insuficiente para ramdisk: {avail:.1f}GB < {req:.1f}GB necessário"
-                    ).format(avail=available_bytes / (1024**3), req=required_bytes / (1024**3))
+                        "💾 Ramdisk não disponível: RAM insuficiente "
+                        "({avail:.1f}GB < {req:.1f}GB necessário com margem 35%)"
+                    ).format(avail=available_gb, req=required_gb),
                 )
-                return False
 
         except Exception as e:
-            logger.debug(_("Erro ao verificar ramdisk automático: {e}").format(e=e))
-            return False
+            return False, _("💾 Ramdisk não disponível: erro ao validar ({e})").format(e=e)
 
     @staticmethod
     def _test_symlink_support(test_dir: str) -> bool:
