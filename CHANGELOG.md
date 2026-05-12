@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.34.0 - 2026-05-12
+
+### Features
+- **Ramdisk Support for PAR2 Generation** (Linux-only): Added `--use-ramdisk` flag to generate PAR2 files in `/dev/shm` (tmpfs), eliminating disk I/O during the compute-intensive PAR2 generation phase. Uses zero-copy symlinks for transparent integration with obfuscation and upload workflows.
+- **Automatic Ramdisk Activation**: When not explicitly disabled, ramdisk is automatically activated if RAM is available (with 35% safety margin) and the filesystem supports symlinks. No flag required for safe operation.
+- **Filesystem Symlink Validation**: System validates that the input directory's filesystem supports symlinks before enabling ramdisk. Displays clear warning if unavailable and gracefully falls back to disk-based PAR2 generation.
+- **Memory Safety with Fallback**: Pre-validation ensures estimated PAR2 size + 35% margin fits in available RAM. If memory runs out during generation, automatically falls back to disk without data loss.
+
+### Enhancements
+- **Smart Memory Detection**: Estimates PAR2 size based on input size and redundancy percentage. Validates before ramdisk creation and logs available vs. required space.
+- **Improved Logging**: Auto-activation events are logged with clear INFO messages showing RAM utilized vs. available. Filesystem issues are reported as warnings. Memory shortages are debug-level to avoid noise.
+- **CLI Flags**: Added `--no-ramdisk` to explicitly disable ramdisk even when conditions are ideal (useful for testing or systems with memory contention).
+
+### Fixes
+- **Cross-filesystem Symlinks**: Fixed issue where PAR2 generated in ramdisk weren't accessible during obfuscation. Now uses transparent symlinks (ramdisk → disk) that nyuu reads directly from RAM without copy overhead.
+- **NZB Conflict Handling**: Corrected symlink removal logic to only remove ramdisk-sourced symlinks, preventing accidental deletion of user PAR2 files.
+
+### Validation & Safety
+- Tested symlink support on ext4, NTFS (via WSL), tmpfs with identical MD5 checksums
+- Validated zero-copy behavior: nyuu reads full content via symlink without intermediate copies
+- 35% memory margin prevents out-of-memory errors in multi-tasking scenarios
+- Automatic fallback to disk on any ramdisk failure ensures reliability
+
 ## 0.33.0 - 2026-05-10
 
 ### Features
