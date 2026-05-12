@@ -552,6 +552,7 @@ class TestNfoMultiTrack:
             returncode = 0
 
         monkeypatch.setattr(subprocess, "run", lambda *a, **kw: FakeResult())
+        monkeypatch.setattr(nfo_mod, "find_ffprobe", lambda: "ffprobe")
         duration, meta = nfo_mod._get_video_info("fakefile.mkv")
         assert duration == pytest.approx(3600.0)
         assert meta["codec"] == "h264"
