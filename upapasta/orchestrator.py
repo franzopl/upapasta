@@ -864,6 +864,7 @@ class UpaPastaOrchestrator:
         do_cleanup_files(self.rar_file, self.par_file, self.keep_files, on_error, preserve_rar)
 
     def cleanup(self) -> None:
+        self._cleanup_par2_symlinks()
         self._cleanup_ramdisk()
         self._do_cleanup(on_error=False)
 
@@ -871,6 +872,7 @@ class UpaPastaOrchestrator:
         if self._extensionless_map:
             revert_extensionless(self._extensionless_map)
             self._extensionless_map = {}
+        self._cleanup_par2_symlinks()
         self._cleanup_ramdisk()
         self._do_cleanup(on_error=True, preserve_rar=preserve_rar)
         self._revert_obfuscation()
@@ -988,10 +990,11 @@ class UpaPastaOrchestrator:
             self.ramdisk_path = None
             return None
 
-    def _copy_par2_from_ramdisk(self) -> bool:
+    def _create_par2_symlinks(self) -> bool:
         """
-        Copia arquivos PAR2 do ramdisk para o disco.
-        Necessário antes de ofuscação ou upload quando --use-ramdisk é ativo.
+        Cria symlinks do ramdisk para disco (zero-copy).
+        Permite upload/ofuscação ler PAR2 de RAM sem cópia de dados.
+        Symlinks transparentes: nyuu lê conteúdo real via link.
         """
         if not self.ramdisk_path or not os.path.exists(self.ramdisk_path):
             return True
@@ -1013,31 +1016,60 @@ class UpaPastaOrchestrator:
                 )
                 return False
 
-            copied_count = 0
+            symlink_count = 0
             for src in par2_files:
                 dst = os.path.join(input_dir, os.path.basename(src))
                 try:
-                    shutil.copy2(src, dst)
-                    logger.debug(_("PAR2 copiado: {src} → {dst}").format(src=src, dst=dst))
-                    copied_count += 1
+                    if os.path.exists(dst) or os.path.islink(dst):
+                        os.remove(dst)
+                    os.symlink(src, dst)
+                    logger.debug(_("Symlink PAR2: {dst} → {src}").format(dst=dst, src=src))
+                    symlink_count += 1
                 except Exception as e:
                     logger.warning(
-                        _("Falha ao copiar PAR2 {src}: {error}").format(src=src, error=e)
+                        _("Falha ao criar symlink PAR2 {dst}: {error}").format(dst=dst, error=e)
                     )
                     return False
 
-            if copied_count > 0:
+            if symlink_count > 0:
                 logger.info(
-                    _("Copiados {count} arquivo(s) PAR2 do ramdisk para disco").format(
-                        count=copied_count
+                    _("Criados {count} symlink(s) PAR2 (zero-copy, leitura de RAM)").format(
+                        count=symlink_count
                     )
                 )
                 self.par_file = os.path.join(input_dir, name_no_ext + ".par2")
             return True
 
         except Exception as e:
-            logger.warning(_("Erro ao copiar PAR2 do ramdisk: {error}").format(error=e))
+            logger.warning(_("Erro ao criar symlinks PAR2 do ramdisk: {error}").format(error=e))
             return False
+
+    def _cleanup_par2_symlinks(self) -> None:
+        """Remove symlinks PAR2 criados do ramdisk (após upload completado)."""
+        if not self.input_target:
+            return
+
+        try:
+            input_dir = os.path.dirname(self.input_target)
+            base = os.path.basename(self.input_target)
+            name_no_ext = base if os.path.isdir(self.input_target) else os.path.splitext(base)[0]
+
+            par2_pattern = os.path.join(input_dir, name_no_ext + "*.par2")
+            for par2_file in glob.glob(par2_pattern):
+                if os.path.islink(par2_file):
+                    target = os.readlink(par2_file)
+                    if self.ramdisk_path and self.ramdisk_path in target:
+                        try:
+                            os.remove(par2_file)
+                            logger.debug(_("Symlink PAR2 removido: {f}").format(f=par2_file))
+                        except Exception as e:
+                            logger.warning(
+                                _("Falha ao remover symlink {f}: {error}").format(
+                                    f=par2_file, error=e
+                                )
+                            )
+        except Exception as e:
+            logger.debug(_("Erro ao limpar symlinks PAR2: {error}").format(error=e))
 
     def _cleanup_ramdisk(self) -> None:
         """Remove o ramdisk temporário se foi criado."""
@@ -1163,9 +1195,9 @@ class UpaPastaOrchestrator:
                     self._cleanup_on_error()
                     return 2
 
-            # ── CÓPIA DO RAMDISK (se necessário) ──────────────────────────────────
+            # ── SYMLINKS DO RAMDISK (zero-copy) ─────────────────────────────────
             if self.ramdisk_path and (self.obfuscate or not self.skip_upload):
-                if not self._copy_par2_from_ramdisk():
+                if not self._create_par2_symlinks():
                     bar.error("PAR2")
                     self._cleanup_on_error()
                     return 2
