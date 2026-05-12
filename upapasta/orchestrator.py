@@ -7,7 +7,9 @@ import os
 import re
 import secrets
 import shlex
+import shutil
 import string
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Optional
@@ -112,6 +114,7 @@ class UpaPastaOrchestrator:
         check_port: Optional[int] = None,
         check_user: Optional[str] = None,
         check_password: Optional[str] = None,
+        use_ramdisk: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -171,6 +174,8 @@ class UpaPastaOrchestrator:
         self.check_port = check_port
         self.check_user = check_user
         self.check_password = check_password
+        self.use_ramdisk = use_ramdisk
+        self.ramdisk_path: Optional[str] = None
 
     @classmethod
     def from_args(
@@ -226,7 +231,7 @@ class UpaPastaOrchestrator:
         ):
             skip_pack = True
 
-        return cls(
+        orch = cls(
             input_path=input_path,
             dry_run=args.dry_run,
             redundancy=args.redundancy,
@@ -272,7 +277,22 @@ class UpaPastaOrchestrator:
             check_port=getattr(args, "check_port", None),
             check_user=getattr(args, "check_user", None),
             check_password=getattr(args, "check_password", None),
+            use_ramdisk=getattr(args, "use_ramdisk", False),
         )
+
+        # Validação de SO e setup do ramdisk
+        if orch.use_ramdisk:
+            import platform
+
+            if platform.system() != "Linux":
+                logger.warning(
+                    _(
+                        "--use-ramdisk é suportado apenas em Linux. Flag será ignorado nesta plataforma."
+                    )
+                )
+                orch.use_ramdisk = False
+
+        return orch
 
     @staticmethod
     def _generate_password(length: int = 16) -> str:
@@ -634,13 +654,21 @@ class UpaPastaOrchestrator:
             print(_("🔐 Gerando paridade (perfil: {profile})...").format(profile=self.par_profile))
             print("-" * 60)
         assert self.input_target is not None, _("input_target não foi configurado")
-        self.par_file = (
-            os.path.join(
-                os.path.dirname(self.input_target), os.path.basename(self.input_target) + ".par2"
+
+        # Se ramdisk foi configurado, o PAR2 será gerado lá
+        if self.ramdisk_path:
+            base = os.path.basename(self.input_target)
+            name_no_ext = base if os.path.isdir(self.input_target) else os.path.splitext(base)[0]
+            self.par_file = os.path.join(self.ramdisk_path, name_no_ext + ".par2")
+        else:
+            self.par_file = (
+                os.path.join(
+                    os.path.dirname(self.input_target),
+                    os.path.basename(self.input_target) + ".par2",
+                )
+                if os.path.isdir(self.input_target)
+                else resolver.par_file_path(self.input_target)
             )
-            if os.path.isdir(self.input_target)
-            else resolver.par_file_path(self.input_target)
-        )
         try:
             rc = make_parity(
                 self.input_target,
@@ -657,6 +685,7 @@ class UpaPastaOrchestrator:
                 parpar_extra_args=self.parpar_extra_args,
                 dry_run=self.dry_run,
                 bar=bar,
+                output_dir=self.ramdisk_path,
             )
         except (FileNotFoundError, PermissionError, OSError) as e:
             if not bar:
@@ -763,12 +792,14 @@ class UpaPastaOrchestrator:
         do_cleanup_files(self.rar_file, self.par_file, self.keep_files, on_error, preserve_rar)
 
     def cleanup(self) -> None:
+        self._cleanup_ramdisk()
         self._do_cleanup(on_error=False)
 
     def _cleanup_on_error(self, preserve_rar: bool = False) -> None:
         if self._extensionless_map:
             revert_extensionless(self._extensionless_map)
             self._extensionless_map = {}
+        self._cleanup_ramdisk()
         self._do_cleanup(on_error=True, preserve_rar=preserve_rar)
         self._revert_obfuscation()
 
@@ -807,6 +838,52 @@ class UpaPastaOrchestrator:
             self.par_threads = res["par_threads"]
         self.par_memory_mb = res["max_memory_mb"]
         return res, rar_src, par_src
+
+    def _setup_ramdisk(self) -> Optional[str]:
+        """
+        Configura tmpfs em /dev/shm para geração de PAR2.
+        Retorna o caminho do ramdisk ou None se falhar/desativado.
+        """
+        if not self.use_ramdisk or self.dry_run:
+            return None
+
+        try:
+            # Verifica se /dev/shm existe e tem espaço disponível
+            dev_shm = "/dev/shm"
+            if not os.path.exists(dev_shm):
+                logger.warning(_("/dev/shm não encontrado. Ramdisk desativado."))
+                return None
+
+            stat = os.statvfs(dev_shm)
+            available_bytes = stat.f_bavail * stat.f_frsize
+            available_gb = available_bytes / (1024**3)
+
+            # Cria diretório temporário em /dev/shm
+            ramdisk_dir = tempfile.mkdtemp(prefix="upapasta_par2_", dir=dev_shm)
+            logger.info(
+                _("Ramdisk criado em {path} ({avail:.1f} GB disponível)").format(
+                    path=ramdisk_dir, avail=available_gb
+                )
+            )
+            self.ramdisk_path = ramdisk_dir
+            return ramdisk_dir
+        except Exception as e:
+            logger.warning(
+                _("Falha ao configurar ramdisk: {error}. Continuando sem ramdisk.").format(error=e)
+            )
+            self.ramdisk_path = None
+            return None
+
+    def _cleanup_ramdisk(self) -> None:
+        """Remove o ramdisk temporário se foi criado."""
+        if self.ramdisk_path and os.path.exists(self.ramdisk_path):
+            try:
+                shutil.rmtree(self.ramdisk_path)
+                logger.debug(_("Ramdisk removido: {path}").format(path=self.ramdisk_path))
+            except Exception as e:
+                logger.warning(_("Falha ao remover ramdisk: {error}").format(error=e))
+            finally:
+                self.ramdisk_path = None
 
     def run(self) -> int:
         total_start = time.time()
@@ -905,6 +982,9 @@ class UpaPastaOrchestrator:
                 self._extensionless_map = normalize_extensionless(target)
 
             # ── PAR2 ─────────────────────────────────────────────────────────────
+            if self.use_ramdisk and not self.skip_par:
+                self._setup_ramdisk()
+
             if not self.skip_par:
                 bar.start("PAR2")
                 if not self.run_makepar(bar=bar):

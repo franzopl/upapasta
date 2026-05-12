@@ -457,6 +457,15 @@ def parse_args() -> argparse.Namespace:
         metavar=_("PASS"),
         help=_("Senha para conta de verificação (padrão: mesmo do upload)"),
     )
+    advanced.add_argument(
+        "--use-ramdisk",
+        action="store_true",
+        help=_(
+            "[Linux only] Gera arquivos PAR2 em /dev/shm (tmpfs), acelerando I/O em disco. "
+            "Em outros SOs, um aviso será exibido e o flag será ignorado. "
+            "Requer espaço livre em RAM igual ou maior que o tamanho dos PAR2 gerados."
+        ),
+    )
 
     return p.parse_args()
 
