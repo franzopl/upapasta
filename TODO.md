@@ -2,7 +2,7 @@
 
 Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 
-> Last review: 2026-05-09 (Windows & 7z support done, nearing v1.0.0)
+> Last review: 2026-05-12 (v1.0.0 criteria met, focus on post-release roadmap)
 > Principle: fix first, expand later. Stability > new features.
 
 ---
@@ -25,6 +25,8 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 - **JSONL Catalog + NZB archiving via hardlink** (0.12.0)
 - **Random group pool** (0.11.0)
 - **`from_args` classmethod** (0.12.0) — single mapping point for args→orchestrator
+- **Test coverage: `nntp_test.py`** (2026-05-12, commit 2621649) — 13 testes, 95% cobertura
+- **Test coverage: `tools.py`** (2026-05-12, commit 2621649) — 12 testes, 67% cobertura (parcial)
 
 ---
 
@@ -105,6 +107,61 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 
 ---
 
+## 🎯 Post-v1.0.0 Roadmap
+
+### Current Focus (High Priority)
+
+**Test Coverage Completeness:**
+- [ ] **Aumentar cobertura de `tools.py`** (67% → 90%+)
+  - Linhas não cobertas: 87-100 (download_rar logic), 104-122 (platform-specific paths)
+  - Adicionar testes para: `download_rar` (Windows/Linux/macOS), paths de fallback, edge cases
+
+**Technical Debt Backlog (conforme CLAUDE.md):**
+- [ ] **Dívida #1**: `nfo.py` + `catalog.py` ainda usam `subprocess.run` direto para ffprobe/mediainfo/hooks
+  - Migrar para `managed_popen` para consistência (tolerado agora, prioridade baixa)
+- [ ] **Validar**: `subprocess.run` em `nfo.py:X` para `mediainfo`
+- [ ] **Validar**: `subprocess.run` em `catalog.py:Y` para hook do usuário com timeout
+
+### Medium Priority (Post-RC)
+
+**3.8 · Interactive TUI mode** (`--interactive`)
+- Menu de histórico com seleção de NZB anterior
+- Upload simplificado via interface interativa
+- Estimativa de tempo/tamanho pré-upload
+- **Effort**: High (~1.5k linhas)
+
+**Feature: `--resume` / Upload Parcial**
+- Rastrear chunks já uploadeados
+- Permitir continuar falhas de upload
+- Reuse de PAR2 existente
+- **Effort**: High (~2k linhas + state persistence)
+
+**Feature: Múltiplos servidores NNTP (failover)**
+- Pool com retry automático entre servidores
+- Health check periódico
+- Fallback inteligente
+- **Effort**: Medium (~800 linhas)
+
+**Feature: ETA de upload pré-pipeline**
+- Estimativa antes de PAR2/compressão
+- Exibição no dashboard
+- Cálculo baseado em speed histórica
+- **Effort**: Low (~200 linhas)
+
+### Low Priority (Future Versions)
+
+**3.16 · Migrate to Python 3.10+ in `requires-python`**
+- Ativa: `match/case`, `tomllib`, `ParamSpec`
+- Remove: `from __future__ import annotations`
+- **Effort**: Low (~300 linhas de refactor)
+
+**Performance Optimizations**
+- Lazy loading de metadados TMDb
+- Caching de tool discovery
+- Parallel NZB generation para `--each`
+
+---
+
 ## 📋 Summary of Priorities
 
 | Phase | Version | Focus | Key items |
@@ -112,7 +169,11 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 | 1-2 | v0.25.0 | Core | Stability, i18n, Processes, Validation |
 | 3 | v0.31.0 | Features | TMDb, 7z, Webhooks, Windows |
 | Final | v1.0.0 | Packaging | NFO Templates, Python Hooks, 100% QA |
+| Next | v1.1.0+ | Polish + Features | Test coverage, TUI, Resume, Failover |
 
-**Final push to v1.0.0** (in order):
-1. **Validation** → 100% Documentation & Testing focus
-2. **Launch** → v1.0.0 stable
+**Current State (2026-05-12):**
+- ✅ v1.0.0 criteria fully met
+- ✅ 521 testes (100% pass rate)
+- ✅ Green CI/CD (ruff + mypy + pytest)
+- 📍 Focus: Aumentar cobertura de `tools.py` (67% → 90%+)
+- 📍 Next: Post-release features (TUI, resume, failover)
