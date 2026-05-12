@@ -1306,7 +1306,9 @@ class UpaPastaOrchestrator:
                     return 2
 
             # ── SYMLINKS DO RAMDISK (zero-copy) ─────────────────────────────────
-            if self.ramdisk_path and (self.obfuscate or not self.skip_upload):
+            # Sempre criar symlinks se ramdisk está ativo, para que upload/obfuscation
+            # possam acessar os PAR2 de RAM em vez de disco (zero-copy).
+            if self.ramdisk_path:
                 if not self._create_par2_symlinks():
                     bar.error("PAR2")
                     self._cleanup_on_error()
