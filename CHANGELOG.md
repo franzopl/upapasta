@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.34.3 - 2026-05-12
+
+### Fixes
+- **Version Display**: Fixed version number in CLI output (`UpaPasta v0.34.3` now shows correct version instead of hardcoded 0.34.0)
+- **PAR2 Estimation Diagnostics**: Improved logging for PAR2 size estimation:
+  - Show detailed calculation in debug logs: `{input_size} GB × {redundancy}% = {estimate} GB`
+  - Capture and log specific exception type when estimation fails
+  - Initialize missing attributes (`redundancy`, `skip_rar`) in temporary estimation object
+  - Better error messages when estimation returns 0
+- **Ramdisk Validation**: Enhanced error reporting in ramdisk auto-detection when estimation fails
+
 ## 0.34.2 - 2026-05-12
 
 ### Enhancements
