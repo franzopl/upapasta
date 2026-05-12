@@ -235,3 +235,134 @@ class TestManagedPopen:
         ) as proc:
             rc = proc.wait()
             assert rc == 42
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific test")
+    def test_windows_creationflags_added_on_win32(self):
+        """No Windows, deve adicionar CREATE_NO_WINDOW por padrão."""
+        from unittest.mock import MagicMock
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+
+        with patch("upapasta._process.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = mock_proc
+
+            # Simular Windows alterando sys.platform temporariamente
+            with patch.object(sys, "platform", "win32"):
+                try:
+                    with managed_popen("cmd.exe"):
+                        pass
+                except Exception:
+                    pass
+
+                # Verificar que creationflags foi adicionado
+                call_kwargs = mock_popen.call_args[1]
+                assert "creationflags" in call_kwargs
+                assert call_kwargs["creationflags"] == 0x08000000
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific test")
+    def test_windows_shell_enabled_on_win32(self):
+        """No Windows, deve ativar shell=True por padrão."""
+        from unittest.mock import MagicMock
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+
+        with patch("upapasta._process.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = mock_proc
+
+            with patch.object(sys, "platform", "win32"):
+                try:
+                    with managed_popen("cmd.exe"):
+                        pass
+                except Exception:
+                    pass
+
+                call_kwargs = mock_popen.call_args[1]
+                assert "shell" in call_kwargs
+                assert call_kwargs["shell"] is True
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific test")
+    def test_windows_creationflags_not_overridden(self):
+        """Se creationflags já foi fornecido, não deve sobrescrever."""
+        from unittest.mock import MagicMock
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        custom_flags = 0x00000001
+
+        with patch("upapasta._process.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = mock_proc
+
+            with patch.object(sys, "platform", "win32"):
+                try:
+                    with managed_popen("cmd", creationflags=custom_flags):
+                        pass
+                except Exception:
+                    pass
+
+                call_kwargs = mock_popen.call_args[1]
+                assert call_kwargs["creationflags"] == custom_flags
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific test")
+    def test_windows_shell_not_overridden(self):
+        """Se shell já foi fornecido, não deve sobrescrever."""
+        from unittest.mock import MagicMock
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+
+        with patch("upapasta._process.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = mock_proc
+
+            with patch.object(sys, "platform", "win32"):
+                try:
+                    with managed_popen("cmd", shell=False):
+                        pass
+                except Exception:
+                    pass
+
+                call_kwargs = mock_popen.call_args[1]
+                assert call_kwargs["shell"] is False
+
+    def test_timeout_expired_fallback_to_kill(self):
+        """TimeoutExpired durante wait deve chamar kill."""
+        from unittest.mock import MagicMock
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        # Primeira chamada de wait() (após terminate) causa TimeoutExpired
+        # Segunda chamada de wait() (após kill) retorna normalmente
+        mock_proc.wait.side_effect = [
+            subprocess.TimeoutExpired("cmd", 5),
+            None,  # Sucesso após kill
+        ]
+
+        _terminate_process(mock_proc, timeout=0.001)
+
+        # Deve ter chamado terminate, depois kill
+        assert mock_proc.terminate.called
+        assert mock_proc.kill.called
+
+    def test_oserror_during_terminate(self):
+        """OSError durante terminate deve ser tratado gracefully."""
+        from unittest.mock import MagicMock
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        mock_proc.terminate.side_effect = OSError("Sem permissão")
+
+        # Não deve lançar exceção
+        _terminate_process(mock_proc)
+
+        assert mock_proc.terminate.called
+
+    def test_oserror_during_wait_after_kill(self):
+        """OSError após kill deve ser tratado gracefully."""
+        from unittest.mock import MagicMock
+
+        mock_proc = MagicMock(spec=subprocess.Popen)
+        mock_proc.poll.return_value = None
+        mock_proc.wait.side_effect = subprocess.TimeoutExpired("cmd", 5)
+        mock_proc.kill.side_effect = OSError("Sem permissão")
+
+        # Não deve lançar exceção
+        _terminate_process(mock_proc, timeout=0.001)
+
+        assert mock_proc.kill.called
