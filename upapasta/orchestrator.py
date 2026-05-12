@@ -698,6 +698,77 @@ class UpaPastaOrchestrator:
             return False
 
         if rc != 0:
+            if self.ramdisk_path:
+                dev_shm_stat = os.statvfs("/dev/shm")
+                available = dev_shm_stat.f_bavail * dev_shm_stat.f_frsize
+                estimated_used = self._estimate_par2_size()
+
+                if available < (estimated_used * 0.1):
+                    logger.warning(
+                        _("Ramdisk possivelmente sem espaço. Retentando com geração em disco...")
+                    )
+                    if bar:
+                        bar.log(_("⚠️ Ramdisk sem espaço. Continuando em disco..."))
+
+                    self._cleanup_ramdisk()
+                    self.use_ramdisk = False
+                    self.ramdisk_path = None
+                    self.force = True
+
+                    self.par_file = (
+                        os.path.join(
+                            os.path.dirname(self.input_target),
+                            os.path.basename(self.input_target) + ".par2",
+                        )
+                        if os.path.isdir(self.input_target)
+                        else resolver.par_file_path(self.input_target)
+                    )
+
+                    rc = make_parity(
+                        self.input_target,
+                        redundancy=self.redundancy,
+                        force=True,
+                        backend=self.backend,
+                        usenet=True,
+                        post_size=self.post_size,
+                        threads=self.par_threads,
+                        profile=self.par_profile,
+                        slice_size=self.par_slice_size,
+                        memory_mb=self.par_memory_mb,
+                        filepath_format=self.filepath_format,
+                        parpar_extra_args=self.parpar_extra_args,
+                        dry_run=self.dry_run,
+                        bar=bar,
+                        output_dir=None,
+                    )
+
+                    if rc != 0:
+                        if not bar:
+                            print("-" * 60)
+                            print(
+                                _("\n❌ Erro ao gerar paridade em disco (código {rc}).").format(
+                                    rc=rc
+                                )
+                            )
+                        assert self.input_target is not None, _("input_target não foi configurado")
+                        return handle_par_failure(
+                            input_target=self.input_target,
+                            original_rc=rc,
+                            redundancy=self.redundancy,
+                            backend=self.backend,
+                            post_size=self.post_size,
+                            threads=self.par_threads,
+                            memory_mb=self.par_memory_mb,
+                            slice_size=self.par_slice_size,
+                            rar_file=self.rar_file,
+                            par_profile=self.par_profile,
+                            bar=bar,
+                        )
+
+                    if not bar:
+                        print("-" * 60)
+                    return True
+
             if not bar:
                 print("-" * 60)
                 print(_("\n❌ Erro ao gerar paridade (código {rc}).").format(rc=rc))
@@ -839,38 +910,80 @@ class UpaPastaOrchestrator:
         self.par_memory_mb = res["max_memory_mb"]
         return res, rar_src, par_src
 
+    def _estimate_par2_size(self) -> int:
+        """
+        Estima o tamanho total dos arquivos PAR2 que serão gerados.
+        Retorna bytes. Fórmula: tamanho_entrada * (redundância / 100)
+        """
+        try:
+            if not self.input_target:
+                return 0
+            target = self.input_target
+            redundancy = self.redundancy or 10
+            total_bytes = 0
+            if os.path.isdir(target):
+                for root, _, files in os.walk(target):
+                    for f in files:
+                        total_bytes += os.path.getsize(os.path.join(root, f))
+            else:
+                total_bytes = os.path.getsize(target)
+            par2_estimate = int(total_bytes * (redundancy / 100))
+            return max(par2_estimate, 50 * 1024 * 1024)
+        except Exception as e:
+            logger.warning(_("Não foi possível estimar tamanho PAR2: {e}").format(e=e))
+            return 0
+
     def _setup_ramdisk(self) -> Optional[str]:
         """
         Configura tmpfs em /dev/shm para geração de PAR2.
-        Retorna o caminho do ramdisk ou None se falhar/desativado.
+        Valida espaço disponível vs. estimativa de PAR2.
+        Retorna caminho do ramdisk ou None se não houver espaço/falha.
         """
         if not self.use_ramdisk or self.dry_run:
             return None
 
         try:
-            # Verifica se /dev/shm existe e tem espaço disponível
             dev_shm = "/dev/shm"
             if not os.path.exists(dev_shm):
                 logger.warning(_("/dev/shm não encontrado. Ramdisk desativado."))
+                self.use_ramdisk = False
                 return None
 
             stat = os.statvfs(dev_shm)
             available_bytes = stat.f_bavail * stat.f_frsize
             available_gb = available_bytes / (1024**3)
 
-            # Cria diretório temporário em /dev/shm
+            par2_estimate = self._estimate_par2_size()
+            par2_estimate_gb = par2_estimate / (1024**3)
+
+            margin = 0.2
+            required_bytes = int(par2_estimate * (1 + margin))
+
+            if available_bytes < required_bytes:
+                logger.warning(
+                    _(
+                        "--use-ramdisk desativado: PAR2 estimado em {est:.1f} GB "
+                        "mas há apenas {avail:.1f} GB disponível (mínimo: {req:.1f} GB com margem)"
+                    ).format(
+                        est=par2_estimate_gb, avail=available_gb, req=required_bytes / (1024**3)
+                    )
+                )
+                self.use_ramdisk = False
+                return None
+
             ramdisk_dir = tempfile.mkdtemp(prefix="upapasta_par2_", dir=dev_shm)
             logger.info(
-                _("Ramdisk criado em {path} ({avail:.1f} GB disponível)").format(
-                    path=ramdisk_dir, avail=available_gb
-                )
+                _(
+                    "Ramdisk criado em {path} (estimado {est:.1f} GB, {avail:.1f} GB disponível)"
+                ).format(path=ramdisk_dir, est=par2_estimate_gb, avail=available_gb)
             )
             self.ramdisk_path = ramdisk_dir
             return ramdisk_dir
-        except Exception as e:
+        except OSError as e:
             logger.warning(
-                _("Falha ao configurar ramdisk: {error}. Continuando sem ramdisk.").format(error=e)
+                _("Erro ao configurar ramdisk ({e}). Continuando sem ramdisk.").format(e=e)
             )
+            self.use_ramdisk = False
             self.ramdisk_path = None
             return None
 
