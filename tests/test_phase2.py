@@ -30,7 +30,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from upapasta._progress import _process_output, _read_output
-from upapasta.nntp_test import test_nntp_connection as _check_nntp
+from upapasta.nntp_test import check_nntp_connection as _check_nntp
 from upapasta.orchestrator import UpaPastaOrchestrator
 from upapasta.resources import get_total_size
 from upapasta.ui import setup_logging

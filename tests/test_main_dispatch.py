@@ -124,7 +124,7 @@ class TestMainTestConnectionDispatch:
                         "NNTP_SSL": "true",
                     }
 
-                    with patch("upapasta.main.test_nntp_connection") as mock_test:
+                    with patch("upapasta.main.check_nntp_connection") as mock_test:
                         mock_test.return_value = (True, "✅ Connected")
                         with pytest.raises(SystemExit) as exc_info:
                             main()
@@ -154,7 +154,7 @@ class TestMainTestConnectionDispatch:
                         "NNTP_SSL": "false",
                     }
 
-                    with patch("upapasta.main.test_nntp_connection") as mock_test:
+                    with patch("upapasta.main.check_nntp_connection") as mock_test:
                         mock_test.return_value = (False, "❌ Connection failed")
                         with pytest.raises(SystemExit) as exc_info:
                             main()

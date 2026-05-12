@@ -20,7 +20,7 @@ except ImportError:
     nntplib = None  # type: ignore[assignment]
 
 
-def test_nntp_connection(
+def check_nntp_connection(
     host: str,
     port: int,
     use_ssl: bool,

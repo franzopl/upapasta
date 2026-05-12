@@ -16,7 +16,7 @@ from .catalog import print_stats
 from .cli import _USAGE_SHORT, _validate_flags, check_dependencies, parse_args
 from .config import check_or_prompt_credentials, load_env_file, resolve_env_file
 from .i18n import _
-from .nntp_test import test_nntp_connection
+from .nntp_test import check_nntp_connection
 from .orchestrator import UpaPastaOrchestrator, UpaPastaSession
 from .ui import setup_logging, setup_session_log, teardown_session_log
 from .watch import _watch_loop
@@ -127,7 +127,7 @@ def main() -> None:
         if not all(env_vars.get(k) for k in ["NNTP_HOST", "NNTP_PORT", "NNTP_USER", "NNTP_PASS"]):
             print(_("❌ Incomplete credentials. Run 'upapasta --config' first."))
             sys.exit(1)
-        success, message = test_nntp_connection(
+        success, message = check_nntp_connection(
             host=env_vars["NNTP_HOST"],
             port=int(env_vars["NNTP_PORT"]),
             use_ssl=env_vars.get("NNTP_SSL", "true").lower() in ("true", "1", "yes"),
