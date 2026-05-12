@@ -192,23 +192,19 @@ class UpaPastaOrchestrator:
             env_file = getattr(args, "env", None)
             env_vars = load_env_file(resolve_env_file(env_file))
 
-        # Decisão do compressor
+        # Decisão do compressor: apenas define se houver flag explícita de compressão
         if getattr(args, "rar", False):
             final_compressor = "rar"
         elif getattr(args, "sevenzip", False):
             final_compressor = "7z"
+        elif getattr(args, "compress", False):
+            final_compressor = env_vars.get("DEFAULT_COMPRESSOR", "rar")
         else:
             final_compressor = env_vars.get("DEFAULT_COMPRESSOR", "rar")
 
-        # Se o input for pasta, o padrão histórico é compactar (RAR/7z)
-        # Se for arquivo único, o padrão é upload direto UNLESS flags específicas
+        # Comportamento padrão 2026: upload direto (sem compactação)
+        # Compactar apenas se explicitamente solicitado via --rar, --7z, --compress, ou --password
         skip_pack = True
-        try:
-            p = Path(input_path)
-            if p.is_dir():
-                skip_pack = False
-        except Exception:
-            pass
 
         # Sobrescritas que forçam compactação:
         if (
@@ -221,15 +217,6 @@ class UpaPastaOrchestrator:
 
         # Sobrescrita que força pular (deprecated)
         if getattr(args, "skip_rar_deprecated", False):
-            skip_pack = True
-
-        # Se --obfuscate sem compressor explícito, não criar RAR (usar parpar direto)
-        if getattr(args, "obfuscate", False) and not (
-            getattr(args, "rar", False)
-            or getattr(args, "sevenzip", False)
-            or getattr(args, "compress", False)
-            or args.password
-        ):
             skip_pack = True
 
         orch = cls(
@@ -1072,11 +1059,10 @@ class UpaPastaOrchestrator:
                 return None
 
             ramdisk_dir = tempfile.mkdtemp(prefix="upapasta_par2_", dir=dev_shm)
-            logger.info(
-                _(
-                    "Ramdisk criado em {path} (estimado {est:.1f} GB, {avail:.1f} GB disponível)"
-                ).format(path=ramdisk_dir, est=par2_estimate_gb, avail=available_gb)
-            )
+            msg = _(
+                "💾 Ramdisk criado em {path} (estimado {est:.1f} GB, {avail:.1f} GB disponível)"
+            ).format(path=ramdisk_dir, est=par2_estimate_gb, avail=available_gb)
+            logger.info(msg)
             self.ramdisk_path = ramdisk_dir
             return ramdisk_dir
         except OSError as e:
@@ -1277,6 +1263,7 @@ class UpaPastaOrchestrator:
 
             # ── PAR2 ─────────────────────────────────────────────────────────────
             if self.use_ramdisk and not self.skip_par:
+                bar.log(_("💾 Configurando ramdisk para PAR2 (zero-copy)..."))
                 self._setup_ramdisk()
 
             if not self.skip_par:
