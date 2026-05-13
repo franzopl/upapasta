@@ -18,12 +18,14 @@ from typing import Optional
 from rich.text import Text
 from textual import work
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import ProgressBar, RichLog, Static
+from textual.widgets import ProgressBar, RichLog, Rule, Static
 
 from ..fs_scanner import FileNode
 from ..screens.confirm import UploadConfig, build_upload_cmd
+
+_SPINNER_CHARS = "⣾⣽⣻⢿⡿⣟⣯⣷"
 
 # Padrões para detectar a fase atual a partir das linhas de saída
 _PHASE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -52,9 +54,27 @@ def _last_cr_segment(raw: str) -> str:
     return ""
 
 
+def _item_text(name: str, status: str) -> Text:
+    """Renderiza o nome do item com ícone e estilo para cada estado."""
+    t = Text(no_wrap=True, overflow="ellipsis")
+    if status == "running":
+        t.append("  ▶  ", style="bold yellow")
+        t.append(name, style="bold")
+    elif status == "done":
+        t.append("  ✓  ", style="bold green")
+        t.append(name, style="dim")
+    elif status == "failed":
+        t.append("  ✗  ", style="bold red")
+        t.append(name, style="dim")
+    else:  # pending
+        t.append("  ○  ", style="dim")
+        t.append(name, style="dim")
+    return t
+
+
 class UploadPanel(Vertical):
     """
-    Painel de progresso de upload: cabeçalho + barra de fase + log scrollável.
+    Painel de progresso de upload: spinner + fase + barra + lista de itens + log.
 
     Inicia o upload automaticamente ao ser montado. Posta UploadPanel.Finished
     quando todos os itens são processados (ou o upload é cancelado).
@@ -62,10 +82,13 @@ class UploadPanel(Vertical):
 
     # ── Mensagens (thread-safe via post_message) ───────────────────────────────
 
-    class _Header(Message):
-        def __init__(self, text: str) -> None:
+    class _ItemUpdate(Message):
+        """Atualiza o status visual de um item na fila."""
+
+        def __init__(self, index: int, status: str) -> None:
             super().__init__()
-            self.text = text
+            self.index = index
+            self.status = status  # "running" | "done" | "failed"
 
     class _Phase(Message):
         def __init__(self, name: str) -> None:
@@ -97,24 +120,44 @@ class UploadPanel(Vertical):
         padding: 1 1 0 1;
     }
 
-    #up-header {
-        color: $text;
-        text-style: bold;
+    #up-status-row {
+        height: 1;
         margin-bottom: 0;
+    }
+
+    #up-spinner {
+        width: 2;
+        color: $accent;
+        text-style: bold;
     }
 
     #up-phase {
+        width: 1fr;
         color: $accent;
-        margin-bottom: 0;
+    }
+
+    #up-counter {
+        width: auto;
+        color: $text-muted;
     }
 
     #up-bar {
-        margin-bottom: 1;
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    #up-queue {
+        height: auto;
+        max-height: 8;
+        margin-top: 0;
+        margin-bottom: 0;
+        overflow-y: auto;
     }
 
     #up-log {
         height: 1fr;
         border: tall $panel;
+        margin-top: 0;
     }
     """
 
@@ -135,12 +178,22 @@ class UploadPanel(Vertical):
         self._current_phase = "Preparando"
         self._item_start: float = 0.0
         self._got_progress = False
+        self._tick_count = 0
+        self._done_count = 0
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="up-header")
-        yield Static("Preparando...", id="up-phase")
-        # total=None → indeterminado (pulsa) até recebermos um %
+        n = len(self._items)
+        with Horizontal(id="up-status-row"):
+            yield Static(_SPINNER_CHARS[0], id="up-spinner")
+            yield Static("Preparando...", id="up-phase")
+            yield Static(f"0 / {n}", id="up-counter")
         yield ProgressBar(total=None, show_eta=False, id="up-bar")
+        if self._items:
+            yield Rule()
+            with Vertical(id="up-queue"):
+                for i, item in enumerate(self._items):
+                    yield Static(_item_text(item.name, "pending"), id=f"up-item-{i}")
+        yield Rule()
         yield RichLog(id="up-log", markup=False, highlight=False, auto_scroll=True)
 
     def on_mount(self) -> None:
@@ -149,11 +202,14 @@ class UploadPanel(Vertical):
         self._run_all()
 
     def _tick_elapsed(self) -> None:
-        """Atualiza o label de fase com o tempo decorrido a cada 0.5 s."""
+        """Atualiza spinner e elapsed a cada 0.5 s."""
+        self._tick_count += 1
+        spin = _SPINNER_CHARS[self._tick_count % len(_SPINNER_CHARS)]
+        self.query_one("#up-spinner", Static).update(spin)
         elapsed = time.monotonic() - self._item_start
         mins, secs = divmod(int(elapsed), 60)
         self.query_one("#up-phase", Static).update(
-            f"Fase: {self._current_phase}  —  {mins:02d}:{secs:02d}"
+            f"{self._current_phase}  —  {mins:02d}:{secs:02d}"
         )
 
     # ── Cancelamento ──────────────────────────────────────────────────────────
@@ -170,11 +226,14 @@ class UploadPanel(Vertical):
     @work(thread=True)
     def _run_all(self) -> None:
         success = True
-        for i, item in enumerate(self._items, 1):
-            header = f"Enviando {i}/{len(self._items)}: {item.name}"
-            self.post_message(self._Header(header))
+        for idx, item in enumerate(self._items):
+            self.post_message(self._ItemUpdate(idx, "running"))
+            self.post_message(self._Phase("Iniciando"))
             ok = self._run_one(item)
-            if not ok:
+            if ok:
+                self.post_message(self._ItemUpdate(idx, "done"))
+            else:
+                self.post_message(self._ItemUpdate(idx, "failed"))
                 success = False
                 if self._cancelled:
                     break
@@ -183,7 +242,7 @@ class UploadPanel(Vertical):
     def _run_one(self, item: FileNode) -> bool:
         cmd = build_upload_cmd(item, self._config)
         self.post_message(self._LogLine(f"$ {' '.join(cmd)}", style="dim"))
-        self.post_message(self._Phase("Iniciando"))
+        self.post_message(self._Progress(0.0))
 
         try:
             with subprocess.Popen(
@@ -240,13 +299,22 @@ class UploadPanel(Vertical):
 
     # ── Handlers de mensagem ──────────────────────────────────────────────────
 
-    def on_upload_panel__header(self, event: _Header) -> None:
-        self.query_one("#up-header", Static).update(event.text)
-        # Reinicia timer e barra para o novo item
-        self._item_start = time.monotonic()
-        self._current_phase = "Iniciando"
-        self._got_progress = False
-        self.query_one("#up-bar", ProgressBar).update(total=None, progress=0)
+    def on_upload_panel__item_update(self, event: _ItemUpdate) -> None:
+        item = self._items[event.index]
+        self.query_one(f"#up-item-{event.index}", Static).update(
+            _item_text(item.name, event.status)
+        )
+        if event.status == "running":
+            # Reinicia timer e barra para o novo item
+            self._item_start = time.monotonic()
+            self._current_phase = "Iniciando"
+            self._got_progress = False
+            self.query_one("#up-bar", ProgressBar).update(total=None, progress=0)
+        elif event.status in ("done", "failed"):
+            if event.status == "done":
+                self._done_count += 1
+            n = len(self._items)
+            self.query_one("#up-counter", Static).update(f"{self._done_count} / {n}")
 
     def on_upload_panel__phase(self, event: _Phase) -> None:
         self._current_phase = event.name
@@ -255,7 +323,7 @@ class UploadPanel(Vertical):
     def on_upload_panel__progress(self, event: _Progress) -> None:
         bar = self.query_one("#up-bar", ProgressBar)
         if not self._got_progress:
-            # Primeira porcentagem recebida: troca para barra determinada
+            # Primeira porcentagem: troca para barra determinada
             self._got_progress = True
             bar.update(total=100.0, progress=event.pct)
         else:

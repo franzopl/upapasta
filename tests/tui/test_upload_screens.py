@@ -211,6 +211,8 @@ def test_upload_panel_initial_state(tmp_path: Path) -> None:
     assert panel._proc is None
     assert panel._got_progress is False
     assert panel._current_phase == "Preparando"
+    assert panel._done_count == 0
+    assert panel._tick_count == 0
 
 
 def test_upload_panel_cancel_before_start(tmp_path: Path) -> None:
