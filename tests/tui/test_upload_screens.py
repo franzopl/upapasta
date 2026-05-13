@@ -5,17 +5,15 @@ Skipa automaticamente se textual não estiver instalado.
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 textual = pytest.importorskip("textual")
 
 from upapasta.tui.app import UpaPastaApp
-from upapasta.tui.catalog_index import CatalogIndex
 from upapasta.tui.fs_scanner import FileNode
 from upapasta.tui.screens.confirm import ConfirmScreen, UploadConfig, build_upload_cmd
 from upapasta.tui.screens.upload_progress import UploadProgressScreen

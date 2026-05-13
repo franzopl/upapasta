@@ -15,12 +15,14 @@ from typing import Optional
 from textual import events, on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal
 from textual.widgets import Footer, Header, Input, Tree
 
 from .catalog_index import load_catalog
 from .screens.confirm import ConfirmScreen
 from .screens.upload_progress import UploadProgressScreen
 from .status import UploadStatus
+from .widgets.dashboard import DashboardWidget
 from .widgets.file_tree import FileTreeWidget
 from .widgets.status_bar import StatusBar
 
@@ -34,6 +36,7 @@ class UpaPastaApp(App[None]):
     BINDINGS = [
         Binding("q", "quit", "Sair", priority=True),
         Binding("r", "refresh", "Atualizar"),
+        Binding("d", "toggle_dashboard", "Dashboard", priority=True),
         Binding("u", "upload", "Upload", show=True),
         Binding("1", "filter_pending", "Pendentes", show=True),
         Binding("2", "filter_uploaded", "Enviados", show=True),
@@ -46,9 +49,14 @@ class UpaPastaApp(App[None]):
         background: $surface;
     }
 
-    FileTreeWidget {
-        width: 100%;
+    #main-area {
         height: 1fr;
+        width: 100%;
+    }
+
+    FileTreeWidget {
+        width: 1fr;
+        height: 100%;
         scrollbar-gutter: stable;
     }
 
@@ -84,17 +92,20 @@ class UpaPastaApp(App[None]):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield FileTreeWidget(
-            self.root_path,
-            self._index,
-            id="file-tree",
-        )
+        with Horizontal(id="main-area"):
+            yield FileTreeWidget(
+                self.root_path,
+                self._index,
+                id="file-tree",
+            )
+            yield DashboardWidget(self._index, self.root_path, id="dashboard")
         yield Input(placeholder="Buscar... (Enter ou Esc para fechar)", id="search-input")
         yield StatusBar(id="status-bar")
         yield Footer()
 
     def on_mount(self) -> None:
         self.sub_title = str(self.root_path)
+        self.query_one(FileTreeWidget).focus()
 
     # ── Eventos ───────────────────────────────────────────────────────────────
 
@@ -129,8 +140,19 @@ class UpaPastaApp(App[None]):
     # ── Actions ───────────────────────────────────────────────────────────────
 
     def action_refresh(self) -> None:
+        self._index.load()
         self.query_one(FileTreeWidget).reload()
+        dash = self.query_one(DashboardWidget)
+        if dash.display:
+            dash.refresh_data()
         self.notify("Catálogo recarregado", severity="information", timeout=2)
+
+    def action_toggle_dashboard(self) -> None:
+        dash = self.query_one(DashboardWidget)
+        dash.display = not dash.display
+        if dash.display:
+            self._index.load()
+            dash.refresh_data()
 
     def action_filter_pending(self) -> None:
         self._apply_filter(UploadStatus.PENDING)
@@ -160,6 +182,10 @@ class UpaPastaApp(App[None]):
         tree = self.query_one(FileTreeWidget)
         tree.clear_selection()
         tree.reload()
+        dash = self.query_one(DashboardWidget)
+        if dash.display:
+            self._index.load()
+            dash.refresh_data()
 
     # ── Internals ────────────────────────────────────────────────────────────
 

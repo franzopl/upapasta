@@ -34,14 +34,19 @@ def _make_media_tree(tmp_path: Path) -> tuple[Path, CatalogIndex]:
     uploaded = ["Breaking.Bad.S01", "Breaking.Bad.S02", "Dune.2021.4K"]
     with history.open("w") as f:
         for name in uploaded:
-            f.write(json.dumps({
-                "nome_original": name,
-                "data_upload": "2025-03-10T12:00:00+00:00",
-                "tamanho_bytes": 1024 ** 3 * 40,
-                "caminho_nzb": None,
-                "grupo_usenet": "alt.binaries.test",
-                "categoria": "TV",
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "nome_original": name,
+                        "data_upload": "2025-03-10T12:00:00+00:00",
+                        "tamanho_bytes": 1024**3 * 40,
+                        "caminho_nzb": None,
+                        "grupo_usenet": "alt.binaries.test",
+                        "categoria": "TV",
+                    }
+                )
+                + "\n"
+            )
 
     idx = CatalogIndex(history)
     idx.load()

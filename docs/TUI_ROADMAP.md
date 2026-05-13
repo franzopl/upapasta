@@ -280,10 +280,10 @@ Resultado: NZB salvo + catálogo atualizado + status muda para ✅ ao vivo
 - Falhas consecutivas no mesmo item
 
 **Critérios de saída da Fase 4:**
-- [ ] Dashboard toggle com `[D]` sem recarregar a árvore
-- [ ] Sparkline renderiza corretamente para catálogos vazios e cheios
-- [ ] Alertas calculados de forma lazy (não bloqueia a UI)
-- [ ] Métricas atualizam após cada upload concluído
+- [x] Dashboard toggle com `[D]` sem recarregar a árvore
+- [x] Sparkline renderiza corretamente para catálogos vazios e cheios
+- [x] Alertas calculados de forma lazy (não bloqueia a UI)
+- [x] Métricas atualizam após cada upload concluído
 
 ---
 

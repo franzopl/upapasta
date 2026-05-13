@@ -125,6 +125,13 @@ class CatalogIndex:
                 total += b
         return total
 
+    def all_entries_flat(self) -> list[CatalogEntry]:
+        """Retorna todas as entradas do catálogo (todas as versões) em lista plana."""
+        result: list[CatalogEntry] = []
+        for entries in self._index.values():
+            result.extend(entries)
+        return result
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

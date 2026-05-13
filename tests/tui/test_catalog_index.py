@@ -62,11 +62,14 @@ def test_load_single_entry(tmp_path: Path) -> None:
 
 def test_load_multiple_entries(tmp_path: Path) -> None:
     f = tmp_path / "history.jsonl"
-    _write_jsonl(f, [
-        _make_record("Movie.A"),
-        _make_record("Movie.B"),
-        _make_record("Series.S01"),
-    ])
+    _write_jsonl(
+        f,
+        [
+            _make_record("Movie.A"),
+            _make_record("Movie.B"),
+            _make_record("Series.S01"),
+        ],
+    )
     idx = CatalogIndex(f)
     idx.load()
     assert idx.unique_names() == 3
@@ -140,11 +143,14 @@ def test_lookup_case_insensitive(tmp_path: Path) -> None:
 
 def test_lookup_returns_most_recent_entry(tmp_path: Path) -> None:
     f = tmp_path / "history.jsonl"
-    _write_jsonl(f, [
-        _make_record("Series.S01", date="2025-01-01T00:00:00+00:00", size=100),
-        _make_record("Series.S01", date="2025-06-15T00:00:00+00:00", size=200),
-        _make_record("Series.S01", date="2025-03-01T00:00:00+00:00", size=150),
-    ])
+    _write_jsonl(
+        f,
+        [
+            _make_record("Series.S01", date="2025-01-01T00:00:00+00:00", size=100),
+            _make_record("Series.S01", date="2025-06-15T00:00:00+00:00", size=200),
+            _make_record("Series.S01", date="2025-03-01T00:00:00+00:00", size=150),
+        ],
+    )
     idx = CatalogIndex(f)
     idx.load()
     entry = idx.lookup("Series.S01")
@@ -154,10 +160,13 @@ def test_lookup_returns_most_recent_entry(tmp_path: Path) -> None:
 
 def test_lookup_all_returns_sorted_descending(tmp_path: Path) -> None:
     f = tmp_path / "history.jsonl"
-    _write_jsonl(f, [
-        _make_record("Series.S01", date="2025-01-01T00:00:00+00:00"),
-        _make_record("Series.S01", date="2025-06-01T00:00:00+00:00"),
-    ])
+    _write_jsonl(
+        f,
+        [
+            _make_record("Series.S01", date="2025-01-01T00:00:00+00:00"),
+            _make_record("Series.S01", date="2025-06-01T00:00:00+00:00"),
+        ],
+    )
     idx = CatalogIndex(f)
     idx.load()
     entries = idx.lookup_all("Series.S01")
@@ -227,11 +236,14 @@ def test_reload_when_file_grows(tmp_path: Path) -> None:
 
 def test_total_entries_counts_duplicates(tmp_path: Path) -> None:
     f = tmp_path / "history.jsonl"
-    _write_jsonl(f, [
-        _make_record("Same.Name"),
-        _make_record("Same.Name"),
-        _make_record("Other.Name"),
-    ])
+    _write_jsonl(
+        f,
+        [
+            _make_record("Same.Name"),
+            _make_record("Same.Name"),
+            _make_record("Other.Name"),
+        ],
+    )
     idx = CatalogIndex(f)
     idx.load()
     assert idx.total_entries() == 3
@@ -240,10 +252,13 @@ def test_total_entries_counts_duplicates(tmp_path: Path) -> None:
 
 def test_total_bytes_sums_most_recent(tmp_path: Path) -> None:
     f = tmp_path / "history.jsonl"
-    _write_jsonl(f, [
-        _make_record("Movie.A", size=1000),
-        _make_record("Movie.B", size=2000),
-    ])
+    _write_jsonl(
+        f,
+        [
+            _make_record("Movie.A", size=1000),
+            _make_record("Movie.B", size=2000),
+        ],
+    )
     idx = CatalogIndex(f)
     idx.load()
     assert idx.total_bytes() == 3000
