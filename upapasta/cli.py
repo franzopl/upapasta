@@ -83,6 +83,19 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--tui",
+        action="store_true",
+        help=_("Abre o gerenciador visual de arquivos (requer: pip install upapasta[tui])"),
+    )
+    p.add_argument(
+        "--tui-root",
+        type=Path,
+        default=None,
+        metavar=_("CAMINHO"),
+        dest="tui_root",
+        help=_("Diretório raiz para a TUI (padrão: diretório atual)"),
+    )
+    p.add_argument(
         "--config",
         action="store_true",
         help=_("Abre o wizard de configuração (permite reconfigurar credenciais e opções)"),

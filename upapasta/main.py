@@ -116,6 +116,15 @@ def main() -> None:
         else:
             env_file = resolve_env_file()
 
+    if getattr(args, "tui", False):
+        try:
+            from .tui.app import run_tui
+        except ImportError:
+            print(_("❌ TUI requer textual: pip install upapasta[tui]"))
+            sys.exit(1)
+        run_tui(root_path=getattr(args, "tui_root", None))
+        sys.exit(0)
+
     if getattr(args, "config", False):
         check_or_prompt_credentials(env_file, force=True)
         sys.exit(0)
