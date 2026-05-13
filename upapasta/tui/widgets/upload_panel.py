@@ -166,6 +166,7 @@ class UploadPanel(Vertical):
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
                 text=True,
             ) as proc:
                 self._proc = proc
