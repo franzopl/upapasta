@@ -20,7 +20,7 @@ from textual import work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import ProgressBar, RichLog, Rule, Static
+from textual.widgets import Label, ProgressBar, RichLog, Rule, Static
 
 from ..fs_scanner import FileNode
 from ..screens.confirm import UploadConfig, build_upload_cmd
@@ -37,6 +37,8 @@ _PHASE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 _PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*%")
+_SPEED_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:kB|MB|GB)/s", re.I)
+_ETA_RE = re.compile(r"(?:ETA\s*:?\s*)?(\d+:\d+(?::\d+)?)\b", re.I)
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[mGKHF]")
 
 
@@ -100,6 +102,12 @@ class UploadPanel(Vertical):
             super().__init__()
             self.pct = pct
 
+    class _SpeedETA(Message):
+        def __init__(self, speed: str, eta: str) -> None:
+            super().__init__()
+            self.speed = speed
+            self.eta = eta
+
     class _LogLine(Message):
         def __init__(self, line: str, style: str = "") -> None:
             super().__init__()
@@ -136,19 +144,41 @@ class UploadPanel(Vertical):
         color: $accent;
     }
 
+    #up-speed {
+        width: auto;
+        color: $warning;
+        margin-right: 2;
+    }
+
+    #up-eta {
+        width: auto;
+        color: $text-muted;
+        margin-right: 2;
+    }
+
     #up-counter {
         width: auto;
         color: $text-muted;
     }
 
-    #up-bar {
+    .progress-label {
+        color: $text-muted;
+        font-size: 80%;
+        margin-top: 1;
+    }
+
+    #up-bar, #up-overall-bar {
         margin-top: 0;
         margin-bottom: 0;
     }
 
+    #up-overall-bar {
+        accent: $success;
+    }
+
     #up-queue {
         height: auto;
-        max-height: 8;
+        max-height: 6;
         margin-top: 0;
         margin-bottom: 0;
         overflow-y: auto;
@@ -158,6 +188,20 @@ class UploadPanel(Vertical):
         height: 1fr;
         border: tall $panel;
         margin-top: 0;
+    }
+
+    #up-summary {
+        padding: 1 2;
+        border: thick $success;
+        background: $surface;
+        margin: 1 0;
+        display: none;
+    }
+
+    .summary-title {
+        text-style: bold;
+        color: $success;
+        margin-bottom: 1;
     }
     """
 
@@ -180,19 +224,36 @@ class UploadPanel(Vertical):
         self._got_progress = False
         self._tick_count = 0
         self._done_count = 0
+        self._current_speed = ""
+        self._current_eta = ""
 
     def compose(self) -> ComposeResult:
         n = len(self._items)
         with Horizontal(id="up-status-row"):
             yield Static(_SPINNER_CHARS[0], id="up-spinner")
             yield Static("Preparando...", id="up-phase")
+            yield Static("", id="up-speed")
+            yield Static("", id="up-eta")
             yield Static(f"0 / {n}", id="up-counter")
+
+        yield Static("Progresso do Item:", classes="progress-label")
         yield ProgressBar(total=None, show_eta=False, id="up-bar")
+
+        yield Static("Progresso Total:", classes="progress-label")
+        yield ProgressBar(total=n, progress=0, show_eta=False, id="up-overall-bar")
+
         if self._items:
             yield Rule()
             with Vertical(id="up-queue"):
                 for i, item in enumerate(self._items):
                     yield Static(_item_text(item.name, "pending"), id=f"up-item-{i}")
+
+        with Vertical(id="up-summary"):
+            yield Label("Resumo do Upload", classes="summary-title")
+            yield Static("", id="summary-text")
+            yield Rule()
+            yield Static("Pressione [Enter] ou [Esc] para voltar", style="dim center")
+
         yield Rule()
         yield RichLog(id="up-log", markup=False, highlight=False, auto_scroll=True)
 
@@ -274,6 +335,7 @@ class UploadPanel(Vertical):
                                 self.post_message(self._LogLine(line))
                                 self._detect_phase(line)
                                 self._detect_progress(line)
+                                self._detect_speed_eta(line)
                         buffer = ""
                     else:
                         buffer += char
@@ -314,6 +376,14 @@ class UploadPanel(Vertical):
         if m:
             self.post_message(self._Progress(min(100.0, float(m.group(1)))))
 
+    def _detect_speed_eta(self, line: str) -> None:
+        m_speed = _SPEED_RE.search(line)
+        m_eta = _ETA_RE.search(line)
+        if m_speed or m_eta:
+            speed = m_speed.group(0) if m_speed else self._current_speed
+            eta = m_eta.group(1) if m_eta else self._current_eta
+            self.post_message(self._SpeedETA(speed, eta))
+
     # ── Handlers de mensagem ──────────────────────────────────────────────────
 
     def on_upload_panel__item_update(self, event: _ItemUpdate) -> None:
@@ -325,17 +395,28 @@ class UploadPanel(Vertical):
             # Reinicia timer e barra para o novo item
             self._item_start = time.monotonic()
             self._current_phase = "Iniciando"
+            self._current_speed = ""
+            self._current_eta = ""
             self._got_progress = False
             self.query_one("#up-bar", ProgressBar).update(total=None, progress=0)
+            self.query_one("#up-speed", Static).update("")
+            self.query_one("#up-eta", Static).update("")
         elif event.status in ("done", "failed"):
             if event.status == "done":
                 self._done_count += 1
             n = len(self._items)
             self.query_one("#up-counter", Static).update(f"{self._done_count} / {n}")
+            self.query_one("#up-overall-bar", ProgressBar).update(progress=self._done_count)
 
     def on_upload_panel__phase(self, event: _Phase) -> None:
         self._current_phase = event.name
         # O timer (_tick_elapsed) atualiza o widget #up-phase
+
+    def on_upload_panel__speed_eta(self, event: _SpeedETA) -> None:
+        self._current_speed = event.speed
+        self._current_eta = event.eta
+        self.query_one("#up-speed", Static).update(f"⚡ {event.speed}")
+        self.query_one("#up-eta", Static).update(f"⌛ {event.eta}")
 
     def on_upload_panel__progress(self, event: _Progress) -> None:
         bar = self.query_one("#up-bar", ProgressBar)
@@ -352,3 +433,27 @@ class UploadPanel(Vertical):
             log.write(Text(event.line, style=event.style))
         else:
             log.write(event.line)
+
+    def on_upload_panel_finished(self, event: Finished) -> None:
+        """Exibe o resumo final antes de permitir a saída."""
+        self.query_one("#up-bar", ProgressBar).display = False
+        self.query_one("#up-overall-bar", ProgressBar).display = False
+        self.query_one("#up-status-row").display = False
+        for label in self.query(".progress-label"):
+            label.display = False
+
+        n = len(self._items)
+        success_count = self._done_count
+        fail_count = n - success_count
+
+        summary = f"Total de itens: {n}\n"
+        summary += f"Sucessos: [bold green]{success_count}[/]\n"
+        if fail_count > 0:
+            summary += f"Falhas/Cancelados: [bold red]{fail_count}[/]\n"
+
+        # Mostra o log de forma reduzida
+        self.query_one("#up-log").styles.height = 10
+
+        summary_widget = self.query_one("#up-summary")
+        summary_widget.display = True
+        self.query_one("#summary-text", Static).update(Text.from_markup(summary))

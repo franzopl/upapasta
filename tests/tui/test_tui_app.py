@@ -112,7 +112,7 @@ def test_status_bar_creation() -> None:
     assert bar is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_status_bar_update_none(tmp_path: Path) -> None:
     """update_node(None) não deve lançar exceção dentro de um app ativo."""
     media, _ = _make_media_tree(tmp_path)
@@ -126,7 +126,7 @@ async def test_status_bar_update_none(tmp_path: Path) -> None:
 # ── Testes: async (TUI real) ──────────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_app_quits_with_q(tmp_path: Path) -> None:
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -135,7 +135,7 @@ async def test_app_quits_with_q(tmp_path: Path) -> None:
     assert not app.is_running
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_app_composes_tree_and_statusbar(tmp_path: Path) -> None:
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -145,7 +145,7 @@ async def test_app_composes_tree_and_statusbar(tmp_path: Path) -> None:
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_filter_pending_key(tmp_path: Path) -> None:
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -156,7 +156,7 @@ async def test_filter_pending_key(tmp_path: Path) -> None:
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_filter_all_resets(tmp_path: Path) -> None:
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -168,7 +168,7 @@ async def test_filter_all_resets(tmp_path: Path) -> None:
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_filter_uploaded_key(tmp_path: Path) -> None:
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -179,7 +179,7 @@ async def test_filter_uploaded_key(tmp_path: Path) -> None:
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_subtitle_shows_root_path(tmp_path: Path) -> None:
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -188,7 +188,7 @@ async def test_subtitle_shows_root_path(tmp_path: Path) -> None:
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_subtitle_changes_on_filter(tmp_path: Path) -> None:
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 from upapasta.tui.catalog_index import CatalogIndex, _parse_date
@@ -288,22 +287,16 @@ def test_parse_date_z_suffix() -> None:
     assert dt.year == 2025
 
 
-def test_parse_date_invalid_returns_now() -> None:
-    before = datetime.now(timezone.utc)
+def test_parse_date_invalid_returns_epoch() -> None:
     dt = _parse_date("not-a-date")
-    after = datetime.now(timezone.utc)
-    assert before <= dt <= after
+    assert dt.year == 1970
 
 
-def test_parse_date_empty_returns_now() -> None:
-    before = datetime.now(timezone.utc)
+def test_parse_date_empty_returns_epoch() -> None:
     dt = _parse_date("")
-    after = datetime.now(timezone.utc)
-    assert before <= dt <= after
+    assert dt.year == 1970
 
 
-def test_parse_date_none_returns_now() -> None:
-    before = datetime.now(timezone.utc)
+def test_parse_date_none_returns_epoch() -> None:
     dt = _parse_date(None)  # type: ignore[arg-type]
-    after = datetime.now(timezone.utc)
-    assert before <= dt <= after
+    assert dt.year == 1970

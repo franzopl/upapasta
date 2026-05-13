@@ -148,7 +148,7 @@ def test_confirm_screen_many_items(tmp_path: Path) -> None:
 # ── ConfirmScreen: async (pilot) ──────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_confirm_screen_cancel_returns_none(tmp_path: Path) -> None:
     nodes = [_make_node(tmp_path, "Dune.2021")]
     result: list[UploadConfig | None] = []
@@ -164,7 +164,7 @@ async def test_confirm_screen_cancel_returns_none(tmp_path: Path) -> None:
     assert result == [None]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_confirm_screen_confirm_button(tmp_path: Path) -> None:
     nodes = [_make_node(tmp_path, "Dune.2021")]
     result: list[UploadConfig | None] = []
@@ -183,7 +183,7 @@ async def test_confirm_screen_confirm_button(tmp_path: Path) -> None:
     assert result[0].par_profile == "balanced"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_confirm_screen_cancel_button(tmp_path: Path) -> None:
     nodes = [_make_node(tmp_path, "Dune.2021")]
     result: list[UploadConfig | None] = []
@@ -268,7 +268,7 @@ def test_upload_progress_screen_instantiation(tmp_path: Path) -> None:
 # ── App: binding U sem seleção ────────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_action_without_selection_shows_warning(tmp_path: Path) -> None:
     """Pressionar U sem seleção exibe notificação de aviso, não abre modal."""
     app = UpaPastaApp(root_path=tmp_path)
@@ -283,7 +283,7 @@ async def test_upload_action_without_selection_shows_warning(tmp_path: Path) -> 
 # ── App: binding U com seleção abre ConfirmScreen ────────────────────────────
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_action_with_selection_opens_confirm(tmp_path: Path) -> None:
     """Pressionar U com item selecionado abre ConfirmScreen."""
     (tmp_path / "Dune.2021").mkdir()

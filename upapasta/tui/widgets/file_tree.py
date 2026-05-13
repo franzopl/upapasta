@@ -52,6 +52,10 @@ def make_node_label(
     else:
         text.append(name, style=name_style)
 
+    # Adiciona tamanho para arquivos
+    if not node.is_dir and node.size > 0:
+        text.append(f"  ({node.size_human})", style="dim")
+
     if node.upload_date:
         text.append(
             f"  [{node.upload_date.strftime('%Y-%m-%d')}]",

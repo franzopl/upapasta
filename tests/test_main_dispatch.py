@@ -6,7 +6,8 @@ Cobertura de dispatch points e modos em main.py.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from argparse import Namespace
+from unittest.mock import patch
 
 import pytest
 
@@ -19,10 +20,12 @@ class TestMainConfigDispatch:
     def test_config_flag_calls_check_or_prompt(self, capsys):
         """--config deve chamar check_or_prompt_credentials e sair com code 0."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = True
-            mock_args.profile = None
-            mock_args.env_file = None
+            mock_args = Namespace(
+                config=True,
+                profile=None,
+                env_file=None,
+                tui=False,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:
@@ -37,10 +40,12 @@ class TestMainConfigDispatch:
     def test_config_flag_with_profile(self, capsys):
         """--config com --profile deve usar profile correto."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = True
-            mock_args.profile = "myprofile"
-            mock_args.env_file = None
+            mock_args = Namespace(
+                config=True,
+                profile="myprofile",
+                env_file=None,
+                tui=False,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:
@@ -59,11 +64,13 @@ class TestMainStatsDispatch:
     def test_stats_flag_calls_print_stats(self, capsys):
         """--stats deve chamar print_stats e sair com code 0."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = False
-            mock_args.stats = True
-            mock_args.profile = None
-            mock_args.env_file = None
+            mock_args = Namespace(
+                config=False,
+                stats=True,
+                profile=None,
+                env_file=None,
+                tui=False,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:
@@ -82,13 +89,15 @@ class TestMainTestConnectionDispatch:
     def test_test_connection_incomplete_credentials(self, capsys):
         """--test-connection sem credenciais completas deve sair com code 1."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = False
-            mock_args.stats = False
-            mock_args.test_connection = True
-            mock_args.profile = None
-            mock_args.env_file = None
-            mock_args.insecure = False
+            mock_args = Namespace(
+                config=False,
+                stats=False,
+                test_connection=True,
+                profile=None,
+                env_file=None,
+                insecure=False,
+                tui=False,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:
@@ -103,13 +112,15 @@ class TestMainTestConnectionDispatch:
     def test_test_connection_success(self, capsys):
         """--test-connection com credenciais válidas retorna code 0."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = False
-            mock_args.stats = False
-            mock_args.test_connection = True
-            mock_args.profile = None
-            mock_args.env_file = None
-            mock_args.insecure = False
+            mock_args = Namespace(
+                config=False,
+                stats=False,
+                test_connection=True,
+                profile=None,
+                env_file=None,
+                insecure=False,
+                tui=False,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:
@@ -133,13 +144,15 @@ class TestMainTestConnectionDispatch:
     def test_test_connection_failure(self, capsys):
         """--test-connection com falha retorna code 1."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = False
-            mock_args.stats = False
-            mock_args.test_connection = True
-            mock_args.profile = None
-            mock_args.env_file = None
-            mock_args.insecure = False
+            mock_args = Namespace(
+                config=False,
+                stats=False,
+                test_connection=True,
+                profile=None,
+                env_file=None,
+                insecure=False,
+                tui=False,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:
@@ -167,13 +180,15 @@ class TestMainTmdbSearchDispatch:
     def test_tmdb_search_no_api_key(self, capsys):
         """--tmdb-search sem API key deve sair com code 1."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = False
-            mock_args.stats = False
-            mock_args.test_connection = False
-            mock_args.tmdb_search = "Dune 2024"
-            mock_args.profile = None
-            mock_args.env_file = None
+            mock_args = Namespace(
+                config=False,
+                stats=False,
+                test_connection=False,
+                tmdb_search="Dune 2024",
+                profile=None,
+                env_file=None,
+                tui=False,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:
@@ -237,12 +252,16 @@ class TestMainNoInputsDispatch:
     def test_no_inputs_prints_usage(self, capsys):
         """Sem inputs deve exibir uso amigável e sair com code 0."""
         with patch("upapasta.main.parse_args") as mock_parse:
-            mock_args = MagicMock()
-            mock_args.config = False
-            mock_args.stats = False
-            mock_args.test_connection = False
-            mock_args.tmdb_search = None
-            mock_args.inputs = None
+            mock_args = Namespace(
+                config=False,
+                stats=False,
+                test_connection=False,
+                tmdb_search=None,
+                inputs=None,
+                tui=False,
+                profile=None,
+                env_file=None,
+            )
             mock_parse.return_value = mock_args
 
             with patch("upapasta.main.resolve_env_file") as mock_resolve:

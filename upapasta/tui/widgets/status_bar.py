@@ -64,6 +64,11 @@ def _render(node: Optional[FileNode]) -> Text:
             f"  Enviado: {node.upload_date.strftime('%Y-%m-%d %H:%M')}",
             style="green dim",
         )
+        if node.upload_entry:
+            if node.upload_entry.grupo_usenet:
+                text.append(f"  [{node.upload_entry.grupo_usenet}]", style="cyan dim")
+            if node.upload_entry.categoria:
+                text.append(f"  ({node.upload_entry.categoria})", style="magenta dim")
 
     if node.nzb_path is not None:
         text.append("  NZB ✓", style="green dim")

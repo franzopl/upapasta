@@ -367,7 +367,7 @@ def test_dashboard_render_fs_not_loaded_shows_placeholder(tmp_path: Path):
 # ── Testes: integração com App ────────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dashboard_hidden_on_startup(tmp_path: Path):
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -377,7 +377,7 @@ async def test_dashboard_hidden_on_startup(tmp_path: Path):
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dashboard_toggle_with_d_key(tmp_path: Path):
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -394,7 +394,7 @@ async def test_dashboard_toggle_with_d_key(tmp_path: Path):
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dashboard_present_in_dom(tmp_path: Path):
     media, _ = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
@@ -404,7 +404,7 @@ async def test_dashboard_present_in_dom(tmp_path: Path):
         await pilot.press("q")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_dashboard_refresh_updates_stats(tmp_path: Path):
     media, idx = _make_media_tree(tmp_path)
     app = UpaPastaApp(root_path=media)
