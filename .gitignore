@@ -90,6 +90,10 @@ BUG_FIX_CLEANUP.md
 DOCUMENTATION.md
 INDEX.md
 
+# Build artifacts (editable install via uv/pip)
+src/
+uv.lock
+
 # Local test venv
 .venv_test
 scripts/post_upload_nzbfelipe.sh
