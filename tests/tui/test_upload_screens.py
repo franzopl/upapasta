@@ -18,7 +18,7 @@ from upapasta.tui.fs_scanner import FileNode
 from upapasta.tui.screens.confirm import ConfirmScreen, UploadConfig, build_upload_cmd
 from upapasta.tui.screens.upload_progress import UploadProgressScreen
 from upapasta.tui.status import UploadStatus
-from upapasta.tui.widgets.upload_panel import UploadPanel, _strip_ansi
+from upapasta.tui.widgets.upload_panel import UploadPanel, _last_cr_segment, _strip_ansi
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -92,6 +92,31 @@ def test_strip_ansi_passthrough_plain() -> None:
 
 def test_strip_ansi_empty() -> None:
     assert _strip_ansi("") == ""
+
+
+# ── _last_cr_segment ──────────────────────────────────────────────────────────
+
+
+def test_last_cr_segment_no_cr() -> None:
+    assert _last_cr_segment("hello world\n") == "hello world"
+
+
+def test_last_cr_segment_with_cr() -> None:
+    """Parpar/nyuu sobrescrevem linhas com \\r; deve retornar o último estado."""
+    assert _last_cr_segment(" 30%\r 60%\r 100%\n") == "100%"
+
+
+def test_last_cr_segment_with_ansi_and_cr() -> None:
+    raw = "\x1b[32m 50%\x1b[0m\r\x1b[32m100%\x1b[0m\n"
+    assert _last_cr_segment(raw) == "100%"
+
+
+def test_last_cr_segment_all_empty_segments() -> None:
+    assert _last_cr_segment("\r\r\n") == ""
+
+
+def test_last_cr_segment_empty() -> None:
+    assert _last_cr_segment("") == ""
 
 
 # ── UploadConfig ──────────────────────────────────────────────────────────────
@@ -175,6 +200,17 @@ async def test_confirm_screen_cancel_button(tmp_path: Path) -> None:
 
 
 # ── UploadPanel: unit ─────────────────────────────────────────────────────────
+
+
+def test_upload_panel_initial_state(tmp_path: Path) -> None:
+    """Painel recém-criado tem atributos de progresso zerados."""
+    node = _make_node(tmp_path, "Dune.2021")
+    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    panel = UploadPanel([node], config)
+    assert panel._cancelled is False
+    assert panel._proc is None
+    assert panel._got_progress is False
+    assert panel._current_phase == "Preparando"
 
 
 def test_upload_panel_cancel_before_start(tmp_path: Path) -> None:
