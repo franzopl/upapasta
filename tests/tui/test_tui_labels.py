@@ -183,3 +183,109 @@ def test_render_partial_shows_subdir_count(tmp_path: Path) -> None:
     assert node.status == UploadStatus.PARTIAL
     text = _render(node)
     assert "3/5" in text.plain
+
+
+# ── Testes: make_node_label — selected ───────────────────────────────────────
+
+
+def test_label_selected_shows_indicator(tmp_path: Path) -> None:
+    f = tmp_path / "movie.mkv"
+    f.touch()
+    idx = _empty_catalog(tmp_path)
+    node = scan_single(f, idx)
+    label = make_node_label(node, selected=True)
+    assert "◉" in label.plain
+
+
+def test_label_unselected_no_indicator(tmp_path: Path) -> None:
+    f = tmp_path / "movie.mkv"
+    f.touch()
+    idx = _empty_catalog(tmp_path)
+    node = scan_single(f, idx)
+    label = make_node_label(node, selected=False)
+    assert "◉" not in label.plain
+
+
+# ── Testes: make_node_label — query/highlight ─────────────────────────────────
+
+
+def test_label_query_match_preserves_name(tmp_path: Path) -> None:
+    f = tmp_path / "Breaking.Bad.S01.mkv"
+    f.touch()
+    idx = _empty_catalog(tmp_path)
+    node = scan_single(f, idx)
+    label = make_node_label(node, query="Breaking")
+    assert "Breaking.Bad.S01.mkv" in label.plain
+
+
+def test_label_query_no_match_shows_full_name(tmp_path: Path) -> None:
+    f = tmp_path / "Dune.2021.mkv"
+    f.touch()
+    idx = _empty_catalog(tmp_path)
+    node = scan_single(f, idx)
+    label = make_node_label(node, query="Breaking")
+    assert "Dune.2021.mkv" in label.plain
+
+
+def test_label_query_case_insensitive(tmp_path: Path) -> None:
+    f = tmp_path / "Breaking.Bad.S01.mkv"
+    f.touch()
+    idx = _empty_catalog(tmp_path)
+    node = scan_single(f, idx)
+    # Tanto com minúsculas quanto maiúsculas o nome aparece completo
+    label_lower = make_node_label(node, query="breaking")
+    label_upper = make_node_label(node, query="BREAKING")
+    assert "Breaking.Bad.S01.mkv" in label_lower.plain
+    assert "Breaking.Bad.S01.mkv" in label_upper.plain
+
+
+def test_label_empty_query_no_highlight(tmp_path: Path) -> None:
+    f = tmp_path / "movie.mkv"
+    f.touch()
+    idx = _empty_catalog(tmp_path)
+    node = scan_single(f, idx)
+    label_with = make_node_label(node, query="")
+    label_without = make_node_label(node)
+    assert label_with.plain == label_without.plain
+
+
+# ── Testes: FileTreeWidget — multi-select e busca ─────────────────────────────
+
+
+def test_file_tree_initial_selection_empty(tmp_path: Path) -> None:
+    from upapasta.tui.widgets.file_tree import FileTreeWidget
+
+    idx = _empty_catalog(tmp_path)
+    widget = FileTreeWidget(tmp_path, idx)
+    assert widget.selected_nodes() == []
+    assert widget._selected == {}
+
+
+def test_file_tree_initial_query_empty(tmp_path: Path) -> None:
+    from upapasta.tui.widgets.file_tree import FileTreeWidget
+
+    idx = _empty_catalog(tmp_path)
+    widget = FileTreeWidget(tmp_path, idx)
+    assert widget._query == ""
+
+
+def test_file_tree_set_search_updates_query(tmp_path: Path) -> None:
+    from unittest.mock import patch
+
+    from upapasta.tui.widgets.file_tree import FileTreeWidget
+
+    idx = _empty_catalog(tmp_path)
+    widget = FileTreeWidget(tmp_path, idx)
+    with patch.object(widget, "_reload_root"):
+        widget.set_search("breaking")
+    assert widget._query == "breaking"
+
+
+def test_status_bar_hint_contains_space() -> None:
+    text = _render(None)
+    assert "Space" in text.plain
+
+
+def test_status_bar_hint_contains_search() -> None:
+    text = _render(None)
+    assert "/" in text.plain or "Buscar" in text.plain

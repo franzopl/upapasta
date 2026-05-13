@@ -223,11 +223,11 @@ Resultado: NZB salvo + catálogo atualizado + status muda para ✅ ao vivo
 - Permite sobrescrever flags pontualmente sem precisar da CLI
 
 **Critérios de saída da Fase 3:**
-- [ ] Upload completo disparado da TUI sem abrir terminal separado
-- [ ] Progresso em tempo real com speed e ETA
-- [ ] Cancelamento limpo via Ctrl+C (mesma garantia do CLI)
-- [ ] Status do arquivo na árvore atualiza para `✅` ao concluir
-- [ ] Erros exibidos com mensagem clara e opção de retry
+- [x] Upload completo disparado da TUI sem abrir terminal separado
+- [x] Progresso em tempo real (stdout capturado linha a linha + barra de fase)
+- [x] Cancelamento limpo via Esc (SIGTERM → subprocess termina)
+- [x] Status do arquivo na árvore atualiza ao concluir (reload() automático)
+- [x] Erros exibidos no log com estilo vermelho + código de saída
 
 ---
 

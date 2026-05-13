@@ -48,7 +48,9 @@ class StatusBar(Static):
 
 def _render(node: Optional[FileNode]) -> Text:
     if node is None:
-        return Text(" ↑↓ Navegar   Enter Expandir   1/2/3 Filtrar   r Atualizar   q Sair")
+        return Text(
+            " ↑↓ Navegar   Enter Expandir   Space Selecionar   / Buscar   1/2/3 Filtrar   r Atualizar   q Sair"
+        )
 
     text = Text(no_wrap=True)
     text.append(f" {node.status.icon} ", style=node.status.color)
