@@ -7,6 +7,7 @@ Lazy loading: subdiretórios são populados apenas quando expandidos.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -78,6 +79,7 @@ class FileTreeWidget(Tree[FileNode]):
 
     BINDINGS = [
         Binding("space", "toggle_select", "Selecionar", show=True, priority=True),
+        Binding("left", "back", "Voltar", show=False),
     ]
 
     class SelectionChanged(Message):
@@ -152,16 +154,51 @@ class FileTreeWidget(Tree[FileNode]):
         if cursor is None or cursor.data is None:
             return
         node: FileNode = cursor.data
-        if node.path in self._selected:
-            del self._selected[node.path]
-            now_selected = False
-        else:
-            self._selected[node.path] = node
-            now_selected = True
-        cursor.set_label(make_node_label(node, selected=now_selected, query=self._query))
+        self._toggle_node_selection(cursor, node)
         self.post_message(self.SelectionChanged(list(self._selected.values())))
 
+    def _toggle_node_selection(self, tree_node: TreeNode[FileNode], file_node: FileNode) -> None:
+        if file_node.path in self._selected:
+            del self._selected[file_node.path]
+            now_selected = False
+        else:
+            self._selected[file_node.path] = file_node
+            now_selected = True
+        tree_node.set_label(make_node_label(file_node, selected=now_selected, query=self._query))
+
+    def action_back(self) -> None:
+        """Sobe um nível na árvore ou recolhe pasta."""
+        cursor = self.cursor_node
+        if cursor is None:
+            return
+        if cursor.is_expanded:
+            cursor.collapse()
+        elif cursor.parent:
+            self.cursor_node = cursor.parent
+
     # ── API pública ───────────────────────────────────────────────────────────
+
+    def select_by_pattern(self, pattern: str) -> None:
+        """Seleciona itens que casam com o regex entre os nós já carregados."""
+        try:
+            regex = re.compile(pattern, re.I)
+        except re.error as exc:
+            self.app.notify(f"Regex inválido: {exc}", severity="error")
+            return
+
+        count = 0
+        for node in self.query("TreeNode"):
+            file_node: Optional[FileNode] = node.data  # type: ignore
+            if file_node and not file_node.is_dir and regex.search(file_node.name):
+                if file_node.path not in self._selected:
+                    self._toggle_node_selection(node, file_node)  # type: ignore
+                    count += 1
+
+        if count > 0:
+            self.app.notify(f"{count} itens selecionados", severity="information")
+            self.post_message(self.SelectionChanged(list(self._selected.values())))
+        else:
+            self.app.notify("Nenhum item novo encontrado", severity="warning")
 
     def set_filter(self, status: Optional[UploadStatus]) -> None:
         self._filter = status
@@ -184,9 +221,27 @@ class FileTreeWidget(Tree[FileNode]):
         self.post_message(self.SelectionChanged([]))
 
     def _reload_root(self) -> None:
+        # Salva o que estava expandido
+        expanded_paths = {
+            n.data.path
+            for n in self.query("TreeNode")
+            if n.is_expanded and n.data  # type: ignore
+        }
         self._loaded_paths.clear()
+        self.root.remove_children()
         self._load_node(self.root, self.root_path)
         self.root.expand()
+
+        # Re-expand recursivamente
+        self._reexpand_paths(self.root, expanded_paths)
+
+    def _reexpand_paths(self, root_node: TreeNode[FileNode], expanded_paths: set[Path]) -> None:
+        for node in root_node.children:
+            if node.data and node.data.path in expanded_paths:
+                if node.data.path not in self._loaded_paths:
+                    self._load_node(node, node.data.path)
+                node.expand()
+                self._reexpand_paths(node, expanded_paths)
 
     def highlighted_node(self) -> Optional[FileNode]:
         """Retorna o FileNode do item atualmente sob o cursor, ou None."""

@@ -59,7 +59,7 @@ ignore_errors = true
 
 # Módulos TUI usam textual (dependência opcional sem stubs mypy completos)
 [[tool.mypy.overrides]]
-module = ["upapasta.tui.app", "upapasta.tui.widgets.*"]
+module = ["upapasta.tui.app", "upapasta.tui.widgets.*", "upapasta.tui.screens.*"]
 ignore_errors = true
 
 [tool.ruff]

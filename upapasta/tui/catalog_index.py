@@ -137,14 +137,16 @@ class CatalogIndex:
 
 
 def _parse_date(value: object) -> datetime:
+    """Parse de data ISO com fallback para epoch zero em caso de erro."""
+    epoch_zero = datetime(1970, 1, 1, tzinfo=timezone.utc)
     if not isinstance(value, str) or not value:
-        return datetime.now(timezone.utc)
+        return epoch_zero
     # Python 3.9 fromisoformat não suporta sufixo 'Z'
     normalized = value.replace("Z", "+00:00")
     try:
         return datetime.fromisoformat(normalized)
     except ValueError:
-        return datetime.now(timezone.utc)
+        return epoch_zero
 
 
 def load_catalog(history_path: Optional[Path] = None) -> CatalogIndex:

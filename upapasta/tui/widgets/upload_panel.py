@@ -245,26 +245,43 @@ class UploadPanel(Vertical):
         self.post_message(self._Progress(0.0))
 
         try:
+            # newline="" para não converter \r em \n, permitindo leitura manual
             with subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
                 text=True,
+                bufsize=1,  # Line buffered
             ) as proc:
                 self._proc = proc
                 assert proc.stdout is not None
-                for raw in proc.stdout:
+
+                buffer = ""
+                while True:
                     if self._cancelled:
                         proc.terminate()
                         break
-                    # parpar/nyuu usam \r para sobrescrever linhas de progresso;
-                    # pegamos o último segmento não-vazio de cada linha lida.
-                    line = _last_cr_segment(raw)
-                    if line:
-                        self.post_message(self._LogLine(line))
-                        self._detect_phase(line)
-                        self._detect_progress(line)
+
+                    char = proc.stdout.read(1)
+                    if not char:
+                        break
+
+                    if char in ("\r", "\n"):
+                        if buffer:
+                            line = _strip_ansi(buffer).strip()
+                            if line:
+                                self.post_message(self._LogLine(line))
+                                self._detect_phase(line)
+                                self._detect_progress(line)
+                        buffer = ""
+                    else:
+                        buffer += char
+                        # Se o buffer ficar muito grande sem \r ou \n, força flush
+                        if len(buffer) > 512:
+                            self.post_message(self._LogLine(_strip_ansi(buffer)))
+                            buffer = ""
+
                 rc = proc.wait()
         except OSError as exc:
             self.post_message(self._LogLine(f"Erro ao iniciar processo: {exc}", style="bold red"))

@@ -49,7 +49,7 @@ class StatusBar(Static):
 def _render(node: Optional[FileNode]) -> Text:
     if node is None:
         return Text(
-            " ↑↓ Navegar   Enter Expandir   Space Selecionar   / Buscar   1/2/3 Filtrar   r Atualizar   q Sair"
+            " ↑↓ Navegar  Enter Expandir  Space Selecionar  / Buscar  p Padrão  1/2/3 Filtrar  r Atualizar  q Sair"
         )
 
     text = Text(no_wrap=True)
@@ -57,22 +57,25 @@ def _render(node: Optional[FileNode]) -> Text:
     text.append(node.name, style="bold" if node.is_dir else "default")
 
     if node.size > 0:
-        text.append(f"   {node.size_human}", style="dim")
+        text.append(f"  {node.size_human}", style="dim")
 
     if node.upload_date:
         text.append(
-            f"   Enviado: {node.upload_date.strftime('%Y-%m-%d %H:%M')}",
+            f"  Enviado: {node.upload_date.strftime('%Y-%m-%d %H:%M')}",
             style="green dim",
         )
 
     if node.nzb_path is not None:
-        text.append("   NZB ✓", style="green dim")
+        text.append("  NZB ✓", style="green dim")
 
     if node.status == UploadStatus.PARTIAL and node.child_total > 0:
         pct = int(100 * node.child_uploaded / node.child_total)
         text.append(
-            f"   {node.child_uploaded}/{node.child_total} subpastas ({pct}%)",
+            f"  {node.child_uploaded}/{node.child_total} itens ({pct}%)",
             style="yellow dim",
         )
+
+    # Path completo no final para distinção
+    text.append(f"  ({node.path})", style="dim")
 
     return text
