@@ -209,6 +209,11 @@ class UploadPanel(Vertical):
         color: $success;
         margin-bottom: 1;
     }
+
+    .help-text {
+        color: $text-muted;
+        text-align: center;
+    }
     """
 
     def __init__(
@@ -258,7 +263,7 @@ class UploadPanel(Vertical):
             yield Label("Resumo do Upload", classes="summary-title")
             yield Static("", id="summary-text")
             yield Rule()
-            yield Static("Pressione [Enter] ou [Esc] para voltar", style="dim center")
+            yield Static("Pressione [Enter] ou [Esc] para voltar", classes="help-text")
 
         yield Rule()
         yield RichLog(id="up-log", markup=False, highlight=False, auto_scroll=True)
