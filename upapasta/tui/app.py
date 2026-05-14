@@ -15,8 +15,9 @@ from typing import Optional
 from textual import events, on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
-from textual.widgets import Footer, Header, Input, Tree
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Footer, Header, Input, Label, Tree
 
 from .catalog_index import load_catalog
 from .screens.confirm import ConfirmScreen
@@ -28,6 +29,40 @@ from .widgets.file_tree import FileTreeWidget
 from .widgets.status_bar import StatusBar
 
 
+class _QuitConfirmScreen(ModalScreen[bool]):
+    """Modal de confirmação de saída quando há itens selecionados."""
+
+    DEFAULT_CSS = """
+    _QuitConfirmScreen { align: center middle; }
+    #quit-dialog {
+        background: $surface;
+        border: thick $warning;
+        padding: 1 2;
+        width: 52;
+        height: auto;
+    }
+    #quit-title { text-style: bold; color: $warning; margin-bottom: 1; }
+    #quit-buttons { height: auto; align: right middle; margin-top: 1; }
+    Button { margin-left: 1; }
+    """
+
+    def __init__(self, count: int) -> None:
+        super().__init__()
+        self._count = count
+
+    def compose(self) -> ComposeResult:
+        s = "s" if self._count != 1 else ""
+        with Vertical(id="quit-dialog"):
+            yield Label("Confirmar saída", id="quit-title")
+            yield Label(f"Você tem {self._count} item{s} selecionado{s}.\nDeseja sair mesmo assim?")
+            with Horizontal(id="quit-buttons"):
+                yield Button("Cancelar", variant="default", id="btn-no")
+                yield Button("Sair", variant="error", id="btn-yes")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "btn-yes")
+
+
 class UpaPastaApp(App[None]):
     """Gerenciador visual de uploads Usenet."""
 
@@ -35,7 +70,7 @@ class UpaPastaApp(App[None]):
     SUB_TITLE = "Gerenciador de Uploads Usenet"
 
     BINDINGS = [
-        Binding("q", "quit", "Sair", priority=True),
+        Binding("q", "quit_safe", "Sair", priority=True),
         Binding("r", "refresh", "Atualizar"),
         Binding("d", "toggle_dashboard", "Dashboard", priority=True),
         Binding("u", "upload", "Upload", show=True),
@@ -149,6 +184,15 @@ class UpaPastaApp(App[None]):
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
+    @work
+    async def action_quit_safe(self) -> None:
+        """Sai imediatamente ou pede confirmação se há itens selecionados."""
+        if self._selection_count > 0:
+            confirmed = await self.push_screen_wait(_QuitConfirmScreen(self._selection_count))
+            if not confirmed:
+                return
+        self.exit()
+
     def action_refresh(self) -> None:
         self._index.load()
         self.query_one(FileTreeWidget).reload()
@@ -169,7 +213,13 @@ class UpaPastaApp(App[None]):
 
     @work
     async def _open_pattern_select(self) -> None:
-        rule: SelectionRule | None = await self.push_screen_wait(PatternSelectScreen())
+        tree = self.query_one(FileTreeWidget)
+        visible_names = [n.name for n in tree.selected_nodes()] or [
+            fn.name
+            for fn in (node.data for node in tree.query("TreeNode"))  # type: ignore[misc]
+            if fn and not fn.is_dir  # type: ignore[union-attr]
+        ]
+        rule: SelectionRule | None = await self.push_screen_wait(PatternSelectScreen(visible_names))
         if rule is None:
             return
         tree = self.query_one(FileTreeWidget)

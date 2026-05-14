@@ -1343,6 +1343,8 @@ class UpaPastaOrchestrator:
                     bar.log(_("Metadados TMDb injetados no NZB."))
 
                 bar.log(_("Upload concluído para Usenet."))
+                if self.generated_nzb and os.environ.get("UPAPASTA_PORCELAIN") == "1":
+                    print(f"@@NZB:{self.generated_nzb}", flush=True)
                 bar.done("UPLOAD")
                 self.cleanup()
                 self._revert_extension_normalization()

@@ -83,6 +83,9 @@ class FileTreeWidget(Tree[FileNode]):
 
     BINDINGS = [
         Binding("space", "toggle_select", "Selecionar", show=True, priority=True),
+        Binding("a", "select_all", "Sel. Todos", show=True),
+        Binding("i", "invert_selection", "Inverter", show=True),
+        Binding("ctrl+d", "clear_selection", "Limpar", show=True),
         Binding("left", "back", "Voltar", show=False),
     ]
 
@@ -169,6 +172,37 @@ class FileTreeWidget(Tree[FileNode]):
             self._selected[file_node.path] = file_node
             now_selected = True
         tree_node.set_label(make_node_label(file_node, selected=now_selected, query=self._query))
+
+    def action_select_all(self) -> None:
+        """Seleciona todos os nós de arquivo visíveis."""
+        count = 0
+        for node in self.query("TreeNode"):
+            file_node: Optional[FileNode] = node.data  # type: ignore
+            if file_node and not file_node.is_dir and file_node.path not in self._selected:
+                self._toggle_node_selection(node, file_node)  # type: ignore
+                count += 1
+        if count > 0:
+            self.app.notify(f"{count} itens selecionados", severity="information", timeout=2)
+            self.post_message(self.SelectionChanged(list(self._selected.values())))
+        else:
+            self.app.notify("Nenhum item novo para selecionar", severity="warning", timeout=2)
+
+    def action_invert_selection(self) -> None:
+        """Inverte a seleção de todos os nós de arquivo visíveis."""
+        for node in self.query("TreeNode"):
+            file_node: Optional[FileNode] = node.data  # type: ignore
+            if file_node and not file_node.is_dir:
+                self._toggle_node_selection(node, file_node)  # type: ignore
+        n = len(self._selected)
+        self.app.notify(f"Seleção invertida — {n} itens", severity="information", timeout=2)
+        self.post_message(self.SelectionChanged(list(self._selected.values())))
+
+    def action_clear_selection(self) -> None:
+        """Remove toda a seleção."""
+        if not self._selected:
+            return
+        self.clear_selection()
+        self.app.notify("Seleção removida", severity="information", timeout=2)
 
     def action_back(self) -> None:
         """Sobe um nível na árvore ou recolhe pasta."""

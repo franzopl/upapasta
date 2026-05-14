@@ -341,8 +341,8 @@ def test_dashboard_render_truncates_long_alerts(tmp_path: Path):
     text = widget._build_content()
     plain = text.plain
 
-    # Deve mostrar no máximo 6 itens + "e mais N"
-    assert "e mais 4" in plain
+    # Deve mostrar no máximo 8 itens + "e mais N"
+    assert "e mais 2" in plain
 
 
 def test_dashboard_render_no_alerts_message(tmp_path: Path):

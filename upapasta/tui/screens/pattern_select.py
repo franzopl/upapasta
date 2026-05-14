@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional, Union
 
+from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -102,6 +103,12 @@ class PatternSelectScreen(ModalScreen[Optional[SelectionRule]]):
         width: 1fr;
     }
 
+    #preview-label {
+        color: $accent;
+        margin-top: 1;
+        height: 1;
+    }
+
     #confirm-row {
         height: auto;
         align: right middle;
@@ -114,9 +121,10 @@ class PatternSelectScreen(ModalScreen[Optional[SelectionRule]]):
     }
     """
 
-    def __init__(self) -> None:
+    def __init__(self, visible_names: Optional[list[str]] = None) -> None:
         super().__init__()
         self._pending_kind: Optional[RuleKind] = None
+        self._visible_names: list[str] = visible_names or []
 
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog"):
@@ -159,6 +167,8 @@ class PatternSelectScreen(ModalScreen[Optional[SelectionRule]]):
             with Horizontal(id="regex-row"):
                 yield Input(placeholder="ex: .*S0[1-3].*", id="regex-input")
 
+            yield Static("", id="preview-label")
+
             with Horizontal(id="confirm-row"):
                 yield Button(
                     "Cancelar", variant="default", id="btn-cancel-sub", classes="confirm-btn"
@@ -182,6 +192,34 @@ class PatternSelectScreen(ModalScreen[Optional[SelectionRule]]):
             self._hide_sub_inputs()
         elif bid == "btn-apply":
             self._apply_sub_input()
+
+    @on(Input.Changed, "#regex-input")
+    def _on_regex_changed(self, event: Input.Changed) -> None:
+        """Atualiza preview de contagem de matches em tempo real."""
+        pattern = event.value.strip()
+        preview = self.query_one("#preview-label", Static)
+        if not pattern or not self._visible_names:
+            preview.update("")
+            return
+        try:
+            regex = re.compile(pattern, re.I)
+            count = sum(1 for n in self._visible_names if regex.search(n))
+            preview.update(f"↳ {count} de {len(self._visible_names)} itens casariam")
+        except re.error:
+            preview.update("↳ regex inválido")
+
+    @on(Input.Changed, "#size-input")
+    def _on_size_changed(self, event: Input.Changed) -> None:
+        preview = self.query_one("#preview-label", Static)
+        raw = event.value.strip()
+        if not raw or not self._visible_names:
+            preview.update("")
+            return
+        try:
+            gb = float(raw)
+            preview.update(f"↳ tamanho > {gb:.1f} GB")
+        except ValueError:
+            preview.update("↳ digite um número válido")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self._apply_sub_input()

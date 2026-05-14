@@ -125,12 +125,20 @@ class UploadPanel(Vertical):
             super().__init__()
             self.eta_str = eta_str
 
+    class NzbGenerated(Message):
+        """Postado quando um NZB é gerado (detectado via token @@NZB:)."""
+
+        def __init__(self, path: str) -> None:
+            super().__init__()
+            self.path = path
+
     class Finished(Message):
         """Postado quando todos os itens terminaram (sucesso ou cancelamento)."""
 
-        def __init__(self, success: bool) -> None:
+        def __init__(self, success: bool, last_nzb: Optional[str] = None) -> None:
             super().__init__()
             self.success = success
+            self.last_nzb = last_nzb
 
     # ── CSS ───────────────────────────────────────────────────────────────────
 
@@ -267,6 +275,7 @@ class UploadPanel(Vertical):
         # para ETA total da fila
         self._item_durations: list[float] = []
         self._current_item_start: float = 0.0
+        self._last_nzb: Optional[str] = None
 
     def compose(self) -> ComposeResult:
         n = len(self._items)
@@ -362,7 +371,7 @@ class UploadPanel(Vertical):
                 success = False
                 if self._cancelled:
                     break
-        self.post_message(self.Finished(success))
+        self.post_message(self.Finished(success, self._last_nzb))
 
     def _post_queue_eta(self, completed: int) -> None:
         """Calcula e posta ETA restante para a fila toda."""
@@ -452,6 +461,13 @@ class UploadPanel(Vertical):
         return True
 
     def _detect_phase(self, line: str) -> None:
+        if line.startswith("@@NZB:"):
+            nzb_path = line[len("@@NZB:") :].strip()
+            if nzb_path:
+                self._last_nzb = nzb_path
+                self.post_message(self.NzbGenerated(nzb_path))
+            return
+
         if line.startswith("@@PHASE:"):
             try:
                 phase_code = line.split("@@")[1].split(":")[1]

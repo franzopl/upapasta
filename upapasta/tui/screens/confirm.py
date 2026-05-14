@@ -78,6 +78,11 @@ class ConfirmScreen(ModalScreen[Optional[UploadConfig]]):
 
     #total-label {
         color: $text-muted;
+        margin-bottom: 0;
+    }
+
+    #par-estimate-label {
+        color: $accent;
         margin-bottom: 1;
     }
 
@@ -137,6 +142,7 @@ class ConfirmScreen(ModalScreen[Optional[UploadConfig]]):
 
             if total_bytes > 0:
                 yield Static(f"Total de arquivos: {_fmt_size(total_bytes)}", id="total-label")
+            yield Static("", id="par-estimate-label")
 
             yield Static("Opções:", classes="section-label")
             with Vertical(id="options"):
@@ -153,6 +159,28 @@ class ConfirmScreen(ModalScreen[Optional[UploadConfig]]):
             with Horizontal(id="buttons"):
                 yield Button("Cancelar", variant="default", id="btn-cancel")
                 yield Button("Iniciar upload", variant="primary", id="btn-confirm")
+
+    def on_mount(self) -> None:
+        self._update_par_estimate()
+
+    def on_select_changed(self) -> None:
+        self._update_par_estimate()
+
+    def _update_par_estimate(self) -> None:
+        total_bytes = sum(n.size for n in self._items if not n.is_dir)
+        if total_bytes == 0:
+            return
+        par_val = self.query_one("#par-profile", Select).value
+        profile = str(par_val) if par_val is not Select.BLANK else "balanced"
+        # Redundância aproximada por perfil
+        redundancy = {"fast": 0.05, "balanced": 0.10, "safe": 0.20}.get(profile, 0.10)
+        par_bytes = int(total_bytes * redundancy)
+        total_with_par = total_bytes + par_bytes
+        label = self.query_one("#par-estimate-label", Static)
+        label.update(
+            f"PAR2 ({profile}, ~{int(redundancy * 100)}%): +{_fmt_size(par_bytes)}"
+            f"  →  total estimado: {_fmt_size(total_with_par)}"
+        )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-cancel":
