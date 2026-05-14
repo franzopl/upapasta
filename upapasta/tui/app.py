@@ -89,7 +89,14 @@ class UpaPastaApp(App[None]):
     def __init__(self, root_path: Path) -> None:
         super().__init__()
         self.root_path = root_path
-        self._index = load_catalog()
+
+        from ..config import load_env_file, resolve_env_file
+
+        env_vars = load_env_file(resolve_env_file())
+        nzb_dirs_raw = env_vars.get("EXTERNAL_NZB_DIR", "")
+        nzb_paths = [Path(p.strip()) for p in nzb_dirs_raw.split(",") if p.strip()]
+
+        self._index = load_catalog(external_nzb_paths=nzb_paths)
         self._filter: Optional[UploadStatus] = None
         self._selection_count: int = 0
 

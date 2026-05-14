@@ -96,11 +96,16 @@ def _build_node(path: Path, index: CatalogIndex) -> FileNode:
 
 def _build_file_node(path: Path, index: CatalogIndex) -> FileNode:
     entry = index.lookup(path.name)
+    if entry:
+        status = UploadStatus.EXTERNAL if entry.is_external else UploadStatus.UPLOADED
+    else:
+        status = UploadStatus.PENDING
+
     return FileNode(
         path=path,
         is_dir=False,
         size=_safe_size(path),
-        status=UploadStatus.UPLOADED if entry else UploadStatus.PENDING,
+        status=status,
         upload_entry=entry,
     )
 
@@ -108,11 +113,12 @@ def _build_file_node(path: Path, index: CatalogIndex) -> FileNode:
 def _build_dir_node(path: Path, index: CatalogIndex) -> FileNode:
     entry = index.lookup(path.name)
     if entry:
+        status = UploadStatus.EXTERNAL if entry.is_external else UploadStatus.UPLOADED
         return FileNode(
             path=path,
             is_dir=True,
             size=0,
-            status=UploadStatus.UPLOADED,
+            status=status,
             upload_entry=entry,
         )
 

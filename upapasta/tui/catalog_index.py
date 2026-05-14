@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from .external_nzb import ExternalNzbIndex
+
 
 @dataclass(frozen=True)
 class CatalogEntry:
@@ -24,25 +26,29 @@ class CatalogEntry:
     caminho_nzb: Optional[str]
     grupo_usenet: Optional[str]
     categoria: Optional[str]
+    is_external: bool = False
 
 
 class CatalogIndex:
     """
-    Índice em memória do history.jsonl.
+    Índice em memória do history.jsonl e de diretórios de NZBs externos.
 
     Lookup por nome é O(1). Reload incremental: só relê o arquivo
     se o tamanho em bytes mudou desde a última leitura.
     """
 
-    def __init__(self, history_path: Path) -> None:
+    def __init__(self, history_path: Path, external_nzb_paths: Optional[list[Path]] = None) -> None:
         self._path = history_path
         self._index: dict[str, list[CatalogEntry]] = {}
         self._loaded_size: int = -1
+        self._external_idx = ExternalNzbIndex(external_nzb_paths or [])
 
     # ── Carregamento ─────────────────────────────────────────────────────────
 
     def load(self) -> None:
         """Carrega ou recarrega o catálogo. Idempotente se o arquivo não mudou."""
+        self._external_idx.scan()
+
         if not self._path.exists():
             self._index = {}
             self._loaded_size = 0
@@ -91,16 +97,34 @@ class CatalogIndex:
     # ── Consulta ─────────────────────────────────────────────────────────────
 
     def lookup(self, name: str) -> Optional[CatalogEntry]:
-        """Retorna a entrada mais recente para o nome, ou None se não encontrado."""
+        """Retorna a entrada mais recente para o nome, ou uma entrada virtual externa."""
         entries = self._index.get(name.lower())
-        return entries[0] if entries else None
+        if entries:
+            return entries[0]
+
+        if self._external_idx.is_present(name):
+            # Cria entrada virtual
+            return CatalogEntry(
+                nome_original=name,
+                upload_date=datetime(1970, 1, 1, tzinfo=timezone.utc),
+                tamanho_bytes=None,
+                caminho_nzb=None,
+                grupo_usenet=None,
+                categoria=None,
+                is_external=True,
+            )
+
+        return None
 
     def lookup_all(self, name: str) -> list[CatalogEntry]:
         """Retorna todas as entradas para o nome, ordenadas por data decrescente."""
-        return list(self._index.get(name.lower(), []))
+        entries = list(self._index.get(name.lower(), []))
+        if not entries and self._external_idx.is_present(name):
+            return [self.lookup(name)]  # type: ignore
+        return entries
 
     def has(self, name: str) -> bool:
-        return name.lower() in self._index
+        return name.lower() in self._index or self._external_idx.is_present(name)
 
     def all_names(self) -> set[str]:
         """Retorna o conjunto de nomes normalizados (lowercase) no índice."""
@@ -149,12 +173,14 @@ def _parse_date(value: object) -> datetime:
         return epoch_zero
 
 
-def load_catalog(history_path: Optional[Path] = None) -> CatalogIndex:
+def load_catalog(
+    history_path: Optional[Path] = None, external_nzb_paths: Optional[list[Path]] = None
+) -> CatalogIndex:
     """Cria e carrega um CatalogIndex do path padrão ou do path fornecido."""
     if history_path is None:
         from ..config import CONFIG_DIR
 
         history_path = Path(CONFIG_DIR) / "history.jsonl"
-    idx = CatalogIndex(history_path)
+    idx = CatalogIndex(history_path, external_nzb_paths=external_nzb_paths)
     idx.load()
     return idx

@@ -15,6 +15,7 @@ class UploadStatus(Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     IGNORED = "ignored"
+    EXTERNAL = "external"
 
     @property
     def icon(self) -> str:
@@ -35,6 +36,7 @@ _ICONS: dict[str, str] = {
     "pending": "❌",
     "in_progress": "⏳",
     "ignored": "—",
+    "external": "🌐",
 }
 
 _COLORS: dict[str, str] = {
@@ -43,6 +45,7 @@ _COLORS: dict[str, str] = {
     "pending": "red",
     "in_progress": "cyan",
     "ignored": "dim",
+    "external": "blue",
 }
 
 _LABELS: dict[str, str] = {
@@ -51,4 +54,5 @@ _LABELS: dict[str, str] = {
     "pending": "Pendente",
     "in_progress": "Enviando",
     "ignored": "Ignorado",
+    "external": "Externo",
 }

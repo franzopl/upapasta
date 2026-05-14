@@ -185,6 +185,10 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
         "# Exibir timestamp nos logs (true/false)",
         f"LOG_TIME={v('LOG_TIME')}",
         "",
+        "# *** External NZB Tracking ***",
+        "# Diretórios (separados por vírgula) para buscar arquivos .nzb externos",
+        f"EXTERNAL_NZB_DIR={v('EXTERNAL_NZB_DIR')}",
+        "",
     ]
 
     os.makedirs(os.path.dirname(env_file), exist_ok=True)
