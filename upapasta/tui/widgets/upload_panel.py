@@ -246,7 +246,7 @@ class UploadPanel(Vertical):
         yield ProgressBar(total=None, show_eta=False, id="up-bar")
 
         yield Static("Progresso Total:", classes="progress-label")
-        yield ProgressBar(total=n, progress=0, show_eta=False, id="up-overall-bar")
+        yield ProgressBar(total=n, show_eta=False, id="up-overall-bar")
 
         if self._items:
             yield Rule()
