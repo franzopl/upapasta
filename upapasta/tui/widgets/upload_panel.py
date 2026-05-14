@@ -163,7 +163,6 @@ class UploadPanel(Vertical):
 
     .progress-label {
         color: $text-muted;
-        font-size: 80%;
         margin-top: 1;
     }
 
@@ -172,22 +171,29 @@ class UploadPanel(Vertical):
         margin-bottom: 0;
     }
 
-    #up-overall-bar {
-        accent: $success;
+    #up-overall-bar > .bar--bar {
+        color: $success;
+    }
+
+    #up-overall-bar > .bar--complete {
+        color: $success;
     }
 
     #up-queue {
-        height: auto;
-        max-height: 6;
-        margin-top: 0;
-        margin-bottom: 0;
-        overflow-y: auto;
+        height: 1fr;
+        min-height: 8;
+        border: tall $panel;
+        margin-top: 1;
+        padding: 0 1;
+        overflow-y: scroll;
+        background: $surface;
     }
 
     #up-log {
-        height: 1fr;
+        height: 10;
         border: tall $panel;
-        margin-top: 0;
+        margin-top: 1;
+        display: none;
     }
 
     #up-summary {
@@ -388,10 +394,11 @@ class UploadPanel(Vertical):
 
     def on_upload_panel__item_update(self, event: _ItemUpdate) -> None:
         item = self._items[event.index]
-        self.query_one(f"#up-item-{event.index}", Static).update(
-            _item_text(item.name, event.status)
-        )
+        widget = self.query_one(f"#up-item-{event.index}", Static)
+        widget.update(_item_text(item.name, event.status))
+
         if event.status == "running":
+            widget.scroll_visible()
             # Reinicia timer e barra para o novo item
             self._item_start = time.monotonic()
             self._current_phase = "Iniciando"
@@ -439,6 +446,7 @@ class UploadPanel(Vertical):
         self.query_one("#up-bar", ProgressBar).display = False
         self.query_one("#up-overall-bar", ProgressBar).display = False
         self.query_one("#up-status-row").display = False
+        self.query_one("#up-queue").display = False
         for label in self.query(".progress-label"):
             label.display = False
 
@@ -451,8 +459,10 @@ class UploadPanel(Vertical):
         if fail_count > 0:
             summary += f"Falhas/Cancelados: [bold red]{fail_count}[/]\n"
 
-        # Mostra o log de forma reduzida
-        self.query_one("#up-log").styles.height = 10
+        # Mostra o log de forma reduzida para contexto final
+        log = self.query_one("#up-log")
+        log.styles.height = 10
+        log.display = True
 
         summary_widget = self.query_one("#up-summary")
         summary_widget.display = True

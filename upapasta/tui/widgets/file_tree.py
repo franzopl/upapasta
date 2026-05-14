@@ -178,7 +178,7 @@ class FileTreeWidget(Tree[FileNode]):
         if cursor.is_expanded:
             cursor.collapse()
         elif cursor.parent:
-            self.cursor_node = cursor.parent
+            self.select_node(cursor.parent)
 
     # ── API pública ───────────────────────────────────────────────────────────
 
