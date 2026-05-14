@@ -7,6 +7,7 @@ Integrado com a nova UI baseada em 'rich'.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import sys
@@ -123,6 +124,19 @@ def _process_output(
 
         line = _strip_ansi(line).strip()
         if not line:
+            continue
+
+        if os.environ.get("UPAPASTA_PORCELAIN") == "1":
+            print(line)
+            sys.stdout.flush()
+            # Ainda detectamos porcentagem para caso precise (mas a TUI parseia a linha impressa)
+            m = _PCT_RE.search(line)
+            if m:
+                try:
+                    last_percent = int(float(m.group(1)))
+                    teve_percentual = True
+                except (ValueError, TypeError):
+                    pass
             continue
 
         if captured_lines is not None:

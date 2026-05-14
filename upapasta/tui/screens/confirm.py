@@ -29,7 +29,7 @@ class UploadConfig:
 
 def build_upload_cmd(item: FileNode, config: UploadConfig) -> list[str]:
     """Constrói o comando CLI para um item com as opções dadas."""
-    cmd = [sys.executable, "-m", "upapasta", str(item.path)]
+    cmd = [sys.executable, "-m", "upapasta", str(item.path), "--porcelain"]
     if config.obfuscate:
         cmd.append("--obfuscate")
     if config.use_rar:

@@ -487,6 +487,12 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
+    advanced.add_argument(
+        "--porcelain",
+        action="store_true",
+        help="Modo de saída limpa para TUI (desativa a barra de progresso visual).",
+    )
+
     return p.parse_args()
 
 

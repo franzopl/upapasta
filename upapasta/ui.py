@@ -237,8 +237,10 @@ class PhaseBar:
 
     def __enter__(self) -> PhaseBar:
         _thread_local.bar_active = True
-        self._live = Live(self._render_group(), console=self.console, refresh_per_second=10)
-        self._live.start()
+        self._porcelain = os.environ.get("UPAPASTA_PORCELAIN") == "1"
+        if not self._porcelain:
+            self._live = Live(self._render_group(), console=self.console, refresh_per_second=10)
+            self._live.start()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
@@ -248,6 +250,8 @@ class PhaseBar:
 
     def log(self, message: str) -> None:
         """Adiciona uma mensagem curta ao log do dashboard."""
+        if getattr(self, "_porcelain", False):
+            return
         self._logs.append(message)
         if len(self._logs) > self._max_logs:
             self._logs.pop(0)
@@ -271,6 +275,12 @@ class PhaseBar:
         self._state[phase] = "skipped"
         self._update_live()
 
+    def skip_all(self) -> None:
+        for phase in self.PHASES:
+            if self._state[phase] == "pending":
+                self._state[phase] = "skipped"
+        self._update_live()
+
     def error(self, phase: str) -> None:
         if phase in self._start_time:
             self._elapsed[phase] = time.time() - self._start_time[phase]
@@ -279,6 +289,8 @@ class PhaseBar:
 
     def update_progress(self, percentage: float, description: str = "") -> None:
         """Atualiza a barra de progresso da fase ativa."""
+        if getattr(self, "_porcelain", False):
+            return
         if self.active_task is None:
             self.active_task = self.progress.add_task(description or _("Processando..."), total=100)
         self.progress.update(self.active_task, completed=percentage, description=description)

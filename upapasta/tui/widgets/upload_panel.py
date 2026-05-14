@@ -317,6 +317,11 @@ class UploadPanel(Vertical):
         self.post_message(self._Progress(0.0))
 
         try:
+            import os
+
+            env = os.environ.copy()
+            env["UPAPASTA_PORCELAIN"] = "1"
+
             # newline="" para não converter \r em \n, permitindo leitura manual
             with subprocess.Popen(
                 cmd,
@@ -325,6 +330,7 @@ class UploadPanel(Vertical):
                 stdin=subprocess.DEVNULL,
                 text=True,
                 bufsize=1,  # Line buffered
+                env=env,
             ) as proc:
                 self._proc = proc
                 assert proc.stdout is not None
@@ -383,6 +389,8 @@ class UploadPanel(Vertical):
                 break
 
     def _detect_progress(self, line: str) -> None:
+        if "margem" in line.lower() or "ramdisk" in line.lower():
+            return
         m = _PCT_RE.search(line)
         if m:
             self.post_message(self._Progress(min(100.0, float(m.group(1)))))
