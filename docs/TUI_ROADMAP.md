@@ -329,6 +329,13 @@ Resultado: NZB salvo + catálogo atualizado + status muda para ✅ ao vivo
 - Exibe notificação quando novo item aparece
 - Opção de auto-upload de novos itens (com confirmação ou silencioso)
 
+### 5.6 · Upload em Background (Daemon)
+
+- Permite acionar uploads na TUI que são processados em segundo plano.
+- Acionado via flag `--daemon` ou configurado na interface.
+- Ideal para acesso via SSH em servidores/homelabs: o usuário pode adicionar itens à fila (Fire and Forget) e fechar a TUI.
+- Um processo "invisível" consome a fila e atualiza o catálogo, sendo refletido no Dashboard ao abrir a TUI novamente.
+
 ---
 
 ## Dependências por Fase
