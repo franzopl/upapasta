@@ -29,10 +29,10 @@ _SPINNER_CHARS = "⣾⣽⣻⢿⡿⣟⣯⣷"
 
 # Padrões para detectar a fase atual a partir das linhas de saída
 _PHASE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"NFO|mediainfo|ffprobe", re.I), "NFO"),
-    (re.compile(r"PAR2|parpar", re.I), "PAR2"),
+    (re.compile(r"\bNFO\b|mediainfo|ffprobe", re.I), "NFO"),
+    (re.compile(r"\bPAR2\b|parpar", re.I), "PAR2"),
     (re.compile(r"[Uu]pload|nyuu"), "Upload"),
-    (re.compile(r"NZB|pós-processamento", re.I), "NZB"),
+    (re.compile(r"\bNZB\b|pós-processamento", re.I), "NZB"),
     (re.compile(r"limpeza|cleanup", re.I), "Limpeza"),
 ]
 
@@ -263,7 +263,7 @@ class UploadPanel(Vertical):
             yield Label("Resumo do Upload", classes="summary-title")
             yield Static("", id="summary-text")
             yield Rule()
-            yield Static("Pressione [Enter] ou [Esc] para voltar", classes="help-text")
+            yield Static("Pressione \\[Enter] ou \\[Esc] para voltar", classes="help-text")
 
         yield Rule()
         yield RichLog(id="up-log", markup=False, highlight=False, auto_scroll=True)
