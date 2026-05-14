@@ -260,6 +260,9 @@ class PhaseBar:
     def start(self, phase: str) -> None:
         self._state[phase] = "active"
         self._start_time[phase] = time.time()
+        if getattr(self, "_porcelain", False):
+            print(f"@@PHASE:{phase}@@", flush=True)
+            return
         self._update_live()
 
     def done(self, phase: str) -> None:

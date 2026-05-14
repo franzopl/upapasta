@@ -27,14 +27,14 @@ from ..screens.confirm import UploadConfig, build_upload_cmd
 
 _SPINNER_CHARS = "⣾⣽⣻⢿⡿⣟⣯⣷"
 
-# Padrões para detectar a fase atual a partir das linhas de saída
-_PHASE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\bNFO\b|mediainfo|ffprobe", re.I), "NFO"),
-    (re.compile(r"\bPAR2\b|parpar", re.I), "PAR2"),
-    (re.compile(r"[Uu]pload|nyuu"), "Upload"),
-    (re.compile(r"\bNZB\b|pós-processamento", re.I), "NZB"),
-    (re.compile(r"limpeza|cleanup", re.I), "Limpeza"),
-]
+_PHASE_MAP = {
+    "NFO": "NFO",
+    "PACK": "Compactação",
+    "PAR2": "PAR2",
+    "OBF": "Ofuscação",
+    "UPLOAD": "Upload",
+    "DONE": "Concluído",
+}
 
 _PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*%")
 _SPEED_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:kB|MB|GB)/s", re.I)
@@ -383,10 +383,18 @@ class UploadPanel(Vertical):
         return True
 
     def _detect_phase(self, line: str) -> None:
-        for pattern, name in _PHASE_PATTERNS:
-            if pattern.search(line):
-                self.post_message(self._Phase(name))
-                break
+        if line.startswith("@@PHASE:"):
+            try:
+                phase_code = line.split("@@")[1].split(":")[1]
+                display_name = _PHASE_MAP.get(phase_code, phase_code)
+                self.post_message(self._Phase(display_name))
+            except IndexError:
+                pass
+            return
+
+        # Fallback para limpeza
+        if "limpeza" in line.lower() or "cleanup" in line.lower():
+            self.post_message(self._Phase("Limpeza"))
 
     def _detect_progress(self, line: str) -> None:
         if "margem" in line.lower() or "ramdisk" in line.lower():
