@@ -20,6 +20,7 @@ from textual.widgets import Footer, Header, Input, Tree
 
 from .catalog_index import load_catalog
 from .screens.confirm import ConfirmScreen
+from .screens.pattern_select import PatternSelectScreen, RuleKind, SelectionRule
 from .screens.upload_progress import UploadProgressScreen
 from .status import UploadStatus
 from .widgets.dashboard import DashboardWidget
@@ -61,16 +62,12 @@ class UpaPastaApp(App[None]):
         scrollbar-gutter: stable;
     }
 
-    #search-input, #pattern-input {
+    #search-input {
         dock: bottom;
         height: 3;
         margin: 0;
         border: tall $accent;
         display: none;
-    }
-
-    #pattern-input {
-        border: tall $warning;
     }
 
     StatusBar {
@@ -112,7 +109,6 @@ class UpaPastaApp(App[None]):
             )
             yield DashboardWidget(self._index, self.root_path, id="dashboard")
         yield Input(placeholder="Buscar... (Enter ou Esc para fechar)", id="search-input")
-        yield Input(placeholder="Selecionar por Regex... (Ex: .*S01.*)", id="pattern-input")
         yield StatusBar(id="status-bar")
         yield Footer()
 
@@ -135,12 +131,6 @@ class UpaPastaApp(App[None]):
     def _on_search_submitted(self, event: Input.Submitted) -> None:
         self._hide_search()
 
-    @on(Input.Submitted, "#pattern-input")
-    def _on_pattern_submitted(self, event: Input.Submitted) -> None:
-        if event.value:
-            self.query_one(FileTreeWidget).select_by_pattern(event.value)
-        self._hide_pattern()
-
     @on(FileTreeWidget.SelectionChanged)
     def _on_selection_changed(self, event: FileTreeWidget.SelectionChanged) -> None:
         self._selection_count = len(event.selected)
@@ -148,19 +138,14 @@ class UpaPastaApp(App[None]):
 
     def on_key(self, event: events.Key) -> None:
         search = self.query_one("#search-input", Input)
-        pattern = self.query_one("#pattern-input", Input)
 
-        if event.key == "slash" and not search.display and not pattern.display:
+        if event.key == "slash" and not search.display:
             search.display = True
             search.focus()
             event.stop()
-        elif event.key == "escape":
-            if search.display:
-                self._hide_search()
-                event.stop()
-            elif pattern.display:
-                self._hide_pattern()
-                event.stop()
+        elif event.key == "escape" and search.display:
+            self._hide_search()
+            event.stop()
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
@@ -180,9 +165,24 @@ class UpaPastaApp(App[None]):
             dash.refresh_data()
 
     def action_pattern_select(self) -> None:
-        pattern = self.query_one("#pattern-input", Input)
-        pattern.display = True
-        pattern.focus()
+        self._open_pattern_select()
+
+    @work
+    async def _open_pattern_select(self) -> None:
+        rule: SelectionRule | None = await self.push_screen_wait(PatternSelectScreen())
+        if rule is None:
+            return
+        tree = self.query_one(FileTreeWidget)
+        if rule.kind == RuleKind.STATUS_PENDING:
+            tree.select_by_status(UploadStatus.PENDING)
+        elif rule.kind == RuleKind.STATUS_FAILED:
+            tree.select_by_status(UploadStatus.FAILED)
+        elif rule.kind == RuleKind.MIN_SIZE_GB:
+            tree.select_by_min_size(int(rule.value))  # type: ignore[arg-type]
+        elif rule.kind == RuleKind.SEASON_PATTERN:
+            tree.select_by_pattern(r"S\d{2}")
+        elif rule.kind == RuleKind.REGEX:
+            tree.select_by_pattern(str(rule.value))
 
     def action_filter_pending(self) -> None:
         self._apply_filter(UploadStatus.PENDING)
@@ -233,12 +233,6 @@ class UpaPastaApp(App[None]):
         tree = self.query_one(FileTreeWidget)
         tree.set_search("")
         tree.focus()
-
-    def _hide_pattern(self) -> None:
-        pattern = self.query_one("#pattern-input", Input)
-        pattern.display = False
-        pattern.clear()
-        self.query_one(FileTreeWidget).focus()
 
     def _update_subtitle(self) -> None:
         parts: list[str] = [str(self.root_path)]

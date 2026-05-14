@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import threading
 import time
 from typing import Optional
 
@@ -114,6 +115,16 @@ class UploadPanel(Vertical):
             self.line = line
             self.style = style
 
+    class _PauseToggled(Message):
+        def __init__(self, paused: bool) -> None:
+            super().__init__()
+            self.paused = paused
+
+    class _QueueETA(Message):
+        def __init__(self, eta_str: str) -> None:
+            super().__init__()
+            self.eta_str = eta_str
+
     class Finished(Message):
         """Postado quando todos os itens terminaram (sucesso ou cancelamento)."""
 
@@ -159,6 +170,19 @@ class UploadPanel(Vertical):
     #up-counter {
         width: auto;
         color: $text-muted;
+    }
+
+    #up-queue-eta {
+        width: auto;
+        color: $success;
+        margin-right: 2;
+    }
+
+    #up-pause-indicator {
+        width: auto;
+        color: $warning;
+        text-style: bold;
+        display: none;
     }
 
     .progress-label {
@@ -230,6 +254,9 @@ class UploadPanel(Vertical):
         self._config = config
         self._proc: Optional[subprocess.Popen[str]] = None
         self._cancelled = False
+        self._paused = False
+        self._resume_event = threading.Event()
+        self._resume_event.set()  # não pausado por padrão
         self._current_phase = "Preparando"
         self._item_start: float = 0.0
         self._got_progress = False
@@ -237,6 +264,9 @@ class UploadPanel(Vertical):
         self._done_count = 0
         self._current_speed = ""
         self._current_eta = ""
+        # para ETA total da fila
+        self._item_durations: list[float] = []
+        self._current_item_start: float = 0.0
 
     def compose(self) -> ComposeResult:
         n = len(self._items)
@@ -245,6 +275,8 @@ class UploadPanel(Vertical):
             yield Static("Preparando...", id="up-phase")
             yield Static("", id="up-speed")
             yield Static("", id="up-eta")
+            yield Static("", id="up-queue-eta")
+            yield Static("⏸ PAUSADO", id="up-pause-indicator")
             yield Static(f"0 / {n}", id="up-counter")
 
         yield Static("Progresso do Item:", classes="progress-label")
@@ -284,14 +316,25 @@ class UploadPanel(Vertical):
             f"{self._current_phase}  —  {mins:02d}:{secs:02d}"
         )
 
-    # ── Cancelamento ──────────────────────────────────────────────────────────
+    # ── Cancelamento e Pausa ─────────────────────────────────────────────────
 
     def cancel(self) -> None:
         """Sinaliza cancelamento e envia SIGTERM ao subprocess ativo."""
         self._cancelled = True
+        self._resume_event.set()  # desbloqueia o worker se estiver pausado
         proc = self._proc
         if proc is not None and proc.poll() is None:
             proc.terminate()
+
+    def toggle_pause(self) -> None:
+        """Alterna pausa entre itens da fila."""
+        if self._paused:
+            self._paused = False
+            self._resume_event.set()
+        else:
+            self._paused = True
+            self._resume_event.clear()
+        self.post_message(self._PauseToggled(self._paused))
 
     # ── Worker (thread) ───────────────────────────────────────────────────────
 
@@ -299,17 +342,43 @@ class UploadPanel(Vertical):
     def _run_all(self) -> None:
         success = True
         for idx, item in enumerate(self._items):
+            # Aguarda se estiver pausado (sem bloquear cancelamento)
+            self._resume_event.wait()
+            if self._cancelled:
+                break
+
+            self._current_item_start = time.monotonic()
             self.post_message(self._ItemUpdate(idx, "running"))
             self.post_message(self._Phase("Iniciando"))
             ok = self._run_one(item)
+
+            elapsed = time.monotonic() - self._current_item_start
             if ok:
+                self._item_durations.append(elapsed)
                 self.post_message(self._ItemUpdate(idx, "done"))
+                self._post_queue_eta(idx + 1)
             else:
                 self.post_message(self._ItemUpdate(idx, "failed"))
                 success = False
                 if self._cancelled:
                     break
         self.post_message(self.Finished(success))
+
+    def _post_queue_eta(self, completed: int) -> None:
+        """Calcula e posta ETA restante para a fila toda."""
+        remaining = len(self._items) - completed
+        if remaining <= 0 or not self._item_durations:
+            self.post_message(self._QueueETA(""))
+            return
+        avg = sum(self._item_durations) / len(self._item_durations)
+        total_secs = int(avg * remaining)
+        mins, secs = divmod(total_secs, 60)
+        hrs, mins = divmod(mins, 60)
+        if hrs:
+            eta_str = f"fila ~{hrs}h{mins:02d}m"
+        else:
+            eta_str = f"fila ~{mins}m{secs:02d}s"
+        self.post_message(self._QueueETA(eta_str))
 
     def _run_one(self, item: FileNode) -> bool:
         cmd = build_upload_cmd(item, self._config)
@@ -454,6 +523,17 @@ class UploadPanel(Vertical):
             bar.update(total=100.0, progress=event.pct)
         else:
             bar.update(progress=event.pct)
+
+    def on_upload_panel__pause_toggled(self, event: _PauseToggled) -> None:
+        indicator = self.query_one("#up-pause-indicator", Static)
+        indicator.display = event.paused
+        if event.paused:
+            self._current_phase = "⏸ Pausado"
+        else:
+            self._current_phase = "Retomando..."
+
+    def on_upload_panel__queue_eta(self, event: _QueueETA) -> None:
+        self.query_one("#up-queue-eta", Static).update(event.eta_str)
 
     def on_upload_panel__log_line(self, event: _LogLine) -> None:
         log = self.query_one("#up-log", RichLog)

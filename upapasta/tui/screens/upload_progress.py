@@ -22,6 +22,7 @@ class UploadProgressScreen(Screen[bool]):
 
     BINDINGS = [
         Binding("escape", "request_cancel", "Cancelar / Voltar"),
+        Binding("p", "toggle_pause", "Pausar / Retomar", show=True),
         Binding("enter", "confirm_finish", "Concluir", show=False),
     ]
 
@@ -55,6 +56,16 @@ class UploadProgressScreen(Screen[bool]):
         footer = self.query_one(Footer)
         self.BINDINGS.append(Binding("enter", "confirm_finish", "Voltar"))
         footer.refresh()
+
+    def action_toggle_pause(self) -> None:
+        if self._finished:
+            return
+        panel = self.query_one("#upload-panel", UploadPanel)
+        panel.toggle_pause()
+        if panel._paused:
+            self.app.notify("Upload pausado. [P] para retomar.", severity="warning", timeout=3)
+        else:
+            self.app.notify("Upload retomado.", severity="information", timeout=2)
 
     def action_request_cancel(self) -> None:
         if self._finished:

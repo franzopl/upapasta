@@ -204,6 +204,38 @@ class FileTreeWidget(Tree[FileNode]):
         else:
             self.app.notify("Nenhum item novo encontrado", severity="warning")
 
+    def select_by_status(self, status: UploadStatus) -> None:
+        """Seleciona todos os nós visíveis com o status dado."""
+        count = 0
+        for node in self.query("TreeNode"):
+            file_node: Optional[FileNode] = node.data  # type: ignore
+            if file_node and not file_node.is_dir and file_node.status == status:
+                if file_node.path not in self._selected:
+                    self._toggle_node_selection(node, file_node)  # type: ignore
+                    count += 1
+
+        if count > 0:
+            self.app.notify(f"{count} itens selecionados", severity="information")
+            self.post_message(self.SelectionChanged(list(self._selected.values())))
+        else:
+            self.app.notify("Nenhum item encontrado com esse status", severity="warning")
+
+    def select_by_min_size(self, min_bytes: int) -> None:
+        """Seleciona arquivos com tamanho >= min_bytes entre os nós visíveis."""
+        count = 0
+        for node in self.query("TreeNode"):
+            file_node: Optional[FileNode] = node.data  # type: ignore
+            if file_node and not file_node.is_dir and file_node.size >= min_bytes:
+                if file_node.path not in self._selected:
+                    self._toggle_node_selection(node, file_node)  # type: ignore
+                    count += 1
+
+        if count > 0:
+            self.app.notify(f"{count} itens selecionados", severity="information")
+            self.post_message(self.SelectionChanged(list(self._selected.values())))
+        else:
+            self.app.notify("Nenhum arquivo encontrado com esse tamanho mínimo", severity="warning")
+
     def set_filter(self, status: Optional[UploadStatus]) -> None:
         self._filter = status
         self._reload_root()
