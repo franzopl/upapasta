@@ -1,7 +1,7 @@
 """
 indexer.py
 
-Busca em indexadores Newznab (OMGWTFNZBS, NZBGeek, Prowlarr, etc.)
+Busca em indexadores compatíveis com o protocolo Newznab (incluindo Prowlarr)
 antes de fazer upload — se o conteúdo já está na Usenet, baixa só o .nzb
 como backup local e pula o upload. Zero downloads de conteúdo.
 

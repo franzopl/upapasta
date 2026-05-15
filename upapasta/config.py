@@ -190,7 +190,7 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
         f"EXTERNAL_NZB_DIR={v('EXTERNAL_NZB_DIR')}",
         "",
         "# *** Indexer Search (Newznab / Prowlarr) ***",
-        "# URL da API Newznab do indexador (ex: https://api.omgwtfnzbs.me/api",
+        "# URL da API Newznab do indexador (ex: https://indexador.example.com/api",
         "# ou Prowlarr: http://localhost:9696/prowlarr/api/v1/newznab)",
         f"INDEXER_URL={v('INDEXER_URL')}",
         "",
@@ -313,7 +313,7 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
     print(_("── Indexador Newznab / Prowlarr (opcional) ───────────────"))
     print(_("  Busca conteúdo no indexador antes de fazer upload."))
     print(_("  Se encontrado, baixa o .nzb como backup e pula o upload."))
-    print(_("  Suporta OMGWTFNZBS, NZBGeek, Prowlarr, etc."))
+    print(_("  Compatível com qualquer indexador Newznab ou agregador como Prowlarr."))
     indexer_url = _ask(
         _("URL da API do indexador (deixe vazio para pular)"),
         default=ex("INDEXER_URL", ""),
