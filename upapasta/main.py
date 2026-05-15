@@ -126,7 +126,13 @@ def main() -> None:
         sys.exit(0)
 
     if getattr(args, "config", False):
-        check_or_prompt_credentials(env_file, force=True)
+        try:
+            from .tui_config import run_config_wizard
+
+            run_config_wizard(profile=getattr(args, "profile", None))
+        except (RuntimeError, ImportError):
+            # Terminal sem suporte a curses → fallback para wizard textual
+            check_or_prompt_credentials(env_file, force=True)
         sys.exit(0)
 
     if getattr(args, "stats", False):
