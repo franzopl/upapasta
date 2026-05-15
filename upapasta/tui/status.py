@@ -56,3 +56,24 @@ _LABELS: dict[str, str] = {
     "ignored": "Ignorado",
     "external": "Externo",
 }
+
+
+class IndexerStatus(Enum):
+    """Status da busca no indexador Newznab para um item da TUI."""
+
+    UNKNOWN = "unknown"  # ainda não buscado
+    SEARCHING = "searching"  # busca em andamento
+    FOUND = "found"  # encontrado no indexador
+    NOT_FOUND = "not_found"  # buscado, não encontrado
+
+    @property
+    def badge(self) -> str:
+        return _INDEXER_BADGES[self.value]
+
+
+_INDEXER_BADGES: dict[str, str] = {
+    "unknown": "",
+    "searching": " 🔍",
+    "found": " 📥",
+    "not_found": "",
+}

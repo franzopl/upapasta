@@ -493,6 +493,16 @@ def parse_args() -> argparse.Namespace:
         help="Modo de saída limpa para TUI (desativa a barra de progresso visual).",
     )
 
+    advanced.add_argument(
+        "--check-indexer",
+        action="store_true",
+        dest="check_indexer",
+        help=_(
+            "Busca o conteúdo no indexador Newznab configurado (INDEXER_URL/INDEXER_APIKEY) "
+            "antes de fazer upload. Se encontrado, pergunta se deseja baixar o NZB ou pular."
+        ),
+    )
+
     return p.parse_args()
 
 

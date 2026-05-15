@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 from rich.text import Text
-from textual import on
+from textual import on, work
 from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import Tree
@@ -20,7 +20,7 @@ from textual.widgets.tree import TreeNode
 
 from ..catalog_index import CatalogIndex
 from ..fs_scanner import FileNode, scan_directory
-from ..status import UploadStatus
+from ..status import IndexerStatus, UploadStatus
 
 
 def make_node_label(
@@ -69,6 +69,11 @@ def make_node_label(
             style="yellow dim",
         )
 
+    badge = node.indexer_status.badge
+    if badge:
+        style = "cyan" if node.indexer_status == IndexerStatus.SEARCHING else "green"
+        text.append(badge, style=style)
+
     return text
 
 
@@ -87,6 +92,7 @@ class FileTreeWidget(Tree[FileNode]):
         Binding("i", "invert_selection", "Inverter", show=True),
         Binding("ctrl+d", "clear_selection", "Limpar", show=True),
         Binding("left", "back", "Voltar", show=False),
+        Binding("n", "download_nzb", "Baixar NZB", show=True),
     ]
 
     class SelectionChanged(Message):
@@ -95,6 +101,16 @@ class FileTreeWidget(Tree[FileNode]):
         def __init__(self, selected: list[FileNode]) -> None:
             super().__init__()
             self.selected = selected
+
+    class IndexerStatusUpdated(Message):
+        """Postado pela thread de busca quando o status de um item é atualizado."""
+
+        def __init__(self, path: Path, status: IndexerStatus, nzb_url: str, title: str) -> None:
+            super().__init__()
+            self.path = path
+            self.status = status
+            self.nzb_url = nzb_url
+            self.title = title
 
     def __init__(
         self,
@@ -213,6 +229,126 @@ class FileTreeWidget(Tree[FileNode]):
             cursor.collapse()
         elif cursor.parent:
             self.select_node(cursor.parent)
+
+    def action_download_nzb(self) -> None:
+        """Baixa o NZB do item em destaque se ele foi encontrado no indexador."""
+        node = self.highlighted_node()
+        if node is None or node.indexer_status != IndexerStatus.FOUND:
+            self.app.notify(
+                "Item não encontrado no indexador. Use x para buscar primeiro.",
+                severity="warning",
+                timeout=3,
+            )
+            return
+        self._do_download_nzb(node)
+
+    @work(thread=True)
+    def _do_download_nzb(self, node: FileNode) -> None:
+        import os
+        import re
+
+        from ...config import load_env_file, resolve_env_file
+        from ...indexer import INDEXER_NZB_DIR, build_client_from_env
+
+        env_vars = load_env_file(resolve_env_file())
+        client = build_client_from_env(env_vars)
+        if client is None or not node.indexer_nzb_url:
+            self.app.call_from_thread(
+                self.app.notify, "Indexador não configurado.", severity="error"
+            )
+            return
+
+        safe = re.sub(r'[\\/*?"<>|]', "_", (node.indexer_title or node.name)[:60])
+        dest = os.path.join(INDEXER_NZB_DIR, f"{safe}.nzb")
+        try:
+            client.download_nzb(node.indexer_nzb_url, dest)
+            self.app.call_from_thread(
+                self.app.notify,
+                f"NZB salvo: {dest}",
+                severity="information",
+                timeout=5,
+            )
+        except Exception as exc:
+            self.app.call_from_thread(
+                self.app.notify, f"Erro ao baixar NZB: {exc}", severity="error"
+            )
+
+    # ── Indexer search ────────────────────────────────────────────────────────
+
+    @work(thread=True)
+    def start_indexer_search(self) -> None:
+        """
+        Busca todos os arquivos visíveis no indexador em background.
+        Rate limiting gerenciado pelo NewznabClient — seguro chamar sem throttle externo.
+        """
+        from ...config import load_env_file, resolve_env_file
+        from ...indexer import build_client_from_env
+
+        env_vars = load_env_file(resolve_env_file())
+        client = build_client_from_env(env_vars)
+        if client is None:
+            self.app.call_from_thread(
+                self.app.notify,
+                "Indexador não configurado (INDEXER_URL / INDEXER_APIKEY ausentes).",
+                severity="warning",
+                timeout=4,
+            )
+            return
+
+        nodes = self._collect_visible_file_nodes()
+        if not nodes:
+            return
+
+        self.app.call_from_thread(
+            self.app.notify,
+            f"Buscando {len(nodes)} item(s) no indexador...",
+            severity="information",
+            timeout=3,
+        )
+
+        for file_node in nodes:
+            # Marca como buscando
+            self.post_message(
+                self.IndexerStatusUpdated(file_node.path, IndexerStatus.SEARCHING, "", "")
+            )
+            try:
+                results = client.search(file_node.name, limit=3)
+            except Exception:
+                results = []
+
+            if results:
+                best = results[0]
+                self.post_message(
+                    self.IndexerStatusUpdated(
+                        file_node.path, IndexerStatus.FOUND, best.nzb_url, best.title
+                    )
+                )
+            else:
+                self.post_message(
+                    self.IndexerStatusUpdated(file_node.path, IndexerStatus.NOT_FOUND, "", "")
+                )
+
+    def _collect_visible_file_nodes(self) -> list[FileNode]:
+        """Coleta todos os FileNodes de arquivo visíveis na árvore."""
+        result = []
+        for tree_node in self.query("TreeNode"):
+            fn: Optional[FileNode] = tree_node.data  # type: ignore[assignment]
+            if fn and not fn.is_dir:
+                result.append(fn)
+        return result
+
+    @on(IndexerStatusUpdated)
+    def _on_indexer_status_updated(self, event: IndexerStatusUpdated) -> None:
+        """Atualiza o FileNode e re-renderiza o label correspondente na árvore."""
+        for tree_node in self.query("TreeNode"):
+            fn: Optional[FileNode] = tree_node.data  # type: ignore[assignment]
+            if fn and fn.path == event.path:
+                fn.indexer_status = event.status
+                fn.indexer_nzb_url = event.nzb_url or None
+                fn.indexer_title = event.title or None
+                selected = fn.path in self._selected
+                tree_node.set_label(make_node_label(fn, selected=selected, query=self._query))
+                break
 
     # ── API pública ───────────────────────────────────────────────────────────
 

@@ -189,6 +189,20 @@ def _write_full_env(env_file: str, values: dict[str, str]) -> None:
         "# Diretórios (separados por vírgula) para buscar arquivos .nzb externos",
         f"EXTERNAL_NZB_DIR={v('EXTERNAL_NZB_DIR')}",
         "",
+        "# *** Indexer Search (Newznab / Prowlarr) ***",
+        "# URL da API Newznab do indexador (ex: https://api.omgwtfnzbs.me/api",
+        "# ou Prowlarr: http://localhost:9696/prowlarr/api/v1/newznab)",
+        f"INDEXER_URL={v('INDEXER_URL')}",
+        "",
+        "# Chave de API do indexador",
+        f"INDEXER_APIKEY={v('INDEXER_APIKEY')}",
+        "",
+        "# Intervalo mínimo entre requisições ao indexador (segundos). Padrão: 2",
+        f"INDEXER_RATE_SECS={v('INDEXER_RATE_SECS') or '2'}",
+        "",
+        "# Validade do cache de busca (dias). Padrão: 30",
+        f"INDEXER_CACHE_DAYS={v('INDEXER_CACHE_DAYS') or '30'}",
+        "",
     ]
 
     os.makedirs(os.path.dirname(env_file), exist_ok=True)
@@ -295,6 +309,24 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         _("TMDb Language (e.g., pt-BR, en-US)"),
         default=ex("TMDB_LANGUAGE", "pt-BR"),
     )
+    print()
+    print(_("── Indexador Newznab / Prowlarr (opcional) ───────────────"))
+    print(_("  Busca conteúdo no indexador antes de fazer upload."))
+    print(_("  Se encontrado, baixa o .nzb como backup e pula o upload."))
+    print(_("  Suporta OMGWTFNZBS, NZBGeek, Prowlarr, etc."))
+    indexer_url = _ask(
+        _("URL da API do indexador (deixe vazio para pular)"),
+        default=ex("INDEXER_URL", ""),
+    )
+    indexer_apikey = ""
+    if indexer_url.strip():
+        indexer_apikey_hint = ex_secret("INDEXER_APIKEY")
+        if indexer_apikey_hint:
+            raw = getpass.getpass(_("  API Key do indexador [****]: "))
+            indexer_apikey = raw if raw.strip() else existing.get("INDEXER_APIKEY", "")
+        else:
+            indexer_apikey = _ask(_("API Key do indexador"), secret=True)
+
     # Se o usuário indicou apenas uma pasta (não contém {filename} e não termina em .nzb)
     if "{filename}" not in nzb_out and not nzb_out.lower().endswith(".nzb"):
         nzb_out = os.path.join(nzb_out, "{filename}.nzb")
@@ -324,6 +356,10 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
         "TMDB_API_KEY": tmdb_key,
         "TMDB_LANGUAGE": tmdb_lang,
         "TMDB_STRICT": "true",
+        "INDEXER_URL": indexer_url.strip(),
+        "INDEXER_APIKEY": indexer_apikey.strip(),
+        "INDEXER_RATE_SECS": "2",
+        "INDEXER_CACHE_DAYS": "30",
     }
 
     print()
@@ -339,6 +375,8 @@ def prompt_for_credentials(env_file: str, force: bool = False) -> dict[str, str]
     print(_("  NZB out   : {nzb}").format(nzb=nzb_out))
     if tmdb_key:
         print(_("  TMDb Key  : Set"))
+    if indexer_url.strip():
+        print(_("  Indexador : {url}").format(url=indexer_url.strip()))
     print()
 
     _write_full_env(env_file, values)

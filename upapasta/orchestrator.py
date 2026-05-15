@@ -116,6 +116,7 @@ class UpaPastaOrchestrator:
         check_user: Optional[str] = None,
         check_password: Optional[str] = None,
         use_ramdisk: bool = False,
+        check_indexer: bool = False,
     ):
         self.input_path = Path(input_path).absolute()
         self.dry_run = dry_run
@@ -177,6 +178,7 @@ class UpaPastaOrchestrator:
         self.check_password = check_password
         self.use_ramdisk = use_ramdisk
         self.ramdisk_path: Optional[str] = None
+        self.check_indexer = check_indexer
 
     @classmethod
     def from_args(
@@ -266,6 +268,7 @@ class UpaPastaOrchestrator:
             check_user=getattr(args, "check_user", None),
             check_password=getattr(args, "check_password", None),
             use_ramdisk=getattr(args, "use_ramdisk", False),
+            check_indexer=getattr(args, "check_indexer", False),
         )
 
         # ── Validação e auto-ativação de ramdisk ──────────────────────────────
@@ -1328,6 +1331,16 @@ class UpaPastaOrchestrator:
                 bar.skip("OBF")
 
             stats = PipelineReporter.collect_stats(self.input_target, self.rar_file, self.par_file)
+
+            # ── Indexer check ────────────────────────────────────────────────────
+            if self.check_indexer and not self.skip_upload and not self.dry_run:
+                from .indexer import check_and_prompt
+
+                skip = check_and_prompt(self.subject, self.env_vars)
+                if skip:
+                    bar.skip("UPLOAD")
+                    bar.done("DONE")
+                    return 0
 
             # ── Upload ───────────────────────────────────────────────────────────
             if not self.skip_upload:

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 from .catalog_index import CatalogEntry, CatalogIndex
-from .status import UploadStatus
+from .status import IndexerStatus, UploadStatus
 
 
 @dataclass
@@ -29,6 +29,10 @@ class FileNode:
     upload_entry: Optional[CatalogEntry] = field(default=None)
     child_total: int = 0
     child_uploaded: int = 0
+    indexer_status: IndexerStatus = field(default_factory=lambda: IndexerStatus.UNKNOWN)
+    # URL do NZB encontrado no indexador (preenchido quando indexer_status == FOUND)
+    indexer_nzb_url: Optional[str] = field(default=None)
+    indexer_title: Optional[str] = field(default=None)
 
     @property
     def name(self) -> str:

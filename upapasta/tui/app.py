@@ -79,6 +79,7 @@ class UpaPastaApp(App[None]):
         Binding("2", "filter_uploaded", "Enviados", show=True),
         Binding("3", "filter_partial", "Parciais", show=True),
         Binding("0", "filter_all", "Todos", show=True),
+        Binding("x", "check_indexer", "Buscar indexador", show=True),
     ]
 
     CSS = """
@@ -245,6 +246,10 @@ class UpaPastaApp(App[None]):
 
     def action_filter_all(self) -> None:
         self._apply_filter(None)
+
+    def action_check_indexer(self) -> None:
+        """Dispara busca em background de todos os itens visíveis no indexador."""
+        self.query_one(FileTreeWidget).start_indexer_search()
 
     def action_upload(self) -> None:
         items = self.query_one(FileTreeWidget).selected_nodes()
