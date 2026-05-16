@@ -49,6 +49,19 @@ class UploadProgressScreen(Screen[bool]):
         s = "ns" if count != 1 else ""
         self.sub_title = f"{count} item{s} na fila"
 
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """
+        Controla a visibilidade dinâmica das bindings no Footer.
+
+        'confirm_finish' e 'view_nzb' só aparecem após o término do upload —
+        evita mutar a lista de classe BINDINGS (que vazaria entre instâncias).
+        """
+        if action == "confirm_finish":
+            return True if self._finished else None
+        if action == "view_nzb":
+            return True if (self._finished and self._last_nzb) else None
+        return True
+
     def on_upload_panel_nzb_generated(self, event: UploadPanel.NzbGenerated) -> None:
         self._last_nzb = event.path
 
@@ -64,12 +77,8 @@ class UploadProgressScreen(Screen[bool]):
         else:
             self.app.notify("Upload encerrado com alertas.", severity="warning", timeout=4)
 
-        # Habilita tecla Enter para fechar e [N] se NZB disponível
-        footer = self.query_one(Footer)
-        self.BINDINGS.append(Binding("enter", "confirm_finish", "Voltar"))
-        if self._last_nzb:
-            self.BINDINGS.append(Binding("n", "view_nzb", "Ver NZB", show=True))
-        footer.refresh()
+        # Reavalia check_action: Footer passa a exibir [Enter] Voltar e [N] Ver NZB
+        self.refresh_bindings()
 
     def action_toggle_pause(self) -> None:
         if self._finished:

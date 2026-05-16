@@ -427,12 +427,17 @@ class FileTreeWidget(Tree[FileNode]):
         self.post_message(self.SelectionChanged([]))
 
     def _reload_root(self) -> None:
-        # Salva o que estava expandido
+        # Salva o que estava expandido e onde estava o cursor
         expanded_paths = {
             n.data.path
             for n in self.query("TreeNode")
             if n.is_expanded and n.data  # type: ignore
         }
+        cursor_path: Optional[Path] = (
+            self.cursor_node.data.path
+            if self.cursor_node is not None and self.cursor_node.data is not None
+            else None
+        )
         self._loaded_paths.clear()
         self.root.remove_children()
         self._load_node(self.root, self.root_path)
@@ -440,6 +445,13 @@ class FileTreeWidget(Tree[FileNode]):
 
         # Re-expand recursivamente
         self._reexpand_paths(self.root, expanded_paths)
+
+        # Restaura o cursor no mesmo item, se ele ainda existir
+        if cursor_path is not None:
+            for node in self.query("TreeNode"):
+                if node.data is not None and node.data.path == cursor_path:  # type: ignore
+                    self.select_node(node)  # type: ignore[arg-type]
+                    break
 
     def _reexpand_paths(self, root_node: TreeNode[FileNode], expanded_paths: set[Path]) -> None:
         for node in root_node.children:

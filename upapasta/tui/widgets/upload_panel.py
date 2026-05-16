@@ -23,6 +23,7 @@ from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Label, ProgressBar, RichLog, Rule, Static
 
+from ..._process import managed_popen
 from ..fs_scanner import FileNode
 from ..screens.confirm import UploadConfig, build_upload_cmd
 
@@ -400,8 +401,9 @@ class UploadPanel(Vertical):
             env = os.environ.copy()
             env["UPAPASTA_PORCELAIN"] = "1"
 
-            # newline="" para não converter \r em \n, permitindo leitura manual
-            with subprocess.Popen(
+            # managed_popen garante escalada SIGTERM→SIGKILL em qualquer saída
+            # (cancelamento, exceção, fim de fila) — sem deixar processo zumbi.
+            with managed_popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,

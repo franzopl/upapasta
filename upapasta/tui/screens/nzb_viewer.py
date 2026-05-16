@@ -19,8 +19,8 @@ from textual.widgets import DataTable, Footer, Header, Label, Rule, Static
 
 _NS = "http://www.newzbin.com/DTD/2003/nzb"
 
-# Tamanho de artigo padrão para estimativa de tamanho
-_DEFAULT_ARTICLE_SIZE = 750_000  # 750 KB
+# Fallback de tamanho de artigo quando o atributo bytes do segmento está ausente.
+_FALLBACK_ARTICLE_SIZE = 750_000  # 750 KB
 
 
 def _parse_nzb(path: str) -> tuple[dict[str, list[str]], list[dict[str, object]]]:
@@ -29,6 +29,9 @@ def _parse_nzb(path: str) -> tuple[dict[str, list[str]], list[dict[str, object]]
 
     meta: dict com listas de valores por tipo (title, password, tag, poster…)
     files: list de dicts com keys: subject, poster, date, groups, segments (int), size_est (bytes)
+
+    O tamanho (size_est) é a soma dos atributos `bytes` reais de cada <segment>;
+    segmentos sem o atributo caem no fallback de tamanho de artigo padrão.
     """
     meta: dict[str, list[str]] = {}
     files: list[dict[str, object]] = []
@@ -56,8 +59,14 @@ def _parse_nzb(path: str) -> tuple[dict[str, list[str]], list[dict[str, object]]
         date = f.get("date", "")
         segs = f.findall(f".//{_tag('segment')}")
         seg_count = len(segs)
-        # Estima tamanho pelo número de segmentos × tamanho padrão de artigo
-        size_est = seg_count * _DEFAULT_ARTICLE_SIZE
+        # Soma os bytes reais declarados em cada segmento; fallback se ausente.
+        size_est = 0
+        for seg in segs:
+            raw_bytes = seg.get("bytes")
+            try:
+                size_est += int(raw_bytes) if raw_bytes else _FALLBACK_ARTICLE_SIZE
+            except ValueError:
+                size_est += _FALLBACK_ARTICLE_SIZE
 
         grps: list[str] = []
         for g in f.findall(f".//{_tag('group')}"):

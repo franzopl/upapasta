@@ -16,6 +16,7 @@ textual = pytest.importorskip("textual")
 from upapasta.tui.app import UpaPastaApp
 from upapasta.tui.fs_scanner import FileNode
 from upapasta.tui.screens.confirm import ConfirmScreen, UploadConfig, build_upload_cmd
+from upapasta.tui.screens.nzb_viewer import _parse_nzb
 from upapasta.tui.screens.upload_progress import UploadProgressScreen
 from upapasta.tui.status import UploadStatus
 from upapasta.tui.widgets.upload_panel import UploadPanel, _last_cr_segment, _strip_ansi
@@ -76,6 +77,49 @@ def test_build_upload_cmd_path_is_last_positional(tmp_path: Path) -> None:
     # path deve aparecer antes das flags
     path_idx = cmd.index(str(node.path))
     assert path_idx > 0
+
+
+def test_build_upload_cmd_has_no_porcelain_flag(tmp_path: Path) -> None:
+    """Porcelain é ativado via env UPAPASTA_PORCELAIN, não por flag (C5)."""
+    node = _make_node(tmp_path, "Filme.2024")
+    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    cmd = build_upload_cmd(node, config)
+    assert "--porcelain" not in cmd
+
+
+# ── _parse_nzb (C7) ───────────────────────────────────────────────────────────
+
+_NZB_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
+<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
+  <file subject="filme.mkv yEnc (1/2)" poster="x@y.z" date="0">
+    <groups><group>alt.binaries.test</group></groups>
+    <segments>
+      <segment bytes="{b1}" number="1">a@b</segment>
+      <segment bytes="{b2}" number="2">c@d</segment>
+    </segments>
+  </file>
+</nzb>
+"""
+
+
+def test_parse_nzb_sums_real_segment_bytes(tmp_path: Path) -> None:
+    """size_est usa o atributo bytes real de cada segmento, não estimativa fixa (C7)."""
+    nzb = tmp_path / "real.nzb"
+    nzb.write_text(_NZB_TEMPLATE.format(b1=500_000, b2=300_000), encoding="utf-8")
+    _meta, files = _parse_nzb(str(nzb))
+    assert len(files) == 1
+    assert files[0]["size_est"] == 800_000
+
+
+def test_parse_nzb_falls_back_when_bytes_missing(tmp_path: Path) -> None:
+    """Segmento sem atributo bytes válido cai no fallback de tamanho de artigo (C7)."""
+    nzb = tmp_path / "nobytes.nzb"
+    raw = _NZB_TEMPLATE.replace('bytes="{b1}"', "").replace('bytes="{b2}"', "")
+    nzb.write_text(raw, encoding="utf-8")
+    _meta, files = _parse_nzb(str(nzb))
+    assert len(files) == 1
+    # 2 segmentos × fallback de 750 KB
+    assert files[0]["size_est"] == 2 * 750_000
 
 
 # ── _strip_ansi ───────────────────────────────────────────────────────────────

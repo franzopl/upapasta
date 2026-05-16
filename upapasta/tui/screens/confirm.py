@@ -28,8 +28,13 @@ class UploadConfig:
 
 
 def build_upload_cmd(item: FileNode, config: UploadConfig) -> list[str]:
-    """Constrói o comando CLI para um item com as opções dadas."""
-    cmd = [sys.executable, "-m", "upapasta", str(item.path), "--porcelain"]
+    """
+    Constrói o comando CLI para um item com as opções dadas.
+
+    O modo porcelain é ativado pelo UploadPanel via env UPAPASTA_PORCELAIN=1,
+    não por flag — mantém a linha de comando exibida no log limpa.
+    """
+    cmd = [sys.executable, "-m", "upapasta", str(item.path)]
     if config.obfuscate:
         cmd.append("--obfuscate")
     if config.use_rar:

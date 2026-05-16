@@ -85,33 +85,33 @@ Itens identificados na auditoria do código. Prioridade: **P0** = bug que afeta 
 - [ ] **C1 · Matching de catálogo por nome, não por path** (`fs_scanner.py`)
   O catálogo só guarda `nome_original` (basename). Dois itens de mesmo nome em pastas diferentes são tratados como idênticos → falso "Enviado". Mitigação possível: registrar path completo (ou hash) no catálogo e cruzar por path; ou exibir aviso de ambiguidade quando há colisão de nome.
 
-- [ ] **C2 · `subprocess.Popen` direto em vez de `managed_popen`** (`upload_panel.py:_run_one`)
-  Viola a convenção #1 do projeto e o próprio critério deste roadmap. Sem escalada `SIGTERM → SIGKILL`: se o `upapasta` filho ignorar o `terminate()`, fica zumbi ao cancelar/sair. Migrar para `managed_popen` de `_process.py` (ou replicar a escalada com timeout).
+- [x] **C2 · `subprocess.Popen` direto em vez de `managed_popen`** (`upload_panel.py:_run_one`) — *resolvido 2026-05-16*
+  Migrado para `managed_popen` de `_process.py`: escalada `SIGTERM → SIGKILL` garantida em cancelamento, exceção ou fim de fila.
 
 ### P1 — Bug funcional / convenção
 
-- [ ] **C3 · Mutação de `self.BINDINGS` (atributo de classe)** (`upload_progress.py:on_upload_panel_finished`)
-  `self.BINDINGS.append(...)` muta a lista **compartilhada da classe**. A cada upload concluído, bindings duplicados se acumulam permanentemente no processo. Usar `_bindings` de instância, `check_action`/`refresh_bindings`, ou um flag para só adicionar uma vez.
+- [x] **C3 · Mutação de `self.BINDINGS` (atributo de classe)** (`upload_progress.py:on_upload_panel_finished`) — *resolvido 2026-05-16*
+  Substituído por `check_action` + `refresh_bindings()`: a visibilidade de `confirm_finish`/`view_nzb` no Footer é calculada por estado, sem mutar a lista de classe.
 
 - [ ] **C4 · Busca de indexador ignora pastas recolhidas** (`file_tree.py:_collect_visible_file_nodes`)
   `start_indexer_search` só percorre `TreeNode`s já carregados (pastas expandidas). Itens em pastas recolhidas são silenciosamente ignorados. Ou escanear o filesystem direto, ou avisar que só itens visíveis foram buscados.
 
-- [ ] **C5 · `--porcelain` aplicado em dobro** (`confirm.py:build_upload_cmd` + `upload_panel.py:_run_one`)
-  O comando recebe a flag `--porcelain` *e* o env `UPAPASTA_PORCELAIN=1`. Redundante (não quebra). Escolher um mecanismo só — preferir o env, que não polui a linha de comando exibida no log.
+- [x] **C5 · `--porcelain` aplicado em dobro** (`confirm.py:build_upload_cmd` + `upload_panel.py:_run_one`) — *resolvido 2026-05-16*
+  Removida a flag `--porcelain` de `build_upload_cmd`; porcelain fica só no env `UPAPASTA_PORCELAIN=1`, mantendo a linha de comando do log limpa.
 
 - [ ] **C6 · TUI não usa i18n** (todos os módulos `tui/`)
   Zero uso de `from .i18n import _`. Strings hardcoded em português. O resto do projeto é internacionalizado via gettext. Decidir: (a) envolver strings da TUI em `_()`, ou (b) documentar explicitamente que a TUI é PT-only por ora.
 
 ### P2 — Polimento
 
-- [ ] **C7 · Estimativa de tamanho do NZB imprecisa** (`nzb_viewer.py`)
-  Usa `_DEFAULT_ARTICLE_SIZE = 750_000` fixo × nº de segmentos. Cada `<segment>` do NZB tem o atributo real `bytes` — somar os valores reais dá o tamanho exato.
+- [x] **C7 · Estimativa de tamanho do NZB imprecisa** (`nzb_viewer.py`) — *resolvido 2026-05-16*
+  `_parse_nzb` agora soma o atributo `bytes` real de cada `<segment>`; o tamanho fixo de 750 KB vira só fallback para segmentos sem o atributo.
 
 - [ ] **C8 · `compute_fs_stats` escaneia só o top-level** (`dashboard.py`)
   Pendências/parciais em subpastas não entram na contagem do dashboard. Avaliar walk recursivo (com cache) ou deixar claro que a métrica é só da raiz.
 
-- [ ] **C9 · `reload()` perde a posição do cursor** (`file_tree.py:_reload_root`)
-  Após upload, a árvore é reconstruída; re-expande os paths mas o cursor volta ao topo. Salvar e restaurar o path do nó sob o cursor.
+- [x] **C9 · `reload()` perde a posição do cursor** (`file_tree.py:_reload_root`) — *resolvido 2026-05-16*
+  `_reload_root` salva o path do nó sob o cursor e o restaura após reconstruir a árvore, se o item ainda existir.
 
 - [ ] **C10 · Preview de regex conta só nós carregados** (`app.py:_open_pattern_select`)
   `visible_names` vem de `query("TreeNode")` — só pastas expandidas. O preview "N de M itens casariam" pode enganar. Coletar nomes via scan do filesystem.
