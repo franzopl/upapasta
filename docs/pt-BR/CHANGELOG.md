@@ -4,7 +4,29 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
-## 0.34.11 - 2026-05-16\n\n### Correções\n- **Ofuscação**: Corrigido vazamento de parte do nome da pasta nos arquivos `.par2` quando o nome da pasta contém pontos (ex: `Glee.S02...H.264-WitchHunter` gerava `<random>.264-WitchHunter.par2` em vez de `<random>.par2`). `rename_par2_files` agora usa o basename completo como `orig_stem` em vez de aplicar `os.path.splitext` incorretamente em caminhos de diretório.\n\n## 0.33.0 - 2026-05-10
+## 0.35.0 - 2026-05-16
+
+### Funcionalidades
+- **TUI — Modal de Upload Avançado**: O modal de confirmação agora tem paridade completa com a CLI: ofuscação, compactação (Nenhuma / RAR5 / 7z via Select), proteção por senha (campo opcional; vazio = senha aleatória de 16 caracteres), modo `--each` (exibido só quando há pasta selecionada) e perfil PAR2. O diálogo é rolável para caber em terminais pequenos.
+
+### Correções (robustez da TUI — Fase 6)
+- **Subprocess de upload**: O painel de upload usa `managed_popen`, garantindo escalada `SIGTERM→SIGKILL` ao cancelar/sair (sem processos zumbis).
+- **Vazamento de bindings**: A tela de progresso usa `check_action`/`refresh_bindings` em vez de mutar a lista de classe `BINDINGS` (que vazava bindings entre uploads).
+- **Visualizador de NZB**: Tamanhos somam o atributo `bytes` real de cada `<segment>` em vez de estimativa fixa.
+- **Contagem de pendentes no dashboard**: `compute_fs_stats` agora varre recursivamente — desce por pastas-categoria (ex.: `downloads/`, `radarr/`) e conta cada release. Funciona abrindo a TUI na raiz do disco.
+- **Árvore de arquivos**: A posição do cursor é preservada ao recarregar a árvore após um upload.
+- **Busca no indexador**: Escopo explicitado (só itens visíveis; pastas recolhidas não incluídas).
+- **Porcelain**: Removida a flag `--porcelain` duplicada; porcelain fica só na variável de ambiente `UPAPASTA_PORCELAIN`.
+
+### Documentação
+- `docs/TUI_ROADMAP.md` reescrito como documento vivo: estado atual auditado, correções priorizadas e Fases 6–10 de funcionalidades.
+
+## 0.34.11 - 2026-05-16
+
+### Correções
+- **Ofuscação**: Corrigido vazamento de parte do nome da pasta nos arquivos `.par2` quando o nome da pasta contém pontos (ex: `Glee.S02...H.264-WitchHunter` gerava `<random>.264-WitchHunter.par2` em vez de `<random>.par2`). `rename_par2_files` agora usa o basename completo como `orig_stem` em vez de aplicar `os.path.splitext` incorretamente em caminhos de diretório.
+
+## 0.33.0 - 2026-05-10
 
 ### Funcionalidades
 - **Separação PAR2/Ofuscação**: Refatoração do pipeline para separar a geração de paridade da ofuscação. O PAR2 agora é sempre gerado sobre os nomes originais primeiro, garantindo que os metadados internos permaneçam precisos para recuperação. A ofuscação segue como um passo de máscara posterior que renomeia tanto os arquivos de dados quanto os de paridade.

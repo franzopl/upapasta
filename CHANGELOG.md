@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.35.0 - 2026-05-16
+
+### Features
+- **TUI — Advanced Upload Modal**: The confirmation modal now exposes full CLI parity: obfuscation, compression (None / RAR5 / 7z via a Select), password protection (optional field; empty = random 16-char password), `--each` mode (shown only when a folder is selected) and PAR2 profile. The dialog is scrollable to fit small terminals.
+
+### Fixes (TUI robustness — Phase 6)
+- **Upload subprocess**: The upload panel now uses `managed_popen`, guaranteeing `SIGTERM→SIGKILL` escalation on cancel/exit (no zombie processes).
+- **Bindings leak**: The upload progress screen uses `check_action`/`refresh_bindings` instead of mutating the class-level `BINDINGS` list (which leaked bindings between uploads).
+- **NZB viewer**: File sizes now sum the real `bytes` attribute of each `<segment>` instead of a fixed estimate.
+- **Dashboard pending count**: `compute_fs_stats` now scans recursively — descends through category folders (e.g. `downloads/`, `radarr/`) and counts each release. Works when opening the TUI at the disk root.
+- **File tree**: Cursor position is preserved when the tree reloads after an upload.
+- **Indexer search**: Made the search scope explicit (only visible items; collapsed folders excluded).
+- **Porcelain**: Removed the duplicate `--porcelain` flag; porcelain is set only via the `UPAPASTA_PORCELAIN` env var.
+
+### Documentation
+- Rewrote `docs/TUI_ROADMAP.md` as a living document: audited current state, prioritized corrections, and Phases 6–10 of planned features.
+
 ## 0.34.12 - 2026-05-16
 
 ### Features
