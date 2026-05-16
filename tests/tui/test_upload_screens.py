@@ -49,7 +49,7 @@ def _make_app(tmp_path: Path) -> UpaPastaApp:
 
 def test_build_upload_cmd_defaults(tmp_path: Path) -> None:
     node = _make_node(tmp_path, "Dune.2021")
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    config = UploadConfig(obfuscate=False, par_profile="balanced")
     cmd = build_upload_cmd(node, config)
     assert sys.executable in cmd
     assert "-m" in cmd
@@ -63,7 +63,7 @@ def test_build_upload_cmd_defaults(tmp_path: Path) -> None:
 
 def test_build_upload_cmd_with_flags(tmp_path: Path) -> None:
     node = _make_node(tmp_path, "Breaking.Bad.S01")
-    config = UploadConfig(obfuscate=True, use_rar=True, par_profile="safe")
+    config = UploadConfig(obfuscate=True, compression="rar", par_profile="safe")
     cmd = build_upload_cmd(node, config)
     assert "--obfuscate" in cmd
     assert "--rar" in cmd
@@ -72,7 +72,7 @@ def test_build_upload_cmd_with_flags(tmp_path: Path) -> None:
 
 def test_build_upload_cmd_path_is_last_positional(tmp_path: Path) -> None:
     node = _make_node(tmp_path, "Serie.S02")
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="fast")
+    config = UploadConfig(obfuscate=False, par_profile="fast")
     cmd = build_upload_cmd(node, config)
     # path deve aparecer antes das flags
     path_idx = cmd.index(str(node.path))
@@ -82,9 +82,68 @@ def test_build_upload_cmd_path_is_last_positional(tmp_path: Path) -> None:
 def test_build_upload_cmd_has_no_porcelain_flag(tmp_path: Path) -> None:
     """Porcelain é ativado via env UPAPASTA_PORCELAIN, não por flag (C5)."""
     node = _make_node(tmp_path, "Filme.2024")
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    config = UploadConfig(obfuscate=False, par_profile="balanced")
     cmd = build_upload_cmd(node, config)
     assert "--porcelain" not in cmd
+
+
+def test_build_upload_cmd_7z(tmp_path: Path) -> None:
+    node = _make_node(tmp_path, "Filme.2024")
+    config = UploadConfig(obfuscate=False, par_profile="balanced", compression="7z")
+    cmd = build_upload_cmd(node, config)
+    assert "--7z" in cmd
+    assert "--rar" not in cmd
+
+
+def test_build_upload_cmd_no_compression(tmp_path: Path) -> None:
+    node = _make_node(tmp_path, "Filme.2024")
+    config = UploadConfig(obfuscate=False, par_profile="balanced", compression="none")
+    cmd = build_upload_cmd(node, config)
+    assert "--rar" not in cmd
+    assert "--7z" not in cmd
+
+
+def test_build_upload_cmd_password_explicit(tmp_path: Path) -> None:
+    node = _make_node(tmp_path, "Filme.2024")
+    config = UploadConfig(
+        obfuscate=False, par_profile="balanced", use_password=True, password="segredo"
+    )
+    cmd = build_upload_cmd(node, config)
+    idx = cmd.index("--password")
+    assert cmd[idx + 1] == "segredo"
+
+
+def test_build_upload_cmd_password_random(tmp_path: Path) -> None:
+    """use_password sem senha explícita → --password sem argumento (CLI gera aleatória)."""
+    node = _make_node(tmp_path, "Filme.2024")
+    config = UploadConfig(obfuscate=False, par_profile="balanced", use_password=True, password="")
+    cmd = build_upload_cmd(node, config)
+    assert "--password" in cmd
+    idx = cmd.index("--password")
+    assert idx == len(cmd) - 1 or cmd[idx + 1].startswith("--")
+
+
+def test_build_upload_cmd_no_password(tmp_path: Path) -> None:
+    node = _make_node(tmp_path, "Filme.2024")
+    config = UploadConfig(obfuscate=False, par_profile="balanced", use_password=False)
+    cmd = build_upload_cmd(node, config)
+    assert "--password" not in cmd
+
+
+def test_build_upload_cmd_each(tmp_path: Path) -> None:
+    node = _make_node(tmp_path, "Temporada.S01")
+    config = UploadConfig(obfuscate=False, par_profile="balanced", each=True)
+    cmd = build_upload_cmd(node, config)
+    assert "--each" in cmd
+
+
+def test_upload_config_compression_properties() -> None:
+    rar = UploadConfig(obfuscate=False, par_profile="fast", compression="rar")
+    assert rar.use_rar is True and rar.use_7z is False
+    sevenz = UploadConfig(obfuscate=False, par_profile="fast", compression="7z")
+    assert sevenz.use_7z is True and sevenz.use_rar is False
+    none = UploadConfig(obfuscate=False, par_profile="fast", compression="none")
+    assert none.use_rar is False and none.use_7z is False
 
 
 # ── _parse_nzb (C7) ───────────────────────────────────────────────────────────
@@ -167,7 +226,7 @@ def test_last_cr_segment_empty() -> None:
 
 
 def test_upload_config_fields() -> None:
-    cfg = UploadConfig(obfuscate=True, use_rar=False, par_profile="balanced")
+    cfg = UploadConfig(obfuscate=True, par_profile="balanced")
     assert cfg.obfuscate is True
     assert cfg.use_rar is False
     assert cfg.par_profile == "balanced"
@@ -214,7 +273,8 @@ async def test_confirm_screen_confirm_button(tmp_path: Path) -> None:
     result: list[UploadConfig | None] = []
 
     app = UpaPastaApp(root_path=tmp_path)
-    async with app.run_test(headless=True) as pilot:
+    # Terminal amplo: o modal de confirmação completo não cabe em 80x24.
+    async with app.run_test(headless=True, size=(100, 44)) as pilot:
         app.push_screen(ConfirmScreen(nodes), result.append)
         await pilot.pause()
         await pilot.click("#btn-confirm")
@@ -225,6 +285,9 @@ async def test_confirm_screen_confirm_button(tmp_path: Path) -> None:
     assert result[0] is not None
     assert isinstance(result[0], UploadConfig)
     assert result[0].par_profile == "balanced"
+    assert result[0].compression == "none"
+    assert result[0].use_password is False
+    assert result[0].each is False
 
 
 @pytest.mark.anyio
@@ -233,7 +296,7 @@ async def test_confirm_screen_cancel_button(tmp_path: Path) -> None:
     result: list[UploadConfig | None] = []
 
     app = UpaPastaApp(root_path=tmp_path)
-    async with app.run_test(headless=True) as pilot:
+    async with app.run_test(headless=True, size=(100, 44)) as pilot:
         app.push_screen(ConfirmScreen(nodes), result.append)
         await pilot.pause()
         await pilot.click("#btn-cancel")
@@ -243,13 +306,69 @@ async def test_confirm_screen_cancel_button(tmp_path: Path) -> None:
     assert result == [None]
 
 
+@pytest.mark.anyio
+async def test_confirm_screen_collects_advanced_options(tmp_path: Path) -> None:
+    """Modal completo: compactação, senha e --each chegam ao UploadConfig."""
+    from textual.widgets import Checkbox, Input, Select
+
+    nodes = [_make_node(tmp_path, "Temporada.S01", is_dir=True)]
+    result: list[UploadConfig | None] = []
+
+    app = UpaPastaApp(root_path=tmp_path)
+    async with app.run_test(headless=True, size=(100, 44)) as pilot:
+        screen = ConfirmScreen(nodes)
+        app.push_screen(screen, result.append)
+        await pilot.pause()
+
+        screen.query_one("#compression", Select).value = "7z"
+        screen.query_one("#use-password", Checkbox).value = True
+        await pilot.pause()
+        # O input de senha deve ter sido habilitado ao marcar o checkbox.
+        assert screen.query_one("#password-input", Input).disabled is False
+        screen.query_one("#password-input", Input).value = "minhasenha"
+        screen.query_one("#each", Checkbox).value = True
+        await pilot.pause()
+
+        await pilot.click("#btn-confirm")
+        await pilot.pause()
+        await pilot.press("q")
+
+    assert len(result) == 1
+    cfg = result[0]
+    assert cfg is not None
+    assert cfg.compression == "7z"
+    assert cfg.use_password is True
+    assert cfg.password == "minhasenha"
+    assert cfg.each is True
+
+
+@pytest.mark.anyio
+async def test_confirm_screen_no_each_checkbox_for_files_only(tmp_path: Path) -> None:
+    """Seleção só de arquivos: o checkbox --each não é exibido."""
+    from textual.css.query import NoMatches
+    from textual.widgets import Checkbox
+
+    nodes = [_make_node(tmp_path, "arquivo.mkv", is_dir=False)]
+
+    app = UpaPastaApp(root_path=tmp_path)
+    async with app.run_test(headless=True, size=(100, 44)) as pilot:
+        screen = ConfirmScreen(nodes)
+        app.push_screen(screen, lambda _r: None)
+        await pilot.pause()
+        with pytest.raises(NoMatches):
+            screen.query_one("#each", Checkbox)
+        await pilot.press("escape")
+        await pilot.pause()
+        await pilot.press("q")
+
+
 # ── UploadPanel: unit ─────────────────────────────────────────────────────────
 
 
 def test_upload_panel_initial_state(tmp_path: Path) -> None:
     """Painel recém-criado tem atributos de progresso zerados."""
     node = _make_node(tmp_path, "Dune.2021")
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    config = UploadConfig(obfuscate=False, par_profile="balanced")
     panel = UploadPanel([node], config)
     assert panel._cancelled is False
     assert panel._proc is None
@@ -262,7 +381,7 @@ def test_upload_panel_initial_state(tmp_path: Path) -> None:
 def test_upload_panel_cancel_before_start(tmp_path: Path) -> None:
     """cancel() sem processo ativo não deve lançar exceção."""
     node = _make_node(tmp_path, "Dune.2021")
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    config = UploadConfig(obfuscate=False, par_profile="balanced")
     panel = UploadPanel([node], config)
     panel._cancelled = False
     panel._proc = None
@@ -273,7 +392,7 @@ def test_upload_panel_cancel_before_start(tmp_path: Path) -> None:
 def test_upload_panel_cancel_with_mock_proc(tmp_path: Path) -> None:
     """cancel() com processo ativo chama terminate()."""
     node = _make_node(tmp_path, "Dune.2021")
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    config = UploadConfig(obfuscate=False, par_profile="balanced")
     panel = UploadPanel([node], config)
 
     mock_proc = MagicMock()
@@ -288,7 +407,7 @@ def test_upload_panel_cancel_with_mock_proc(tmp_path: Path) -> None:
 def test_upload_panel_cancel_already_finished(tmp_path: Path) -> None:
     """cancel() com processo já terminado não chama terminate()."""
     node = _make_node(tmp_path, "Dune.2021")
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    config = UploadConfig(obfuscate=False, par_profile="balanced")
     panel = UploadPanel([node], config)
 
     mock_proc = MagicMock()
@@ -304,7 +423,7 @@ def test_upload_panel_cancel_already_finished(tmp_path: Path) -> None:
 
 def test_upload_progress_screen_instantiation(tmp_path: Path) -> None:
     nodes = [_make_node(tmp_path, "Dune.2021")]
-    config = UploadConfig(obfuscate=False, use_rar=False, par_profile="balanced")
+    config = UploadConfig(obfuscate=False, par_profile="balanced")
     screen = UploadProgressScreen(nodes, config)
     assert screen is not None
 

@@ -136,8 +136,10 @@ Organizado por fase. Cada fase é coesa e pode ser entregue de forma independent
 
 **Meta:** dar à TUI paridade de opções com a CLI, sem precisar editar comando.
 
-- [ ] **Modal de confirmação completo** — adicionar ao `confirm.py`: `--7z`, `--password` (com geração aleatória), `--each`, `--season`, escolha de grupo/pool, `--compress`. Hoje só há 3 opções.
+- [x] **Modal de confirmação completo** (`confirm.py`) — *resolvido 2026-05-16*
+  `UploadConfig` estendido e o modal agora oferece: ofuscação, compactação (Nenhuma/RAR/7z via Select), proteção por senha (campo opcional; vazio → senha aleatória), `--each` (exibido só quando há pasta selecionada) e perfil PAR2. `build_upload_cmd` traduz tudo para flags. *Nota:* `--season` não existe na CLI (só `--each`); escolha de grupo/pool fica para a Fase 7 (precisa do pool do `.env`).
 - [ ] **Seleção de perfil inline (`c`)** — selector dos `.env` em `~/.config/upapasta/`; troca o perfil ativo sem sair; indicador do perfil na status bar. (Fase 5.4 original, não feita.)
+- [ ] **Escolha de grupo/pool no modal** — Select populado a partir de `USENET_GROUP` do `.env` ativo; passa `-g` quando o usuário escolhe um grupo específico.
 - [ ] **Presets de upload** — salvar combinações de opções nomeadas ("Filme 4K", "Curso", "Série stealth") e aplicar com um atalho.
 - [ ] **Re-upload / retry de falhas** — selecionar itens `FAILED`/`PARTIAL` e reprocessar direto.
 - [ ] **Dry-run visual** — botão no modal que mostra o que aconteceria (comando, tamanho PAR2, ETA) sem enviar.
