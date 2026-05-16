@@ -4,6 +4,12 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.36.1 - 2026-05-16
+
+### Documentação
+- Sincroniza o `CLAUDE.md` com o estado atual (0.36.1): referências de versão, histórico de releases e mapa de features atualizados; busca em indexadores e funcionalidades da TUI registradas.
+- Adiciona `.gitguardian.yaml` ignorando `tests/**` no scan de segredos (fixtures de teste usam senhas falsas).
+
 ## 0.36.0 - 2026-05-16
 
 ### Funcionalidades

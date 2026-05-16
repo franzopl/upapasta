@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.36.1 - 2026-05-16
+
+### Documentation
+- Synced `CLAUDE.md` to the current state (0.36.1): version references, release history and feature map updated; indexer search and TUI features recorded.
+- Added `.gitguardian.yaml` ignoring `tests/**` in secret scans (test fixtures use fake passwords).
+
 ## 0.36.0 - 2026-05-16
 
 ### Features

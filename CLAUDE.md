@@ -19,7 +19,7 @@
 
 **UpaPasta** é uma ferramenta CLI Python que automatiza o pipeline completo de upload para Usenet com o mínimo de configuração possível.
 
-Versão atual: **0.31.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
+Versão atual: **0.36.1** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
 
 Pipeline padrão executado por `UpaPastaOrchestrator.run()`:
 
@@ -54,7 +54,7 @@ upapasta Pasta/ --obfuscate --backend parpar \
 
 ## 3. Arquitetura Modular (v1.0.0)
 
-Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas via `wc -l upapasta/*.py`.
+Diretório: `upapasta/` — 30 módulos no nível raiz (~11.6k linhas) + subpacote `upapasta/tui/` (46 arquivos `.py` no total, ~15.2k linhas). Recontar via `find upapasta -name '*.py' | wc -l`. A tabela abaixo cobre os módulos do núcleo; os módulos da TUI ficam em `upapasta/tui/`.
 
 | Módulo | Linhas | Responsabilidade |
 |---|---|---|
@@ -68,7 +68,8 @@ Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas v
 | `config.py` | 362 | `PROFILES` PAR2 (fast/balanced/safe), `REQUIRED_CRED_KEYS`, `DEFAULT_GROUP_POOL` (10 grupos), `prompt_for_credentials`, `load_env_file`, `render_template`, `resolve_env_file(profile)` |
 | `hooks.py` | 57 | **Plugin system nativo** (F3.17): carrega e executa arquivos `.py` em `~/.config/upapasta/hooks/`; passa dicionário de metadados padronizado |
 | `i18n.py` | 66 | Infraestrutura i18n via gettext; detecção automática de locale via `UPAPASTA_LANG` ou configuração do sistema |
-| `main.py` | 376 | Entry point. Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection`/`--tmdb-search`/`--stats` ou para o orquestrador; modos `--each`/`--watch` |
+| `indexer.py` | — | Cliente Newznab/Prowlarr (`NewznabClient`): busca com `normalize` opcional, cache JSONL com TTL, rate limiting, download de NZB; usado por `--check-indexer`, `--search-indexer` e pela TUI |
+| `main.py` | 376 | Entry point. Parse args; resolve env via `--profile` ou `--env-file`; despacha para `--config`/`--test-connection`/`--tmdb-search`/`--search-indexer`/`--stats` ou para o orquestrador; modos `--each`/`--watch` |
 | `make7z.py` | 237 | 7z com progresso ao vivo; volumes dinâmicos; header encryption `-mhe=on`; flags de senha; aceita arquivo único e pasta |
 | `makerar.py` | 268 | RAR5 com progresso ao vivo; volumes dinâmicos (≤10 GB → único; ≥1 GB por volume, máx 100 partes, redondo a 5 MB); flags `-m0 -ma5 -hp$PASSWORD` |
 | `makepar.py` | 981 | parpar (default) ou par2; slice dinâmico baseado em `ARTICLE_SIZE`; `obfuscate_and_par` com subfunções; `handle_par_failure` (retry conservador automático) |
@@ -100,14 +101,14 @@ Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas v
 7. **Stdlib-only**: zero dependências Python (nem `requests`, nem `dotenv`, nem `pyyaml`). Apenas binários externos (`rar`, `nyuu`, `parpar`/`par2`, `mediainfo`, `ffprobe`).
 8. **Type hints**: usar `from __future__ import annotations` em todos os módulos para compatibilidade Python 3.9+.
 
-## 3. Arquitetura Modular (v0.31.0)
-...
-## 5. Estado da Versão (0.31.0 — 2026-05-10)
+## 5. Estado da Versão (0.36.1 — 2026-05-16)
 
 ### Histórico recente (últimas releases relevantes)
 
-- **0.31.0** — Release estável: Templates de NFO customizáveis (F3.6); plugin system Python nativo (F3.17); TMDb integration (F3.4); todos os critérios cumpridos.
-
+- **0.36.1** — Sincronização do CLAUDE.md; `.gitguardian.yaml` ignorando `tests/**` no scan de segredos.
+- **0.36.0** — Busca em indexadores Newznab: CLI `--search-indexer`; busca na TUI por seleção (`x` busca itens marcados com espaço, pastas varridas recursivamente só nos pendentes); download automático do `.nzb` para `EXTERNAL_NZB_DIR` com marcação externa (🌐) persistente; ícones de status duplos (próprio ✅ + externo 🌐) e cadeado 🔒 por origem; `NewznabClient.search(normalize=False)` para busca literal; nova var `EXTERNAL_NZB_DIR`.
+- **0.35.0** — TUI: modal de upload avançado (paridade com a CLI); robustez da Fase 6 (`managed_popen` no upload, contagem recursiva de pendentes no dashboard).
+- **0.31.0** — Release estável: Templates de NFO customizáveis (F3.6); plugin system Python nativo (F3.17); TMDb integration (F3.4).
 - **0.30.0** — CLI de compressão simplificada: `--rar`/`--7z`/`--compress`; `DEFAULT_COMPRESSOR` no `.env`; exclusividade mútua entre flags.
 - **0.29.0** — Suporte completo a 7z: multi-volume, header encryption (`-mhe=on`), progresso ao vivo no dashboard.
 - **0.28.0** — Suporte nativo Windows (CI matrix); detecção de ferramentas cross-platform; processos sem console window.
@@ -141,6 +142,11 @@ Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas v
 | NFO templates customizáveis (`--nfo-template`) | ✅ 1.0.0 (F3.6) |
 | TMDb metadata (`--tmdb`) | ✅ 0.31.0 |
 | NZB Newznab meta enrichment | ✅ 0.31.0 |
+| Busca em indexador no pipeline (`--check-indexer`) | ✅ |
+| Busca standalone em indexador (`--search-indexer`) | ✅ 0.36.0 |
+| TUI: busca no indexador por seleção + download de NZB | ✅ 0.36.0 |
+| TUI: marcação externa (🌐) via `EXTERNAL_NZB_DIR` | ✅ 0.36.0 |
+| TUI: ícones de status duplos + cadeado de senha | ✅ 0.36.0 |
 | Webhook nativo Discord/Telegram/Slack | ✅ 0.26.x |
 | Múltiplas entradas (`upapasta a b c`) | ✅ 0.25.x |
 | CI/CD GitHub Actions | ✅ 0.26.x |
@@ -160,7 +166,7 @@ Diretório: `upapasta/` (24 módulos, ~8.3k linhas Python). Linhas atualizadas v
 | `--resume` / upload parcial | ❌ Pós-v1.0.0 |
 | Múltiplos servidores NNTP (failover) | ❌ Pós-v1.0.0 |
 | ETA de upload pré-pipeline | ❌ Pós-v1.0.0 |
-| TUI interativa (`--interactive`) | ❌ Pós-v1.0.0 |
+| TUI interativa (`--tui`) | ✅ (módulos em `upapasta/tui/`) |
 
 ---
 
@@ -229,7 +235,7 @@ ls -la ~/.config/upapasta/nzb/
 
 ```
 upapasta/
-├── upapasta/                    # Pacote Python (24 módulos)
+├── upapasta/                    # Pacote Python (30 módulos raiz + subpacote tui/)
 ├── tests/                       # Suíte pytest (~586 testes)
 ├── scripts/                     # Utilitários standalone (NÃO integrados ao pacote)
 │   ├── check_header.py          # stdlib-only (sem dependências)
@@ -247,7 +253,7 @@ upapasta/
 ├── INSTALL.md                   # instalação por plataforma
 ├── README.md                    # vitrine pública
 ├── TODO.md                      # roadmap interno
-├── pyproject.toml               # version=0.31.0, requires-python>=3.9, mypy/ruff configurados
+├── pyproject.toml               # version=0.36.1, requires-python>=3.9, mypy/ruff configurados
 ├── .env.example                 # template completo do .env
 ├── .gitignore
 └── LICENSE                      # MIT
