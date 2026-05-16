@@ -4,405 +4,214 @@
 > Justificativa: uso primário é homelab headless via SSH; TUI funciona nativo sem servidor, sem porta aberta, integrado ao workflow CLI existente.
 > Instalação opcional: `pip install upapasta[tui]` — não quebra a regra stdlib-only para usuários que não querem a TUI.
 
+> **Documento vivo.** Este roadmap é a fonte canônica do trabalho na TUI. Atualize-o ao concluir itens (marque `[x]`), ao descobrir bugs (adicione em "Correções"), e ao decidir novas features.
+> Última revisão: 2026-05-16 (auditoria completa do código em `dev`).
+
 ---
 
-## Visão Geral
+## 1. Visão Geral
 
 O modo TUI transforma o UpaPasta de "ferramenta de upload" em **gerenciador visual de conteúdo para Usenet**. O usuário navega pelo filesystem e vê instantaneamente o que já foi enviado, o que está pendente e o que falhou — sem precisar lembrar flags ou consultar o catálogo JSONL manualmente.
 
-**Entry point:** `upapasta --tui` ou comando `upapasta-tui`
-
-**Foco do produto:** conteúdo de mídia (filmes, séries, documentários) e cursos/conteúdo educativo em pasta. Não é gerenciador de backup genérico — mas nada impede esse uso.
+- **Entry points:** `upapasta --tui [--tui-root CAMINHO]` ou comando standalone `upapasta-tui [caminho]`
+- **Foco do produto:** conteúdo de mídia (filmes, séries, documentários) e cursos em pasta.
+- **Stack:** `textual >= 0.60` (extra `[tui]`), sub-package `upapasta/tui/`, lê `history.jsonl`, dispara upload via subprocess `upapasta`.
 
 ---
 
-## Stack Técnica
+## 2. Estado Atual (auditoria 2026-05-16)
 
-| Componente | Escolha | Justificativa |
+A TUI Textual está **funcional de ponta a ponta**: navegar → selecionar → confirmar → upload → ver NZB. As Fases 1–5 do plano original foram majoritariamente implementadas. 320 testes passando (`tests/tui/`), `ruff` + `mypy --strict` limpos.
+
+### 2.1 · Estrutura de módulos implementada
+
+```
+upapasta/tui/
+├── app.py                      # App principal: layout, bindings, roteamento de telas
+├── catalog_index.py            # Índice em memória do history.jsonl + NZBs externos
+├── fs_scanner.py               # Walk do filesystem, cruza com catálogo → FileNode
+├── external_nzb.py             # Índice de .nzb externos (EXTERNAL_NZB_DIR)
+├── status.py                   # Enums UploadStatus + IndexerStatus (ícone/cor/label)
+├── widgets/
+│   ├── file_tree.py            # Árvore com status, lazy load, seleção, busca indexador
+│   ├── dashboard.py            # Painel lateral de estatísticas + sparkline
+│   ├── upload_panel.py         # Painel de progresso de upload (subprocess por item)
+│   └── status_bar.py           # Barra inferior com detalhe do item em foco
+└── screens/
+    ├── confirm.py              # Modal de confirmação pré-upload
+    ├── upload_progress.py      # Tela cheia de progresso de upload
+    ├── pattern_select.py       # Modal de seleção inteligente por padrão
+    └── nzb_viewer.py           # Visualizador inline de NZB pós-upload
+```
+
+> Nota: o wizard `upapasta --config` (`tui_config.py` / `tui_widgets.py`, ~2.000 linhas) é uma TUI **separada baseada em curses**, não em Textual. Ver item de unificação na Fase 8.
+
+### 2.2 · Funcionalidades concluídas
+
+| Área | Funcionalidade | Estado |
 |---|---|---|
-| Framework TUI | `textual >= 0.60` | Mais maduro do ecossistema Python; suporte a layout, widgets, CSS-like theming, mouse |
-| Extras install | `upapasta[tui]` | `textual` não entra no core; usuários CLI não são afetados |
-| Módulo principal | `upapasta/tui/` | Sub-package separado do core |
-| Dados | Lê `catalog.jsonl` existente | Sem novo formato; zero migração |
-| Integração upload | Reutiliza `UpaPastaOrchestrator` | Sem duplicação de lógica |
+| Navegação | Árvore de arquivos com lazy loading de subdiretórios | ✅ |
+| Navegação | Ícones + cores de status por item (`✅ 🔶 ❌ ⏳ 🌐`) | ✅ |
+| Navegação | Busca por nome (`/`) com highlight do match | ✅ |
+| Navegação | Filtros por status (`0` todos / `1` pendentes / `2` enviados / `3` parciais) | ✅ |
+| Navegação | Barra de status inferior com detalhe do item em foco | ✅ |
+| Seleção | Multi-seleção (`Space`), sel. todos (`a`), inverter (`i`), limpar (`Ctrl+D`) | ✅ |
+| Seleção | Seleção inteligente por padrão (`p`): status, tamanho, temporada, regex | ✅ |
+| Seleção | Preview ao vivo de quantos itens casam o padrão | ✅ |
+| Upload | Fluxo confirmar → progresso → resumo, sem sair da TUI | ✅ |
+| Upload | Modal de confirmação com opções `--obfuscate` / `--rar` / `--par-profile` | ✅ |
+| Upload | Estimativa de tamanho PAR2 no modal de confirmação | ✅ |
+| Upload | Progresso ao vivo: fase, %, velocidade, ETA, spinner, elapsed | ✅ |
+| Upload | Fila sequencial multi-item com pausa/resume (`p`) e ETA da fila | ✅ |
+| Upload | Cancelamento (`Esc`) e resumo final com contagem de sucesso/falha | ✅ |
+| Dashboard | Painel lateral (`d`): enviados, pendentes, parciais, média/item | ✅ |
+| Dashboard | Sparkline de atividade com timeframe ajustável (`[` / `]`) | ✅ |
+| Dashboard | Top grupos, top categorias, alertas de itens parciais | ✅ |
+| Indexador | Busca Newznab de itens visíveis (`x`) com badge de status | ✅ |
+| Indexador | Download de NZB encontrado no indexador (`n`) | ✅ |
+| NZB | Visualizador inline pós-upload: metadados + tabela de arquivos | ✅ |
+| Outros | NZBs externos (`EXTERNAL_NZB_DIR`) reconhecidos como status `🌐` | ✅ |
+| Outros | Confirmação de saída (`q`) quando há itens selecionados | ✅ |
+| Outros | Degradação graciosa se `textual` ausente | ✅ |
 
 ---
 
-## Estrutura de Módulos (alvo)
+## 3. Correções Necessárias
 
-```
-upapasta/
-└── tui/
-    ├── __init__.py
-    ├── app.py              # Textual App principal, roteamento de telas
-    ├── catalog_index.py    # Índice em memória do catalog.jsonl, keyed por path
-    ├── fs_scanner.py       # Walk do filesystem, cross-referencia catalog_index
-    ├── status.py           # Enum de status: UPLOADED / PENDING / FAILED / IN_PROGRESS
-    ├── widgets/
-    │   ├── file_tree.py    # TreeView customizado com ícones de status coloridos
-    │   ├── status_bar.py   # Barra inferior com path, size, data de upload
-    │   ├── upload_panel.py # Painel de progresso de upload em tempo real
-    │   └── dashboard.py    # Painel direito com stats e saúde do catálogo
-    └── screens/
-        ├── main.py         # Tela principal (file manager)
-        ├── upload.py       # Tela de confirmação e configuração de upload
-        └── stats.py        # Tela de estatísticas expandida
-```
+Itens identificados na auditoria do código. Prioridade: **P0** = bug que afeta correção/dados, **P1** = bug funcional ou violação de convenção, **P2** = polimento.
 
----
+### P0 — Correção / Integridade de dados
 
-## Fase 1 — Fundação de Dados (`v1.2.0`)
+- [ ] **C1 · Matching de catálogo por nome, não por path** (`fs_scanner.py`)
+  O catálogo só guarda `nome_original` (basename). Dois itens de mesmo nome em pastas diferentes são tratados como idênticos → falso "Enviado". Mitigação possível: registrar path completo (ou hash) no catálogo e cruzar por path; ou exibir aviso de ambiguidade quando há colisão de nome.
 
-**Meta:** camada de dados que alimenta toda a TUI. Nenhuma UI ainda.
+- [ ] **C2 · `subprocess.Popen` direto em vez de `managed_popen`** (`upload_panel.py:_run_one`)
+  Viola a convenção #1 do projeto e o próprio critério deste roadmap. Sem escalada `SIGTERM → SIGKILL`: se o `upapasta` filho ignorar o `terminate()`, fica zumbi ao cancelar/sair. Migrar para `managed_popen` de `_process.py` (ou replicar a escalada com timeout).
 
-### 1.1 · `catalog_index.py` — Índice em Memória
+### P1 — Bug funcional / convenção
 
-Carrega `~/.config/upapasta/history.jsonl` e constrói um dicionário:
+- [ ] **C3 · Mutação de `self.BINDINGS` (atributo de classe)** (`upload_progress.py:on_upload_panel_finished`)
+  `self.BINDINGS.append(...)` muta a lista **compartilhada da classe**. A cada upload concluído, bindings duplicados se acumulam permanentemente no processo. Usar `_bindings` de instância, `check_action`/`refresh_bindings`, ou um flag para só adicionar uma vez.
 
-```python
-# path normalizado → entrada mais recente do catálogo
-index: dict[str, CatalogEntry]
-```
+- [ ] **C4 · Busca de indexador ignora pastas recolhidas** (`file_tree.py:_collect_visible_file_nodes`)
+  `start_indexer_search` só percorre `TreeNode`s já carregados (pastas expandidas). Itens em pastas recolhidas são silenciosamente ignorados. Ou escanear o filesystem direto, ou avisar que só itens visíveis foram buscados.
 
-- Normaliza paths (resolve symlinks, expande `~`)
-- Lida com entradas duplicadas (múltiplos uploads do mesmo path) — mantém o mais recente
-- Suporte a lookup por prefixo de diretório (para marcar pastas como "parcialmente enviadas")
-- Re-carregamento incremental: detecta crescimento do arquivo JSONL sem recarregar tudo
+- [ ] **C5 · `--porcelain` aplicado em dobro** (`confirm.py:build_upload_cmd` + `upload_panel.py:_run_one`)
+  O comando recebe a flag `--porcelain` *e* o env `UPAPASTA_PORCELAIN=1`. Redundante (não quebra). Escolher um mecanismo só — preferir o env, que não polui a linha de comando exibida no log.
 
-### 1.2 · `fs_scanner.py` — Scanner de Filesystem
+- [ ] **C6 · TUI não usa i18n** (todos os módulos `tui/`)
+  Zero uso de `from .i18n import _`. Strings hardcoded em português. O resto do projeto é internacionalizado via gettext. Decidir: (a) envolver strings da TUI em `_()`, ou (b) documentar explicitamente que a TUI é PT-only por ora.
 
-Walk iterativo de um diretório raiz, retorna `FileNode`:
+### P2 — Polimento
 
-```python
-@dataclass
-class FileNode:
-    path: Path
-    is_dir: bool
-    size: int
-    status: UploadStatus      # calculado via catalog_index
-    upload_date: datetime | None
-    nzb_path: Path | None
-    children: list[FileNode]  # só se is_dir
-```
+- [ ] **C7 · Estimativa de tamanho do NZB imprecisa** (`nzb_viewer.py`)
+  Usa `_DEFAULT_ARTICLE_SIZE = 750_000` fixo × nº de segmentos. Cada `<segment>` do NZB tem o atributo real `bytes` — somar os valores reais dá o tamanho exato.
 
-Status calculados:
-- `UPLOADED` — path está no catálogo com sucesso
-- `PARTIAL` — pasta onde alguns filhos foram enviados mas não todos
-- `PENDING` — não está no catálogo
-- `FAILED` — está no catálogo com erro na última tentativa
-- `IN_PROGRESS` — lock file de upload ativo (futuro)
+- [ ] **C8 · `compute_fs_stats` escaneia só o top-level** (`dashboard.py`)
+  Pendências/parciais em subpastas não entram na contagem do dashboard. Avaliar walk recursivo (com cache) ou deixar claro que a métrica é só da raiz.
 
-### 1.3 · `status.py` — Enum + Cores
+- [ ] **C9 · `reload()` perde a posição do cursor** (`file_tree.py:_reload_root`)
+  Após upload, a árvore é reconstruída; re-expande os paths mas o cursor volta ao topo. Salvar e restaurar o path do nó sob o cursor.
 
-```python
-class UploadStatus(Enum):
-    UPLOADED    = ("✅", "green")
-    PARTIAL     = ("🔶", "yellow")
-    PENDING     = ("❌", "red")
-    FAILED      = ("🔄", "orange")
-    IN_PROGRESS = ("⏳", "cyan")
-    IGNORED     = ("—",  "dim")
-```
-
-### 1.4 · Testes
-
-- `tests/tui/test_catalog_index.py` — parsing de JSONL, lookup, deduplicação
-- `tests/tui/test_fs_scanner.py` — status calculado corretamente para cada caso
-
-**Critérios de saída da Fase 1:**
-- [ ] `CatalogIndex` carrega e faz lookup em < 50ms para catálogos de 10k entradas
-- [ ] `fs_scanner` classifica corretamente todos os 5 status
-- [ ] Testes cobrindo ≥ 90% dos novos módulos
-- [ ] `ruff` + `mypy --strict` passando nos novos módulos
+- [ ] **C10 · Preview de regex conta só nós carregados** (`app.py:_open_pattern_select`)
+  `visible_names` vem de `query("TreeNode")` — só pastas expandidas. O preview "N de M itens casariam" pode enganar. Coletar nomes via scan do filesystem.
 
 ---
 
-## Fase 2 — File Manager Core (`v1.3.0`)
+## 4. Roadmap de Funcionalidades
 
-**Meta:** navegação visual no filesystem com indicadores de status. Sem upload ainda.
+Organizado por fase. Cada fase é coesa e pode ser entregue de forma independente. Versões-alvo são sugestões.
 
-### Layout Principal
+### Fase 6 — Robustez e Confiança (`v0.35.x`)
 
-```
-┌─ UpaPasta ─────────────────────────────────────────────────────────────────┐
-│ 📁 /mnt/media/                                           [q]Sair [?]Ajuda  │
-├────────────────────────────────────────────────────────────────────────────┤
-│                                                                            │
-│  ▼ 📁 Series/                                                              │
-│    ✅ Breaking.Bad.S01.BluRay.1080p/    [2025-01-15 · 42 GB · NZB ✓]     │
-│    ✅ Breaking.Bad.S02.BluRay.1080p/    [2025-01-16 · 44 GB · NZB ✓]     │
-│    ❌ Breaking.Bad.S03.BluRay.1080p/    [Não enviado · 45 GB]             │
-│    ⏳ Breaking.Bad.S04.BluRay.1080p/    [Enviando... 34%]                 │
-│  ▼ 📁 Movies/                                                              │
-│    ✅ Dune.Part.One.2021.4K.HDR/        [2025-02-03 · 87 GB · NZB ✓]     │
-│    ❌ Dune.Part.Two.2024.4K.HDR/        [Não enviado · 92 GB]             │
-│  ▼ 📁 Courses/                                                             │
-│    🔶 Python.Advanced.Udemy/            [Parcial: 12/18 aulas enviadas]   │
-│    ❌ Rust.For.Beginners.2024/          [Não enviado · 4.2 GB]            │
-│                                                                            │
-├────────────────────────────────────────────────────────────────────────────┤
-│ Breaking.Bad.S03 · 45 GB · Última mod: 2024-11-20 · Status: Pendente      │
-└────────────────────────────────────────────────────────────────────────────┘
-```
+**Meta:** corrigir os itens da seção 3 e fechar lacunas de confiabilidade. **Pré-requisito de qualquer feature nova.**
 
-### Funcionalidades
+- [ ] Resolver C1–C10.
+- [ ] **Tela de ajuda (`?`)** — modal com todas as teclas agrupadas por contexto. O layout original previa `[?]Ajuda` no cabeçalho.
+- [ ] **Tratamento de erro no scan** — pasta raiz inacessível, symlink quebrado, permissão negada: mensagem clara em vez de stack trace.
+- [ ] **Indicador de carregamento** — árvores grandes ou catálogos grandes devem mostrar "carregando…" em vez de travar.
+- [ ] **Teste de fumaça do `upload_panel`** — hoje os screens são testados, mas a lógica de subprocess/parsing tem pouca cobertura direta.
 
-**Navegação:**
-- `↑/↓` — mover cursor
-- `→/Enter` — expandir pasta / entrar
-- `←` — recolher / voltar ao pai
-- `Space` — selecionar item (multi-select)
-- `g/G` — ir para topo/fim
-- `Tab` — alternar entre painéis (quando dashboard ativo)
+### Fase 7 — Upload Avançado (`v0.36.x`)
 
-**Filtros rápidos (teclas):**
-- `1` — mostrar somente `PENDING` (o que precisa ser enviado)
-- `2` — mostrar somente `UPLOADED`
-- `3` — mostrar somente `FAILED`
-- `0` — mostrar tudo
-- `/` — busca por nome dentro da pasta atual
+**Meta:** dar à TUI paridade de opções com a CLI, sem precisar editar comando.
 
-**Informações no rodapé:**
-- Path completo do item sob cursor
-- Tamanho, data de modificação, status detalhado
-- Para `UPLOADED`: data de envio, tamanho do NZB, path do NZB arquivado
+- [ ] **Modal de confirmação completo** — adicionar ao `confirm.py`: `--7z`, `--password` (com geração aleatória), `--each`, `--season`, escolha de grupo/pool, `--compress`. Hoje só há 3 opções.
+- [ ] **Seleção de perfil inline (`c`)** — selector dos `.env` em `~/.config/upapasta/`; troca o perfil ativo sem sair; indicador do perfil na status bar. (Fase 5.4 original, não feita.)
+- [ ] **Presets de upload** — salvar combinações de opções nomeadas ("Filme 4K", "Curso", "Série stealth") e aplicar com um atalho.
+- [ ] **Re-upload / retry de falhas** — selecionar itens `FAILED`/`PARTIAL` e reprocessar direto.
+- [ ] **Dry-run visual** — botão no modal que mostra o que aconteceria (comando, tamanho PAR2, ETA) sem enviar.
 
-### `widgets/file_tree.py`
+### Fase 8 — Experiência e Visual (`v0.37.x`)
 
-- Subclasse de `textual.widgets.Tree`
-- Renderiza cada nó com ícone de status + cor
-- Lazy loading de subdiretórios (não carrega tudo de uma vez para pastas grandes)
-- Indicador de progresso para `IN_PROGRESS` (barra ASCII inline)
-- Atualização incremental: re-scan só dos nós visíveis quando catálogo muda
+**Meta:** "visualmente agradável e fácil de mexer" — polir a percepção da ferramenta.
 
-**Critérios de saída da Fase 2:**
-- [ ] Navegação fluida em diretórios com 1000+ itens
-- [ ] Status visualmente claros e distinguíveis sem cores (para terminais sem cor)
-- [ ] `Space` multi-select funcional
-- [ ] Filtros `1/2/3/0` funcionando
-- [ ] Busca `/` com highlight
+- [ ] **Layout responsivo** — dashboard como overlay ou painel colapsável em terminais estreitos; árvore nunca deve quebrar. Hoje o dashboard é fixo em 46 colunas.
+- [ ] **Temas** — dark/light + 1–2 temas de destaque, alternáveis em runtime. Textual suporta `theme` nativamente.
+- [ ] **Command palette (`Ctrl+P`)** — busca fuzzy de todas as ações. Textual já oferece a base.
+- [ ] **Painel de detalhes do item** — ao focar um arquivo: mediainfo (resolução, codec, duração), preview de NFO existente, miniatura de poster TMDb se disponível.
+- [ ] **Dashboard ao vivo durante upload** — métricas e sparkline atualizando enquanto a fila roda, não só ao fim.
+- [ ] **Unificar o wizard de config** — portar `tui_config.py` (curses) para uma `screens/config.py` em Textual. Elimina a dependência de curses e a inconsistência de dois frameworks de TUI.
+- [ ] **Notificações persistentes** — log de notificações acessível (hoje os toasts somem em 2–5 s).
+
+### Fase 9 — Operação Contínua (`v0.38.x`)
+
+**Meta:** transformar a TUI em painel de operação para homelab/SSH.
+
+- [ ] **Modo Watch integrado (`w`)** — TUI vira monitor live; detecta novos itens na raiz via polling; notifica; opção de auto-upload com/sem confirmação. (Fase 5.5 original.)
+- [ ] **Upload em background / daemon** — enfileirar e fechar a TUI; processo consome a fila; ao reabrir, o estado é refletido. "Fire and forget" para SSH. (Fase 5.6 original.)
+- [ ] **Histórico de sessão** — aba/tela com os uploads desta sessão, com link para log e NZB de cada um.
+- [ ] **Verificação de NZB existente** — re-checar integridade de uploads antigos (artigos ainda disponíveis no servidor) direto da árvore.
+- [ ] **Reordenar a fila** — arrastar/mover itens na fila antes/durante o processamento.
+
+### Fase 10 — Inteligência (`v0.39.x+`)
+
+**Meta:** features que economizam decisões do usuário. Backlog — priorizar conforme uso real.
+
+- [ ] **ETA preditivo** — estimar tempo de upload a partir da velocidade histórica do catálogo, antes de iniciar.
+- [ ] **Detecção de duplicatas** — avisar quando um item a enviar parece já estar no catálogo (match aproximado de nome/tamanho).
+- [ ] **Sugestão de categoria/TMDb** — pré-preencher metadados no modal de confirmação.
+- [ ] **Visão por coleção** — agrupar séries/temporadas logicamente, não só pela árvore de diretórios.
+- [ ] **Exportar relatórios** — do dashboard para CSV/JSON.
 
 ---
 
-## Fase 3 — Integração de Upload (`v1.4.0`)
+## 5. Princípios de Design
 
-**Meta:** disparar uploads diretamente da TUI, com progresso em tempo real.
+Para manter a TUI **fácil de mexer, visualmente agradável e útil**, todo trabalho novo deve seguir:
 
-### Fluxo de Upload pela TUI
-
-```
-Usuário seleciona itens (Space) → pressiona [U]
-    ↓
-Tela de confirmação:
-  • Lista de itens selecionados com tamanho total
-  • Estimativa de PAR2 gerado
-  • Estimativa de tempo (baseado em velocidade histórica do catálogo)
-  • Opções inline: --obfuscate, --rar, --par-profile
-  → [Enter] confirmar / [Esc] cancelar
-    ↓
-Painel de progresso in-TUI (reutiliza lógica de _progress.py):
-  Phase: PAR2 [████████░░] 80% · 2.1 GB/2.6 GB
-  Phase: Upload [████░░░░░░] 40% · 4.2 GB/10.5 GB · 12 MB/s
-  ETA: 8m 23s
-    ↓
-Resultado: NZB salvo + catálogo atualizado + status muda para ✅ ao vivo
-```
-
-### `widgets/upload_panel.py`
-
-- Painel lateral que aparece durante upload ativo
-- Barra de progresso por fase (PAR2, Upload, Verificação)
-- Speed atual e ETA calculado
-- Log de output do nyuu/parpar em área scrollável
-- Botão `[X]` para cancelar (envia SIGTERM via `managed_popen`)
-
-### `screens/upload.py`
-
-- Tela modal de confirmação pré-upload
-- Exibe configurações que serão usadas (inferidas do `.env` ativo)
-- Permite sobrescrever flags pontualmente sem precisar da CLI
-
-**Critérios de saída da Fase 3:**
-- [x] Upload completo disparado da TUI sem abrir terminal separado
-- [x] Progresso em tempo real (stdout capturado linha a linha + barra de fase)
-- [x] Cancelamento limpo via Esc (SIGTERM → subprocess termina)
-- [x] Status do arquivo na árvore atualiza ao concluir (reload() automático)
-- [x] Erros exibidos no log com estilo vermelho + código de saída
+1. **Um widget, uma responsabilidade.** Lógica de dados (`catalog_index`, `fs_scanner`) fica fora dos widgets. Widgets só renderizam e emitem mensagens.
+2. **Comunicação por mensagens.** Threads (`@work(thread=True)`) nunca tocam a UI direto — sempre via `post_message` / `call_from_thread`. Já é o padrão; manter.
+3. **CSS junto do widget.** `DEFAULT_CSS` no próprio widget; só o layout global fica no `App.CSS`.
+4. **Estilo só por tokens de tema.** Usar `$accent`, `$surface`, `$warning`, etc. — nunca cores literais. Garante que temas (Fase 8) funcionem.
+5. **Toda ação tem binding visível.** Se uma ação existe, aparece no `Footer` ou na tela de ajuda. Sem funcionalidade escondida.
+6. **Degradar com clareza.** Sem indexador, sem `textual`, sem permissão: mensagem acionável, nunca crash.
+7. **Subprocessos via `managed_popen`.** Sem exceção (ver C2).
+8. **Teste por comportamento.** Usar `App.run_test()` + `Pilot`; testar o que o usuário vê, não internals.
+9. **`from __future__ import annotations`** em todo módulo novo; `ruff` + `mypy --strict` limpos antes de commit.
 
 ---
 
-## Fase 4 — Dashboard de Saúde (`v1.5.0`)
-
-**Meta:** painel lateral com visão agregada do catálogo e alertas.
-
-### Layout com Dashboard Ativo
-
-```
-┌─ UpaPasta ──────────────────────┬─ Dashboard ──────────────────────────────┐
-│ 📁 /mnt/media/                  │                                          │
-│                                 │  📊 Visão Geral                          │
-│  ✅ Breaking.Bad.S01/           │  ─────────────────────────────────────   │
-│  ✅ Breaking.Bad.S02/           │  Enviados:   847 GB  (63 itens)          │
-│  ❌ Breaking.Bad.S03/           │  Pendentes:  312 GB  (21 itens)          │
-│  ⏳ Breaking.Bad.S04/           │  Falhas:       0 GB  ( 0 itens)          │
-│  ✅ Dune.Part.One/              │                                          │
-│  ❌ Dune.Part.Two/              │  📈 Uploads (últimos 30 dias)            │
-│  🔶 Python.Advanced/           │  ─────────────────────────────────────   │
-│  ❌ Rust.For.Beginners/         │   Jan ▂▂▄▄▆▆█▆▄▂▂▂▄▄▄▆▆▆▄▄▂▂▁▁▂▂▂▂▄   │
-│                                 │   0 GB ────────────────────── 150 GB    │
-│                                 │                                          │
-│                                 │  ⚠️  Alertas                            │
-│                                 │  ─────────────────────────────────────   │
-│                                 │  • 3 itens com > 90 dias sem verificação │
-│                                 │  • Python.Advanced: upload incompleto    │
-│                                 │                                          │
-├─────────────────────────────────┴──────────────────────────────────────────┤
-│ Breaking.Bad.S03 · 45 GB · Pendente                     [D] Toggle Dashboard│
-└────────────────────────────────────────────────────────────────────────────┘
-```
-
-### `widgets/dashboard.py`
-
-**Métricas calculadas do catálogo:**
-- Total enviado (GB + contagem de itens)
-- Total pendente (GB + contagem)
-- Falhas recentes (últimas 48h)
-- Taxa de sucesso histórica
-
-**Sparkline de uploads:**
-- ASCII chart dos últimos 30 dias de atividade
-- Baseado em `upload_date` do catálogo JSONL
-- Escala automática por GB
-
-**Alertas ativos:**
-- Itens com mais de N dias enviados sem re-verificação (configurável)
-- Itens com status `PARTIAL` (pasta enviada parcialmente)
-- Falhas consecutivas no mesmo item
-
-**Critérios de saída da Fase 4:**
-- [x] Dashboard toggle com `[D]` sem recarregar a árvore
-- [x] Sparkline renderiza corretamente para catálogos vazios e cheios
-- [x] Alertas calculados de forma lazy (não bloqueia a UI)
-- [x] Métricas atualizam após cada upload concluído
-
----
-
-## Fase 5 — Funcionalidades Avançadas (`v2.0.0`)
-
-**Meta:** operações em lote, busca inteligente, configuração inline.
-
-### 5.1 · Seleção Inteligente por Padrão
-
-```
-[P] Selecionar por padrão...
-
-> Todos os itens PENDING desta pasta
-> Todos os itens com > 30 dias sem upload
-> Todos os itens com > X GB
-> Pastas que começam com S\d{2} (temporadas)
-> Regex personalizado
-```
-
-### 5.2 · Upload em Fila
-
-- Fila de múltiplos itens com ordem de prioridade
-- Pausa/resume da fila
-- Estimativa total de tempo para a fila completa
-- Execução sequencial (não paralela — evita saturar upload NNTP)
-
-### 5.3 · Visualização de NZB Inline
-
-- Pressionar `[N]` num item `UPLOADED` abre painel com detalhes do NZB
-- Mostra: servidor, grupos usados, data, artigos, integridade verificada
-- Atalho para abrir o `.nzb` arquivado no diretório de NZBs
-
-### 5.4 · Configuração de Perfil Inline
-
-- `[C]` abre selector de perfil (`.env` disponíveis em `~/.config/upapasta/`)
-- Troca o perfil ativo sem sair da TUI
-- Indicador do perfil ativo na statusbar
-
-### 5.5 · Modo Watch Integrado
-
-- `[W]` ativa modo watch: TUI vira um monitor live
-- Detecta novos arquivos na pasta raiz via polling
-- Exibe notificação quando novo item aparece
-- Opção de auto-upload de novos itens (com confirmação ou silencioso)
-
-### 5.6 · Upload em Background (Daemon)
-
-- Permite acionar uploads na TUI que são processados em segundo plano.
-- Acionado via flag `--daemon` ou configurado na interface.
-- Ideal para acesso via SSH em servidores/homelabs: o usuário pode adicionar itens à fila (Fire and Forget) e fechar a TUI.
-- Um processo "invisível" consome a fila e atualiza o catálogo, sendo refletido no Dashboard ao abrir a TUI novamente.
-
----
-
-## Dependências por Fase
-
-| Fase | Nova dependência | Justificativa |
-|---|---|---|
-| 1 | nenhuma | Só stdlib + código existente |
-| 2 | `textual >= 0.60` | Framework TUI — entra em `[tui]` extra |
-| 3 | nenhuma | Reutiliza `UpaPastaOrchestrator` |
-| 4 | nenhuma | Cálculos puros sobre catálogo JSONL |
-| 5 | nenhuma | Extensões das fases anteriores |
-
-Instalação:
-```bash
-pip install upapasta[tui]   # instala textual automaticamente
-pip install upapasta        # sem TUI, zero dependências externas (comportamento atual)
-```
-
----
-
-## Integração com `pyproject.toml`
-
-```toml
-[project.optional-dependencies]
-tui = ["textual>=0.60"]
-
-[project.scripts]
-upapasta = "upapasta.main:main"
-upapasta-tui = "upapasta.tui.app:main"   # atalho direto
-```
-
----
-
-## Critérios Globais de Qualidade
-
-Aplicam os mesmos critérios do projeto principal:
+## 6. Critérios de Qualidade
 
 ```bash
 ruff check upapasta/tui/ tests/tui/
+ruff format --check upapasta/tui/ tests/tui/
 mypy upapasta/tui/
-pytest tests/tui/ --cov=upapasta/tui --cov-fail-under=85
+pytest tests/tui/ -q
 ```
 
-- Todos os novos módulos com `from __future__ import annotations`
-- Subprocessos de upload via `managed_popen` (nunca direto)
-- TUI gracefully degradada se `textual` não instalado: `upapasta --tui` imprime instrução de instalação e sai com código 1
-- Nenhuma saída de cor obrigatória: status legíveis mesmo sem ANSI (para `NO_COLOR=1`)
+- Todo módulo novo coberto por testes; nenhuma regressão na suíte de 320 testes existente.
+- TUI gracefully degradada se `textual` ausente: instrução de instalação + exit 1.
+- Status legíveis sem cor (ícones distintos), respeitando `NO_COLOR`.
 
 ---
 
-## Cronograma Estimado
+## 7. Ordem de Trabalho Sugerida
 
-| Fase | Versão alvo | Esforço estimado | Pré-requisito |
-|---|---|---|---|
-| 1 — Fundação de Dados | v1.2.0 | ~400 linhas | — |
-| 2 — File Manager Core | v1.3.0 | ~800 linhas | Fase 1 |
-| 3 — Integração Upload | v1.4.0 | ~600 linhas | Fase 2 |
-| 4 — Dashboard | v1.5.0 | ~400 linhas | Fase 2 |
-| 5 — Avançado | v2.0.0 | ~700 linhas | Fases 3+4 |
+1. **Fase 6 primeiro** — sem a base de confiabilidade, features novas herdam bugs (C1 e C2 em especial).
+2. **Fase 7** — maior ganho percebido: a TUI passa a substituir a CLI no dia a dia.
+3. **Fase 8** — polimento visual; faz a ferramenta "parecer pronta".
+4. **Fases 9–10** — conforme demanda real de uso em homelab.
 
-**Total estimado:** ~2.900 linhas de código novo + ~600 linhas de testes
-
----
-
-## Estado Atual
-
-- ✅ `UpaPastaOrchestrator` pronto para ser chamado programaticamente
-- ✅ Catálogo JSONL estável e documentado
-- ✅ `_progress.py` com lógica de progresso reutilizável
-- 📍 Próximo passo: implementar Fase 1 (`catalog_index.py` + `fs_scanner.py`)
+> Ao concluir um item, marque `[x]` aqui e registre no `CHANGELOG.md`. Ao descobrir um bug novo, adicione na seção 3 com prioridade.
