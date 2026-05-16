@@ -297,13 +297,22 @@ class FileTreeWidget(Tree[FileNode]):
 
         nodes = self._collect_visible_file_nodes()
         if not nodes:
+            self.app.call_from_thread(
+                self.app.notify,
+                "Nenhum arquivo visível para buscar. Expanda as pastas primeiro.",
+                severity="warning",
+                timeout=4,
+            )
             return
 
+        # A busca cobre só os nós já carregados — pastas recolhidas são ignoradas.
+        # A mensagem deixa o escopo explícito para o usuário (C4).
         self.app.call_from_thread(
             self.app.notify,
-            f"Buscando {len(nodes)} item(s) no indexador...",
+            f"Buscando {len(nodes)} item(s) visível(is) no indexador "
+            f"(pastas recolhidas não incluídas)...",
             severity="information",
-            timeout=3,
+            timeout=4,
         )
 
         for file_node in nodes:

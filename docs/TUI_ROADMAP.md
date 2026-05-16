@@ -93,8 +93,8 @@ Itens identificados na auditoria do código. Prioridade: **P0** = bug que afeta 
 - [x] **C3 · Mutação de `self.BINDINGS` (atributo de classe)** (`upload_progress.py:on_upload_panel_finished`) — *resolvido 2026-05-16*
   Substituído por `check_action` + `refresh_bindings()`: a visibilidade de `confirm_finish`/`view_nzb` no Footer é calculada por estado, sem mutar a lista de classe.
 
-- [ ] **C4 · Busca de indexador ignora pastas recolhidas** (`file_tree.py:_collect_visible_file_nodes`)
-  `start_indexer_search` só percorre `TreeNode`s já carregados (pastas expandidas). Itens em pastas recolhidas são silenciosamente ignorados. Ou escanear o filesystem direto, ou avisar que só itens visíveis foram buscados.
+- [x] **C4 · Busca de indexador ignora pastas recolhidas** (`file_tree.py:_collect_visible_file_nodes`) — *mitigado 2026-05-16*
+  A mensagem agora explicita que só itens visíveis são buscados (pastas recolhidas não incluídas) e avisa quando não há nada visível. Escaneamento recursivo do filesystem fica como melhoria futura na Fase 9.
 
 - [x] **C5 · `--porcelain` aplicado em dobro** (`confirm.py:build_upload_cmd` + `upload_panel.py:_run_one`) — *resolvido 2026-05-16*
   Removida a flag `--porcelain` de `build_upload_cmd`; porcelain fica só no env `UPAPASTA_PORCELAIN=1`, mantendo a linha de comando do log limpa.
