@@ -380,9 +380,15 @@ def rename_par2_files(
     # Se actual_par_input já for um nome base (string), usa ele.
     # Se for caminho completo, pega o stem.
     if os.sep in actual_par_input or (os.altsep and os.altsep in actual_par_input):
-        orig_stem = os.path.splitext(os.path.basename(actual_par_input))[0]
+        bname = os.path.basename(actual_par_input)
+        # Pastas não têm extensão real — splitext quebraria "Nome.264-Tag" em "Nome" + ".264-Tag"
+        orig_stem = bname if os.path.isdir(actual_par_input) else os.path.splitext(bname)[0]
     else:
-        orig_stem = os.path.splitext(actual_par_input)[0]
+        orig_stem = (
+            actual_par_input
+            if os.path.isdir(actual_par_input)
+            else os.path.splitext(actual_par_input)[0]
+        )
 
     if is_rar_vol_set:
         orig_stem = orig_stem.rsplit(".part", 1)[0]
