@@ -4,6 +4,20 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.36.0 - 2026-05-16
+
+### Funcionalidades
+- **CLI — `--search-indexer`**: Novo comando standalone para buscar o nome de um arquivo/pasta no indexador Newznab configurado e listar os resultados (título, tamanho, data, grabs). Aceita um termo livre ou um caminho. Espelha o `--tmdb-search`.
+- **TUI — Busca no indexador por seleção**: Pressionar `x` agora busca os itens selecionados com `espaço`, e não mais todos os arquivos visíveis. Pastas selecionadas são varridas recursivamente — só arquivos pendentes (vermelho) são buscados; itens enviados (✅) e externos (🌐) são pulados.
+- **TUI — Download + marcação externa persistente**: Quando um item é encontrado no indexador, o `.nzb` é baixado para `EXTERNAL_NZB_DIR` e o item passa a aparecer como externo (🌐) (a marcação sobrevive a reinícios via o scan de filesystem).
+- **TUI — Ícones de status duplos**: Um item que tem o NZB próprio (histórico) e um NZB externo agora exibe `✅ 🌐` juntos, em vez de colapsar num único status.
+- **TUI — Ícone de cadeado para senha**: Um ícone 🔒 é exibido ao lado do ícone do NZB quando o NZB tem senha. As senhas interna e externa são rastreadas separadamente, então o cadeado deixa claro qual backup precisa de senha (`✅🔒 🌐`, `✅ 🌐🔒` ou ambos).
+- **Indexador — busca literal**: `NewznabClient.search()` ganhou `normalize=False` para enviar o nome exato do arquivo/pasta (sem remover ano/codec/grupo), de modo que a busca da TUI case exatamente o mesmo release/versão.
+- **Configuração**: Nova variável de ambiente `EXTERNAL_NZB_DIR` (caminhos separados por vírgula) — diretórios varridos em busca de backups `.nzb` externos e usados como destino do download de resultados do indexador.
+
+### Correções
+- **TUI — Travamento no scan do indexador**: A detecção de senha de NZB externo agora lê apenas o cabeçalho do `.nzb` (até 64 KB, parando no primeiro `<file>`) com cache por `(mtime, tamanho)`, em vez de parsear o arquivo inteiro. Evita que a TUI trave na inicialização quando `EXTERNAL_NZB_DIR` contém milhares de `.nzb` grandes.
+
 ## 0.35.0 - 2026-05-16
 
 ### Funcionalidades

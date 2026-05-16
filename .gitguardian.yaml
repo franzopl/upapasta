@@ -1,0 +1,8 @@
+version: 2
+
+# Arquivos de teste contêm apenas fixtures (senhas falsas como "segredo123",
+# "indexpass") usadas para exercitar a detecção de NZB com senha — nunca
+# credenciais reais. Excluídos do scan de segredos para evitar falsos positivos.
+secret:
+  ignored-paths:
+    - "tests/**"

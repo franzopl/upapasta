@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.36.0 - 2026-05-16
+
+### Features
+- **CLI — `--search-indexer`**: New standalone command to search a file/folder name in the configured Newznab indexer and list results (title, size, date, grabs). Accepts a free term or a path. Mirrors `--tmdb-search`.
+- **TUI — Indexer search by selection**: Pressing `x` now searches the items selected with `space` instead of all visible files. Selected folders are scanned recursively — only pending (red) files are searched; uploaded (✅) and external (🌐) items are skipped.
+- **TUI — Download + persistent external mark**: When an item is found in the indexer, its `.nzb` is downloaded to `EXTERNAL_NZB_DIR` and the item is marked as external (🌐) from then on (the mark survives restarts via the filesystem scan).
+- **TUI — Dual status icons**: An item with both its own NZB (history) and an external NZB now shows `✅ 🌐` together, instead of collapsing into a single status.
+- **TUI — Password lock icon**: A 🔒 icon is shown next to the NZB icon when the NZB is password-protected. Internal and external passwords are tracked separately, so the lock makes clear which backup needs a password (`✅🔒 🌐`, `✅ 🌐🔒`, or both).
+- **Indexer — literal search**: `NewznabClient.search()` gained `normalize=False` to send the exact file/folder name (no year/codec/group stripping), so the TUI search matches the exact same release/version.
+- **Config**: New `EXTERNAL_NZB_DIR` env var (comma-separated paths) — directories scanned for external `.nzb` backups and used as the download target for indexer hits.
+
+### Fixes
+- **TUI — Indexer scan hang**: External NZB password detection now reads only the `.nzb` header (up to 64 KB, stopping at the first `<file>`) with an `(mtime, size)` cache, instead of parsing whole files. Prevents the TUI from hanging on startup when `EXTERNAL_NZB_DIR` holds thousands of large `.nzb` files.
+
 ## 0.35.0 - 2026-05-16
 
 ### Features

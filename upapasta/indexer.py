@@ -280,9 +280,14 @@ class NewznabClient:
             self._cache = _load_cache(self.cache_days)
         return self._cache
 
-    def search(self, query: str, limit: int = 10) -> list[IndexerResult]:
-        """Busca no indexador. Usa cache se disponível e não expirado."""
-        norm_query = normalize_query(query)
+    def search(self, query: str, limit: int = 10, normalize: bool = True) -> list[IndexerResult]:
+        """
+        Busca no indexador. Usa cache se disponível e não expirado.
+
+        normalize=False envia o nome literal (sem remover ano/codec/grupo) — use
+        quando o objetivo é casar o arquivo exato, com o mesmo grupo/versão.
+        """
+        norm_query = normalize_query(query) if normalize else query.strip()
         if not norm_query:
             return []
 
