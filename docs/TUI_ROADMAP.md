@@ -82,8 +82,8 @@ Itens identificados na auditoria do código. Prioridade: **P0** = bug que afeta 
 
 ### P0 — Correção / Integridade de dados
 
-- [ ] **C1 · Matching de catálogo por nome, não por path** (`fs_scanner.py`)
-  O catálogo só guarda `nome_original` (basename). Dois itens de mesmo nome em pastas diferentes são tratados como idênticos → falso "Enviado". Mitigação possível: registrar path completo (ou hash) no catálogo e cruzar por path; ou exibir aviso de ambiguidade quando há colisão de nome.
+- [x] **C1 · Matching de catálogo por nome, não por path** (`fs_scanner.py`) — *decisão de produto: comportamento mantido*
+  Releases scene são identificados pelo nome canônico; cruzar por nome é o correto para o público-alvo. Não é bug. Mantido intencionalmente.
 
 - [x] **C2 · `subprocess.Popen` direto em vez de `managed_popen`** (`upload_panel.py:_run_one`) — *resolvido 2026-05-16*
   Migrado para `managed_popen` de `_process.py`: escalada `SIGTERM → SIGKILL` garantida em cancelamento, exceção ou fim de fila.
@@ -99,22 +99,22 @@ Itens identificados na auditoria do código. Prioridade: **P0** = bug que afeta 
 - [x] **C5 · `--porcelain` aplicado em dobro** (`confirm.py:build_upload_cmd` + `upload_panel.py:_run_one`) — *resolvido 2026-05-16*
   Removida a flag `--porcelain` de `build_upload_cmd`; porcelain fica só no env `UPAPASTA_PORCELAIN=1`, mantendo a linha de comando do log limpa.
 
-- [ ] **C6 · TUI não usa i18n** (todos os módulos `tui/`)
-  Zero uso de `from .i18n import _`. Strings hardcoded em português. O resto do projeto é internacionalizado via gettext. Decidir: (a) envolver strings da TUI em `_()`, ou (b) documentar explicitamente que a TUI é PT-only por ora.
+- [ ] **C6 · TUI não usa i18n** (todos os módulos `tui/`) — *adiado (tradução planejada pelo mantenedor)*
+  Zero uso de `from .i18n import _`. Strings hardcoded em português. Será envolvido em `_()` numa passada de tradução dedicada, posterior.
 
 ### P2 — Polimento
 
 - [x] **C7 · Estimativa de tamanho do NZB imprecisa** (`nzb_viewer.py`) — *resolvido 2026-05-16*
   `_parse_nzb` agora soma o atributo `bytes` real de cada `<segment>`; o tamanho fixo de 750 KB vira só fallback para segmentos sem o atributo.
 
-- [ ] **C8 · `compute_fs_stats` escaneia só o top-level** (`dashboard.py`)
-  Pendências/parciais em subpastas não entram na contagem do dashboard. Avaliar walk recursivo (com cache) ou deixar claro que a métrica é só da raiz.
+- [x] **C8 · `compute_fs_stats` escaneia só o top-level** (`dashboard.py`) — *resolvido 2026-05-16*
+  Varredura agora é recursiva: desce por pastas-categoria (só subpastas, ex.: `downloads/`, `radarr/`) e conta como release qualquer pasta com arquivos diretos ou arquivo solto. A contagem do dashboard funciona abrindo a TUI na raiz do disco.
 
 - [x] **C9 · `reload()` perde a posição do cursor** (`file_tree.py:_reload_root`) — *resolvido 2026-05-16*
   `_reload_root` salva o path do nó sob o cursor e o restaura após reconstruir a árvore, se o item ainda existir.
 
-- [ ] **C10 · Preview de regex conta só nós carregados** (`app.py:_open_pattern_select`)
-  `visible_names` vem de `query("TreeNode")` — só pastas expandidas. O preview "N de M itens casariam" pode enganar. Coletar nomes via scan do filesystem.
+- [x] **C10 · Preview de regex conta só nós carregados** (`app.py:_open_pattern_select`) — *descartado*
+  Não é bug: a seleção (`select_by_pattern`) atua sobre o mesmo conjunto de nós carregados, então o preview é coerente com a ação. Comportamento esperado do modelo de árvore lazy-loaded.
 
 ---
 
@@ -126,7 +126,7 @@ Organizado por fase. Cada fase é coesa e pode ser entregue de forma independent
 
 **Meta:** corrigir os itens da seção 3 e fechar lacunas de confiabilidade. **Pré-requisito de qualquer feature nova.**
 
-- [ ] Resolver C1–C10.
+- [x] Correções C1–C10 tratadas (C2/C3/C5/C7/C8/C9 resolvidas, C4 mitigada, C1/C10 decididas como comportamento, C6 adiada para passada de tradução).
 - [ ] **Tela de ajuda (`?`)** — modal com todas as teclas agrupadas por contexto. O layout original previa `[?]Ajuda` no cabeçalho.
 - [ ] **Tratamento de erro no scan** — pasta raiz inacessível, symlink quebrado, permissão negada: mensagem clara em vez de stack trace.
 - [ ] **Indicador de carregamento** — árvores grandes ou catálogos grandes devem mostrar "carregando…" em vez de travar.

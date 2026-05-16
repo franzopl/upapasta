@@ -7,6 +7,7 @@ Toggle com [D] no app principal. Teclas [ / ] para ajustar timeframe do sparklin
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -106,19 +107,78 @@ def compute_catalog_stats(index: CatalogIndex, days: int = 30) -> DashboardStats
     )
 
 
+# Profundidade máxima de descida recursiva — evita loops de symlink e árvores patológicas.
+_FS_STATS_MAX_DEPTH = 10
+
+
+def _dir_has_direct_files(path: Path) -> bool:
+    """True se o diretório contém ao menos um arquivo diretamente (não em subpastas)."""
+    try:
+        return any(child.is_file() for child in path.iterdir())
+    except OSError:
+        return False
+
+
+def _dir_total_size(path: Path) -> int:
+    """Soma recursiva dos tamanhos de todos os arquivos sob path."""
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                continue
+    return total
+
+
 def compute_fs_stats(root_path: Path, index: CatalogIndex) -> tuple[int, int, list[str]]:
-    nodes = scan_directory(root_path, index)
+    """
+    Conta itens pendentes/parciais cruzando o filesystem com o catálogo.
+
+    A varredura é recursiva: desce por pastas-categoria (que contêm só subpastas,
+    ex.: ``downloads/``, ``radarr/``) e trata como unidade de release qualquer
+    pasta com arquivos diretos ou qualquer arquivo solto. Não desce em itens já
+    enviados. Assim a contagem funciona mesmo abrindo a TUI na raiz do disco.
+
+    Retorna (pending_count, pending_bytes, partial_items).
+    """
     pending_count = 0
     pending_bytes = 0
     partial_items: list[str] = []
 
-    for node in nodes:
-        if node.status == UploadStatus.PENDING:
-            pending_count += 1
-            pending_bytes += node.size
-        elif node.status == UploadStatus.PARTIAL:
-            partial_items.append(node.name)
+    def visit(path: Path, depth: int) -> None:
+        nonlocal pending_count, pending_bytes
+        for node in scan_directory(path, index):
+            if not node.is_dir:
+                if node.status == UploadStatus.PENDING:
+                    pending_count += 1
+                    pending_bytes += node.size
+                continue
 
+            # Diretório já enviado: não desce nem conta.
+            if node.status in (UploadStatus.UPLOADED, UploadStatus.EXTERNAL):
+                continue
+
+            has_files = _dir_has_direct_files(node.path)
+            is_release = has_files or depth >= _FS_STATS_MAX_DEPTH
+
+            if node.status == UploadStatus.PARTIAL:
+                if is_release:
+                    # Release parcialmente enviado (ex.: temporada com --each).
+                    partial_items.append(node.name)
+                else:
+                    # Pasta-categoria parcial: desce para contar os pendentes.
+                    visit(node.path, depth + 1)
+                continue
+
+            # PENDING
+            if is_release:
+                pending_count += 1
+                pending_bytes += _dir_total_size(node.path)
+            else:
+                visit(node.path, depth + 1)
+
+    visit(root_path, 0)
     return pending_count, pending_bytes, partial_items
 
 

@@ -49,18 +49,27 @@ def _entry(name: str, days_ago: int = 0, size_gb: float = 10.0) -> dict:
     }
 
 
+def _make_release_dir(parent: Path, name: str) -> Path:
+    """Cria uma pasta-release: diretório com um arquivo de mídia direto."""
+    d = parent / name
+    d.mkdir()
+    (d / "video.mkv").write_bytes(b"x")
+    return d
+
+
 def _make_media_tree(tmp_path: Path) -> tuple[Path, CatalogIndex]:
     """Cria árvore de mídia com 3 enviados, 1 pendente, 1 pasta parcial."""
     media = tmp_path / "media"
     media.mkdir()
-    (media / "Breaking.Bad.S01").mkdir()
-    (media / "Breaking.Bad.S02").mkdir()
-    (media / "Dune.2021.4K").mkdir()
-    (media / "Pending.Movie").mkdir()
+    _make_release_dir(media, "Breaking.Bad.S01")
+    _make_release_dir(media, "Breaking.Bad.S02")
+    _make_release_dir(media, "Dune.2021.4K")
+    _make_release_dir(media, "Pending.Movie")
+    # Pasta-release parcial: temporada com episódios soltos, só ep01 enviado.
     partial_dir = media / "Partial.Series"
     partial_dir.mkdir()
-    (partial_dir / "ep01").mkdir()
-    (partial_dir / "ep02").mkdir()
+    (partial_dir / "ep01.mkv").write_bytes(b"x")
+    (partial_dir / "ep02.mkv").write_bytes(b"x")
 
     idx = _make_catalog(
         tmp_path,
@@ -68,7 +77,7 @@ def _make_media_tree(tmp_path: Path) -> tuple[Path, CatalogIndex]:
             _entry("Breaking.Bad.S01", days_ago=5, size_gb=40),
             _entry("Breaking.Bad.S02", days_ago=3, size_gb=44),
             _entry("Dune.2021.4K", days_ago=10, size_gb=87),
-            _entry("ep01", days_ago=2, size_gb=2),
+            _entry("ep01.mkv", days_ago=2, size_gb=2),
         ],
     )
     return media, idx
@@ -242,8 +251,8 @@ def test_compute_fs_stats_empty_dir(tmp_path: Path):
 def test_compute_fs_stats_pending_dirs(tmp_path: Path):
     media = tmp_path / "media"
     media.mkdir()
-    (media / "Movie.A").mkdir()
-    (media / "Movie.B").mkdir()
+    _make_release_dir(media, "Movie.A")
+    _make_release_dir(media, "Movie.B")
 
     history = tmp_path / "history.jsonl"
     history.touch()
@@ -252,17 +261,16 @@ def test_compute_fs_stats_pending_dirs(tmp_path: Path):
 
     pending, pending_bytes, partial = compute_fs_stats(media, idx)
 
-    # Diretórios vazios têm size=0
     assert pending == 2
-    assert pending_bytes == 0
+    assert pending_bytes > 0  # soma recursiva dos arquivos das pastas-release
     assert partial == []
 
 
 def test_compute_fs_stats_uploaded_not_counted(tmp_path: Path):
     media = tmp_path / "media"
     media.mkdir()
-    (media / "Uploaded.Movie").mkdir()
-    (media / "Pending.Movie").mkdir()
+    _make_release_dir(media, "Uploaded.Movie")
+    _make_release_dir(media, "Pending.Movie")
 
     idx = _make_catalog(tmp_path, [_entry("Uploaded.Movie", days_ago=1)])
 
@@ -277,16 +285,58 @@ def test_compute_fs_stats_partial_detected(tmp_path: Path):
     media.mkdir()
     partial_dir = media / "Series.S01"
     partial_dir.mkdir()
-    (partial_dir / "ep01").mkdir()
-    (partial_dir / "ep02").mkdir()
+    (partial_dir / "ep01.mkv").write_bytes(b"x")
+    (partial_dir / "ep02.mkv").write_bytes(b"x")
 
-    # Só ep01 foi enviado → Series.S01 é PARTIAL
-    idx = _make_catalog(tmp_path, [_entry("ep01", days_ago=1)])
+    # Só ep01.mkv foi enviado → Series.S01 é PARTIAL
+    idx = _make_catalog(tmp_path, [_entry("ep01.mkv", days_ago=1)])
 
     pending, _, partial = compute_fs_stats(media, idx)
 
     assert "Series.S01" in partial
     assert pending == 0
+
+
+def test_compute_fs_stats_recurses_into_category_dirs(tmp_path: Path):
+    """Abrindo a TUI na raiz do disco: a contagem desce pelas pastas-categoria."""
+    media = tmp_path / "ironwolf"
+    media.mkdir()
+    radarr = media / "downloads" / "radarr"
+    sonarr = media / "downloads" / "tv-sonarr"
+    radarr.mkdir(parents=True)
+    sonarr.mkdir(parents=True)
+    _make_release_dir(radarr, "Dune.2024")
+    _make_release_dir(radarr, "Matrix.1999")
+    _make_release_dir(sonarr, "Show.S01")
+
+    history = tmp_path / "history.jsonl"
+    history.touch()
+    idx = CatalogIndex(history)
+    idx.load()
+
+    pending, pending_bytes, partial = compute_fs_stats(media, idx)
+
+    # 3 releases pendentes, mesmo aninhados sob downloads/{radarr,tv-sonarr}/
+    assert pending == 3
+    assert pending_bytes > 0
+    assert partial == []
+
+
+def test_compute_fs_stats_partial_category_descended(tmp_path: Path):
+    """Categoria com parte dos releases enviados: desce e conta só os pendentes."""
+    media = tmp_path / "ironwolf"
+    radarr = media / "downloads" / "radarr"
+    radarr.mkdir(parents=True)
+    _make_release_dir(radarr, "Sent.Movie")
+    _make_release_dir(radarr, "Pending.Movie")
+
+    idx = _make_catalog(tmp_path, [_entry("Sent.Movie", days_ago=1)])
+
+    pending, _, partial = compute_fs_stats(media, idx)
+
+    # radarr é PARTIAL (1 de 2 enviados), mas é categoria → desce e conta o pendente
+    assert pending == 1
+    assert partial == []
 
 
 # ── Testes: DashboardWidget ───────────────────────────────────────────────────
