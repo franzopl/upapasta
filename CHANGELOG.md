@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.34.12 - 2026-05-16
+
+### Features
+- **CLI**: Added `--version` flag — `upapasta --version` now prints the installed package version.
+
 ## 0.34.11 - 2026-05-16
 
 ### Fixes
