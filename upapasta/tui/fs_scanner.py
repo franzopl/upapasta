@@ -29,7 +29,19 @@ class FileNode:
     upload_entry: Optional[CatalogEntry] = field(default=None)
     child_total: int = 0
     child_uploaded: int = 0
+    # Backups: o item pode ter NZB próprio (history.jsonl) e/ou externo simultaneamente.
+    # A senha é rastreada por origem — um pode ter senha e o outro não.
+    has_own_nzb: bool = False
+    has_external_nzb: bool = False
+    own_has_password: bool = False
+    external_has_password: bool = False
     indexer_status: IndexerStatus = field(default_factory=lambda: IndexerStatus.UNKNOWN)
+
+    @property
+    def password_protected(self) -> bool:
+        """True se qualquer backup (próprio ou externo) tem senha."""
+        return self.own_has_password or self.external_has_password
+
     # URL do NZB encontrado no indexador (preenchido quando indexer_status == FOUND)
     indexer_nzb_url: Optional[str] = field(default=None)
     indexer_title: Optional[str] = field(default=None)
@@ -99,9 +111,13 @@ def _build_node(path: Path, index: CatalogIndex) -> FileNode:
 
 
 def _build_file_node(path: Path, index: CatalogIndex) -> FileNode:
-    entry = index.lookup(path.name)
-    if entry:
-        status = UploadStatus.EXTERNAL if entry.is_external else UploadStatus.UPLOADED
+    own = index.lookup_own(path.name)
+    ext = index.external_match(path.name)
+
+    if own:
+        status = UploadStatus.UPLOADED
+    elif ext is not None:
+        status = UploadStatus.EXTERNAL
     else:
         status = UploadStatus.PENDING
 
@@ -110,20 +126,29 @@ def _build_file_node(path: Path, index: CatalogIndex) -> FileNode:
         is_dir=False,
         size=_safe_size(path),
         status=status,
-        upload_entry=entry,
+        upload_entry=own or index.lookup(path.name),
+        has_own_nzb=own is not None,
+        has_external_nzb=ext is not None,
+        own_has_password=bool(own and own.has_password),
+        external_has_password=bool(ext and ext.has_password),
     )
 
 
 def _build_dir_node(path: Path, index: CatalogIndex) -> FileNode:
-    entry = index.lookup(path.name)
-    if entry:
-        status = UploadStatus.EXTERNAL if entry.is_external else UploadStatus.UPLOADED
+    own = index.lookup_own(path.name)
+    ext = index.external_match(path.name)
+    if own or ext is not None:
+        status = UploadStatus.UPLOADED if own else UploadStatus.EXTERNAL
         return FileNode(
             path=path,
             is_dir=True,
             size=0,
             status=status,
-            upload_entry=entry,
+            upload_entry=own or index.lookup(path.name),
+            has_own_nzb=own is not None,
+            has_external_nzb=ext is not None,
+            own_has_password=bool(own and own.has_password),
+            external_has_password=bool(ext and ext.has_password),
         )
 
     # Diretório não está no catálogo: verifica filhos diretos para status PARTIAL

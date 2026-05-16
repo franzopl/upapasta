@@ -248,7 +248,7 @@ class UpaPastaApp(App[None]):
         self._apply_filter(None)
 
     def action_check_indexer(self) -> None:
-        """Dispara busca em background de todos os itens visíveis no indexador."""
+        """Busca os itens selecionados (espaço) no indexador; baixa o .nzb se achar."""
         self.query_one(FileTreeWidget).start_indexer_search()
 
     def action_upload(self) -> None:

@@ -7,6 +7,7 @@ Ponto de entrada do UpaPasta.
 
 from __future__ import annotations
 
+import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -189,6 +190,48 @@ def main() -> None:
                 s_id = s.get("id")
                 s_type = "Filme" if s["_mtype"] == "movie" else "Série"
                 print(f"  [{s_type}] {s_title} ({s_year}) ID: {s_id}")
+
+        sys.exit(0)
+
+    if getattr(args, "search_indexer", None):
+        from .indexer import build_client_from_env, normalize_query
+
+        env_vars = load_env_file(env_file)
+        client = build_client_from_env(env_vars)
+        if client is None:
+            print(
+                _("❌ Erro: --search-indexer requer 'INDEXER_URL' e 'INDEXER_APIKEY' no seu .env.")
+            )
+            sys.exit(1)
+
+        raw_term = args.search_indexer
+        # Aceita um caminho: usa apenas o nome do arquivo/pasta como base da query.
+        name = os.path.basename(os.path.normpath(raw_term)) if os.sep in raw_term else raw_term
+        query = normalize_query(name)
+        print(_("🔍 Buscando '{query}' no indexador...").format(query=query), flush=True)
+
+        try:
+            results = client.search(name, limit=20)
+        except Exception as exc:
+            print(_("❌ Erro ao buscar no indexador: {exc}").format(exc=exc))
+            sys.exit(1)
+
+        if not results:
+            print(_("❌ Nenhum resultado encontrado."))
+            sys.exit(0)
+
+        print(_("\n{n} resultado(s):").format(n=len(results)))
+        for i, r in enumerate(results, 1):
+            if r.size >= 1024**3:
+                size_str = f"{r.size / 1024**3:.2f} GB"
+            elif r.size:
+                size_str = f"{r.size / 1024**2:.0f} MB"
+            else:
+                size_str = "?"
+            date_str = f" — {r.pub_date}" if r.pub_date else ""
+            grabs_str = f" — {r.grabs} grabs" if r.grabs else ""
+            print(f"  [{i}] {r.title[:90]}")
+            print(f"      {size_str}{date_str}{grabs_str}")
 
         sys.exit(0)
 

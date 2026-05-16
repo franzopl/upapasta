@@ -7,6 +7,7 @@ Lazy loading: subdiretórios são populados apenas quando expandidos.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -19,7 +20,7 @@ from textual.widgets import Tree
 from textual.widgets.tree import TreeNode
 
 from ..catalog_index import CatalogIndex
-from ..fs_scanner import FileNode, scan_directory
+from ..fs_scanner import FileNode, scan_directory, scan_single
 from ..status import IndexerStatus, UploadStatus
 
 
@@ -35,7 +36,25 @@ def make_node_label(
     if selected:
         text.append("◉ ", style="bold cyan")
 
-    text.append(node.status.icon + " ", style=node.status.color)
+    # Ícones de status: pode haver dois (NZB próprio ✅ + externo 🌐). O cadeado
+    # 🔒 segue o ícone a que se refere — assim um backup pode ter senha e o
+    # outro não, e fica claro qual é qual.
+    icons: list[tuple[str, str, bool]] = []
+    if node.has_own_nzb:
+        icons.append(
+            (UploadStatus.UPLOADED.icon, UploadStatus.UPLOADED.color, node.own_has_password)
+        )
+    if node.has_external_nzb:
+        icons.append(
+            (UploadStatus.EXTERNAL.icon, UploadStatus.EXTERNAL.color, node.external_has_password)
+        )
+    if not icons:
+        icons.append((node.status.icon, node.status.color, False))
+    for icon, style, locked in icons:
+        text.append(icon, style=style)
+        if locked:
+            text.append("🔒", style="yellow")
+        text.append(" ")
     if node.is_dir:
         text.append("📁 ")
 
@@ -278,7 +297,12 @@ class FileTreeWidget(Tree[FileNode]):
     @work(thread=True)
     def start_indexer_search(self) -> None:
         """
-        Busca todos os arquivos visíveis no indexador em background.
+        Busca no indexador os itens selecionados com espaço.
+
+        Pastas selecionadas são varridas recursivamente: só os arquivos
+        pendentes (vermelho) são buscados — enviados (✅) e externos (🌐)
+        são pulados, pois já se sabe que estão na Usenet.
+
         Rate limiting gerenciado pelo NewznabClient — seguro chamar sem throttle externo.
         """
         from ...config import load_env_file, resolve_env_file
@@ -295,56 +319,147 @@ class FileTreeWidget(Tree[FileNode]):
             )
             return
 
-        nodes = self._collect_visible_file_nodes()
-        if not nodes:
+        selected = list(self._selected.values())
+        if not selected:
             self.app.call_from_thread(
                 self.app.notify,
-                "Nenhum arquivo visível para buscar. Expanda as pastas primeiro.",
+                "Nenhum item selecionado. Marque arquivos/pastas com espaço e tente de novo.",
                 severity="warning",
                 timeout=4,
             )
             return
 
-        # A busca cobre só os nós já carregados — pastas recolhidas são ignoradas.
-        # A mensagem deixa o escopo explícito para o usuário (C4).
+        nodes = self._collect_search_targets(selected)
+        if not nodes:
+            self.app.call_from_thread(
+                self.app.notify,
+                "Nada a buscar: a seleção só contém itens enviados (✅) ou externos (🌐).",
+                severity="information",
+                timeout=4,
+            )
+            return
+
+        dest_dir, persistent = self._resolve_nzb_backup_dir(env_vars)
+
         self.app.call_from_thread(
             self.app.notify,
-            f"Buscando {len(nodes)} item(s) visível(is) no indexador "
-            f"(pastas recolhidas não incluídas)...",
+            f"Buscando {len(nodes)} arquivo(s) pendente(s) no indexador...",
             severity="information",
             timeout=4,
         )
 
+        downloaded = 0
+        errors = 0
         for file_node in nodes:
-            # Marca como buscando
+            # Marca como buscando — feedback ao vivo nos nós visíveis na árvore.
             self.post_message(
                 self.IndexerStatusUpdated(file_node.path, IndexerStatus.SEARCHING, "", "")
             )
             try:
-                results = client.search(file_node.name, limit=3)
+                # normalize=False: casa o arquivo exato, mesmo grupo/versão.
+                results = client.search(file_node.name, limit=3, normalize=False)
             except Exception:
                 results = []
 
-            if results:
-                best = results[0]
+            if not results:
+                self.post_message(
+                    self.IndexerStatusUpdated(file_node.path, IndexerStatus.NOT_FOUND, "", "")
+                )
+                continue
+
+            best = results[0]
+            # O .nzb é nomeado com stem == nome do item para que o
+            # ExternalNzbIndex o reconheça e marque o item como 🌐 externo.
+            dest = os.path.join(dest_dir, f"{file_node.name}.nzb")
+            try:
+                client.download_nzb(best.nzb_url, dest)
+                downloaded += 1
                 self.post_message(
                     self.IndexerStatusUpdated(
                         file_node.path, IndexerStatus.FOUND, best.nzb_url, best.title
                     )
                 )
-            else:
+            except Exception:
+                errors += 1
                 self.post_message(
                     self.IndexerStatusUpdated(file_node.path, IndexerStatus.NOT_FOUND, "", "")
                 )
 
-    def _collect_visible_file_nodes(self) -> list[FileNode]:
-        """Coleta todos os FileNodes de arquivo visíveis na árvore."""
-        result = []
-        for tree_node in self.query("TreeNode"):
-            fn: Optional[FileNode] = tree_node.data  # type: ignore[assignment]
-            if fn and not fn.is_dir:
-                result.append(fn)
-        return result
+        # Recarrega o catálogo (rescaneia EXTERNAL_NZB_DIR) e a árvore na
+        # thread principal — os itens baixados passam a aparecer como externos.
+        self.app.call_from_thread(
+            self._finish_indexer_search, downloaded, errors, len(nodes), persistent, dest_dir
+        )
+
+    def _resolve_nzb_backup_dir(self, env_vars: dict[str, str]) -> tuple[str, bool]:
+        """
+        Decide onde gravar os .nzb baixados do indexador.
+
+        Retorna (diretório, persistente). Se EXTERNAL_NZB_DIR estiver configurado,
+        usa o primeiro caminho e o item será marcado como externo de forma
+        permanente. Caso contrário cai em INDEXER_NZB_DIR e persistente=False.
+        """
+        from ...indexer import INDEXER_NZB_DIR
+
+        raw = env_vars.get("EXTERNAL_NZB_DIR", "")
+        for part in raw.split(","):
+            part = part.strip()
+            if part:
+                return os.path.expanduser(part), True
+        return INDEXER_NZB_DIR, False
+
+    def _finish_indexer_search(
+        self, downloaded: int, errors: int, total: int, persistent: bool, dest_dir: str
+    ) -> None:
+        """Recarrega catálogo + árvore e resume o resultado da busca (thread principal)."""
+        self.reload()
+        if downloaded:
+            msg = f"{downloaded} .nzb baixado(s) para {dest_dir}" + (
+                " — itens marcados como externos 🌐."
+                if persistent
+                else " — configure EXTERNAL_NZB_DIR no .env para marcá-los como externos."
+            )
+            severity = "information" if persistent else "warning"
+        else:
+            msg = f"Nenhum dos {total} item(ns) foi encontrado no indexador."
+            severity = "warning"
+        if errors:
+            msg += f" ({errors} falha(s) de download)"
+        self.app.notify(msg, severity=severity, timeout=7)  # type: ignore[arg-type]
+
+    def _collect_search_targets(self, selected: list[FileNode]) -> list[FileNode]:
+        """
+        Expande a seleção em arquivos a buscar no indexador.
+
+        - Arquivo selecionado → incluído (se pendente).
+        - Pasta selecionada → varre recursivamente o filesystem e inclui apenas
+          os arquivos pendentes (vermelho), pulando enviados (✅) e externos (🌐).
+
+        Dedup por path; a ordem segue a seleção. A varredura recursiva consulta
+        o catálogo via scan_single, então cobre arquivos fora da árvore carregada.
+        """
+        skip = {UploadStatus.UPLOADED, UploadStatus.EXTERNAL}
+        targets: list[FileNode] = []
+        seen: set[Path] = set()
+
+        def _add(node: FileNode) -> None:
+            if node.is_dir or node.status in skip or node.path in seen:
+                return
+            seen.add(node.path)
+            targets.append(node)
+
+        for node in selected:
+            if not node.is_dir:
+                _add(node)
+                continue
+            for sub in sorted(node.path.rglob("*")):
+                if sub.is_dir():
+                    continue
+                try:
+                    _add(scan_single(sub, self.index))
+                except (OSError, ValueError):
+                    continue
+        return targets
 
     @on(IndexerStatusUpdated)
     def _on_indexer_status_updated(self, event: IndexerStatusUpdated) -> None:

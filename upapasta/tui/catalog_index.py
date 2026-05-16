@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .external_nzb import ExternalNzbIndex
+from .external_nzb import ExternalNzbIndex, ExternalNzbInfo
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,11 @@ class CatalogEntry:
     grupo_usenet: Optional[str]
     categoria: Optional[str]
     is_external: bool = False
+    senha: Optional[str] = None
+
+    @property
+    def has_password(self) -> bool:
+        return bool(self.senha)
 
 
 class CatalogIndex:
@@ -81,6 +86,7 @@ class CatalogIndex:
                     caminho_nzb=record.get("caminho_nzb"),
                     grupo_usenet=record.get("grupo_usenet"),
                     categoria=record.get("categoria"),
+                    senha=record.get("senha_rar") or None,
                 )
 
                 key = name.lower()
@@ -102,19 +108,30 @@ class CatalogIndex:
         if entries:
             return entries[0]
 
-        if self._external_idx.is_present(name):
-            # Cria entrada virtual
+        ext = self._external_idx.lookup(name)
+        if ext is not None:
+            # Cria entrada virtual a partir do .nzb externo encontrado
             return CatalogEntry(
                 nome_original=name,
                 upload_date=datetime(1970, 1, 1, tzinfo=timezone.utc),
                 tamanho_bytes=None,
-                caminho_nzb=None,
+                caminho_nzb=str(ext.path),
                 grupo_usenet=None,
                 categoria=None,
                 is_external=True,
+                senha="***" if ext.has_password else None,
             )
 
         return None
+
+    def lookup_own(self, name: str) -> Optional[CatalogEntry]:
+        """Retorna a entrada mais recente do history.jsonl (NZB próprio), ou None."""
+        entries = self._index.get(name.lower())
+        return entries[0] if entries else None
+
+    def external_match(self, name: str) -> Optional[ExternalNzbInfo]:
+        """Retorna o .nzb externo correspondente ao nome, ou None."""
+        return self._external_idx.lookup(name)
 
     def lookup_all(self, name: str) -> list[CatalogEntry]:
         """Retorna todas as entradas para o nome, ordenadas por data decrescente."""

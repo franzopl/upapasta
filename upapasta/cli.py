@@ -123,6 +123,16 @@ def parse_args() -> argparse.Namespace:
             "Desativa verificação de certificado SSL em --test-connection (use apenas para testes)"
         ),
     )
+    p.add_argument(
+        "--search-indexer",
+        metavar=_("TERMO"),
+        dest="search_indexer",
+        help=_(
+            "Busca um arquivo ou pasta no indexador Newznab configurado "
+            "(INDEXER_URL/INDEXER_APIKEY) e lista os resultados. Aceita um termo livre "
+            "ou um caminho (usa o nome do arquivo/pasta)."
+        ),
+    )
     # ── Opções essenciais ────────────────────────────────────────────────────
     essential = p.add_argument_group(_("opções essenciais"))
     essential.add_argument(

@@ -289,3 +289,96 @@ def test_status_bar_hint_contains_space() -> None:
 def test_status_bar_hint_contains_search() -> None:
     text = _render(None)
     assert "/" in text.plain or "Buscar" in text.plain
+
+
+# ── Testes: make_node_label — ícones duplos (próprio + externo) e cadeado ─────
+
+
+def _node(tmp_path: Path, **kw: object):
+    """Constrói um FileNode de arquivo com flags arbitrárias."""
+    from upapasta.tui.fs_scanner import FileNode
+
+    f = tmp_path / "movie.mkv"
+    if not f.exists():
+        f.touch()
+    defaults: dict[str, object] = {
+        "path": f,
+        "is_dir": False,
+        "size": 0,
+        "status": UploadStatus.PENDING,
+    }
+    defaults.update(kw)
+    return FileNode(**defaults)  # type: ignore[arg-type]
+
+
+def test_label_dual_icon_own_and_external(tmp_path: Path) -> None:
+    node = _node(
+        tmp_path,
+        status=UploadStatus.UPLOADED,
+        has_own_nzb=True,
+        has_external_nzb=True,
+    )
+    plain = make_node_label(node).plain
+    assert UploadStatus.UPLOADED.icon in plain
+    assert UploadStatus.EXTERNAL.icon in plain
+
+
+def test_label_single_icon_when_only_own(tmp_path: Path) -> None:
+    node = _node(tmp_path, status=UploadStatus.UPLOADED, has_own_nzb=True)
+    plain = make_node_label(node).plain
+    assert UploadStatus.UPLOADED.icon in plain
+    assert UploadStatus.EXTERNAL.icon not in plain
+
+
+def test_label_lock_on_own_only(tmp_path: Path) -> None:
+    node = _node(
+        tmp_path,
+        status=UploadStatus.UPLOADED,
+        has_own_nzb=True,
+        has_external_nzb=True,
+        own_has_password=True,
+        external_has_password=False,
+    )
+    plain = make_node_label(node).plain
+    assert plain.count("🔒") == 1
+    # O cadeado segue o ícone próprio (✅), não o externo (🌐).
+    assert UploadStatus.UPLOADED.icon + "🔒" in plain
+    assert UploadStatus.EXTERNAL.icon + "🔒" not in plain
+
+
+def test_label_lock_on_external_only(tmp_path: Path) -> None:
+    node = _node(
+        tmp_path,
+        status=UploadStatus.UPLOADED,
+        has_own_nzb=True,
+        has_external_nzb=True,
+        own_has_password=False,
+        external_has_password=True,
+    )
+    plain = make_node_label(node).plain
+    assert plain.count("🔒") == 1
+    assert UploadStatus.EXTERNAL.icon + "🔒" in plain
+    assert UploadStatus.UPLOADED.icon + "🔒" not in plain
+
+
+def test_label_lock_on_both(tmp_path: Path) -> None:
+    node = _node(
+        tmp_path,
+        status=UploadStatus.UPLOADED,
+        has_own_nzb=True,
+        has_external_nzb=True,
+        own_has_password=True,
+        external_has_password=True,
+    )
+    plain = make_node_label(node).plain
+    assert plain.count("🔒") == 2
+
+
+def test_label_no_lock_when_no_password(tmp_path: Path) -> None:
+    node = _node(
+        tmp_path,
+        status=UploadStatus.UPLOADED,
+        has_own_nzb=True,
+        has_external_nzb=True,
+    )
+    assert "🔒" not in make_node_label(node).plain
