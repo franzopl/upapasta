@@ -4,7 +4,7 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
-## 0.33.0 - 2026-05-10
+## 0.34.11 - 2026-05-16\n\n### Correções\n- **Ofuscação**: Corrigido vazamento de parte do nome da pasta nos arquivos `.par2` quando o nome da pasta contém pontos (ex: `Glee.S02...H.264-WitchHunter` gerava `<random>.264-WitchHunter.par2` em vez de `<random>.par2`). `rename_par2_files` agora usa o basename completo como `orig_stem` em vez de aplicar `os.path.splitext` incorretamente em caminhos de diretório.\n\n## 0.33.0 - 2026-05-10
 
 ### Funcionalidades
 - **Separação PAR2/Ofuscação**: Refatoração do pipeline para separar a geração de paridade da ofuscação. O PAR2 agora é sempre gerado sobre os nomes originais primeiro, garantindo que os metadados internos permaneçam precisos para recuperação. A ofuscação segue como um passo de máscara posterior que renomeia tanto os arquivos de dados quanto os de paridade.

@@ -1,7 +1,7 @@
 import io
 import subprocess
 
-from upapasta.makepar import make_parity
+from upapasta.makepar import make_parity, rename_par2_files
 
 
 class DummyPopen:
@@ -56,3 +56,33 @@ def test_makepar_accepts_single_file_and_creates_par2(monkeypatch, tmp_path):
     )
     assert rc == 0
     assert out_par2.exists()
+
+
+def test_rename_par2_files_folder_with_dots_in_name(tmp_path):
+    """Pasta com ponto no nome (ex: .264-WitchHunter) não deve vazar no nome ofuscado do PAR2."""
+    folder_name = "Glee.S02.1080p.DSNP.WEB-DL.AAC2.0.H.264-WitchHunter"
+    folder = tmp_path / folder_name
+    folder.mkdir()
+
+    # Simula os .par2 que parpar gera com o nome completo da pasta
+    par2_files = [
+        f"{folder_name}.par2",
+        f"{folder_name}.vol0000+0001.par2",
+        f"{folder_name}.vol0001+0002.par2",
+    ]
+    for f in par2_files:
+        (tmp_path / f).write_bytes(b"")
+
+    random_base = "xyzrandomname"
+    rename_par2_files(str(tmp_path), str(folder), is_rar_vol_set=False, random_base=random_base)
+
+    # Os PAR2 renomeados devem usar APENAS o random_base, sem sufixo do nome original
+    assert (tmp_path / f"{random_base}.par2").exists()
+    assert (tmp_path / f"{random_base}.vol0000+0001.par2").exists()
+    assert (tmp_path / f"{random_base}.vol0001+0002.par2").exists()
+
+    # Nenhum arquivo deve conter partes do nome original
+    for f in tmp_path.iterdir():
+        if f.suffix == ".par2" or ".par2" in f.name:
+            assert folder_name not in f.name, f"Nome original vazou em: {f.name}"
+            assert "264-WitchHunter" not in f.name, f"Sufixo original vazou em: {f.name}"

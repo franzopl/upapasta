@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
 
+## 0.34.12 - 2026-05-16
+
+### Features
+- **CLI**: Added `--version` flag — `upapasta --version` now prints the installed package version.
+
+## 0.34.11 - 2026-05-16
+
+### Fixes
+- **Obfuscation**: Fixed PAR2 files leaking part of folder name when folder contains dots (e.g. `Glee.S02...H.264-WitchHunter` would produce `<random>.264-WitchHunter.par2` instead of `<random>.par2`). `rename_par2_files` now uses the full folder basename as `orig_stem` instead of incorrectly applying `os.path.splitext` on directory paths.
+
 ## 0.34.3 - 2026-05-12
 
 ### Fixes

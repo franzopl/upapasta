@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from . import __version__
 from .config import DEFAULT_ENV_FILE
 from .i18n import _
 from .tools import get_tool_path
@@ -73,6 +74,11 @@ def parse_args() -> argparse.Namespace:
         description=_DESCRIPTION,
         epilog=_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--version",
+        action="version",
+        version=f"upapasta {__version__}",
     )
     p.add_argument(
         "inputs",
