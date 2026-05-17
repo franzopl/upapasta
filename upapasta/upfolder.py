@@ -263,6 +263,118 @@ def find_nyuu() -> Optional[str]:
     return None
 
 
+def find_pesto() -> Optional[str]:
+    """Procura executável 'pesto' no PATH ou pasta bin local."""
+    for name in ["pesto", "pesto.exe"]:
+        path = get_tool_path(name)
+        if path:
+            return path
+    return None
+
+
+def _parse_pesto_json_line(line: str) -> dict[str, object]:
+    """Tenta parsear uma linha JSON do pesto; retorna {} em caso de falha."""
+    try:
+        obj = json.loads(line.strip())
+        return obj if isinstance(obj, dict) else {}
+    except (json.JSONDecodeError, ValueError):
+        return {}
+
+
+def _run_pesto(
+    pesto_path: str,
+    srv: dict[str, object],
+    usenet_group: str,
+    article_size: str,
+    nzb_target: Optional[str],
+    subject: str,
+    files: list[str],
+    working_dir: str,
+    dry_run: bool = False,
+    obfuscated: bool = False,
+    bar: Optional["PhaseBar"] = None,
+    upload_timeout: Optional[int] = None,
+) -> int:
+    """Executa pesto com --output-format json e parseia eventos de progresso.
+
+    Retorna o código de saída (0 = sucesso).
+    """
+    cmd: list[str] = [
+        pesto_path,
+        "--output-format",
+        "json",
+        "--host",
+        str(srv["host"]),
+        "--port",
+        str(srv["port"]),
+        "--username",
+        str(srv["user"]),
+        "--auth-password",
+        str(srv["password"]),
+        "--connections",
+        str(srv["connections"]),
+        "--groups",
+        usenet_group,
+        "--article-size",
+        str(_article_size_to_bytes(article_size)),
+        "--par2",
+        "0",
+        "--no-nfo",
+    ]
+    if not srv.get("ssl"):
+        cmd.append("--no-ssl")
+    if obfuscated:
+        cmd.extend(["--obfuscate=full"])
+    if dry_run:
+        cmd.append("--dry-run")
+    if nzb_target:
+        cmd.extend(["--out", nzb_target])
+        if subject:
+            cmd.extend(["--nzb-name", subject])
+    cmd.extend(files)
+
+    import time as _time
+
+    last_update = 0.0
+    throttle = 0.1
+
+    try:
+        with managed_popen(
+            cmd,
+            cwd=working_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        ) as proc:
+            assert proc.stdout is not None
+            for raw_line in proc.stdout:
+                ev = _parse_pesto_json_line(raw_line)
+                ev_type = ev.get("type", "")
+                if ev_type == "segment_done" and bar:
+                    pct = float(ev.get("progress_pct", 0))  # type: ignore[arg-type]
+                    now = _time.time()
+                    if now - last_update >= throttle or pct >= 100:
+                        bar.update_progress(pct, "uploading")
+                        last_update = now
+                elif ev_type == "status" and bar:
+                    text = str(ev.get("text", ""))
+                    if text:
+                        bar.update_progress(0, text)
+                elif ev_type == "failed":
+                    desc = ev.get("description", "")
+                    print(_("Erro: {desc}").format(desc=desc), file=sys.stderr)
+            rc = proc.wait()
+    except FileNotFoundError:
+        print(_("\nErro: pesto não encontrado em '{path}'.").format(path=pesto_path))
+        return 4
+    except OSError as e:
+        print(_("\nErro de I/O ao executar pesto: {error}").format(error=e))
+        return 5
+
+    return rc
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=_("Upload de .rar + .par2 para Usenet com nyuu"))
     p.add_argument("rarfile", help=_("Caminho para o arquivo .rar a fazer upload"))
@@ -275,6 +387,13 @@ def parse_args() -> argparse.Namespace:
         "--nyuu-path",
         default=None,
         help=_("Caminho para executável nyuu (padrão: detecta em PATH)"),
+    )
+    p.add_argument(
+        "--pesto-path",
+        default=None,
+        help=_(
+            "Caminho para executável pesto (padrão: detecta em PATH; substitui nyuu quando encontrado)"
+        ),
     )
     p.add_argument(
         "--subject",
@@ -381,6 +500,7 @@ def upload_to_usenet(
     env_vars: dict[str, str],
     dry_run: bool = False,
     nyuu_path: Optional[str] = None,
+    pesto_path: Optional[str] = None,
     subject: Optional[str] = None,
     group: Optional[str] = None,
     skip_rar: bool = False,
@@ -577,16 +697,31 @@ def upload_to_usenet(
             )
         )
 
-    # Encontra nyuu
-    if nyuu_path:
-        if not os.path.exists(nyuu_path):
-            print(_("Erro: nyuu não encontrado em '{path}'").format(path=nyuu_path))
+    # Resolve ferramenta de posting: pesto tem prioridade sobre nyuu.
+    if pesto_path:
+        if not os.path.exists(pesto_path):
+            print(_("Erro: pesto não encontrado em '{path}'").format(path=pesto_path))
             return 4
     else:
-        nyuu_path = find_nyuu()
-        if not nyuu_path:
-            print(_("Erro: nyuu não encontrado. Instale-o (https://github.com/Piorosen/nyuu)"))
-            return 4
+        pesto_path = find_pesto()
+
+    use_pesto = pesto_path is not None
+
+    if not use_pesto:
+        # Encontra nyuu (fallback)
+        if nyuu_path:
+            if not os.path.exists(nyuu_path):
+                print(_("Erro: nyuu não encontrado em '{path}'").format(path=nyuu_path))
+                return 4
+        else:
+            nyuu_path = find_nyuu()
+            if not nyuu_path:
+                print(
+                    _(
+                        "Erro: nenhum poster encontrado. Instale pesto (https://github.com/franzopl/pesto) ou nyuu."
+                    )
+                )
+                return 4
 
     # Define subject
     if not subject:
@@ -818,143 +953,166 @@ def upload_to_usenet(
                     )
                 )
 
-            # Identidade: Schizo/Token-based se ofuscado, senão anônimo padrão.
-            if obfuscated_map:
-                # Token do nyuu para gerar poster aleatório POR ARTIGO
-                # Formato: ${rand(8)}@${rand(5)}.com
-                uploader = "${rand(8)}@${rand(5)}." + random.choice(["com", "net", "org"])
-            else:
-                uploader = generate_anonymous_uploader()
-
-            cmd = [
-                nyuu_path,
-                "--progress",
-                "stderrx",
-                "-h",
-                srv["host"],
-                "-P",
-                str(srv["port"]),
-            ]
-            if srv.get("ssl"):
-                cmd.append("-S")
-            if srv.get("ignore_cert"):
-                cmd.append("-i")
-            if obfuscated_map:
-                cmd.append("--token-eval")
-            if tmp_js_config:
-                cmd.extend(["--config", tmp_js_config])
-
-            cmd.extend(
-                [
-                    "-u",
-                    srv["user"],
-                    "-p",
-                    srv["password"],
-                    "-n",
-                    str(srv["connections"]),
-                    "-g",
-                    usenet_group,  # Sempre inclui para que o NZB tenha todos os grupos no cabeçalho
-                ]
-            )
-            cmd.extend(
-                [
-                    "-a",
-                    article_size,
-                    "-f",
-                    uploader,
-                    "--date",
-                    "now",
-                    "-t",
-                    subject,
-                ]
-            )
-            if nzb_target:
-                cmd.extend(["-o", nzb_target])
-            if nzb_overwrite or (resume and partial_nzb_backup):
-                cmd.append("-O")
-            if upload_timeout is not None:
-                cmd.extend(["--timeout", str(upload_timeout)])
-            if verify_uploads:
-                cmd.extend(["--check-connections", "1"])
-                cmd.extend(["--check-delay", str(check_delay)])
-                cmd.extend(["--check-retry-delay", str(check_retry_delay)])
-                cmd.extend(["--check-tries", str(check_tries)])
-                if check_host:
-                    cmd.extend(["--check-host", check_host])
-                if check_port is not None:
-                    cmd.extend(["--check-port", str(check_port)])
-                if check_user:
-                    cmd.extend(["--check-user", check_user])
-                if check_password:
-                    cmd.extend(["--check-password", check_password])
-            if nyuu_extra_args:
-                cmd.extend(nyuu_extra_args)
-            # Arquivos a postar: restantes (resume) ou todos (upload normal)
-            cmd.extend(remaining_files)
-            cmd.extend(remaining_par2)
-
-            try:
-                captured_output: list[str] = []
-                with managed_popen(
-                    cmd,
-                    cwd=working_dir,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    bufsize=0,
-                ) as proc:
-                    output_queue: Queue[str | None] = Queue()
-                    reader_thread = threading.Thread(
-                        target=_read_output,
-                        args=(proc.stdout, output_queue),
-                        daemon=True,
-                    )
-                    reader_thread.start()
-                    _process_output(output_queue, bar=bar, captured_lines=captured_output)
-                    last_rc = proc.wait()
-
-                if last_rc == 0:
-                    break
-
-                full_stderr = "\n".join(captured_output)
-
-                # Exibe log de erro detalhado (últimas 30 linhas)
-                error_context = "\n".join(captured_output[-30:])
-                if error_context.strip():
-                    print(_("\n--- Log de erro do Nyuu ---"))
-                    for _l in error_context.splitlines():
-                        if _l.strip():
-                            print(f"  {_l}")
-                    print("---------------------------\n")
-
-                parsed_msg = _parse_nyuu_stderr(full_stderr)
-                if parsed_msg:
-                    print(_("\nTradução do erro: {msg}").format(msg=parsed_msg))
-
-                if last_rc == 7:
-                    print(
-                        _(
-                            "\n💡 Dica: Código 7 geralmente indica esgotamento de recursos do Node.js (falha SSL ou muitas conexões)."
-                        )
-                    )
-                    print(
-                        _(
-                            "   Recomendação: Reduza NNTP_CONNECTIONS no seu arquivo .env (ex: NNTP_CONNECTIONS=20)."
-                        )
-                    )
-
-                print(
-                    _("\nErro: nyuu retornou código {rc} no servidor {host}.").format(
-                        rc=last_rc, host=srv["host"]
-                    )
+            if use_pesto:
+                # ── pesto (Rust) ─────────────────────────────────────────────
+                all_post_files = list(remaining_files) + list(remaining_par2)
+                last_rc = _run_pesto(
+                    pesto_path=pesto_path,  # type: ignore[arg-type]
+                    srv=srv,
+                    usenet_group=usenet_group or "",
+                    article_size=article_size,
+                    nzb_target=nzb_target,
+                    subject=subject,
+                    files=all_post_files,
+                    working_dir=working_dir,
+                    dry_run=dry_run,
+                    obfuscated=bool(obfuscated_map),
+                    bar=bar,
+                    upload_timeout=upload_timeout,
                 )
-            except KeyboardInterrupt:
-                raise
-            except FileNotFoundError:
-                print(_("\nErro: nyuu não encontrado em '{path}'.").format(path=nyuu_path))
-                return 4
-            except OSError as e:
-                print(_("\nErro de I/O ao executar nyuu: {error}").format(error=e))
-                last_rc = 5
+                if last_rc != 0:
+                    print(
+                        _("\nErro: pesto retornou código {rc} no servidor {host}.").format(
+                            rc=last_rc, host=srv["host"]
+                        )
+                    )
+                else:
+                    break
+            else:
+                # ── nyuu (Node.js, fallback) ─────────────────────────────────
+                # Identidade: Schizo/Token-based se ofuscado, senão anônimo padrão.
+                if obfuscated_map:
+                    uploader = "${rand(8)}@${rand(5)}." + random.choice(["com", "net", "org"])
+                else:
+                    uploader = generate_anonymous_uploader()
+
+                cmd = [
+                    nyuu_path,
+                    "--progress",
+                    "stderrx",
+                    "-h",
+                    srv["host"],
+                    "-P",
+                    str(srv["port"]),
+                ]
+                if srv.get("ssl"):
+                    cmd.append("-S")
+                if srv.get("ignore_cert"):
+                    cmd.append("-i")
+                if obfuscated_map:
+                    cmd.append("--token-eval")
+                if tmp_js_config:
+                    cmd.extend(["--config", tmp_js_config])
+
+                cmd.extend(
+                    [
+                        "-u",
+                        srv["user"],
+                        "-p",
+                        srv["password"],
+                        "-n",
+                        str(srv["connections"]),
+                        "-g",
+                        usenet_group,
+                    ]
+                )
+                cmd.extend(
+                    [
+                        "-a",
+                        article_size,
+                        "-f",
+                        uploader,
+                        "--date",
+                        "now",
+                        "-t",
+                        subject,
+                    ]
+                )
+                if nzb_target:
+                    cmd.extend(["-o", nzb_target])
+                if nzb_overwrite or (resume and partial_nzb_backup):
+                    cmd.append("-O")
+                if upload_timeout is not None:
+                    cmd.extend(["--timeout", str(upload_timeout)])
+                if verify_uploads:
+                    cmd.extend(["--check-connections", "1"])
+                    cmd.extend(["--check-delay", str(check_delay)])
+                    cmd.extend(["--check-retry-delay", str(check_retry_delay)])
+                    cmd.extend(["--check-tries", str(check_tries)])
+                    if check_host:
+                        cmd.extend(["--check-host", check_host])
+                    if check_port is not None:
+                        cmd.extend(["--check-port", str(check_port)])
+                    if check_user:
+                        cmd.extend(["--check-user", check_user])
+                    if check_password:
+                        cmd.extend(["--check-password", check_password])
+                if nyuu_extra_args:
+                    cmd.extend(nyuu_extra_args)
+                cmd.extend(remaining_files)
+                cmd.extend(remaining_par2)
+
+                try:
+                    captured_output: list[str] = []
+                    with managed_popen(
+                        cmd,
+                        cwd=working_dir,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        bufsize=0,
+                    ) as proc:
+                        output_queue: Queue[str | None] = Queue()
+                        reader_thread = threading.Thread(
+                            target=_read_output,
+                            args=(proc.stdout, output_queue),
+                            daemon=True,
+                        )
+                        reader_thread.start()
+                        _process_output(output_queue, bar=bar, captured_lines=captured_output)
+                        last_rc = proc.wait()
+
+                    if last_rc == 0:
+                        break
+
+                    full_stderr = "\n".join(captured_output)
+
+                    error_context = "\n".join(captured_output[-30:])
+                    if error_context.strip():
+                        print(_("\n--- Log de erro do Nyuu ---"))
+                        for _l in error_context.splitlines():
+                            if _l.strip():
+                                print(f"  {_l}")
+                        print("---------------------------\n")
+
+                    parsed_msg = _parse_nyuu_stderr(full_stderr)
+                    if parsed_msg:
+                        print(_("\nTradução do erro: {msg}").format(msg=parsed_msg))
+
+                    if last_rc == 7:
+                        print(
+                            _(
+                                "\n💡 Dica: Código 7 geralmente indica esgotamento de recursos do Node.js (falha SSL ou muitas conexões)."
+                            )
+                        )
+                        print(
+                            _(
+                                "   Recomendação: Reduza NNTP_CONNECTIONS no seu arquivo .env (ex: NNTP_CONNECTIONS=20)."
+                            )
+                        )
+
+                    print(
+                        _("\nErro: nyuu retornou código {rc} no servidor {host}.").format(
+                            rc=last_rc, host=srv["host"]
+                        )
+                    )
+                except KeyboardInterrupt:
+                    raise
+                except FileNotFoundError:
+                    print(_("\nErro: nyuu não encontrado em '{path}'.").format(path=nyuu_path))
+                    return 4
+                except OSError as e:
+                    print(_("\nErro de I/O ao executar nyuu: {error}").format(error=e))
+                    last_rc = 5
 
     finally:
         if tmp_js_config and os.path.exists(tmp_js_config):

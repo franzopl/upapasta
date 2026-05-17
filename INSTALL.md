@@ -10,7 +10,7 @@ Download the latest `upapasta-portable-windows.zip` (or linux) from the [Release
 
 1. Extract the ZIP to a folder.
 2. Run `upapasta.exe` (Windows) or `./upapasta` (Linux).
-3. All core dependencies (Nyuu, ParPar, 7z) are included in the `bin/` folder.
+3. All core dependencies (pesto, ParPar, 7z) are included in the `bin/` folder.
 
 ### Option B: Via pip
 
@@ -36,10 +36,27 @@ Requires Python 3.9+.
 
 UpaPasta orchestrates external binaries. Install the ones you will use:
 
-### nyuu (mandatory — NNTP upload)
+### pesto (recommended — NNTP upload)
+
+`pesto` is a fast, pure-Rust poster that replaces nyuu. UpaPasta automatically
+prefers it when found in PATH.
 
 ```bash
-# Via npm (recommended)
+# Build from source (requires Rust — https://rustup.rs)
+git clone https://github.com/franzopl/pesto.git
+cd pesto
+cargo build --release
+# Then copy target/release/pesto to a directory in PATH
+```
+
+Confirm with: `pesto --help`
+
+### nyuu (fallback — NNTP upload)
+
+Only needed when `pesto` is not available.
+
+```bash
+# Via npm
 npm install -g nyuu
 ```
 

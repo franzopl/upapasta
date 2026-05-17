@@ -2,7 +2,7 @@
 
 Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 
-> Last review: 2026-05-12 (v1.0.0 criteria met, focus on post-release roadmap)
+> Last review: 2026-05-16 (idea backlog adicionado — 20 propostas pós-v1.0.0)
 > Principle: fix first, expand later. Stability > new features.
 
 ---
@@ -159,6 +159,44 @@ Portuguese version available at [docs/pt-BR/TODO.md](docs/pt-BR/TODO.md).
 - Lazy loading de metadados TMDb
 - Caching de tool discovery
 - Parallel NZB generation para `--each`
+
+---
+
+## 💡 Idea Backlog (2026-05-16 — proposed, not yet scheduled)
+
+> 20 ideias levantadas em revisão de roadmap. Aprovadas para o backlog; priorização e versão-alvo a definir. ⭐ = alto valor/esforço.
+
+### Confiabilidade e verificação
+
+- [ ] ⭐ **`--verify-upload`** — pós-upload, baixa amostra de artigos (header check) e confirma disponibilidade real no servidor antes de declarar sucesso. **Effort**: Medium (~400 linhas; reaproveita `scripts/check_header.py`).
+- [ ] ⭐ **Retention/health check** (`upapasta --recheck`) — re-verifica NZBs antigos do catálogo para detectar takedowns/DMCA; sinaliza re-upload. **Effort**: Medium (~500 linhas).
+- [ ] **Article-level repair** — re-upload seletivo apenas dos artigos faltantes, não do release inteiro. **Effort**: High (~900 linhas; depende de `--verify-upload`).
+- [ ] **Checksums pré-upload** — armazena hashes da fonte no catálogo; valida integridade antes de empacotar. **Effort**: Low (~200 linhas).
+- [ ] **Detecção de duplicata por conteúdo** — hash da pasta vs. catálogo; avisa se já enviado. **Effort**: Low (~150 linhas).
+
+### Fluxo e operação
+
+- [ ] ⭐ **Fila persistente de uploads** (`--queue`) — enfileira várias pastas, processa sequencialmente, resumível após crash. **Effort**: High (~700 linhas + state persistence).
+- [ ] **Agendamento** (`--schedule "02:00"`) — adia upload para horários de baixo uso de banda. **Effort**: Low (~200 linhas).
+- [ ] ⭐ **Rate limiting** (`--rate-limit 50M`) — limita velocidade de upload via passthrough nyuu. **Effort**: Low (~100 linhas).
+- [ ] **`.upapastaignore` / `--exclude`** — padrões glob para excluir arquivos (samples, `.DS_Store`). **Effort**: Medium (~300 linhas).
+- [ ] **Rotação automática de logs/catálogo** — limpeza de logs antigos e arquivamento de `history.jsonl`. **Effort**: Low (~150 linhas).
+
+### Qualidade de release
+
+- [ ] ⭐ **Screenshots automáticos** — contact sheet via ffmpeg; injeta thumbnails/links no NFO. **Effort**: Medium (~400 linhas; ffmpeg já é dependência opcional).
+- [ ] **Nomenclatura estilo scene** — template de release name padronizado (resolução, codec, grupo). **Effort**: Medium (~350 linhas).
+- [ ] **Compressão adaptativa** — escolhe RAR/7z/nenhum conforme tipo de conteúdo (já comprimido vs. não). **Effort**: Medium (~300 linhas).
+- [ ] **RAR recovery record configurável** — flag `--recovery-record N%`. **Effort**: Low (~80 linhas).
+- [ ] **Relatório de força de ofuscação** — score/diagnóstico de quão protegido está o release. **Effort**: Low (~200 linhas).
+
+### Integração e saída
+
+- [ ] ⭐ **Cross-seed torrent** — gera `.torrent`/magnet em paralelo ao NZB. **Effort**: Medium (~400 linhas; avaliar binário externo opcional).
+- [ ] **Auto-import SABnzbd/NZBGet** — envia NZB gerado para a API do downloader e testa o download. **Effort**: Medium (~300 linhas).
+- [ ] **Export do catálogo** (`--export csv|json`) — relatórios estruturados do histórico. **Effort**: Low (~150 linhas).
+- [ ] **Notificações desktop nativas** — além dos webhooks (notify-send/toast/osascript). **Effort**: Low (~150 linhas).
+- [ ] ⭐ **Credenciais via keyring** — armazenamento seguro da senha NNTP; fallback para `.env` (mantém filosofia stdlib-only via `secret-tool`/binário do sistema). **Effort**: Medium (~300 linhas).
 
 ---
 

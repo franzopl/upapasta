@@ -18,7 +18,7 @@ upapasta /tv/Night.of.the.Living.Dead.S01/
 ## What it does
 
 - Generates PAR2 with redundancy profiles (5 / 10 / 20%)
-- Uploads via nyuu without staging in `/tmp` (direct paths)
+- Uploads via **pesto** (Rust) or nyuu without staging in `/tmp` (direct paths)
 - Delivers NZB + NFO with video metadata
 - (Optional) Creates RAR5 or 7z with password before upload
 - Logs everything in a centralized history (JSONL)
@@ -29,7 +29,7 @@ upapasta /tv/Night.of.the.Living.Dead.S01/
 ## Installation
 
 ### 🚀 Portable (Windows / Linux)
-**Recommended for most users.** Download the latest ZIP from [Releases](https://github.com/franzopl/upapasta/releases), extract and run. No Python or Node.js required.
+**Recommended for most users.** Download the latest ZIP from [Releases](https://github.com/franzopl/upapasta/releases), extract and run. No Python, Node.js or Rust required.
 
 ### 📦 Via pip
 ```bash
@@ -40,12 +40,16 @@ pip install upapasta
 
 | Binary | Function | Status | Install |
 |---------|--------|----------|----------|
-| `nyuu` | NNTP Upload | Mandatory | `npm install -g nyuu` |
+| `pesto` | NNTP Upload | **Recommended** | [build from source](https://github.com/franzopl/pesto) |
+| `nyuu` | NNTP Upload | Fallback | `npm install -g nyuu` |
 | `parpar` | PAR2 Generation | Mandatory | `npm install -g @animetosho/parpar` |
 | `7z` | Packaging | **Default** | `apt install p7zip-full` |
 | `rar` | RAR5 support | Optional | `apt install rar` (or auto-download) |
 | `ffprobe` | Video metadata | Optional | `apt install ffmpeg` |
 | `mediainfo` | Technical info | Optional | `apt install mediainfo` |
+
+> **pesto vs nyuu:** `pesto` is a faster, pure-Rust poster that eliminates the Node.js dependency.
+> UpaPasta automatically uses `pesto` when it is found in PATH, and falls back to `nyuu` otherwise.
 
 
 See [INSTALL.md](INSTALL.md) for detailed instructions per platform.
