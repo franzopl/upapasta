@@ -304,6 +304,9 @@ def _run_pesto(
     bar: Optional["PhaseBar"] = None,
     upload_timeout: Optional[int] = None,
     redundancy: int = 0,
+    verify: bool = False,
+    pesto_extra_args: Optional[list[str]] = None,
+    resume: bool = False,
 ) -> int:
     """Executa pesto com --output-format json e parseia eventos de progresso.
 
@@ -334,6 +337,12 @@ def _run_pesto(
         cmd.append("--no-ssl")
     if obfuscated:
         cmd.extend(["--obfuscate=full"])
+    if verify:
+        cmd.append("--verify")
+    if resume:
+        cmd.append("--resume")
+    if pesto_extra_args:
+        cmd.extend(pesto_extra_args)
     if dry_run:
         cmd.append("--dry-run")
     if nzb_target:
@@ -566,6 +575,7 @@ def upload_to_usenet(
     upload_retries: int = 0,
     password: Optional[str] = None,
     nyuu_extra_args: Optional[list[str]] = None,
+    pesto_extra_args: Optional[list[str]] = None,
     folder_name: Optional[str] = None,
     resume: bool = False,
     bar: Optional[PhaseBar] = None,
@@ -709,6 +719,12 @@ def upload_to_usenet(
         import shlex
 
         nyuu_extra_args = shlex.split(env_nyuu_args)
+
+    env_pesto_args = env_vars.get("PESTO_EXTRA_ARGS")
+    if env_pesto_args and pesto_extra_args is None:
+        import shlex
+
+        pesto_extra_args = shlex.split(env_pesto_args)
 
     # ── Determinar caminho de saída do NZB ───────────────────────────────────
     # Se subject foi fornecido ou alterado (ofuscação), usamos ele para o NZB
@@ -1058,6 +1074,9 @@ def upload_to_usenet(
                     bar=bar,
                     upload_timeout=upload_timeout,
                     redundancy=redundancy,
+                    verify=verify_uploads,
+                    pesto_extra_args=pesto_extra_args,
+                    resume=resume,
                 )
                 if last_rc != 0:
                     print(

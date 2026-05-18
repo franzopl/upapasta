@@ -100,6 +100,7 @@ class UpaPastaOrchestrator:
         filepath_format: str = "common",
         parpar_extra_args: Optional[list[str]] = None,
         nyuu_extra_args: Optional[list[str]] = None,
+        pesto_extra_args: Optional[list[str]] = None,
         rename_extensionless: bool = False,
         nzb_subject_prefix: Optional[str] = None,
         resume: bool = False,
@@ -156,6 +157,7 @@ class UpaPastaOrchestrator:
         self.filepath_format = filepath_format
         self.parpar_extra_args = parpar_extra_args
         self.nyuu_extra_args = nyuu_extra_args
+        self.pesto_extra_args = pesto_extra_args
         self.rename_extensionless = rename_extensionless
         self.nzb_subject_prefix = nzb_subject_prefix
         self.resume = resume
@@ -254,6 +256,9 @@ class UpaPastaOrchestrator:
             ),
             nyuu_extra_args=(
                 shlex.split(args.nyuu_args) if getattr(args, "nyuu_args", None) else None
+            ),
+            pesto_extra_args=(
+                shlex.split(args.pesto_args) if getattr(args, "pesto_args", None) else None
             ),
             rename_extensionless=getattr(args, "rename_extensionless", False),
             resume=getattr(args, "resume", False),
@@ -950,6 +955,7 @@ class UpaPastaOrchestrator:
                 upload_retries=self.upload_retries,
                 password=self.rar_password,
                 nyuu_extra_args=self.nyuu_extra_args,
+                pesto_extra_args=self.pesto_extra_args,
                 folder_name=self.nzb_subject_prefix,
                 resume=self.resume,
                 bar=bar,

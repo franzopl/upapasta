@@ -414,6 +414,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     advanced.add_argument(
+        "--pesto-args",
+        default=None,
+        metavar=_("STR"),
+        help=_(
+            'Args extras repassados ao pesto, ex: --pesto-args "--rate=10M --verify". '
+            "Tokenizado via shlex."
+        ),
+    )
+    advanced.add_argument(
         "--rename-extensionless",
         action="store_true",
         help=_(

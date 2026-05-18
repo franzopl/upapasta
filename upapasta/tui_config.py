@@ -633,6 +633,7 @@ def _make_tab_avancado(env: dict[str, str]) -> FormPage:
     log_time = env.get("LOG_TIME", "true").lower() == "true"
     dump = env.get("DUMP_FAILED_POSTS", "")
     nyuu_extra = env.get("NYUU_EXTRA_ARGS", "")
+    pesto_extra = env.get("PESTO_EXTRA_ARGS", "")
     nfo_tmpl = env.get("NFO_TEMPLATE", "")
     external_nzb = env.get("EXTERNAL_NZB_DIR", "")
 
@@ -676,7 +677,7 @@ def _make_tab_avancado(env: dict[str, str]) -> FormPage:
                 field_width=36,
                 help_text="Diretórios separados por vírgula para buscar .nzb externos.",
             ),
-            SectionHeader("nyuu"),
+            SectionHeader("Uploader (nyuu/pesto)"),
             TextField(
                 "NYUU_EXTRA_ARGS",
                 "Args extras nyuu",
@@ -684,6 +685,14 @@ def _make_tab_avancado(env: dict[str, str]) -> FormPage:
                 placeholder="ex: --article-threads=8",
                 field_width=36,
                 help_text="Argumentos extras repassados ao nyuu via shlex. Use com cautela.",
+            ),
+            TextField(
+                "PESTO_EXTRA_ARGS",
+                "Args extras pesto",
+                default=pesto_extra,
+                placeholder="ex: --rate=10M --verify",
+                field_width=36,
+                help_text="Argumentos extras repassados ao pesto via shlex. Use com cautela.",
             ),
         ]
     )
