@@ -25,6 +25,7 @@ def test_upload_single_file_generates_nfo(monkeypatch, tmp_path):
 
     # Monkeypatch find_nyuu to avoid requiring nyuu on PATH
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
+    monkeypatch.setattr(upfolder, "find_pesto", lambda: None)
 
     from contextlib import contextmanager
 
@@ -103,6 +104,7 @@ def test_upload_single_file_generates_nfo_in_nzb_out_dir(monkeypatch, tmp_path):
     import upapasta.upfolder as upfolder
 
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
+    monkeypatch.setattr(upfolder, "find_pesto", lambda: None)
 
     from contextlib import contextmanager
 
@@ -158,6 +160,7 @@ def test_upload_single_file_non_dry_run_does_not_upload_nfo(monkeypatch, tmp_pat
     import upapasta.upfolder as upfolder
 
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
+    monkeypatch.setattr(upfolder, "find_pesto", lambda: None)
 
     # Capture the args passed to nyuu (the non-mediainfo call)
     captured = {}
@@ -218,6 +221,7 @@ def test_upload_to_usenet_basic(monkeypatch, tmp_path):
     import upapasta.upfolder as upfolder
 
     monkeypatch.setattr(upfolder, "find_nyuu", lambda: "/bin/true")
+    monkeypatch.setattr(upfolder, "find_pesto", lambda: None)
 
     class C:
         returncode = 0

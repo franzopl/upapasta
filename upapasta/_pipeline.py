@@ -323,6 +323,7 @@ class PipelineReporter:
         nfo_file: Optional[str],
         rar_file: Optional[str],
         elapsed: float,
+        skip_rar: bool = False,
     ) -> None:
         from .ui import format_time
 
@@ -353,7 +354,10 @@ class PipelineReporter:
         rar_display = os.path.basename(rar_file) if rar_file else None
         if stats["archive_size_mb"] > 0:
             name = rar_display or input_path.name
-            label = "7z" if name.lower().endswith((".7z", ".001")) else "RAR"
+            if skip_rar:
+                label = os.path.splitext(name)[1][1:].upper() or "FILE"
+            else:
+                label = "7z" if name.lower().endswith((".7z", ".001")) else "RAR"
             print(
                 _("  • {label}: {name} ({size:.2f} MB)").format(
                     label=label, name=name, size=stats["archive_size_mb"]

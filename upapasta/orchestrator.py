@@ -179,6 +179,8 @@ class UpaPastaOrchestrator:
         self.use_ramdisk = use_ramdisk
         self.ramdisk_path: Optional[str] = None
         self.check_indexer = check_indexer
+        self.pesto_par2 = False
+        self._manual_obf_needed = obfuscate
 
     @classmethod
     def from_args(
@@ -657,6 +659,9 @@ class UpaPastaOrchestrator:
             return False
 
     def run_makepar(self, bar: Optional[PhaseBar] = None) -> bool:
+        if self.pesto_par2:
+            return True
+
         if not self.input_target:
             if not bar:
                 print(_("Erro: caminho de entrada não definido."))
@@ -957,6 +962,8 @@ class UpaPastaOrchestrator:
                 check_port=self.check_port,
                 check_user=self.check_user,
                 check_password=self.check_password,
+                redundancy=self.redundancy or 0,
+                obfuscate=self.obfuscate,
             )
             return rc == 0
         except (FileNotFoundError, PermissionError, OSError) as e:
@@ -1210,6 +1217,33 @@ class UpaPastaOrchestrator:
         if not self.validate():
             return 1
 
+        from .upfolder import find_pesto
+
+        pesto_path = find_pesto()
+        use_pesto = pesto_path is not None and not self.skip_upload
+
+        # Se pesto for usado, ele cuida do PAR2 e OBF nativamente
+        if use_pesto:
+            if not self.skip_par:
+                logger.info(_("🛡️  Pesto detectado: geração de PAR2 será delegada ao uploader."))
+                self.skip_par = True
+                self.pesto_par2 = True
+                # Definimos redundancy padrão se for None
+                if self.redundancy is None:
+                    self.redundancy = 10
+
+            if self.obfuscate:
+                logger.info(
+                    _("🔐 Pesto detectado: ofuscação será delegada ao uploader (--obfuscate=full).")
+                )
+                # Mantemos self.obfuscate True para que seja passado ao upload_to_usenet,
+                # mas evitamos a etapa de ofuscação manual no disco.
+                self._manual_obf_needed = False
+            else:
+                self._manual_obf_needed = False
+        else:
+            self._manual_obf_needed = self.obfuscate
+
         res, rar_src, par_src = self._recalculate_resources()
         nntp_connections = int(
             self.env_vars.get("NNTP_CONNECTIONS") or os.environ.get("NNTP_CONNECTIONS", "10")
@@ -1319,7 +1353,7 @@ class UpaPastaOrchestrator:
                     return 2
 
             # ── OBFUSCATION ──────────────────────────────────────────────────────
-            if self.obfuscate and not self.dry_run:
+            if self._manual_obf_needed and not self.dry_run:
                 bar.start("OBF")
                 if not self.run_obfuscation(bar=bar):
                     bar.error("OBF")
@@ -1381,6 +1415,7 @@ class UpaPastaOrchestrator:
             self.nfo_file,
             self.rar_file,
             total_elapsed,
+            skip_rar=self.skip_rar,
         )
 
         PipelineReporter.record_catalog_and_hook(

@@ -62,7 +62,10 @@ npm install -g nyuu
 
 Confirm with: `nyuu --version`
 
-### parpar (mandatory for PAR2 — recommended)
+### parpar (legacy fallback for PAR2)
+
+Only needed if `pesto` is NOT available. UpaPasta recommends Pesto as it generates PAR2
+internally and much faster.
 
 ```bash
 # Cross-platform via npm

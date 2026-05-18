@@ -40,7 +40,7 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from queue import Queue
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from upapasta import nfo
 
@@ -272,11 +272,20 @@ def find_pesto() -> Optional[str]:
     return None
 
 
-def _parse_pesto_json_line(line: str) -> dict[str, object]:
-    """Tenta parsear uma linha JSON do pesto; retorna {} em caso de falha."""
+def _parse_pesto_json_line(line: str) -> dict[str, Any]:
+    """Tenta extrair e parsear um objeto JSON de uma linha que pode conter ANSI/lixo."""
+    line = line.strip()
+    if not line:
+        return {}
+    # Busca por algo que pareça um objeto JSON {...}
+    import re
+
+    match = re.search(r"(\{.*\})", line)
+    if not match:
+        return {}
     try:
-        obj = json.loads(line.strip())
-        return obj if isinstance(obj, dict) else {}
+        obj = json.loads(match.group(1))
+        return cast(dict[str, Any], obj) if isinstance(obj, dict) else {}
     except (json.JSONDecodeError, ValueError):
         return {}
 
@@ -294,6 +303,7 @@ def _run_pesto(
     obfuscated: bool = False,
     bar: Optional["PhaseBar"] = None,
     upload_timeout: Optional[int] = None,
+    redundancy: int = 0,
 ) -> int:
     """Executa pesto com --output-format json e parseia eventos de progresso.
 
@@ -318,8 +328,7 @@ def _run_pesto(
         "--article-size",
         str(_article_size_to_bytes(article_size)),
         "--par2",
-        "0",
-        "--no-nfo",
+        str(redundancy),
     ]
     if not srv.get("ssl"):
         cmd.append("--no-ssl")
@@ -337,8 +346,14 @@ def _run_pesto(
 
     last_update = 0.0
     throttle = 0.1
+    current_pct = 0.0
+
+    # Debug: log comando final se falhar
+    if os.environ.get("UPAPASTA_VERBOSE") == "1":
+        print(f"DEBUG: executando pesto: {' '.join(str(x) for x in cmd)}", file=sys.stderr)
 
     try:
+        captured_stderr: list[str] = []
         with managed_popen(
             cmd,
             cwd=working_dir,
@@ -347,24 +362,66 @@ def _run_pesto(
             text=True,
             bufsize=1,
         ) as proc:
+            # Thread para ler stderr sem bloquear
+            def _read_err(pipe: Any, lines: list[str]) -> None:
+                for line in pipe:
+                    lines.append(line)
+
+            err_thread = threading.Thread(target=_read_err, args=(proc.stderr, captured_stderr))
+            err_thread.start()
+
             assert proc.stdout is not None
             for raw_line in proc.stdout:
                 ev = _parse_pesto_json_line(raw_line)
                 ev_type = ev.get("type", "")
-                if ev_type == "segment_done" and bar:
-                    pct = float(ev.get("progress_pct", 0))  # type: ignore[arg-type]
+
+                if not ev_type and bar and not raw_line.strip().startswith("{"):
+                    # Se não for JSON, ignoramos mensagens puras de terminal do pesto
+                    pass
+
+                if ev_type == "started" and bar:
+                    total_mb = ev.get("total_bytes", 0) / (1024 * 1024)
+                    bar.update_progress(
+                        current_pct, _("Iniciando upload ({size:.1f} MB)...").format(size=total_mb)
+                    )
+                elif ev_type == "segment_done" and bar:
+                    current_pct = float(ev.get("progress_pct", current_pct))
+                    if os.environ.get("UPAPASTA_PORCELAIN") == "1":
+                        sys.stdout.write(f"@@PROGRESS:{current_pct:.1f}@@\n")
+                        speed = ev.get("speed_human", "")
+                        eta = ev.get("eta_human", "")
+                        if speed:
+                            sys.stdout.write(f"@@SPEED:{speed}@@\n")
+                        if eta:
+                            sys.stdout.write(f"@@ETA:{eta}@@\n")
+                        sys.stdout.flush()
+
                     now = _time.time()
-                    if now - last_update >= throttle or pct >= 100:
-                        bar.update_progress(pct, "uploading")
+                    if now - last_update >= throttle or current_pct >= 100:
+                        bar.update_progress(current_pct, _("Enviando..."))
                         last_update = now
                 elif ev_type == "status" and bar:
                     text = str(ev.get("text", ""))
                     if text:
-                        bar.update_progress(0, text)
+                        bar.update_progress(current_pct, text)
+                elif ev_type == "finished" and bar:
+                    current_pct = 100.0
+                    if os.environ.get("UPAPASTA_PORCELAIN") == "1":
+                        sys.stdout.write("@@PROGRESS:100.0@@\n")
+                        sys.stdout.flush()
+                    bar.update_progress(100, _("Upload concluído."))
                 elif ev_type == "failed":
                     desc = ev.get("description", "")
                     print(_("Erro: {desc}").format(desc=desc), file=sys.stderr)
+
             rc = proc.wait()
+            err_thread.join()
+
+            if rc != 0 and captured_stderr:
+                print(_("\n--- Log de erro (stderr) do Pesto ---"), file=sys.stderr)
+                for line in captured_stderr:
+                    print(f"  {line.strip()}", file=sys.stderr)
+                print("--------------------------------------\n", file=sys.stderr)
     except FileNotFoundError:
         print(_("\nErro: pesto não encontrado em '{path}'.").format(path=pesto_path))
         return 4
@@ -521,14 +578,11 @@ def upload_to_usenet(
     check_port: Optional[int] = None,
     check_user: Optional[str] = None,
     check_password: Optional[str] = None,
+    redundancy: int = 0,
+    obfuscate: bool = False,
 ) -> int:
     """
-    Upload de arquivos para Usenet usando nyuu.
-
-    Para pastas (skip_rar=True ou entrada é diretório), o nyuu é invocado com
-    cwd=input_path e caminhos de arquivo relativos, evitando completamente a cópia
-    dos dados para /tmp. Os arquivos PAR2 ficam no diretório pai e são passados
-    com caminhos absolutos (nyuu aceita mistura de relativos e absolutos).
+    Upload de arquivos para Usenet usando nyuu ou pesto.
     """
 
     input_path = os.path.abspath(input_path)
@@ -537,6 +591,16 @@ def upload_to_usenet(
     if not os.path.exists(input_path):
         print(_("Erro: '{path}' não existe.").format(path=input_path))
         return 1
+
+    # Resolve ferramenta de posting: pesto tem prioridade sobre nyuu.
+    if pesto_path:
+        if not os.path.exists(pesto_path):
+            print(_("Erro: pesto não encontrado em '{path}'").format(path=pesto_path))
+            return 4
+    else:
+        pesto_path = find_pesto()
+
+    use_pesto = pesto_path is not None
 
     is_folder = os.path.isdir(input_path)
     if not is_folder and not os.path.isfile(input_path):
@@ -601,7 +665,7 @@ def upload_to_usenet(
         # Convertemos para basename pois o working_dir é o mesmo diretório
         par2_files = [os.path.basename(f) for f in par2_files]
 
-    if not par2_files:
+    if not (use_pesto and redundancy > 0) and not par2_files:
         print(
             _("Erro: nenhum arquivo de paridade encontrado para '{path}'.").format(path=input_path)
         )
@@ -610,7 +674,8 @@ def upload_to_usenet(
 
     if obfuscated_map:
         random.shuffle(files_to_upload)
-        random.shuffle(par2_files)
+        if par2_files:
+            random.shuffle(par2_files)
 
     # Carrega servidores NNTP (primário + opcionais failover)
     servers = _build_server_list(env_vars)
@@ -696,16 +761,6 @@ def upload_to_usenet(
                 count=len(servers)
             )
         )
-
-    # Resolve ferramenta de posting: pesto tem prioridade sobre nyuu.
-    if pesto_path:
-        if not os.path.exists(pesto_path):
-            print(_("Erro: pesto não encontrado em '{path}'").format(path=pesto_path))
-            return 4
-    else:
-        pesto_path = find_pesto()
-
-    use_pesto = pesto_path is not None
 
     if not use_pesto:
         # Encontra nyuu (fallback)
@@ -863,44 +918,77 @@ def upload_to_usenet(
     # ── dry-run: monta cmd com servidor primário e imprime ────────────────────
     if dry_run:
         srv = servers[0]
-        cmd_dry = [
-            nyuu_path,
-            "--progress",
-            "stderrx",
-            "-h",
-            srv["host"],
-            "-P",
-            str(srv["port"]),
-            *(["-S"] if srv.get("ssl") else []),
-            *(["-i"] if srv.get("ignore_cert") else []),
-            "-u",
-            srv["user"],
-            "-p",
-            srv["password"],
-            "-n",
-            str(srv["connections"]),
-            "-g",
-            usenet_group,
-            "-a",
-            article_size,
-            "-f",
-            generate_anonymous_uploader(),
-            "--date",
-            "now",
-            "-t",
-            subject,
-        ]
-        if nzb_out_abs:
-            cmd_dry.extend(["-o", nzb_out_abs])
-        if nzb_overwrite:
-            cmd_dry.append("-O")
-        if upload_timeout is not None:
-            cmd_dry.extend(["--timeout", str(upload_timeout)])
-        if nyuu_extra_args:
-            cmd_dry.extend(nyuu_extra_args)
-        cmd_dry.extend(remaining_files)
-        cmd_dry.extend(remaining_par2)
-        print(_("Comando nyuu (dry-run):"))
+        if use_pesto:
+            all_post_files = list(remaining_files) + list(remaining_par2)
+            cmd_dry = [
+                pesto_path,
+                "--host",
+                str(srv["host"]),
+                "--port",
+                str(srv["port"]),
+                "--username",
+                str(srv["user"]),
+                "--auth-password",
+                str(srv["password"]),
+                "--connections",
+                str(srv["connections"]),
+                "--groups",
+                usenet_group or "",
+                "--article-size",
+                str(_article_size_to_bytes(article_size)),
+                "--par2",
+                str(redundancy),
+            ]
+            if not srv.get("ssl"):
+                cmd_dry.append("--no-ssl")
+            if obfuscated_map or obfuscate:
+                cmd_dry.extend(["--obfuscate=full"])
+            if nzb_target:
+                cmd_dry.extend(["--out", nzb_target])
+                if subject:
+                    cmd_dry.extend(["--nzb-name", subject])
+            cmd_dry.extend(all_post_files)
+            print(_("Comando pesto (dry-run):"))
+        else:
+            cmd_dry = [
+                nyuu_path,
+                "--progress",
+                "stderrx",
+                "-h",
+                str(srv["host"]),
+                "-P",
+                str(srv["port"]),
+                *(["-S"] if srv.get("ssl") else []),
+                *(["-i"] if srv.get("ignore_cert") else []),
+                "-u",
+                str(srv["user"]),
+                "-p",
+                str(srv["password"]),
+                "-n",
+                str(srv["connections"]),
+                "-g",
+                usenet_group,
+                "-a",
+                article_size,
+                "-f",
+                generate_anonymous_uploader(),
+                "--date",
+                "now",
+                "-t",
+                subject,
+            ]
+            if nzb_out_abs:
+                cmd_dry.extend(["-o", nzb_out_abs])
+            if nzb_overwrite:
+                cmd_dry.append("-O")
+            if upload_timeout is not None:
+                cmd_dry.extend(["--timeout", str(upload_timeout)])
+            if nyuu_extra_args:
+                cmd_dry.extend(nyuu_extra_args)
+            cmd_dry.extend(remaining_files)
+            cmd_dry.extend(remaining_par2)
+            print(_("Comando nyuu (dry-run):"))
+
         print(" ".join(str(x) for x in cmd_dry))
         return 0
 
@@ -966,9 +1054,10 @@ def upload_to_usenet(
                     files=all_post_files,
                     working_dir=working_dir,
                     dry_run=dry_run,
-                    obfuscated=bool(obfuscated_map),
+                    obfuscated=bool(obfuscated_map) or obfuscate,
                     bar=bar,
                     upload_timeout=upload_timeout,
+                    redundancy=redundancy,
                 )
                 if last_rc != 0:
                     print(

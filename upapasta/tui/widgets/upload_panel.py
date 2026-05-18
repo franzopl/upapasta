@@ -463,16 +463,19 @@ class UploadPanel(Vertical):
         return True
 
     def _detect_phase(self, line: str) -> None:
-        if line.startswith("@@NZB:"):
-            nzb_path = line[len("@@NZB:") :].strip()
-            if nzb_path:
-                self._last_nzb = nzb_path
-                self.post_message(self.NzbGenerated(nzb_path))
+        if "@@NZB:" in line:
+            try:
+                nzb_path = line.split("@@NZB:")[1].split("@@")[0].strip()
+                if nzb_path:
+                    self._last_nzb = nzb_path
+                    self.post_message(self.NzbGenerated(nzb_path))
+            except IndexError:
+                pass
             return
 
-        if line.startswith("@@PHASE:"):
+        if "@@PHASE:" in line:
             try:
-                phase_code = line.split("@@")[1].split(":")[1]
+                phase_code = line.split("@@PHASE:")[1].split("@@")[0].strip()
                 display_name = _PHASE_MAP.get(phase_code, phase_code)
                 self.post_message(self._Phase(display_name))
             except IndexError:
@@ -484,6 +487,14 @@ class UploadPanel(Vertical):
             self.post_message(self._Phase("Limpeza"))
 
     def _detect_progress(self, line: str) -> None:
+        if "@@PROGRESS:" in line:
+            try:
+                pct_str = line.split("@@PROGRESS:")[1].split("@@")[0].strip()
+                self.post_message(self._Progress(min(100.0, float(pct_str))))
+            except (IndexError, ValueError):
+                pass
+            return
+
         if "margem" in line.lower() or "ramdisk" in line.lower():
             return
         m = _PCT_RE.search(line)
@@ -491,6 +502,21 @@ class UploadPanel(Vertical):
             self.post_message(self._Progress(min(100.0, float(m.group(1)))))
 
     def _detect_speed_eta(self, line: str) -> None:
+        if "@@SPEED:" in line:
+            try:
+                self._current_speed = line.split("@@SPEED:")[1].split("@@")[0].strip()
+                self.post_message(self._SpeedETA(self._current_speed, self._current_eta))
+            except IndexError:
+                pass
+            return
+        if "@@ETA:" in line:
+            try:
+                self._current_eta = line.split("@@ETA:")[1].split("@@")[0].strip()
+                self.post_message(self._SpeedETA(self._current_speed, self._current_eta))
+            except IndexError:
+                pass
+            return
+
         m_speed = _SPEED_RE.search(line)
         m_eta = _ETA_RE.search(line)
         if m_speed or m_eta:
