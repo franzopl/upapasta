@@ -4,6 +4,17 @@ Versão em inglês disponível em [CHANGELOG.md](../../CHANGELOG.md).
 
 Todas as mudanças notáveis para este projeto serão documentadas neste arquivo.
 
+## 0.37.0 - 2026-05-18
+
+### Funcionalidades
+- **Integração com Pesto**: O Pesto (poster em Go) agora tem prioridade sobre o nyuu se for encontrado no PATH.
+- **Delegação nativa de PAR2/Ofuscação**: Ao usar o Pesto, a geração de PAR2 e a ofuscação são delegadas ao uploader para melhor performance e simplicidade.
+- **TUI — Suporte a progresso porcelain**: Suporte aos marcadores `@@PROGRESS`, `@@SPEED` e `@@ETA` para um rastreamento de progresso mais preciso e responsivo na TUI.
+- **Melhoria no relatório de erros**: Captura do stderr do Pesto para melhor depuração de uploads que falham.
+
+### Correções
+- **TUI — Rastreamento de progresso**: Correção no parsing de marcadores de progresso quando há sequências de escape ANSI presentes.
+
 ## 0.36.1 - 2026-05-16
 
 ### Documentação

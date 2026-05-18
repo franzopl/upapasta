@@ -19,7 +19,7 @@
 
 **UpaPasta** é uma ferramenta CLI Python que automatiza o pipeline completo de upload para Usenet com o mínimo de configuração possível.
 
-Versão atual: **0.36.1** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
+Versão atual: **0.37.0** (pyproject.toml). Filosofia: menos flags, mais autonomia. Defaults inteligentes, wizard de primeira execução, **stdlib-only** (zero dependências Python externas além de stdlib + binários do sistema).
 
 Pipeline padrão executado por `UpaPastaOrchestrator.run()`:
 
@@ -101,10 +101,11 @@ Diretório: `upapasta/` — 30 módulos no nível raiz (~11.6k linhas) + subpaco
 7. **Stdlib-only**: zero dependências Python (nem `requests`, nem `dotenv`, nem `pyyaml`). Apenas binários externos (`rar`, `nyuu`, `parpar`/`par2`, `mediainfo`, `ffprobe`).
 8. **Type hints**: usar `from __future__ import annotations` em todos os módulos para compatibilidade Python 3.9+.
 
-## 5. Estado da Versão (0.36.1 — 2026-05-16)
+## 5. Estado da Versão (0.37.0 — 2026-05-18)
 
 ### Histórico recente (últimas releases relevantes)
 
+- **0.37.0** — Integração com Pesto (poster Go); delegação nativa de PAR2/ofuscação; suporte a progressão porcelain (@@PROGRESS, @@SPEED, @@ETA) na TUI.
 - **0.36.1** — Sincronização do CLAUDE.md; `.gitguardian.yaml` ignorando `tests/**` no scan de segredos.
 - **0.36.0** — Busca em indexadores Newznab: CLI `--search-indexer`; busca na TUI por seleção (`x` busca itens marcados com espaço, pastas varridas recursivamente só nos pendentes); download automático do `.nzb` para `EXTERNAL_NZB_DIR` com marcação externa (🌐) persistente; ícones de status duplos (próprio ✅ + externo 🌐) e cadeado 🔒 por origem; `NewznabClient.search(normalize=False)` para busca literal; nova var `EXTERNAL_NZB_DIR`.
 - **0.35.0** — TUI: modal de upload avançado (paridade com a CLI); robustez da Fase 6 (`managed_popen` no upload, contagem recursiva de pendentes no dashboard).

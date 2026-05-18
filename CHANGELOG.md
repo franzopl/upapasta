@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-Portuguese version available at [docs/pt-BR/CHANGELOG.md](docs/pt-BR/CHANGELOG.md).
+Portuguese version available at [docs/pt-BR/INSTALL.md](docs/pt-BR/INSTALL.md).
+
+## 0.37.0 - 2026-05-18
+
+### Features
+- **Pesto integration**: Pesto (Go-based poster) is now preferred over nyuu if found in PATH.
+- **Native PAR2/Obfuscation delegation**: When using Pesto, PAR2 generation and obfuscation are delegated to the uploader for better performance and simplicity.
+- **TUI — Porcelain progress support**: Support for `@@PROGRESS`, `@@SPEED`, and `@@ETA` markers for more accurate and responsive progress tracking in the TUI.
+- **Improved error reporting**: Captured Pesto stderr for better debugging of failed uploads.
+
+### Fixes
+- **TUI — Progress tracking**: Fixed issue with parsing progress markers when ANSI escape codes are present.
 
 ## 0.36.1 - 2026-05-16
 
