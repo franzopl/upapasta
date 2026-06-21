@@ -41,6 +41,7 @@ import shutil
 import string
 import subprocess
 import sys
+import tempfile
 import threading
 from queue import Queue
 from typing import TYPE_CHECKING, Optional, Tuple
@@ -798,7 +799,26 @@ def make_parity(
         print(" ".join(str(x) for x in cmd))
         return 0
 
+    # Arquivo temporário de lista de inputs (usado quando há muitos arquivos para evitar E2BIG)
+    _filelist_path: str | None = None
+
     try:
+        # Com muitos arquivos a linha de comando pode ultrapassar ARG_MAX do kernel.
+        # parpar suporta --file-list=FILE; usamos quando há risco de E2BIG.
+        if chosen == "parpar" and len(files_to_process) > 500:
+            # Só aplicável quando os arquivos foram adicionados diretamente (sem --input-name)
+            # Identifica os arquivos no cmd (tudo após "-o <out>") e substitui por --file-list
+            out_idx = cmd.index("-o")
+            prefix = cmd[: out_idx + 2]  # [..., "-o", out_par2]
+            tail = cmd[out_idx + 2 :]
+            # tail pode conter --input-name triplets ou paths diretos
+            has_input_name = "--input-name" in tail
+            if not has_input_name:
+                fd, _filelist_path = tempfile.mkstemp(suffix=".txt", prefix="upapasta_parpar_")
+                with os.fdopen(fd, "w") as fh:
+                    fh.write("\n".join(tail))
+                cmd = prefix + ["--file-list", _filelist_path]
+
         # managed_popen garante SIGTERM → SIGKILL no filho se receber Ctrl+C
         captured_output: list[str] = []
         with managed_popen(
@@ -840,6 +860,9 @@ def make_parity(
     except OSError as e:
         print(f"Erro de I/O ao executar '{chosen}': {e}")
         return 5
+    finally:
+        if _filelist_path and os.path.exists(_filelist_path):
+            os.unlink(_filelist_path)
 
 
 def handle_par_failure(

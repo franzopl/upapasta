@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 Portuguese version available at [docs/pt-BR/INSTALL.md](docs/pt-BR/INSTALL.md).
 
+## 0.37.1 - 2026-06-21
+
+### Fixes
+- **PAR2 — E2BIG with large folders**: Fixed `[Errno 7] Argument list too long` error when generating PAR2 for folders with 500+ files. parpar is now invoked with `--file-list` instead of passing all paths as CLI arguments, which would exceed the kernel's `ARG_MAX` limit.
+
 ## 0.37.0 - 2026-05-18
 
 ### Features
